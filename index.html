@@ -98,6 +98,8 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 .list-item .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .list-item .actions{display:flex;gap:6px;flex-shrink:0;}
 .empty{color:#8A7461;font-size:13.5px;padding:24px 0;text-align:center;}
+.hint{background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.22);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#DBC9A8;margin-bottom:16px;line-height:1.5;}
+.hint b{color:var(--ouro-luz);}
 
 .modal-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;
@@ -212,23 +214,26 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
       <div class="tabs">
         <div class="tab on" data-tab="escolas" onclick="setAdminTab('escolas')">Escolas</div>
         <div class="tab" data-tab="alunos" onclick="setAdminTab('alunos')">Alunos</div>
-        <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos</div>
+        <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos &amp; Fotos</div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
       </div>
 
       <div class="admin-tab on" id="admintab-escolas">
         <div class="section-h"><h2>Escolas de dança</h2><button class="btn btn-primary btn-sm" onclick="abrirModal('modal-escola')">+ Nova escola</button></div>
+        <div class="hint">1º passo — cadastre a escola. Depois vá em <b>Alunos</b> pra cadastrar os bailarinos dela (ou avulsos, sem escola).</div>
         <div class="list" id="lista-escolas"></div>
       </div>
 
       <div class="admin-tab" id="admintab-alunos" style="display:none;">
         <div class="section-h"><h2>Alunos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalAluno()">+ Novo aluno</button></div>
+        <div class="hint">2º passo — cadastre os alunos. Depois vá em <b>Eventos &amp; Fotos</b> pra criar o evento e subir as fotos deles.</div>
         <div class="list" id="lista-alunos"></div>
       </div>
 
       <div class="admin-tab" id="admintab-eventos" style="display:none;">
         <div id="eventos-lista-wrap">
-          <div class="section-h"><h2>Eventos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEvento()">+ Novo evento</button></div>
+          <div class="section-h"><h2>Eventos &amp; Fotos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEvento()">+ Novo evento</button></div>
+          <div class="hint">3º passo — crie um evento (o ensaio, recital ou espetáculo) e clique nele pra subir as fotos e marcar quais alunos aparecem em cada uma. É isso que aparece pras escolas/responsáveis.</div>
           <div class="list" id="lista-eventos"></div>
         </div>
         <div id="evento-detalhe-wrap" style="display:none;"></div>
@@ -594,6 +599,7 @@ async function abrirEventoAdmin(eventoId) {
       <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEvento(this.files)">
     </div>
     <div id="evt-upload-status"></div>
+    <div class="hint">Depois que a foto aparecer aqui embaixo, passe o mouse por cima e marque quais alunos aparecem nela — é assim que cada aluno/escola só vê as fotos dele.</div>
     <div class="foto-grid" id="evt-fotos-grid"></div>
   `
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
