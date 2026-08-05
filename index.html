@@ -124,10 +124,45 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
   padding:6px 8px;font-size:10.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;
 }
 .foto-item:hover .tagbar{opacity:1;}
+.foto-expand{
+  position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:5px;background:rgba(26,10,14,.7);
+  border:1px solid rgba(200,175,127,.5);color:var(--ouro-luz);display:grid;place-items:center;opacity:0;
+  transition:opacity .2s,background .2s,color .2s;cursor:pointer;padding:0;z-index:2;
+}
+.foto-expand svg{width:13px;height:13px;}
+.foto-item:hover .foto-expand{opacity:1;}
+.foto-expand:hover{background:var(--ouro);color:var(--tinta);}
 .foto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap;}
 .chip{font-size:12px;padding:.4em 1em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;cursor:pointer;}
 .chip.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
+
+.galeria-secao{margin-bottom:34px;}
+.galeria-secao-titulo{font-size:18px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(200,175,127,.16);}
+
+.lightbox{
+  display:none;position:fixed;inset:0;background:rgba(10,3,5,.95);z-index:300;
+  align-items:center;justify-content:center;flex-direction:column;padding:40px 20px;
+}
+.lightbox.show{display:flex;}
+.lightbox-img-wrap{max-width:90vw;max-height:78vh;display:flex;align-items:center;justify-content:center;}
+.lightbox-img-wrap img{max-width:90vw;max-height:78vh;object-fit:contain;border:1px solid rgba(200,175,127,.4);border-radius:4px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.lightbox-close{
+  position:absolute;top:22px;right:26px;width:38px;height:38px;border-radius:50%;background:rgba(75,4,22,.6);
+  border:1px solid var(--ouro);color:var(--ouro-luz);font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer;
+}
+.lightbox-close:hover{background:var(--ouro);color:var(--tinta);}
+.lightbox-nav{
+  position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;
+  background:rgba(75,4,22,.55);border:1px solid rgba(200,175,127,.4);color:var(--ouro-luz);font-size:22px;
+  display:grid;place-items:center;cursor:pointer;transition:all .2s;
+}
+.lightbox-nav:hover{background:var(--ouro);color:var(--tinta);border-color:var(--ouro);}
+.lightbox-nav.prev{left:16px;}
+.lightbox-nav.next{right:16px;}
+.lightbox-foot{display:flex;align-items:center;gap:10px;margin-top:18px;color:var(--ouro-fundo);font-size:12.5px;letter-spacing:.03em;}
+.lightbox-foot img{width:16px;opacity:.7;}
+@media(max-width:640px){.lightbox-nav{width:36px;height:36px;font-size:18px;}.lightbox-nav.prev{left:6px;}.lightbox-nav.next{right:6px;}}
 
 .upload-drop{
   border:1.5px dashed rgba(200,175,127,.35);border-radius:8px;padding:26px;text-align:center;color:#B39F86;
@@ -201,21 +236,39 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 
       <div class="admin-tab" id="admintab-acesso" style="display:none;">
         <div class="section-h"><h2>Criar acesso</h2></div>
-        <div class="card" style="max-width:460px;">
+        <div class="card" style="max-width:460px;margin-bottom:20px;">
           <div class="field">
             <label>Tipo de conta</label>
             <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
               <option value="escola">Escola de dança</option>
-              <option value="aluno">Aluno avulso</option>
+              <option value="responsavel">Responsável (pai/mãe)</option>
             </select>
           </div>
-          <div class="field">
-            <label id="acesso-alvo-label">Qual escola?</label>
+          <div class="field" id="acesso-alvo-escola-wrap">
+            <label>Qual escola?</label>
             <select id="acesso-alvo"></select>
+          </div>
+          <div class="field" id="acesso-alvo-filhos-wrap" style="display:none;">
+            <label>Filho(s) deste responsável</label>
+            <div class="tag-picker" id="acesso-filhos-lista"></div>
           </div>
           <div class="field"><label>E-mail de acesso</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
           <button class="btn btn-primary" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
           <div class="credencial-box" id="acesso-resultado"></div>
+        </div>
+
+        <div class="card" style="max-width:460px;">
+          <h3 style="font-size:16px;margin-bottom:14px;">Vincular filho a responsável já existente</h3>
+          <div class="meta" style="margin-bottom:14px;">Use isso quando uma família já tem login e precisa adicionar outro filho (matriculou, nasceu, etc.) — sem criar um segundo acesso.</div>
+          <div class="field">
+            <label>Responsável</label>
+            <select id="vinc-responsavel"></select>
+          </div>
+          <div class="field">
+            <label>Aluno</label>
+            <select id="vinc-aluno"></select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="vincularFilho()">Vincular</button>
         </div>
       </div>
     </section>
@@ -229,10 +282,10 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
       <div id="escola-evento-detalhe" style="display:none;"></div>
     </section>
 
-    <!-- ══════ VIEW ALUNO ══════ -->
-    <section class="view" id="view-aluno">
-      <div class="section-h"><h2>Suas fotos</h2></div>
-      <div id="aluno-galeria"></div>
+    <!-- ══════ VIEW RESPONSÁVEL ══════ -->
+    <section class="view" id="view-responsavel">
+      <div class="section-h"><h2>Fotos dos seus filhos</h2></div>
+      <div id="responsavel-galeria"></div>
     </section>
 
   </main>
@@ -284,6 +337,18 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- visualizador de foto ampliada -->
+<div class="lightbox" id="lightbox" onclick="if(event.target===this)fecharLightbox()">
+  <button class="lightbox-close" onclick="fecharLightbox()" aria-label="Fechar">×</button>
+  <button class="lightbox-nav prev" onclick="lightboxNav(-1)" aria-label="Anterior">‹</button>
+  <button class="lightbox-nav next" onclick="lightboxNav(1)" aria-label="Próxima">›</button>
+  <div class="lightbox-img-wrap"><img id="lightbox-img" src="" alt=""></div>
+  <div class="lightbox-foot">
+    <img src="assets/logo-icone.png" alt="">
+    <span id="lightbox-caption"></span>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -306,7 +371,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], responsaveis: [] }
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -358,16 +423,17 @@ async function mostrarApp(user) {
   meuPerfil = data
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'flex'
-  document.getElementById('topbar-role').textContent = { admin: 'Admin', escola: 'Escola', aluno: 'Aluno' }[data.role] || data.role
+  document.getElementById('topbar-role').textContent = { admin: 'Admin', escola: 'Escola', responsavel: 'Responsável' }[data.role] || data.role
   document.getElementById('topbar-nome').textContent = data.nome || user.email
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
-  document.getElementById('view-aluno').classList.remove('on')
+  document.getElementById('view-responsavel').classList.remove('on')
 
   if (data.role === 'admin') { document.getElementById('view-admin').classList.add('on'); await iniciarViewAdmin() }
   else if (data.role === 'escola') { document.getElementById('view-escola').classList.add('on'); await iniciarViewEscola() }
-  else { document.getElementById('view-aluno').classList.add('on'); await iniciarViewAluno() }
+  else if (data.role === 'responsavel') { document.getElementById('view-responsavel').classList.add('on'); await iniciarViewResponsavel() }
+  else { toast('Papel de acesso desconhecido: ' + data.role + ' — fale com a Grand Focus.'); await db.auth.signOut() }
 }
 
 async function fazerLogin() {
@@ -389,9 +455,16 @@ async function fazerLogout() { await db.auth.signOut() }
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewAdmin() {
-  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos()])
+  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis()])
   renderEscolas(); renderAlunos(); renderEventos()
   atualizarAcessoAlvo()
+  popularVinculoSelects()
+}
+
+async function carregarResponsaveis() {
+  const { data, error } = await db.from('perfis').select('*').eq('role', 'responsavel').order('nome')
+  if (error) { toast('Erro ao carregar responsáveis: ' + error.message); return }
+  store.responsaveis = data || []
 }
 
 function setAdminTab(tab) {
@@ -563,6 +636,49 @@ async function _urlAssinada(path) {
   return data?.signedUrl || null
 }
 
+// ── visualizador de foto ampliada (identidade Grand Focus, não o
+// visualizador padrão do navegador/Windows) — navega dentro do
+// conjunto de fotos atualmente visível na tela (_lightboxFotos é
+// atualizado por quem renderiza cada grade: renderFotosGrid,
+// renderGaleriaAgrupada, renderFotosEventoAdmin) ──────────────────
+let _lightboxFotos = []
+let _lightboxIdx = -1
+
+function abrirLightbox(fotoId) {
+  const idx = _lightboxFotos.findIndex(f => f.id === fotoId)
+  if (idx === -1) return
+  _lightboxIdx = idx
+  renderLightboxAtual()
+  document.getElementById('lightbox').classList.add('show')
+}
+function fecharLightbox() {
+  document.getElementById('lightbox').classList.remove('show')
+  document.getElementById('lightbox-img').src = ''
+}
+function lightboxNav(delta) {
+  if (!_lightboxFotos.length) return
+  _lightboxIdx = (_lightboxIdx + delta + _lightboxFotos.length) % _lightboxFotos.length
+  renderLightboxAtual()
+}
+async function renderLightboxAtual() {
+  const f = _lightboxFotos[_lightboxIdx]
+  if (!f) return
+  const img = document.getElementById('lightbox-img')
+  img.src = ''
+  const url = await _urlAssinada(f.storage_path)
+  if (url) img.src = url
+  const evento = store.eventos.find(e => e.id === f.evento_id)
+  document.getElementById('lightbox-caption').textContent =
+    `${evento ? evento.nome : ''} — ${_lightboxIdx + 1} de ${_lightboxFotos.length}`
+}
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('lightbox')
+  if (!lb || !lb.classList.contains('show')) return
+  if (e.key === 'Escape') fecharLightbox()
+  else if (e.key === 'ArrowRight') lightboxNav(1)
+  else if (e.key === 'ArrowLeft') lightboxNav(-1)
+})
+
 async function renderFotosEventoAdmin() {
   const grid = document.getElementById('evt-fotos-grid')
   const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
@@ -570,9 +686,13 @@ async function renderFotosEventoAdmin() {
   const alunosDisponiveis = _eventoAtual.escola_id
     ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
     : store.alunos.filter(a => !a.escola_id)
+  _lightboxFotos = fotos
   grid.innerHTML = fotos.map(f => `
     <div class="foto-item" id="fitem-${f.id}">
       <img data-path="${esc(f.storage_path)}" alt="">
+      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
       <div class="tagbar">
         <div class="tag-picker">
           ${alunosDisponiveis.map(a => `<span class="tag-opt${(store.fotoAluno.find(x => x.foto_id === f.id && x.aluno_id === a.id)) ? ' on' : ''}" onclick="event.stopPropagation();toggleTagAluno('${f.id}','${a.id}',this)">${esc(a.nome)}</span>`).join('') || '<span style="opacity:.6">nenhum aluno cadastrado pra essa escola ainda</span>'}
@@ -603,39 +723,70 @@ async function toggleTagAluno(fotoId, alunoId, chipEl) {
 }
 
 // ── criar acesso (escola / aluno) ─────────────────────────────────
+let _acessoFilhosSel = new Set()
+
 function atualizarAcessoAlvo() {
   const tipo = document.getElementById('acesso-tipo').value
-  const label = document.getElementById('acesso-alvo-label')
-  const sel = document.getElementById('acesso-alvo')
+  document.getElementById('acesso-alvo-escola-wrap').style.display = tipo === 'escola' ? 'block' : 'none'
+  document.getElementById('acesso-alvo-filhos-wrap').style.display = tipo === 'responsavel' ? 'block' : 'none'
   if (tipo === 'escola') {
-    label.textContent = 'Qual escola?'
+    const sel = document.getElementById('acesso-alvo')
     sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') || '<option value="">Cadastre uma escola primeiro</option>'
   } else {
-    label.textContent = 'Qual aluno avulso?'
-    const avulsos = store.alunos.filter(a => !a.escola_id)
-    sel.innerHTML = avulsos.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('') || '<option value="">Cadastre um aluno avulso primeiro</option>'
+    _acessoFilhosSel = new Set()
+    renderAcessoFilhosLista()
   }
+}
+
+function renderAcessoFilhosLista() {
+  const el = document.getElementById('acesso-filhos-lista')
+  if (!store.alunos.length) { el.innerHTML = '<span style="opacity:.6;font-size:12px;">Cadastre um aluno primeiro</span>'; return }
+  el.innerHTML = store.alunos.map(a => `
+    <span class="tag-opt${_acessoFilhosSel.has(a.id) ? ' on' : ''}" onclick="toggleAcessoFilho('${a.id}',this)">
+      ${esc(a.nome)}${a.escola_id ? ' · ' + esc(nomeEscola(a.escola_id)) : ' · avulso'}
+    </span>
+  `).join('')
+}
+function toggleAcessoFilho(id, el) {
+  if (_acessoFilhosSel.has(id)) _acessoFilhosSel.delete(id)
+  else _acessoFilhosSel.add(id)
+  el.classList.toggle('on')
 }
 
 async function criarAcesso() {
   const tipo = document.getElementById('acesso-tipo').value
-  const alvoId = document.getElementById('acesso-alvo').value
   const email = document.getElementById('acesso-email').value.trim()
-  if (!alvoId) { toast('Cadastre e selecione ' + (tipo === 'escola' ? 'uma escola' : 'um aluno avulso') + ' primeiro'); return }
   if (!email) { toast('Informe o e-mail de acesso'); return }
+
+  let alvoId = null, nomeAlvo = '', filhoIds = []
+  if (tipo === 'escola') {
+    alvoId = document.getElementById('acesso-alvo').value
+    if (!alvoId) { toast('Cadastre e selecione uma escola primeiro'); return }
+    nomeAlvo = nomeEscola(alvoId)
+  } else {
+    filhoIds = [..._acessoFilhosSel]
+    if (!filhoIds.length) { toast('Selecione pelo menos um filho'); return }
+    nomeAlvo = filhoIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean).join(' e ')
+  }
+
   const senha = gerarSenha()
   const adminId = currentUser.id
   const btn = document.getElementById('acesso-btn')
   btn.disabled = true; btn.textContent = 'Gerando…'
 
-  const nomeAlvo = tipo === 'escola' ? nomeEscola(alvoId) : (store.alunos.find(a => a.id === alvoId)?.nome || '')
   const { data: suData, error: suErr } = await db.auth.signUp({ email, password: senha, options: { data: { full_name: nomeAlvo } } })
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
 
   const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo }
   if (tipo === 'escola') perfilPayload.escola_id = alvoId
-  else perfilPayload.aluno_id = alvoId
   const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
+
+  let vinculoErr = null
+  if (!perfilErr && tipo === 'responsavel') {
+    const rows = filhoIds.map(aluno_id => ({ user_id: suData.user.id, aluno_id }))
+    const { error } = await db.from('responsavel_alunos').insert(rows)
+    vinculoErr = error
+  }
 
   // signUp pode ter trocado a sessão ativa pro usuário novo (se a
   // confirmação de e-mail estiver desligada no projeto) — nesse caso,
@@ -646,10 +797,17 @@ async function criarAcesso() {
 
   btn.disabled = false; btn.textContent = 'Gerar acesso'
   if (perfilErr) { toast('Conta criada, mas o perfil falhou: ' + perfilErr.message); return }
+  if (vinculoErr) { toast('Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho a responsável já existente" pra corrigir.'); return }
 
   document.getElementById('acesso-resultado').style.display = 'block'
   document.getElementById('acesso-resultado').textContent = `E-mail: ${email}\nSenha:  ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
   document.getElementById('acesso-email').value = ''
+  if (tipo === 'responsavel') {
+    _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
+    store.responsaveis.push({ user_id: suData.user.id, role: 'responsavel', nome: nomeAlvo })
+    store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    popularVinculoSelects()
+  }
 
   if (sessaoTrocou) {
     toast('Acesso criado. Sua sessão de admin foi encerrada por segurança — entre de novo.')
@@ -657,6 +815,23 @@ async function criarAcesso() {
   } else {
     toast('Acesso criado ✓')
   }
+}
+
+// ── vincular filho a um responsável que já tem conta ──────────────
+function popularVinculoSelects() {
+  const selResp = document.getElementById('vinc-responsavel')
+  const selAluno = document.getElementById('vinc-aluno')
+  selResp.innerHTML = (store.responsaveis || []).map(r => `<option value="${r.user_id}">${esc(r.nome || '(sem nome)')}</option>`).join('') || '<option value="">Nenhum responsável cadastrado ainda</option>'
+  selAluno.innerHTML = store.alunos.map(a => `<option value="${a.id}">${esc(a.nome)}${a.escola_id ? ' · ' + esc(nomeEscola(a.escola_id)) : ' · avulso'}</option>`).join('')
+}
+
+async function vincularFilho() {
+  const userId = document.getElementById('vinc-responsavel').value
+  const alunoId = document.getElementById('vinc-aluno').value
+  if (!userId || !alunoId) { toast('Escolha o responsável e o aluno'); return }
+  const { error } = await db.from('responsavel_alunos').insert({ user_id: userId, aluno_id: alunoId })
+  if (error) { toast('Erro ao vincular: ' + error.message); return }
+  toast('Filho vinculado ✓')
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -721,11 +896,24 @@ function filtrarFotosAluno(alunoId, chipEl) {
   _fotoFiltroAluno = alunoId || null
   chipEl.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'))
   chipEl.classList.add('on')
-  const gridId = document.getElementById('escola-fotos-grid') ? 'escola-fotos-grid' : 'aluno-fotos-grid'
-  renderFotosGrid(gridId)
+  renderFotosGrid('escola-fotos-grid')
 }
 
-// grade de fotos compartilhada entre a view escola e a view aluno
+// template de uma foto — compartilhado entre grade simples (escola) e
+// grade agrupada por evento (responsável)
+function _fotoItemHTML(f) {
+  return `
+    <div class="foto-item${_fotoSelecao.has(f.id) ? ' sel' : ''}" id="fg-${f.id}" onclick="toggleSelecaoFoto('${f.id}')">
+      <img data-path="${esc(f.storage_path)}" alt="">
+      <div class="ck">${_fotoSelecao.has(f.id) ? '✓' : ''}</div>
+      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+  `
+}
+
+// grade de fotos simples (view escola)
 function renderFotosGrid(gridElId) {
   const grid = document.getElementById(gridElId)
   if (!grid) return
@@ -735,12 +923,8 @@ function renderFotosGrid(gridElId) {
     fotos = fotos.filter(f => idsComAluno.has(f.id))
   }
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
-  grid.innerHTML = fotos.map(f => `
-    <div class="foto-item${_fotoSelecao.has(f.id) ? ' sel' : ''}" id="fg-${f.id}" onclick="toggleSelecaoFoto('${f.id}','${gridElId}')">
-      <img data-path="${esc(f.storage_path)}" alt="">
-      <div class="ck">${_fotoSelecao.has(f.id) ? '✓' : ''}</div>
-    </div>
-  `).join('')
+  _lightboxFotos = fotos
+  grid.innerHTML = fotos.map(f => _fotoItemHTML(f)).join('')
   fotos.forEach(async f => {
     const img = grid.querySelector(`#fg-${f.id} img`)
     const url = await _urlAssinada(f.storage_path)
@@ -749,7 +933,7 @@ function renderFotosGrid(gridElId) {
   atualizarBotaoBaixar()
 }
 
-function toggleSelecaoFoto(fotoId, gridElId) {
+function toggleSelecaoFoto(fotoId) {
   if (_fotoSelecao.has(fotoId)) _fotoSelecao.delete(fotoId)
   else _fotoSelecao.add(fotoId)
   const item = document.getElementById('fg-' + fotoId)
@@ -758,7 +942,7 @@ function toggleSelecaoFoto(fotoId, gridElId) {
 }
 
 function atualizarBotaoBaixar() {
-  const btn = document.getElementById('escola-btn-baixar') || document.getElementById('aluno-btn-baixar')
+  const btn = document.getElementById('escola-btn-baixar') || document.getElementById('responsavel-btn-baixar')
   if (!btn) return
   btn.disabled = _fotoSelecao.size === 0
   btn.textContent = `Baixar selecionadas (${_fotoSelecao.size})`
@@ -782,21 +966,95 @@ async function baixarSelecionadas() {
 }
 
 // ══════════════════════════════════════════════════════════════
-// VIEW ALUNO
+// VIEW RESPONSÁVEL — um responsável pode ter mais de um filho
+// (inclusive em escolas diferentes); a galeria mostra tudo, agrupado
+// por evento, com um filtro por filho quando há mais de um.
 // ══════════════════════════════════════════════════════════════
-async function iniciarViewAluno() {
-  _fotoSelecao.clear(); _fotoFiltroAluno = null
-  const { data: fa, error } = await db.from('foto_aluno').select('foto_id').eq('aluno_id', meuPerfil.aluno_id)
-  if (error) { toast('Erro ao carregar suas fotos: ' + error.message); return }
-  const fotoIds = (fa || []).map(x => x.foto_id)
+let _respFiltroFilho = null
+
+async function iniciarViewResponsavel() {
+  _fotoSelecao.clear(); _fotoFiltroAluno = null; _respFiltroFilho = null
+
+  const { data: vinc, error } = await db.from('responsavel_alunos').select('aluno_id, alunos(*)').eq('user_id', currentUser.id)
+  if (error) { toast('Erro ao carregar seus filhos: ' + error.message); return }
+  const meusFilhos = (vinc || []).map(v => v.alunos).filter(Boolean)
+  store.alunos = meusFilhos
+
+  const wrap = document.getElementById('responsavel-galeria')
+  const alunoIds = meusFilhos.map(a => a.id)
+  if (!alunoIds.length) {
+    wrap.innerHTML = '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'
+    return
+  }
+
+  const { data: fa } = await db.from('foto_aluno').select('*').in('aluno_id', alunoIds)
+  store.fotoAluno = fa || []
+  const fotoIds = [...new Set((fa || []).map(x => x.foto_id))]
   const { data: fotos } = fotoIds.length
-    ? await db.from('fotos').select('*').in('id', fotoIds).order('criado_em', { ascending: false })
+    ? await db.from('fotos').select('*').in('id', fotoIds)
     : { data: [] }
   store.fotos = fotos || []
-  const wrap = document.getElementById('aluno-galeria')
-  wrap.innerHTML = `<div class="foto-grid" id="aluno-fotos-grid"></div>
-    <div style="margin-top:16px;"><button class="btn btn-primary btn-sm" id="aluno-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button></div>`
-  renderFotosGrid('aluno-fotos-grid')
+  const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
+  const { data: eventos } = eventoIds.length
+    ? await db.from('eventos').select('*').in('id', eventoIds).order('data', { ascending: false })
+    : { data: [] }
+  store.eventos = eventos || []
+
+  wrap.innerHTML = `
+    <div class="foto-toolbar">
+      <div class="chip-row" id="resp-chip-filhos"></div>
+      <button class="btn btn-primary btn-sm" id="responsavel-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button>
+    </div>
+    <div id="resp-galeria-agrupada"></div>
+  `
+  if (meusFilhos.length > 1) {
+    document.getElementById('resp-chip-filhos').innerHTML =
+      `<span class="chip on" onclick="filtrarFilhoResponsavel('',this)">Todos</span>` +
+      meusFilhos.map(a => `<span class="chip" onclick="filtrarFilhoResponsavel('${a.id}',this)">${esc(a.nome)}</span>`).join('')
+  }
+  renderGaleriaAgrupada()
+}
+
+function filtrarFilhoResponsavel(alunoId, chipEl) {
+  _respFiltroFilho = alunoId || null
+  chipEl.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'))
+  chipEl.classList.add('on')
+  renderGaleriaAgrupada()
+}
+
+// galeria do responsável — agrupada por evento (anos acumulam eventos,
+// uma parede única de fotos ficaria impossível de navegar)
+function renderGaleriaAgrupada() {
+  const wrap = document.getElementById('resp-galeria-agrupada')
+  if (!wrap) return
+  let fotos = store.fotos
+  if (_respFiltroFilho) {
+    const idsComAluno = new Set(store.fotoAluno.filter(x => x.aluno_id === _respFiltroFilho).map(x => x.foto_id))
+    fotos = fotos.filter(f => idsComAluno.has(f.id))
+  }
+  if (!fotos.length) { wrap.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
+  _lightboxFotos = fotos
+
+  const porEvento = new Map()
+  fotos.forEach(f => {
+    if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, [])
+    porEvento.get(f.evento_id).push(f)
+  })
+  const eventosComFoto = store.eventos.filter(ev => porEvento.has(ev.id))
+
+  wrap.innerHTML = eventosComFoto.map(ev => `
+    <div class="galeria-secao">
+      <h3 class="galeria-secao-titulo">${esc(ev.nome)}${ev.data ? ' · ' + fmtData(ev.data) : ''}</h3>
+      <div class="foto-grid">${porEvento.get(ev.id).map(f => _fotoItemHTML(f)).join('')}</div>
+    </div>
+  `).join('')
+
+  fotos.forEach(async f => {
+    const img = wrap.querySelector(`#fg-${f.id} img`)
+    const url = await _urlAssinada(f.storage_path)
+    if (url && img) img.src = url
+  })
+  atualizarBotaoBaixar()
 }
 
 // ── boot ────────────────────────────────────────────────────────
