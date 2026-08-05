@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galeria — Grand Focus</title>
+<link rel="icon" href="assets/logo-icone.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+:root{
+  --palco:#2B0210; --vinho:#4B0416; --vinho-alto:#5C0A1E;
+  --ouro-luz:#EFD7A7; --ouro:#C8AF7F; --ouro-fundo:#A48656;
+  --papel:#F6F0E6; --tinta:#1A0A0E; --vermelho:#E05570; --verde:#3DCF8E;
+  --serif:"Cormorant Garamond",Georgia,serif;
+  --sans:"Jost","Futura",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+img{max-width:100%;display:block;}
+a{color:inherit;}
+h1,h2,h3{font-family:var(--serif);font-weight:500;color:var(--ouro-luz);margin:0;}
+input,select,textarea{
+  background:var(--surface,#3A0311);background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.3);
+  color:#EADFCF;border-radius:6px;padding:.55em .8em;font-family:var(--sans);font-size:14px;width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ouro);}
+label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ouro-fundo);display:block;margin-bottom:6px;font-weight:500;}
+.field{margin-bottom:14px;}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5em;font-family:var(--sans);font-size:13px;
+  letter-spacing:.08em;font-weight:500;padding:.7em 1.4em;border-radius:6px;border:1px solid var(--ouro);
+  cursor:pointer;transition:all .2s;background:transparent;color:var(--ouro-luz);
+}
+.btn:hover{background:rgba(200,175,127,.12);}
+.btn-primary{background:var(--ouro);color:var(--tinta);border-color:var(--ouro);font-weight:600;}
+.btn-primary:hover{background:var(--ouro-luz);}
+.btn-sm{padding:.4em 1em;font-size:12px;}
+.btn-danger{border-color:var(--vermelho);color:var(--vermelho);}
+.btn-danger:hover{background:rgba(224,85,112,.12);}
+.btn[disabled]{opacity:.5;cursor:default;}
+.card{background:rgba(75,4,22,.28);border:1px solid rgba(200,175,127,.18);border-radius:10px;padding:22px;}
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--tinta);
+  border:1px solid var(--ouro);color:var(--ouro-luz);padding:.8em 1.4em;border-radius:8px;font-size:13.5px;
+  z-index:999;opacity:0;transition:all .25s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── login ── */
+#login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  background:radial-gradient(ellipse at 50% 30%, #58061C 0%, #3A0311 45%, #2B0210 78%);
+}
+.login-card{width:100%;max-width:380px;text-align:center;}
+.login-card img{width:64px;margin:0 auto 16px;}
+.login-card h1{font-size:26px;margin-bottom:2px;}
+.login-card .sub{font-size:11px;letter-spacing:.24em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:34px;}
+.login-card .field{text-align:left;}
+#login-error{display:none;color:var(--vermelho);font-size:12.5px;margin-bottom:14px;}
+#login-btn{width:100%;margin-top:6px;}
+
+/* ── app shell ── */
+#app{display:none;min-height:100vh;flex-direction:column;}
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
+  background:rgba(43,2,16,.9);border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;
+}
+.topbar .brand{display:flex;align-items:center;gap:10px;}
+.topbar .brand img{width:30px;}
+.topbar .brand span{font-family:var(--serif);font-size:18px;color:var(--ouro-luz);}
+.topbar .who{display:flex;align-items:center;gap:16px;font-size:13px;color:#DBC9A8;}
+.topbar .who b{color:var(--ouro-luz);font-weight:500;}
+.role-chip{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:rgba(200,175,127,.15);color:var(--ouro);padding:.25em .7em;border-radius:99px;}
+main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
+
+.tabs{display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap;}
+.tab{
+  font-size:13px;letter-spacing:.04em;padding:.6em 1.2em;border-radius:6px;color:#C9B9A4;cursor:pointer;
+  border:1px solid transparent;
+}
+.tab.on{background:rgba(200,175,127,.14);color:var(--ouro-luz);border-color:rgba(200,175,127,.3);}
+.view{display:none;}
+.view.on{display:block;}
+
+.section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
+.section-h h2{font-size:20px;}
+
+.list{display:flex;flex-direction:column;gap:8px;}
+.list-item{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;
+  background:rgba(75,4,22,.2);border:1px solid rgba(200,175,127,.14);border-radius:8px;cursor:pointer;transition:border-color .15s;
+}
+.list-item:hover{border-color:rgba(200,175,127,.4);}
+.list-item .nome{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
+.list-item .meta{font-size:12px;color:#B39F86;margin-top:2px;}
+.list-item .actions{display:flex;gap:6px;flex-shrink:0;}
+.empty{color:#8A7461;font-size:13.5px;padding:24px 0;text-align:center;}
+
+.modal-overlay{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;
+}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--tinta);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:26px;width:100%;max-width:420px;}
+.modal h3{font-size:19px;margin-bottom:18px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+
+.foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.foto-item{
+  position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:rgba(75,4,22,.3);
+  border:2px solid transparent;cursor:pointer;
+}
+.foto-item.sel{border-color:var(--ouro);}
+.foto-item img{width:100%;height:100%;object-fit:cover;}
+.foto-item .ck{
+  position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:5px;background:rgba(26,10,14,.7);
+  border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
+}
+.foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
+.foto-item .tagbar{
+  position:absolute;left:0;right:0;bottom:0;background:linear-gradient(to top,rgba(26,10,14,.92),transparent);
+  padding:6px 8px;font-size:10.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;
+}
+.foto-item:hover .tagbar{opacity:1;}
+.foto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.chip-row{display:flex;gap:8px;flex-wrap:wrap;}
+.chip{font-size:12px;padding:.4em 1em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;cursor:pointer;}
+.chip.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
+
+.upload-drop{
+  border:1.5px dashed rgba(200,175,127,.35);border-radius:8px;padding:26px;text-align:center;color:#B39F86;
+  font-size:13px;cursor:pointer;margin-bottom:18px;
+}
+.upload-drop:hover{border-color:var(--ouro);color:var(--ouro-luz);}
+
+.tag-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
+.tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
+.tag-opt.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
+
+.credencial-box{background:rgba(200,175,127,.1);border:1px solid var(--ouro);border-radius:8px;padding:16px;margin-top:16px;white-space:pre-line;font-family:monospace;font-size:13px;color:var(--ouro-luz);display:none;}
+
+.evento-back{background:none;border:none;color:var(--ouro-fundo);font-size:12.5px;cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:.4em;}
+.evento-back:hover{color:var(--ouro-luz);}
+
+@media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-card">
+    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <h1>Grand Focus</h1>
+    <div class="sub">Galeria Digital</div>
+    <div id="login-error"></div>
+    <div class="field"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
+    <div class="field"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+    <button class="btn btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="brand"><img src="assets/logo-icone.png" alt=""><span>Grand Focus</span></div>
+    <div class="who">
+      <span class="role-chip" id="topbar-role">—</span>
+      <span id="topbar-nome">—</span>
+      <button class="btn btn-sm" onclick="fazerLogout()">Sair</button>
+    </div>
+  </div>
+  <main>
+
+    <!-- ══════ VIEW ADMIN ══════ -->
+    <section class="view" id="view-admin">
+      <div class="tabs">
+        <div class="tab on" data-tab="escolas" onclick="setAdminTab('escolas')">Escolas</div>
+        <div class="tab" data-tab="alunos" onclick="setAdminTab('alunos')">Alunos</div>
+        <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos</div>
+        <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
+      </div>
+
+      <div class="admin-tab on" id="admintab-escolas">
+        <div class="section-h"><h2>Escolas de dança</h2><button class="btn btn-primary btn-sm" onclick="abrirModal('modal-escola')">+ Nova escola</button></div>
+        <div class="list" id="lista-escolas"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-alunos" style="display:none;">
+        <div class="section-h"><h2>Alunos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalAluno()">+ Novo aluno</button></div>
+        <div class="list" id="lista-alunos"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-eventos" style="display:none;">
+        <div id="eventos-lista-wrap">
+          <div class="section-h"><h2>Eventos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEvento()">+ Novo evento</button></div>
+          <div class="list" id="lista-eventos"></div>
+        </div>
+        <div id="evento-detalhe-wrap" style="display:none;"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-acesso" style="display:none;">
+        <div class="section-h"><h2>Criar acesso</h2></div>
+        <div class="card" style="max-width:460px;">
+          <div class="field">
+            <label>Tipo de conta</label>
+            <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
+              <option value="escola">Escola de dança</option>
+              <option value="aluno">Aluno avulso</option>
+            </select>
+          </div>
+          <div class="field">
+            <label id="acesso-alvo-label">Qual escola?</label>
+            <select id="acesso-alvo"></select>
+          </div>
+          <div class="field"><label>E-mail de acesso</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
+          <button class="btn btn-primary" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
+          <div class="credencial-box" id="acesso-resultado"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══════ VIEW ESCOLA ══════ -->
+    <section class="view" id="view-escola">
+      <div id="escola-eventos-wrap">
+        <div class="section-h"><h2>Seus eventos</h2></div>
+        <div class="list" id="escola-lista-eventos"></div>
+      </div>
+      <div id="escola-evento-detalhe" style="display:none;"></div>
+    </section>
+
+    <!-- ══════ VIEW ALUNO ══════ -->
+    <section class="view" id="view-aluno">
+      <div class="section-h"><h2>Suas fotos</h2></div>
+      <div id="aluno-galeria"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- modal: nova escola -->
+<div class="modal-overlay" id="modal-escola">
+  <div class="modal">
+    <h3>Nova escola de dança</h3>
+    <div class="field"><label>Nome</label><input type="text" id="esc-nome" placeholder="Ex: Studio Arabesque"></div>
+    <div class="field"><label>Cidade</label><input type="text" id="esc-cidade" placeholder="Ex: Uberlândia"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-escola')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarEscola()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: novo aluno -->
+<div class="modal-overlay" id="modal-aluno">
+  <div class="modal">
+    <h3>Novo aluno</h3>
+    <div class="field"><label>Nome</label><input type="text" id="alu-nome" placeholder="Nome do bailarino"></div>
+    <div class="field">
+      <label>Escola</label>
+      <select id="alu-escola"><option value="">— Avulso (sem escola) —</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: novo evento -->
+<div class="modal-overlay" id="modal-evento">
+  <div class="modal">
+    <h3>Novo evento</h3>
+    <div class="field"><label>Nome</label><input type="text" id="evt-nome" placeholder="Ex: Recital de Verão 2026"></div>
+    <div class="field"><label>Data</label><input type="date" id="evt-data"></div>
+    <div class="field">
+      <label>Escola</label>
+      <select id="evt-escola"><option value="">— Avulso / geral —</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-evento')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarEvento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════
+// CONFIG — troque pelos dados do SEU projeto Supabase (Project
+// Settings → API). São chaves públicas (não são senha), mas ainda
+// assim: esse projeto tem que ser SEPARADO do painel-nettus.
+// ══════════════════════════════════════════════════════════════
+const SUPABASE_URL = 'COLE-AQUI-A-URL-DO-SEU-PROJETO-SUPABASE'
+const SUPABASE_ANON_KEY = 'COLE-AQUI-A-ANON-KEY-PUBLICA-DO-PROJETO'
+const BUCKET = 'fotos-grandfocus'
+
+// createClient() quebra com uma URL inválida (o placeholder acima) e
+// derruba o script inteiro sem aviso nenhum na tela — por isso checa
+// antes de tentar, e mostra um recado claro em vez de deixar o botão
+// "Entrar" morto e sem explicação.
+const _configPendente = SUPABASE_URL.startsWith('COLE-AQUI') || SUPABASE_ANON_KEY.startsWith('COLE-AQUI')
+const { createClient } = window.supabase
+const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+let currentUser = null
+let meuPerfil = null
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [] }
+let _fotoSelecao = new Set()
+let _fotoFiltroAluno = null
+
+function toast(msg) {
+  const el = document.getElementById('toast')
+  el.textContent = msg
+  el.classList.add('show')
+  clearTimeout(toast._t)
+  toast._t = setTimeout(() => el.classList.remove('show'), 3200)
+}
+
+function abrirModal(id) { document.getElementById(id).classList.add('show') }
+function fecharModal(id) { document.getElementById(id).classList.remove('show') }
+
+function gerarSenha() {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+  let s = ''
+  for (let i = 0; i < 10; i++) s += chars[Math.floor(Math.random() * chars.length)]
+  return s
+}
+
+// ── auth ────────────────────────────────────────────────────────
+function iniciarAuth() {
+  db.auth.onAuthStateChange((_event, session) => {
+    if (session?.user) mostrarApp(session.user)
+    else mostrarLogin()
+  })
+  db.auth.getSession().then(({ data: { session } }) => {
+    if (session?.user) mostrarApp(session.user)
+    else mostrarLogin()
+  })
+}
+
+function mostrarLogin() {
+  currentUser = null; meuPerfil = null
+  document.getElementById('login-screen').style.display = 'flex'
+  document.getElementById('app').style.display = 'none'
+}
+
+async function mostrarApp(user) {
+  if (currentUser?.id === user.id && meuPerfil) return // já carregado, evita recarregar em refresh de token
+  currentUser = user
+  const { data, error } = await db.from('perfis').select('*').eq('user_id', user.id).maybeSingle()
+  if (error || !data) {
+    toast('Essa conta ainda não tem um perfil de acesso na galeria — fale com a Grand Focus.')
+    await db.auth.signOut()
+    return
+  }
+  meuPerfil = data
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'flex'
+  document.getElementById('topbar-role').textContent = { admin: 'Admin', escola: 'Escola', aluno: 'Aluno' }[data.role] || data.role
+  document.getElementById('topbar-nome').textContent = data.nome || user.email
+
+  document.getElementById('view-admin').classList.remove('on')
+  document.getElementById('view-escola').classList.remove('on')
+  document.getElementById('view-aluno').classList.remove('on')
+
+  if (data.role === 'admin') { document.getElementById('view-admin').classList.add('on'); await iniciarViewAdmin() }
+  else if (data.role === 'escola') { document.getElementById('view-escola').classList.add('on'); await iniciarViewEscola() }
+  else { document.getElementById('view-aluno').classList.add('on'); await iniciarViewAluno() }
+}
+
+async function fazerLogin() {
+  const email = document.getElementById('login-email').value.trim()
+  const pass = document.getElementById('login-pass').value
+  const errEl = document.getElementById('login-error')
+  errEl.style.display = 'none'
+  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return }
+  const btn = document.getElementById('login-btn')
+  btn.disabled = true; btn.textContent = 'Entrando…'
+  const { error } = await db.auth.signInWithPassword({ email, password: pass })
+  btn.disabled = false; btn.textContent = 'Entrar'
+  if (error) { errEl.textContent = 'E-mail ou senha incorretos.'; errEl.style.display = 'block' }
+}
+
+async function fazerLogout() { await db.auth.signOut() }
+
+// ══════════════════════════════════════════════════════════════
+// VIEW ADMIN
+// ══════════════════════════════════════════════════════════════
+async function iniciarViewAdmin() {
+  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos()])
+  renderEscolas(); renderAlunos(); renderEventos()
+  atualizarAcessoAlvo()
+}
+
+function setAdminTab(tab) {
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
+  document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none')
+  document.getElementById('admintab-' + tab).style.display = 'block'
+}
+
+async function carregarEscolas() {
+  const { data, error } = await db.from('escolas').select('*').order('nome')
+  if (error) { toast('Erro ao carregar escolas: ' + error.message); return }
+  store.escolas = data || []
+}
+async function carregarAlunos() {
+  const { data, error } = await db.from('alunos').select('*').order('nome')
+  if (error) { toast('Erro ao carregar alunos: ' + error.message); return }
+  store.alunos = data || []
+}
+async function carregarEventos() {
+  const { data, error } = await db.from('eventos').select('*').order('data', { ascending: false })
+  if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
+  store.eventos = data || []
+}
+
+function nomeEscola(id) { return store.escolas.find(e => e.id === id)?.nome || '' }
+
+function renderEscolas() {
+  const el = document.getElementById('lista-escolas')
+  if (!store.escolas.length) { el.innerHTML = '<div class="empty">Nenhuma escola cadastrada ainda.</div>'; return }
+  el.innerHTML = store.escolas.map(e => `
+    <div class="list-item">
+      <div><div class="nome">${esc(e.nome)}</div><div class="meta">${esc(e.cidade || '')} · ${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)</div></div>
+    </div>
+  `).join('')
+}
+
+function renderAlunos() {
+  const el = document.getElementById('lista-alunos')
+  if (!store.alunos.length) { el.innerHTML = '<div class="empty">Nenhum aluno cadastrado ainda.</div>'; return }
+  el.innerHTML = store.alunos.map(a => `
+    <div class="list-item">
+      <div><div class="nome">${esc(a.nome)}</div><div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'}</div></div>
+    </div>
+  `).join('')
+}
+
+function renderEventos() {
+  const el = document.getElementById('lista-eventos')
+  if (!store.eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento cadastrado ainda.</div>'; return }
+  el.innerHTML = store.eventos.map(ev => `
+    <div class="list-item" onclick="abrirEventoAdmin('${ev.id}')">
+      <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}</div></div>
+      <div class="actions"><span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span></div>
+    </div>
+  `).join('')
+}
+
+function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
+function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+
+// ── modais: escola / aluno / evento ──────────────────────────────
+async function salvarEscola() {
+  const nome = document.getElementById('esc-nome').value.trim()
+  if (!nome) { toast('Informe o nome da escola'); return }
+  const cidade = document.getElementById('esc-cidade').value.trim() || null
+  const { data, error } = await db.from('escolas').insert({ nome, cidade }).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  store.escolas.push(data)
+  store.escolas.sort((a, b) => a.nome.localeCompare(b.nome))
+  renderEscolas(); atualizarAcessoAlvo()
+  document.getElementById('esc-nome').value = ''; document.getElementById('esc-cidade').value = ''
+  fecharModal('modal-escola')
+  toast('Escola criada ✓')
+}
+
+function abrirModalAluno() {
+  const sel = document.getElementById('alu-escola')
+  sel.innerHTML = '<option value="">— Avulso (sem escola) —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  abrirModal('modal-aluno')
+}
+async function salvarAluno() {
+  const nome = document.getElementById('alu-nome').value.trim()
+  if (!nome) { toast('Informe o nome do aluno'); return }
+  const escola_id = document.getElementById('alu-escola').value || null
+  const { data, error } = await db.from('alunos').insert({ nome, escola_id }).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  store.alunos.push(data)
+  store.alunos.sort((a, b) => a.nome.localeCompare(b.nome))
+  renderAlunos(); renderEscolas()
+  document.getElementById('alu-nome').value = ''
+  fecharModal('modal-aluno')
+  toast('Aluno criado ✓')
+}
+
+function abrirModalEvento() {
+  const sel = document.getElementById('evt-escola')
+  sel.innerHTML = '<option value="">— Avulso / geral —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  abrirModal('modal-evento')
+}
+async function salvarEvento() {
+  const nome = document.getElementById('evt-nome').value.trim()
+  if (!nome) { toast('Informe o nome do evento'); return }
+  const data_ = document.getElementById('evt-data').value || null
+  const escola_id = document.getElementById('evt-escola').value || null
+  const { data, error } = await db.from('eventos').insert({ nome, data: data_, escola_id }).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  store.eventos.unshift(data)
+  renderEventos()
+  document.getElementById('evt-nome').value = ''; document.getElementById('evt-data').value = ''
+  fecharModal('modal-evento')
+  toast('Evento criado ✓')
+}
+
+// ── detalhe do evento (admin): upload + marcação de alunos ───────
+let _eventoAtual = null
+async function abrirEventoAdmin(eventoId) {
+  _eventoAtual = store.eventos.find(e => e.id === eventoId)
+  if (!_eventoAtual) return
+  document.getElementById('eventos-lista-wrap').style.display = 'none'
+  const wrap = document.getElementById('evento-detalhe-wrap')
+  wrap.style.display = 'block'
+  wrap.innerHTML = `
+    <button class="evento-back" onclick="fecharEventoAdmin()">← Voltar aos eventos</button>
+    <div class="section-h"><h2>${esc(_eventoAtual.nome)}</h2></div>
+    <div class="upload-drop" onclick="document.getElementById('evt-upload-input').click()">
+      📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
+      <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEvento(this.files)">
+    </div>
+    <div id="evt-upload-status"></div>
+    <div class="foto-grid" id="evt-fotos-grid"></div>
+  `
+  const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
+  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
+  store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
+  const { data: fa } = await db.from('foto_aluno').select('*').in('foto_id', (data || []).map(f => f.id).length ? (data || []).map(f => f.id) : ['00000000-0000-0000-0000-000000000000'])
+  store.fotoAluno = store.fotoAluno.filter(x => !(data || []).some(f => f.id === x.foto_id)).concat(fa || [])
+  renderFotosEventoAdmin()
+}
+function fecharEventoAdmin() {
+  _eventoAtual = null
+  document.getElementById('eventos-lista-wrap').style.display = 'block'
+  document.getElementById('evento-detalhe-wrap').style.display = 'none'
+  renderEventos()
+}
+
+async function uploadFotosEvento(files) {
+  if (!files?.length || !_eventoAtual) return
+  const statusEl = document.getElementById('evt-upload-status')
+  let ok = 0
+  for (const file of files) {
+    statusEl.textContent = `Enviando ${file.name}… (${ok + 1}/${files.length})`
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `${_eventoAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
+    if (upErr) { toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _eventoAtual.id, storage_path: path }).select().single()
+    if (insErr) { toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    store.fotos.push(fotoRow)
+    ok++
+  }
+  statusEl.textContent = `${ok} foto(s) enviada(s) ✓`
+  document.getElementById('evt-upload-input').value = ''
+  renderFotosEventoAdmin()
+}
+
+async function _urlAssinada(path) {
+  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 300)
+  if (error) { console.error(error); return null }
+  return data?.signedUrl || null
+}
+
+async function renderFotosEventoAdmin() {
+  const grid = document.getElementById('evt-fotos-grid')
+  const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
+  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; return }
+  const alunosDisponiveis = _eventoAtual.escola_id
+    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
+    : store.alunos.filter(a => !a.escola_id)
+  grid.innerHTML = fotos.map(f => `
+    <div class="foto-item" id="fitem-${f.id}">
+      <img data-path="${esc(f.storage_path)}" alt="">
+      <div class="tagbar">
+        <div class="tag-picker">
+          ${alunosDisponiveis.map(a => `<span class="tag-opt${(store.fotoAluno.find(x => x.foto_id === f.id && x.aluno_id === a.id)) ? ' on' : ''}" onclick="event.stopPropagation();toggleTagAluno('${f.id}','${a.id}',this)">${esc(a.nome)}</span>`).join('') || '<span style="opacity:.6">nenhum aluno cadastrado pra essa escola ainda</span>'}
+        </div>
+      </div>
+    </div>
+  `).join('')
+  fotos.forEach(async f => {
+    const img = grid.querySelector(`#fitem-${f.id} img`)
+    const url = await _urlAssinada(f.storage_path)
+    if (url && img) img.src = url
+  })
+}
+
+async function toggleTagAluno(fotoId, alunoId, chipEl) {
+  const existente = store.fotoAluno.find(x => x.foto_id === fotoId && x.aluno_id === alunoId)
+  if (existente) {
+    const { error } = await db.from('foto_aluno').delete().eq('foto_id', fotoId).eq('aluno_id', alunoId)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoAluno = store.fotoAluno.filter(x => x !== existente)
+    chipEl.classList.remove('on')
+  } else {
+    const { error } = await db.from('foto_aluno').insert({ foto_id: fotoId, aluno_id: alunoId })
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoAluno.push({ foto_id: fotoId, aluno_id: alunoId })
+    chipEl.classList.add('on')
+  }
+}
+
+// ── criar acesso (escola / aluno) ─────────────────────────────────
+function atualizarAcessoAlvo() {
+  const tipo = document.getElementById('acesso-tipo').value
+  const label = document.getElementById('acesso-alvo-label')
+  const sel = document.getElementById('acesso-alvo')
+  if (tipo === 'escola') {
+    label.textContent = 'Qual escola?'
+    sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') || '<option value="">Cadastre uma escola primeiro</option>'
+  } else {
+    label.textContent = 'Qual aluno avulso?'
+    const avulsos = store.alunos.filter(a => !a.escola_id)
+    sel.innerHTML = avulsos.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('') || '<option value="">Cadastre um aluno avulso primeiro</option>'
+  }
+}
+
+async function criarAcesso() {
+  const tipo = document.getElementById('acesso-tipo').value
+  const alvoId = document.getElementById('acesso-alvo').value
+  const email = document.getElementById('acesso-email').value.trim()
+  if (!alvoId) { toast('Cadastre e selecione ' + (tipo === 'escola' ? 'uma escola' : 'um aluno avulso') + ' primeiro'); return }
+  if (!email) { toast('Informe o e-mail de acesso'); return }
+  const senha = gerarSenha()
+  const adminId = currentUser.id
+  const btn = document.getElementById('acesso-btn')
+  btn.disabled = true; btn.textContent = 'Gerando…'
+
+  const nomeAlvo = tipo === 'escola' ? nomeEscola(alvoId) : (store.alunos.find(a => a.id === alvoId)?.nome || '')
+  const { data: suData, error: suErr } = await db.auth.signUp({ email, password: senha, options: { data: { full_name: nomeAlvo } } })
+  if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
+
+  const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo }
+  if (tipo === 'escola') perfilPayload.escola_id = alvoId
+  else perfilPayload.aluno_id = alvoId
+  const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
+
+  // signUp pode ter trocado a sessão ativa pro usuário novo (se a
+  // confirmação de e-mail estiver desligada no projeto) — nesse caso,
+  // desloga e pede pro admin entrar de novo, em vez de continuar
+  // "disfarçado" de outra conta.
+  const { data: { session } } = await db.auth.getSession()
+  const sessaoTrocou = session?.user?.id && session.user.id !== adminId
+
+  btn.disabled = false; btn.textContent = 'Gerar acesso'
+  if (perfilErr) { toast('Conta criada, mas o perfil falhou: ' + perfilErr.message); return }
+
+  document.getElementById('acesso-resultado').style.display = 'block'
+  document.getElementById('acesso-resultado').textContent = `E-mail: ${email}\nSenha:  ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
+  document.getElementById('acesso-email').value = ''
+
+  if (sessaoTrocou) {
+    toast('Acesso criado. Sua sessão de admin foi encerrada por segurança — entre de novo.')
+    await db.auth.signOut()
+  } else {
+    toast('Acesso criado ✓')
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// VIEW ESCOLA
+// ══════════════════════════════════════════════════════════════
+async function iniciarViewEscola() {
+  const { data: eventos, error } = await db.from('eventos').select('*').order('data', { ascending: false })
+  if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
+  store.eventos = eventos || []
+  const { data: alunos } = await db.from('alunos').select('*').eq('escola_id', meuPerfil.escola_id).order('nome')
+  store.alunos = alunos || []
+  renderEventosEscola()
+}
+
+function renderEventosEscola() {
+  const el = document.getElementById('escola-lista-eventos')
+  if (!store.eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento publicado pra sua escola ainda.</div>'; return }
+  el.innerHTML = store.eventos.map(ev => `
+    <div class="list-item" onclick="abrirEventoEscola('${ev.id}')">
+      <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : ''}</div></div>
+    </div>
+  `).join('')
+}
+
+let _eventoEscolaAtual = null
+async function abrirEventoEscola(eventoId) {
+  _eventoEscolaAtual = store.eventos.find(e => e.id === eventoId)
+  if (!_eventoEscolaAtual) return
+  _fotoSelecao.clear(); _fotoFiltroAluno = null
+  document.getElementById('escola-eventos-wrap').style.display = 'none'
+  const wrap = document.getElementById('escola-evento-detalhe')
+  wrap.style.display = 'block'
+  const { data: fotos, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
+  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
+  const fotoIds = (fotos || []).map(f => f.id)
+  const { data: fa } = fotoIds.length
+    ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds)
+    : { data: [] }
+  store.fotos = (fotos || [])
+  store.fotoAluno = (fa || [])
+  wrap.innerHTML = `
+    <button class="evento-back" onclick="fecharEventoEscola()">← Voltar aos eventos</button>
+    <div class="section-h"><h2>${esc(_eventoEscolaAtual.nome)}</h2></div>
+    <div class="foto-toolbar">
+      <div class="chip-row" id="escola-chip-alunos"></div>
+      <button class="btn btn-primary btn-sm" id="escola-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button>
+    </div>
+    <div class="foto-grid" id="escola-fotos-grid"></div>
+  `
+  const chips = document.getElementById('escola-chip-alunos')
+  chips.innerHTML = `<span class="chip on" data-aluno="" onclick="filtrarFotosAluno('',this)">Todos</span>` +
+    store.alunos.map(a => `<span class="chip" data-aluno="${a.id}" onclick="filtrarFotosAluno('${a.id}',this)">${esc(a.nome)}</span>`).join('')
+  renderFotosGrid('escola-fotos-grid')
+}
+function fecharEventoEscola() {
+  _eventoEscolaAtual = null
+  document.getElementById('escola-eventos-wrap').style.display = 'block'
+  document.getElementById('escola-evento-detalhe').style.display = 'none'
+}
+
+function filtrarFotosAluno(alunoId, chipEl) {
+  _fotoFiltroAluno = alunoId || null
+  chipEl.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'))
+  chipEl.classList.add('on')
+  const gridId = document.getElementById('escola-fotos-grid') ? 'escola-fotos-grid' : 'aluno-fotos-grid'
+  renderFotosGrid(gridId)
+}
+
+// grade de fotos compartilhada entre a view escola e a view aluno
+function renderFotosGrid(gridElId) {
+  const grid = document.getElementById(gridElId)
+  if (!grid) return
+  let fotos = store.fotos
+  if (_fotoFiltroAluno) {
+    const idsComAluno = new Set(store.fotoAluno.filter(x => x.aluno_id === _fotoFiltroAluno).map(x => x.foto_id))
+    fotos = fotos.filter(f => idsComAluno.has(f.id))
+  }
+  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
+  grid.innerHTML = fotos.map(f => `
+    <div class="foto-item${_fotoSelecao.has(f.id) ? ' sel' : ''}" id="fg-${f.id}" onclick="toggleSelecaoFoto('${f.id}','${gridElId}')">
+      <img data-path="${esc(f.storage_path)}" alt="">
+      <div class="ck">${_fotoSelecao.has(f.id) ? '✓' : ''}</div>
+    </div>
+  `).join('')
+  fotos.forEach(async f => {
+    const img = grid.querySelector(`#fg-${f.id} img`)
+    const url = await _urlAssinada(f.storage_path)
+    if (url && img) img.src = url
+  })
+  atualizarBotaoBaixar()
+}
+
+function toggleSelecaoFoto(fotoId, gridElId) {
+  if (_fotoSelecao.has(fotoId)) _fotoSelecao.delete(fotoId)
+  else _fotoSelecao.add(fotoId)
+  const item = document.getElementById('fg-' + fotoId)
+  if (item) { item.classList.toggle('sel', _fotoSelecao.has(fotoId)); item.querySelector('.ck').textContent = _fotoSelecao.has(fotoId) ? '✓' : '' }
+  atualizarBotaoBaixar()
+}
+
+function atualizarBotaoBaixar() {
+  const btn = document.getElementById('escola-btn-baixar') || document.getElementById('aluno-btn-baixar')
+  if (!btn) return
+  btn.disabled = _fotoSelecao.size === 0
+  btn.textContent = `Baixar selecionadas (${_fotoSelecao.size})`
+}
+
+async function baixarSelecionadas() {
+  const paths = store.fotos.filter(f => _fotoSelecao.has(f.id)).map(f => f.storage_path)
+  if (!paths.length) return
+  toast(`Baixando ${paths.length} foto(s)…`)
+  for (let i = 0; i < paths.length; i++) {
+    const url = await _urlAssinada(paths[i])
+    if (!url) continue
+    const a = document.createElement('a')
+    a.href = url
+    a.download = paths[i].split('/').pop()
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    await new Promise(r => setTimeout(r, 350))
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// VIEW ALUNO
+// ══════════════════════════════════════════════════════════════
+async function iniciarViewAluno() {
+  _fotoSelecao.clear(); _fotoFiltroAluno = null
+  const { data: fa, error } = await db.from('foto_aluno').select('foto_id').eq('aluno_id', meuPerfil.aluno_id)
+  if (error) { toast('Erro ao carregar suas fotos: ' + error.message); return }
+  const fotoIds = (fa || []).map(x => x.foto_id)
+  const { data: fotos } = fotoIds.length
+    ? await db.from('fotos').select('*').in('id', fotoIds).order('criado_em', { ascending: false })
+    : { data: [] }
+  store.fotos = fotos || []
+  const wrap = document.getElementById('aluno-galeria')
+  wrap.innerHTML = `<div class="foto-grid" id="aluno-fotos-grid"></div>
+    <div style="margin-top:16px;"><button class="btn btn-primary btn-sm" id="aluno-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button></div>`
+  renderFotosGrid('aluno-fotos-grid')
+}
+
+// ── boot ────────────────────────────────────────────────────────
+if (_configPendente) {
+  const errEl = document.getElementById('login-error')
+  errEl.textContent = '⚠ Configure SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script> (Project Settings → API do seu projeto) antes de usar.'
+  errEl.style.display = 'block'
+  document.getElementById('login-btn').disabled = true
+} else {
+  iniciarAuth()
+}
+</script>
+</body>
+</html>
