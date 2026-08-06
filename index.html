@@ -112,14 +112,30 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .sino-drop .dash-activity li{padding:9px 6px;font-size:12.5px;}
 .who-avatar{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:11.5px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
 .who-avatar img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;}
-.perfil-capa{height:110px;border-radius:8px 8px 0 0;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin:-26px -26px 0;cursor:pointer;}
-.perfil-capa img{width:100%;height:100%;object-fit:cover;}
-.perfil-capa .trocar{position:absolute;inset:0;background:rgba(26,10,14,.5);display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;}
+.perfil-capa{height:110px;border-radius:8px 8px 0 0;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin:-26px -26px 0;cursor:pointer;touch-action:none;}
+.perfil-capa.tem-foto{cursor:grab;}
+.perfil-capa.arrastando{cursor:grabbing;}
+.perfil-capa img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+.perfil-capa .trocar{
+  position:absolute;right:8px;bottom:8px;background:rgba(26,10,14,.78);border:1px solid rgba(200,175,127,.4);
+  border-radius:99px;padding:.35em .9em;font-size:10.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;
+  cursor:pointer;z-index:2;
+}
 .perfil-capa:hover .trocar{opacity:1;}
+.perfil-capa .arraste-dica{
+  position:absolute;left:8px;bottom:8px;font-size:9.5px;color:var(--ouro-fundo);background:rgba(26,10,14,.6);
+  padding:.3em .7em;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.perfil-capa.tem-foto:hover .arraste-dica{opacity:1;}
 .perfil-avatar-wrap{display:flex;justify-content:center;margin-top:-38px;margin-bottom:14px;position:relative;}
-.perfil-avatar-edit{width:76px;height:76px;border-radius:50%;border:3px solid var(--tinta);background:var(--ouro);color:var(--tinta);font-weight:700;font-size:26px;display:grid;place-items:center;cursor:pointer;overflow:hidden;position:relative;}
-.perfil-avatar-edit img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;}
-.perfil-avatar-edit .trocar{position:absolute;inset:0;background:rgba(26,10,14,.55);display:flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;text-align:center;}
+.perfil-avatar-edit{width:76px;height:76px;border-radius:50%;border:3px solid var(--tinta);background:var(--ouro);color:var(--tinta);font-weight:700;font-size:26px;display:grid;place-items:center;cursor:pointer;overflow:hidden;position:relative;touch-action:none;}
+.perfil-avatar-edit.tem-foto{cursor:grab;}
+.perfil-avatar-edit.arrastando{cursor:grabbing;}
+.perfil-avatar-edit img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;user-select:none;-webkit-user-drag:none;pointer-events:none;}
+.perfil-avatar-edit .trocar{
+  position:absolute;inset:auto 0 0 0;background:rgba(26,10,14,.78);padding:.28em 0;font-size:8.5px;color:var(--ouro-luz);
+  opacity:0;transition:opacity .2s;text-align:center;cursor:pointer;z-index:2;
+}
 .perfil-avatar-edit:hover .trocar{opacity:1;}
 .perfil-divisor{border:none;border-top:1px solid rgba(200,175,127,.16);margin:18px 0;}
 .list-avatar{width:34px;height:34px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:13px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
@@ -1235,6 +1251,69 @@ document.addEventListener('keydown', e => {
 })
 
 // ── meu perfil (foto, capa, nome, senha) ───────────────────────────
+// ── reposicionar foto (arrastar) ────────────────────────────────────
+// Componente genérico: qualquer .perfil-capa/.perfil-avatar-edit com
+// uma <img> dentro vira arrastável. Guarda a posição como "X% Y%" —
+// mesma sintaxe de object-position, aplica direto sem tradução.
+// _posAplicar() é chamado toda vez que um desses containers ganha uma
+// imagem (existente ao abrir o modal, ou recém-selecionada); o mapa
+// de IDs evita precisar marcar cada elemento na mão.
+const POS_TARGET_MAP = {
+  'perfil-avatar-preview': 'perfil-foto',
+  'perfil-capa-preview': 'perfil-capa',
+  'esc-capa-preview': 'escola-capa',
+  'alu-foto-preview': 'aluno-foto',
+  'evt-capa-preview': 'evento-capa',
+  'ens-capa-preview': 'ensaio-capa',
+}
+const POS_PADRAO = '50% 25%'
+let _posicoesPendentes = {}
+
+function _posAplicar(containerId, posSalva) {
+  const el = document.getElementById(containerId)
+  if (!el) return
+  const target = POS_TARGET_MAP[containerId]
+  const valor = posSalva || POS_PADRAO
+  if (target) _posicoesPendentes[target] = valor
+  const img = el.querySelector('img')
+  if (img) img.style.objectPosition = valor
+  el.classList.toggle('tem-foto', !!img)
+}
+
+function _posValor(containerId) {
+  return _posicoesPendentes[POS_TARGET_MAP[containerId]] || POS_PADRAO
+}
+
+let _posArrastando = null
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('.perfil-capa, .perfil-avatar-edit')
+  if (!el || !el.classList.contains('tem-foto') || e.target.closest('.trocar')) return
+  const img = el.querySelector('img')
+  if (!img) return
+  const rect = el.getBoundingClientRect()
+  const atual = (img.style.objectPosition || POS_PADRAO).split(' ').map(v => parseFloat(v))
+  _posArrastando = { el, img, rect, startX: e.clientX, startY: e.clientY, baseX: atual[0] || 50, baseY: atual[1] || 25 }
+  el.classList.add('arrastando')
+  el.setPointerCapture(e.pointerId)
+  e.preventDefault()
+})
+document.addEventListener('pointermove', e => {
+  if (!_posArrastando) return
+  const { el, img, rect, startX, startY, baseX, baseY } = _posArrastando
+  const dxPct = ((e.clientX - startX) / rect.width) * 100
+  const dyPct = ((e.clientY - startY) / rect.height) * 100
+  const novoX = Math.min(100, Math.max(0, baseX - dxPct))
+  const novoY = Math.min(100, Math.max(0, baseY - dyPct))
+  const valor = `${novoX.toFixed(1)}% ${novoY.toFixed(1)}%`
+  img.style.objectPosition = valor
+  const target = POS_TARGET_MAP[el.id]
+  if (target) _posicoesPendentes[target] = valor
+})
+document.addEventListener('pointerup', () => {
+  if (_posArrastando) _posArrastando.el.classList.remove('arrastando')
+  _posArrastando = null
+})
+
 let _perfilArquivos = { foto: null, capa: null }
 
 async function atualizarAvatarTopbar() {
@@ -1242,7 +1321,7 @@ async function atualizarAvatarTopbar() {
   if (!el) return
   if (meuPerfil?.foto_url) {
     const url = await _urlAssinada(meuPerfil.foto_url)
-    if (url) { el.innerHTML = `<img src="${url}" alt="">`; return }
+    if (url) { el.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`; return }
   }
   el.textContent = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
 }
@@ -1260,6 +1339,8 @@ async function abrirModalPerfil() {
 
   if (meuPerfil?.foto_url) { const url = await _urlAssinada(meuPerfil.foto_url); if (url) avatarEl.innerHTML = `<img src="${url}" alt="">` + avatarEl.innerHTML }
   if (meuPerfil?.capa_url) { const url = await _urlAssinada(meuPerfil.capa_url); if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML }
+  _posAplicar('perfil-avatar-preview', meuPerfil?.foto_pos)
+  _posAplicar('perfil-capa-preview', meuPerfil?.capa_pos)
 
   abrirModal('modal-perfil')
 }
@@ -1274,6 +1355,7 @@ function _perfilArquivoSelecionado(inputEl, tipo) {
   wrap.innerHTML = `<img src="${preview}" alt="">`
   if (trocar) wrap.appendChild(trocar)
   wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
 }
 
 async function salvarPerfil() {
@@ -1298,7 +1380,9 @@ async function salvarPerfil() {
     if (tipo === 'foto') fotoPath = path; else capaPath = path
   }
 
-  const { error: perfilErr } = await db.rpc('atualizar_meu_perfil', { novo_nome: nome || null, nova_foto_url: fotoPath, nova_capa_url: capaPath })
+  const fotoPos = _posValor('perfil-avatar-preview')
+  const capaPos = _posValor('perfil-capa-preview')
+  const { error: perfilErr } = await db.rpc('atualizar_meu_perfil', { novo_nome: nome || null, nova_foto_url: fotoPath, nova_capa_url: capaPath, nova_foto_pos: fotoPos, nova_capa_pos: capaPos })
   if (perfilErr) { toast('Erro ao salvar perfil: ' + perfilErr.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
 
   if (novaSenha) {
@@ -1306,7 +1390,7 @@ async function salvarPerfil() {
     if (senhaErr) { toast('Perfil salvo, mas a senha não pôde ser trocada: ' + senhaErr.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
   }
 
-  meuPerfil = { ...meuPerfil, nome: nome || meuPerfil.nome, foto_url: fotoPath, capa_url: capaPath }
+  meuPerfil = { ...meuPerfil, nome: nome || meuPerfil.nome, foto_url: fotoPath, capa_url: capaPath, foto_pos: fotoPos, capa_pos: capaPos }
   document.getElementById('topbar-nome').textContent = meuPerfil.nome || currentUser.email
   await atualizarAvatarTopbar()
 
@@ -1428,9 +1512,9 @@ function renderEscolas() {
     const url = await _urlAssinada(e.capa_url)
     if (!url) return
     const cover = document.getElementById(`esc-cover-${e.id}`)
-    if (cover) cover.style.backgroundImage = `url('${url}')`
+    if (cover) { cover.style.backgroundImage = `url('${url}')`; cover.style.backgroundPosition = e.capa_pos || POS_PADRAO }
     const av = document.getElementById(`esc-av-${e.id}`)
-    if (av) av.innerHTML = `<img src="${url}" alt="">`
+    if (av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${e.capa_pos || POS_PADRAO};">`
   })
 }
 
@@ -1453,7 +1537,7 @@ function renderAlunos() {
     if (!a.foto_url) return
     const url = await _urlAssinada(a.foto_url)
     const el2 = document.getElementById(`alu-av-${a.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
 }
 
@@ -1478,7 +1562,7 @@ function renderEventos() {
     if (!ev.capa_url) return
     const url = await _urlAssinada(ev.capa_url)
     const el2 = document.getElementById(`evt-av-${ev.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${ev.capa_pos || POS_PADRAO};">`
   })
 }
 
@@ -1507,7 +1591,8 @@ function abrirModalEscola(escolaId) {
 
   const capaEl = document.getElementById('esc-capa-preview')
   capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="esc-capa-input" accept="image/*" style="display:none;" onchange="_escolaCapaSelecionada(this)">`
-  if (e?.capa_url) _urlAssinada(e.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+  if (e?.capa_url) _urlAssinada(e.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('esc-capa-preview', e.capa_pos) } })
+  else _posAplicar('esc-capa-preview', null)
 
   abrirModal('modal-escola')
 }
@@ -1521,6 +1606,7 @@ function _escolaCapaSelecionada(inputEl) {
   wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
   if (trocar) wrap.appendChild(trocar)
   wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
 }
 
 async function salvarEscola() {
@@ -1541,7 +1627,7 @@ async function salvarEscola() {
     capa_url = path
   }
 
-  const payload = { id: escolaId, nome, cidade, descricao, proprietario_user_id, capa_url }
+  const payload = { id: escolaId, nome, cidade, descricao, proprietario_user_id, capa_url, capa_pos: _posValor('esc-capa-preview') }
   let data, error
   if (id) ({ data, error } = await db.from('escolas').update(payload).eq('id', id).select().single())
   else ({ data, error } = await db.from('escolas').insert(payload).select().single())
@@ -1606,7 +1692,7 @@ async function abrirDetalheEscola(escolaId) {
     <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Pais vinculados (${paisDaEscola.length})</h2></div>
     <div class="list">${paisDaEscola.length ? paisDaEscola.map(r => `<div class="list-item"><div class="nome">${esc(r.nome || '(sem nome)')}</div></div>`).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'}</div>
   `
-  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;">` }
+  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:${e.capa_pos || POS_PADRAO};">` }
 }
 function fecharDetalheEscola() {
   document.getElementById('escolas-lista-wrap').style.display = 'block'
@@ -1843,7 +1929,8 @@ function abrirModalAluno(alunoId) {
 
   const fotoEl = document.getElementById('alu-foto-preview')
   fotoEl.innerHTML = `${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}<div class="trocar">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
-  if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) fotoEl.innerHTML = `<img src="${url}" alt="">` + fotoEl.innerHTML })
+  if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) { fotoEl.innerHTML = `<img src="${url}" alt="">` + fotoEl.innerHTML; _posAplicar('alu-foto-preview', a.foto_pos) } })
+  else _posAplicar('alu-foto-preview', null)
 
   abrirModal('modal-aluno')
 }
@@ -1857,6 +1944,7 @@ function _alunoFotoSelecionada(inputEl) {
   wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
   if (trocar) wrap.appendChild(trocar)
   wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
 }
 
 async function salvarAluno() {
@@ -1876,7 +1964,7 @@ async function salvarAluno() {
     foto_url = path
   }
 
-  const payload = { id: alunoId, nome, escola_id, data_nascimento, foto_url }
+  const payload = { id: alunoId, nome, escola_id, data_nascimento, foto_url, foto_pos: _posValor('alu-foto-preview') }
   let data, error
   if (id) {
     ({ data, error } = await db.from('alunos').update(payload).eq('id', id).select().single())
@@ -2034,7 +2122,8 @@ function abrirModalEvento(eventoId) {
 
   const capaEl = document.getElementById('evt-capa-preview')
   capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="evt-capa-input" accept="image/*" style="display:none;" onchange="_eventoCapaSelecionada(this)">`
-  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('evt-capa-preview', ev.capa_pos) } })
+  else _posAplicar('evt-capa-preview', null)
 
   _renderEventoSeletorAlunos()
   abrirModal('modal-evento')
@@ -2049,6 +2138,7 @@ function _eventoCapaSelecionada(inputEl) {
   wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
   if (trocar) wrap.appendChild(trocar)
   wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
 }
 
 function _renderEventoSeletorAlunos() {
@@ -2094,7 +2184,7 @@ async function salvarEvento() {
     capa_url = path
   }
 
-  const payload = { id: eventoId, nome, data: data_, escola_id, capa_url, alunos_selecionados: [..._eventoAlunosSelecionados] }
+  const payload = { id: eventoId, nome, data: data_, escola_id, capa_url, capa_pos: _posValor('evt-capa-preview'), alunos_selecionados: [..._eventoAlunosSelecionados] }
   let data, error
   if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
   else ({ data, error } = await db.from('eventos').insert(payload).select().single())
@@ -2967,7 +3057,7 @@ function renderGaleriaAlunosDaEscola(wrap) {
     if (!a.foto_url) return
     const url = await _urlAssinada(a.foto_url)
     const el2 = document.getElementById(`gal-alu-${a.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
 }
 
@@ -3096,7 +3186,7 @@ function renderEnsaios() {
     if (!ev.capa_url) return
     const url = await _urlAssinada(ev.capa_url)
     const el2 = document.getElementById(`ens-av-${ev.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${ev.capa_pos || POS_PADRAO};">`
   })
 }
 
@@ -3125,7 +3215,8 @@ function abrirModalEnsaio(ensaioId) {
 
   const capaEl = document.getElementById('ens-capa-preview')
   capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="ens-capa-input" accept="image/*" style="display:none;" onchange="_ensaioCapaSelecionada(this)">`
-  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('ens-capa-preview', ev.capa_pos) } })
+  else _posAplicar('ens-capa-preview', null)
 
   _renderEnsaioSeletorPessoas()
   abrirModal('modal-ensaio')
@@ -3140,6 +3231,7 @@ function _ensaioCapaSelecionada(inputEl) {
   wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
   if (trocar) wrap.appendChild(trocar)
   wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
 }
 
 function _renderEnsaioSeletorPessoas() {
@@ -3175,7 +3267,7 @@ async function salvarEnsaio() {
   }
 
   const payload = {
-    id: ensaioId, nome, data: data_, capa_url, tipo: 'ensaio', escola_id: null,
+    id: ensaioId, nome, data: data_, capa_url, capa_pos: _posValor('ens-capa-preview'), tipo: 'ensaio', escola_id: null,
     alunos_selecionados: [..._ensaioAlunosSel], pessoas_selecionadas: [..._ensaioPessoasSel],
   }
   let data, error
