@@ -220,6 +220,36 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 .evento-back{background:none;border:none;color:var(--ouro-fundo);font-size:12.5px;cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:.4em;}
 .evento-back:hover{color:var(--ouro-luz);}
 
+/* ── comunidade ── */
+.comunidade-composer{margin-bottom:22px;}
+.comunidade-composer textarea{resize:vertical;min-height:70px;}
+.composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap;}
+.composer-anexo{cursor:pointer;}
+.composer-destaque-opt{display:flex;align-items:center;gap:6px;font-size:12px;color:#DBC9A8;cursor:pointer;}
+.composer-destaque-opt input{width:auto;}
+#feed-composer-preview img{max-height:160px;border-radius:8px;margin-top:10px;}
+
+.post-card{background:rgba(75,4,22,.2);border:1px solid rgba(200,175,127,.14);border-radius:10px;padding:18px;margin-bottom:14px;}
+.post-card.destaque{border-color:var(--ouro);background:rgba(200,175,127,.08);}
+.post-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.post-autor{font-family:var(--serif);font-size:15.5px;color:var(--ouro-luz);}
+.post-meta{font-size:11.5px;color:#B39F86;margin-top:1px;}
+.post-destaque-tag{font-size:10.5px;letter-spacing:.05em;color:var(--ouro);border:1px solid var(--ouro);padding:.2em .6em;border-radius:99px;flex-shrink:0;}
+.post-texto{font-size:14px;color:#EADFCF;white-space:pre-wrap;margin-bottom:10px;}
+.post-imagem{width:100%;max-height:420px;object-fit:cover;border-radius:8px;cursor:pointer;margin-bottom:10px;}
+.post-actions{display:flex;gap:16px;border-top:1px solid rgba(200,175,127,.12);padding-top:10px;}
+.post-reagir,.post-comentar-btn{background:none;border:none;color:#C9B9A4;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--sans);padding:0;}
+.post-reagir:hover,.post-comentar-btn:hover{color:var(--ouro-luz);}
+.post-reagir.on{color:var(--vermelho);}
+.post-comentarios{margin-top:12px;padding-top:12px;border-top:1px solid rgba(200,175,127,.12);}
+.post-coment-item{font-size:13px;color:#DBC9A8;padding:6px 0;display:flex;align-items:baseline;gap:6px;}
+.post-coment-item b{color:var(--ouro-luz);flex-shrink:0;}
+.post-coment-item span{flex:1;}
+.post-coment-apagar{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;flex-shrink:0;}
+.post-coment-apagar:hover{color:var(--vermelho);}
+.post-coment-novo{display:flex;gap:8px;margin-top:8px;}
+.post-coment-novo input{flex:1;}
+
 @media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
 </style>
 </head>
@@ -267,6 +297,7 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
         <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos &amp; Fotos</div>
         <div class="tab" data-tab="ensaios" onclick="setAdminTab('ensaios')">Ensaios Avulsos</div>
         <div class="tab" data-tab="galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()">Galeria</div>
+        <div class="tab" data-tab="comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()">Comunidade</div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
       </div>
 
@@ -327,6 +358,16 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
         <div id="galeria-admin-wrap"></div>
       </div>
 
+      <div class="admin-tab" id="admintab-comunidade" style="display:none;">
+        <div class="section-h">
+          <h2>Comunidade</h2>
+          <select id="comunidade-admin-escola-filtro" onchange="_comunidadeAdminTrocarEscola(this.value)"></select>
+        </div>
+        <div class="hint">Veja e participe do mural de cada escola. Publique numa escola, em várias ou em todas de uma vez.</div>
+        <div id="comunidade-admin-composer-wrap"></div>
+        <div id="comunidade-admin-feed"></div>
+      </div>
+
       <div class="admin-tab" id="admintab-acesso" style="display:none;">
         <div class="section-h"><h2>Criar acesso</h2></div>
         <div class="card" style="max-width:460px;margin-bottom:20px;">
@@ -382,17 +423,36 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 
     <!-- ══════ VIEW ESCOLA ══════ -->
     <section class="view" id="view-escola">
-      <div id="escola-eventos-wrap">
-        <div class="section-h"><h2>Seus eventos</h2></div>
-        <div class="list" id="escola-lista-eventos"></div>
+      <div class="tabs">
+        <div class="tab on" data-tab="eventos" onclick="setEscolaTab('eventos')">Eventos</div>
+        <div class="tab" data-tab="comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()">Comunidade</div>
       </div>
-      <div id="escola-evento-detalhe" style="display:none;"></div>
+      <div class="escola-tab on" id="escolatab-eventos">
+        <div id="escola-eventos-wrap">
+          <div class="section-h"><h2>Seus eventos</h2></div>
+          <div class="list" id="escola-lista-eventos"></div>
+        </div>
+        <div id="escola-evento-detalhe" style="display:none;"></div>
+      </div>
+      <div class="escola-tab" id="escolatab-comunidade" style="display:none;">
+        <div id="comunidade-escola-composer-wrap"></div>
+        <div id="comunidade-escola-feed"></div>
+      </div>
     </section>
 
     <!-- ══════ VIEW RESPONSÁVEL ══════ -->
     <section class="view" id="view-responsavel">
-      <div class="section-h"><h2>Fotos dos seus filhos</h2></div>
-      <div id="responsavel-galeria"></div>
+      <div class="tabs">
+        <div class="tab on" data-tab="fotos" onclick="setRespTab('fotos')">Fotos</div>
+        <div class="tab" data-tab="comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()">Comunidade</div>
+      </div>
+      <div class="resp-tab on" id="resptab-fotos">
+        <div class="section-h"><h2>Fotos dos seus filhos</h2></div>
+        <div id="responsavel-galeria"></div>
+      </div>
+      <div class="resp-tab" id="resptab-comunidade" style="display:none;">
+        <div id="comunidade-responsavel-feed"></div>
+      </div>
     </section>
 
     <!-- ══════ VIEW AVULSO ══════ -->
@@ -907,9 +967,23 @@ async function carregarResponsaveis() {
 }
 
 function setAdminTab(tab) {
-  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
+  document.querySelectorAll('#view-admin .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none')
   document.getElementById('admintab-' + tab).style.display = 'block'
+}
+
+// mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
+// "comunidade" existem como data-tab em mais de uma view, então um
+// seletor sem escopo bagunçaria o estado de todas ao mesmo tempo.
+function setEscolaTab(tab) {
+  document.querySelectorAll('#view-escola .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
+  document.querySelectorAll('#view-escola .escola-tab').forEach(el => el.style.display = 'none')
+  document.getElementById('escolatab-' + tab).style.display = 'block'
+}
+function setRespTab(tab) {
+  document.querySelectorAll('#view-responsavel .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
+  document.querySelectorAll('#view-responsavel .resp-tab').forEach(el => el.style.display = 'none')
+  document.getElementById('resptab-' + tab).style.display = 'block'
 }
 
 async function carregarEscolas() {
@@ -1002,6 +1076,7 @@ function renderEventos() {
 }
 
 function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
+function fmtDataHora(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
 // ── modais: escola / aluno / evento ──────────────────────────────
@@ -1733,6 +1808,353 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') lightboxNav(1)
   else if (e.key === 'ArrowLeft') lightboxNav(-1)
 })
+
+// ══════════════════════════════════════════════════════════════
+// COMUNIDADE — mural isolado por escola (Estágio D). Proprietário/
+// diretor postam por padrão; professor só com
+// permissoes_extra.postar_comunidade=true; admin publica numa escola,
+// em várias ou em todas (global) — tudo espelhando exatamente o que
+// posso_postar()/posts_visiveis() já garantem no RLS (012_comunidade.sql).
+// ══════════════════════════════════════════════════════════════
+let _feedContexto = null
+let _feedContainerAtual = null
+let _feedPosts = []
+let _feedReacoes = {}
+let _feedComentCount = {}
+let _feedComentariosCache = {}
+let _comunidadeAdminEscolaAtual = null
+let _composerImagem = null
+
+// mesma regra de posso_postar() no SQL — mantém sincronizado se aquela
+// função mudar.
+async function podePostarComunidade() {
+  if (['admin', 'super_admin', 'proprietario', 'diretor'].includes(meuPerfil.role)) return true
+  if (meuPerfil.role === 'professor') {
+    const { data } = await db.from('permissoes_extra').select('valor').eq('user_id', currentUser.id).eq('chave', 'postar_comunidade').maybeSingle()
+    return !!data?.valor
+  }
+  return false
+}
+
+async function carregarFeed(contexto) {
+  _feedContexto = contexto
+  let posts = []
+  if (contexto.tipo === 'admin') {
+    const [{ data: proprios, error: e1 }, { data: globais, error: e2 }, { data: extras, error: e3 }] = await Promise.all([
+      db.from('posts').select('*').eq('escola_id', contexto.escolaId),
+      db.from('posts').select('*').eq('global', true),
+      db.from('post_escolas').select('post_id').eq('escola_id', contexto.escolaId),
+    ])
+    if (e1 || e2 || e3) { toast('Erro ao carregar comunidade: ' + (e1 || e2 || e3).message); return }
+    const idsExtras = (extras || []).map(x => x.post_id)
+    const { data: postsExtras, error: e4 } = idsExtras.length ? await db.from('posts').select('*').in('id', idsExtras) : { data: [] }
+    if (e4) { toast('Erro ao carregar comunidade: ' + e4.message); return }
+    const mapa = new Map()
+    ;[...(proprios || []), ...(globais || []), ...(postsExtras || [])].forEach(p => mapa.set(p.id, p))
+    posts = [...mapa.values()]
+  } else {
+    const { data, error } = await db.from('posts').select('*')
+    if (error) { toast('Erro ao carregar comunidade: ' + error.message); return }
+    posts = data || []
+  }
+  posts.sort((a, b) => (b.destaque - a.destaque) || (new Date(b.criado_em) - new Date(a.criado_em)))
+  _feedPosts = posts
+
+  const postIds = _feedPosts.map(p => p.id)
+  const [{ data: reacoes }, { data: comentarios }] = await Promise.all([
+    postIds.length ? db.from('post_reacoes').select('post_id,user_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+    postIds.length ? db.from('post_comentarios').select('post_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+  ])
+  _feedReacoes = {}
+  postIds.forEach(id => { _feedReacoes[id] = { count: 0, minha: false } })
+  ;(reacoes || []).forEach(r => {
+    if (!_feedReacoes[r.post_id]) _feedReacoes[r.post_id] = { count: 0, minha: false }
+    _feedReacoes[r.post_id].count++
+    if (r.user_id === currentUser.id) _feedReacoes[r.post_id].minha = true
+  })
+  _feedComentCount = {}
+  ;(comentarios || []).forEach(c => { _feedComentCount[c.post_id] = (_feedComentCount[c.post_id] || 0) + 1 })
+}
+
+function renderFeedAtual() { if (_feedContainerAtual) renderFeed(_feedContainerAtual) }
+
+function renderFeed(containerId) {
+  const wrap = document.getElementById(containerId)
+  if (!wrap) return
+  if (!_feedPosts.length) { wrap.innerHTML = '<div class="empty">Nada publicado por aqui ainda.</div>'; return }
+  wrap.innerHTML = _feedPosts.map(p => _postCardHTML(p)).join('')
+  _feedPosts.forEach(async p => {
+    if (!p.imagem_url) return
+    const img = document.getElementById('post-img-' + p.id)
+    const url = await _urlAssinada(p.imagem_url)
+    if (url && img) img.src = url
+  })
+}
+
+function _postCardHTML(p) {
+  const r = _feedReacoes[p.id] || { count: 0, minha: false }
+  const nComent = _feedComentCount[p.id] || 0
+  const podeApagar = p.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)
+  const escolaLabel = p.global ? 'Todas as escolas' : (nomeEscola(p.escola_id) || '')
+  return `
+    <div class="post-card${p.destaque ? ' destaque' : ''}">
+      <div class="post-head">
+        <span class="list-avatar">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
+        <div style="flex:1;">
+          <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}</div>
+          <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${fmtDataHora(p.criado_em)}</div>
+        </div>
+        ${p.destaque ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
+        ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
+      </div>
+      ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
+      ${p.imagem_url ? `<img class="post-imagem" id="post-img-${p.id}" onclick="abrirLightboxPost('${p.id}')" alt="">` : ''}
+      <div class="post-actions">
+        <button class="post-reagir${r.minha ? ' on' : ''}" id="post-reagirbtn-${p.id}" onclick="toggleReacaoPost('${p.id}')">♥ ${r.count || ''}</button>
+        <button class="post-comentar-btn" id="post-comentbtn-${p.id}" onclick="toggleComentarios('${p.id}')">💬 Comentar${nComent ? ' · ' + nComent : ''}</button>
+      </div>
+      <div class="post-comentarios" id="post-coment-wrap-${p.id}" style="display:none;">
+        <div class="post-coment-lista" id="post-coment-lista-${p.id}"></div>
+        <div class="post-coment-novo">
+          <input type="text" id="post-coment-input-${p.id}" placeholder="Escreva um comentário…" onkeydown="if(event.key==='Enter'){enviarComentario('${p.id}')}">
+          <button class="btn btn-sm" onclick="enviarComentario('${p.id}')">Enviar</button>
+        </div>
+      </div>
+    </div>
+  `
+}
+
+async function toggleReacaoPost(postId) {
+  const r = _feedReacoes[postId] || (_feedReacoes[postId] = { count: 0, minha: false })
+  const btn = document.getElementById('post-reagirbtn-' + postId)
+  if (btn) btn.disabled = true
+  if (r.minha) {
+    const { error } = await db.from('post_reacoes').delete().eq('post_id', postId).eq('user_id', currentUser.id)
+    if (error) { toast('Erro ao remover reação: ' + error.message); if (btn) btn.disabled = false; return }
+    r.minha = false; r.count = Math.max(0, r.count - 1)
+  } else {
+    const { error } = await db.from('post_reacoes').insert({ post_id: postId, user_id: currentUser.id })
+    if (error) { toast('Erro ao reagir: ' + error.message); if (btn) btn.disabled = false; return }
+    r.minha = true; r.count++
+  }
+  if (btn) { btn.disabled = false; btn.classList.toggle('on', r.minha); btn.textContent = `♥ ${r.count || ''}` }
+}
+
+async function toggleComentarios(postId) {
+  const wrap = document.getElementById('post-coment-wrap-' + postId)
+  if (!wrap) return
+  const abrir = wrap.style.display === 'none'
+  wrap.style.display = abrir ? 'block' : 'none'
+  if (abrir && !_feedComentariosCache[postId]) await carregarComentarios(postId)
+}
+
+async function carregarComentarios(postId) {
+  const lista = document.getElementById('post-coment-lista-' + postId)
+  if (lista) lista.innerHTML = '<div class="empty" style="padding:10px 0;">Carregando…</div>'
+  const { data, error } = await db.from('post_comentarios').select('*').eq('post_id', postId).order('criado_em')
+  if (error) { if (lista) lista.innerHTML = '<div class="empty">Erro ao carregar comentários.</div>'; return }
+  _feedComentariosCache[postId] = data || []
+  renderComentarios(postId)
+}
+
+function renderComentarios(postId) {
+  const lista = document.getElementById('post-coment-lista-' + postId)
+  if (!lista) return
+  const comentarios = _feedComentariosCache[postId] || []
+  if (!comentarios.length) { lista.innerHTML = '<div class="empty" style="padding:6px 0;">Nenhum comentário ainda.</div>'; return }
+  lista.innerHTML = comentarios.map(c => `
+    <div class="post-coment-item">
+      <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
+      ${(c.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)) ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
+    </div>
+  `).join('')
+}
+
+async function enviarComentario(postId) {
+  const input = document.getElementById('post-coment-input-' + postId)
+  const texto = input.value.trim()
+  if (!texto) return
+  input.disabled = true
+  const { error } = await db.from('post_comentarios').insert({ post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto })
+  input.disabled = false
+  if (error) { toast('Erro ao comentar: ' + error.message); return }
+  input.value = ''
+  _feedComentCount[postId] = (_feedComentCount[postId] || 0) + 1
+  await carregarComentarios(postId)
+  const btn = document.getElementById('post-comentbtn-' + postId)
+  if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
+}
+
+async function apagarComentario(comentarioId, postId) {
+  if (!await confirmModal('Apagar esse comentário?', { titulo: 'Apagar comentário', okLabel: 'Apagar', danger: true })) return
+  const { error } = await db.from('post_comentarios').delete().eq('id', comentarioId)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  if (_feedComentariosCache[postId]) _feedComentariosCache[postId] = _feedComentariosCache[postId].filter(c => c.id !== comentarioId)
+  _feedComentCount[postId] = Math.max(0, (_feedComentCount[postId] || 1) - 1)
+  renderComentarios(postId)
+  const btn = document.getElementById('post-comentbtn-' + postId)
+  if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
+  registrarAuditoria('apagou um comentário da comunidade', 'post_comentarios', comentarioId, null)
+}
+
+async function apagarPost(postId) {
+  if (!await confirmModal('Apagar essa publicação? Os comentários e reações dela também somem.', { titulo: 'Apagar publicação', okLabel: 'Apagar', danger: true })) return
+  const post = _feedPosts.find(p => p.id === postId)
+  const { error } = await db.from('posts').delete().eq('id', postId)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  if (post?.imagem_url) { try { await db.storage.from(BUCKET).remove([post.imagem_url]) } catch (e) { /* best-effort */ } }
+  _feedPosts = _feedPosts.filter(p => p.id !== postId)
+  delete _feedReacoes[postId]; delete _feedComentCount[postId]; delete _feedComentariosCache[postId]
+  registrarAuditoria('apagou uma publicação da comunidade', 'posts', postId, post?.texto ? post.texto.slice(0, 80) : null)
+  renderFeedAtual()
+  toast('Publicação apagada')
+}
+
+function abrirLightboxPost(postId) {
+  const p = _feedPosts.find(x => x.id === postId)
+  if (!p || !p.imagem_url) return
+  _lightboxFotos = [{ id: 'post-' + p.id, storage_path: p.imagem_url, evento_id: null }]
+  abrirLightbox('post-' + p.id)
+}
+
+function _composerHTML(contexto) {
+  const isAdmin = contexto.tipo === 'admin'
+  const podeDestacar = isAdmin || ['proprietario', 'diretor'].includes(meuPerfil.role)
+  return `
+    <div class="card comunidade-composer">
+      ${isAdmin ? `
+      <div class="field">
+        <label>Publicar em</label>
+        <div class="tag-picker" id="feed-composer-destinos">
+          <span class="tag-opt" data-escola="__global__" onclick="_toggleDestinoPost(this)">Todas as escolas</span>
+          ${store.escolas.map(e => `<span class="tag-opt" data-escola="${e.id}" onclick="_toggleDestinoPost(this)">${esc(e.nome)}</span>`).join('')}
+        </div>
+      </div>` : ''}
+      <textarea id="feed-composer-texto" rows="3" placeholder="Escreva um recado pra comunidade..."></textarea>
+      <div id="feed-composer-preview"></div>
+      <div class="composer-actions">
+        <label class="btn btn-sm composer-anexo">📷 Foto<input type="file" accept="image/*" style="display:none;" onchange="_composerImagemSelecionada(this)"></label>
+        ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Destacar</label>` : ''}
+        <button class="btn btn-primary btn-sm" onclick="publicarPost()">Publicar</button>
+      </div>
+    </div>
+  `
+}
+
+function _toggleDestinoPost(el) {
+  const wrap = el.parentElement
+  if (el.dataset.escola === '__global__') {
+    const ligando = !el.classList.contains('on')
+    wrap.querySelectorAll('.tag-opt').forEach(t => t.classList.remove('on'))
+    if (ligando) el.classList.add('on')
+  } else {
+    wrap.querySelector('.tag-opt[data-escola="__global__"]')?.classList.remove('on')
+    el.classList.toggle('on')
+  }
+}
+
+function _composerImagemSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _composerImagem = file
+  const preview = URL.createObjectURL(file)
+  document.getElementById('feed-composer-preview').innerHTML = `<img src="${preview}" alt="">`
+}
+
+async function publicarPost() {
+  const textoEl = document.getElementById('feed-composer-texto')
+  const texto = textoEl.value.trim()
+  if (!texto && !_composerImagem) { toast('Escreva algo ou anexe uma foto'); return }
+
+  let escolaId = null, global = false, destinosExtras = []
+  if (_feedContexto.tipo === 'admin') {
+    const destinosEl = document.getElementById('feed-composer-destinos')
+    const globalOn = destinosEl.querySelector('.tag-opt[data-escola="__global__"]')?.classList.contains('on')
+    if (globalOn) { global = true }
+    else {
+      const ids = [...destinosEl.querySelectorAll('.tag-opt.on')].map(t => t.dataset.escola)
+      if (!ids.length) { toast('Selecione ao menos uma escola (ou "Todas as escolas")'); return }
+      escolaId = ids[0]
+      destinosExtras = ids.slice(1)
+    }
+  } else {
+    escolaId = _feedContexto.escolaId
+  }
+
+  const destaqueEl = document.getElementById('feed-composer-destaque')
+  const destaque = !!destaqueEl?.checked
+
+  const btn = document.querySelector('.comunidade-composer .btn-primary')
+  if (btn) { btn.disabled = true; btn.textContent = 'Publicando…' }
+
+  const { data: post, error } = await db.from('posts').insert({
+    autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, escola_id: escolaId,
+    global, destaque, texto: texto || null,
+  }).select().single()
+
+  if (error) { toast('Erro ao publicar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }; return }
+
+  if (_composerImagem) {
+    const ext = (_composerImagem.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const imagemPath = `posts/${post.id}/img.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(imagemPath, _composerImagem, { contentType: _composerImagem.type, upsert: true })
+    if (upErr) toast('Publicação criada, mas a foto falhou: ' + upErr.message)
+    else await db.from('posts').update({ imagem_url: imagemPath }).eq('id', post.id)
+  }
+
+  if (destinosExtras.length) await db.from('post_escolas').insert(destinosExtras.map(id => ({ post_id: post.id, escola_id: id })))
+
+  registrarAuditoria('publicou na comunidade', 'posts', post.id, global ? 'todas as escolas' : null)
+
+  textoEl.value = ''
+  _composerImagem = null
+  const previewEl = document.getElementById('feed-composer-preview')
+  if (previewEl) previewEl.innerHTML = ''
+  if (destaqueEl) destaqueEl.checked = false
+  document.querySelectorAll('#feed-composer-destinos .tag-opt').forEach(t => t.classList.remove('on'))
+
+  if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }
+  toast('Publicado ✓')
+
+  await carregarFeed(_feedContexto)
+  renderFeedAtual()
+}
+
+// ── admin: mural por escola, com seletor de qual escola ver ────────
+async function iniciarComunidadeAdmin() {
+  const sel = document.getElementById('comunidade-admin-escola-filtro')
+  if (sel.options.length !== store.escolas.length) sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  if (!_comunidadeAdminEscolaAtual && store.escolas.length) _comunidadeAdminEscolaAtual = store.escolas[0].id
+  sel.value = _comunidadeAdminEscolaAtual || ''
+  document.getElementById('comunidade-admin-composer-wrap').innerHTML = _composerHTML({ tipo: 'admin' })
+  _feedContainerAtual = 'comunidade-admin-feed'
+  if (!_comunidadeAdminEscolaAtual) { document.getElementById('comunidade-admin-feed').innerHTML = '<div class="empty">Cadastre uma escola primeiro.</div>'; return }
+  await carregarFeed({ tipo: 'admin', escolaId: _comunidadeAdminEscolaAtual })
+  renderFeed('comunidade-admin-feed')
+}
+async function _comunidadeAdminTrocarEscola(escolaId) {
+  _comunidadeAdminEscolaAtual = escolaId
+  _feedContainerAtual = 'comunidade-admin-feed'
+  await carregarFeed({ tipo: 'admin', escolaId })
+  renderFeed('comunidade-admin-feed')
+}
+
+// ── escola: mural da própria escola ─────────────────────────────────
+async function iniciarComunidadeEscola() {
+  const podePostar = await podePostarComunidade()
+  document.getElementById('comunidade-escola-composer-wrap').innerHTML = podePostar ? _composerHTML({ tipo: 'escola', escolaId: meuPerfil.escola_id }) : ''
+  _feedContainerAtual = 'comunidade-escola-feed'
+  await carregarFeed({ tipo: 'escola', escolaId: meuPerfil.escola_id })
+  renderFeed('comunidade-escola-feed')
+}
+
+// ── responsável: murais de todas as escolas dos filhos + globais,
+// já filtrado pelo RLS (posts_visiveis usa meus_alunos()) — nunca posta.
+async function iniciarComunidadeResponsavel() {
+  _feedContainerAtual = 'comunidade-responsavel-feed'
+  await carregarFeed({ tipo: 'responsavel' })
+  renderFeed('comunidade-responsavel-feed')
+}
 
 async function renderFotosEventoAdmin() {
   const grid = document.getElementById('evt-fotos-grid')
