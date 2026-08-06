@@ -71,16 +71,45 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 #app{display:none;min-height:100vh;flex-direction:column;}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
-  background:rgba(43,2,16,.9);border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;
+  background:rgba(43,2,16,.72);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;
 }
 .topbar .brand{display:flex;align-items:center;gap:10px;}
 .topbar .brand img{width:30px;}
 .topbar .brand span{font-family:var(--serif);font-size:18px;color:var(--ouro-luz);}
+.topbar-busca{
+  display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.22);border:1px solid rgba(200,175,127,.2);
+  color:#B39F86;padding:.5em .9em;border-radius:9px;font-family:var(--sans);font-size:12.5px;cursor:pointer;
+  max-width:320px;flex:1;margin:0 24px;transition:border-color .15s;
+}
+.topbar-busca:hover{border-color:rgba(200,175,127,.45);}
+.topbar-busca svg{width:15px;height:15px;flex-shrink:0;}
+.topbar-busca span:not(.kbd){flex:1;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.topbar-busca .kbd{font-size:10.5px;border:1px solid rgba(200,175,127,.3);border-radius:5px;padding:1px 6px;color:#8A7461;flex-shrink:0;}
+@media(max-width:760px){.topbar-busca{display:none!important;}}
 .topbar .who{display:flex;align-items:center;gap:14px;font-size:13px;color:#DBC9A8;}
 .topbar .who b{color:var(--ouro-luz);font-weight:500;}
 .role-chip{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:rgba(200,175,127,.15);color:var(--ouro);padding:.25em .7em;border-radius:99px;}
 .who-perfil-btn{display:flex;align-items:center;gap:8px;background:none;border:1px solid transparent;color:#DBC9A8;font-size:13px;font-family:var(--sans);cursor:pointer;padding:.25em .7em .25em .25em;border-radius:99px;transition:background .15s,border-color .15s;}
 .who-perfil-btn:hover{background:rgba(200,175,127,.1);border-color:rgba(200,175,127,.25);color:var(--ouro-luz);}
+.profile-wrap{position:relative;}
+.perfil-menu-drop{
+  position:absolute;right:0;top:calc(100% + 8px);width:190px;background:var(--tinta);
+  border:1px solid rgba(200,175,127,.3);border-radius:10px;box-shadow:0 16px 40px rgba(0,0,0,.5);padding:6px;
+  opacity:0;visibility:hidden;transform:translateY(-6px);transition:opacity .15s,transform .15s,visibility .15s;z-index:60;
+}
+.perfil-menu-drop.open{opacity:1;visibility:visible;transform:translateY(0);}
+.perfil-menu-drop button{display:flex;align-items:center;gap:9px;width:100%;background:none;border:0;color:#EADFCF;font-size:13px;font-family:var(--sans);padding:9px 10px;border-radius:7px;text-align:left;cursor:pointer;}
+.perfil-menu-drop button:hover{background:rgba(255,255,255,.06);}
+.perfil-menu-drop button.danger{color:var(--vermelho);}
+.perfil-menu-drop button svg{width:15px;height:15px;flex-shrink:0;opacity:.85;}
+.sino-wrap{position:relative;}
+.sino-wrap .icon-btn{position:relative;}
+.sino-dot{position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:var(--vermelho);border:2px solid var(--palco);}
+.sino-drop{width:290px;right:-8px;}
+.sino-titulo{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ouro-fundo);padding:6px 8px 8px;}
+.sino-drop .dash-activity{max-height:280px;overflow-y:auto;padding:0 4px 4px;}
+.sino-drop .dash-activity li{padding:9px 6px;font-size:12.5px;}
 .who-avatar{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:11.5px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
 .who-avatar img{width:100%;height:100%;object-fit:cover;}
 .perfil-capa{height:110px;border-radius:8px 8px 0 0;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin:-26px -26px 0;cursor:pointer;}
@@ -123,6 +152,20 @@ main{flex:1;width:100%;}
 .tab.on svg{opacity:1;}
 .view{display:none;}
 .view.on{display:block;}
+
+.sidebar-toggle{
+  display:flex;align-items:center;gap:10px;margin-top:auto;padding:.65em .9em;border-radius:8px;
+  color:#8A7461;cursor:pointer;font-size:12.5px;transition:background .15s,color .15s;
+}
+.sidebar-toggle:hover{background:rgba(255,255,255,.03);color:#DBC9A8;}
+.sidebar-toggle svg{width:15px;height:15px;flex-shrink:0;transition:transform .2s;}
+.view-shell.sidebar-collapsed{grid-template-columns:60px 1fr;}
+.view-shell.sidebar-collapsed .tab{justify-content:center;padding:.65em;}
+.view-shell.sidebar-collapsed .tab span,
+.view-shell.sidebar-collapsed .sidebar-toggle span{display:none;}
+.view-shell.sidebar-collapsed .sidebar-toggle{justify-content:center;}
+.view-shell.sidebar-collapsed .sidebar-toggle svg{transform:rotate(180deg);}
+@media(max-width:900px){.sidebar-toggle{display:none;}}
 
 @media(max-width:900px){
   .view-shell{display:block;}
@@ -173,11 +216,31 @@ main{flex:1;width:100%;}
 .dash-activity li:first-child{border-top:0;}
 .dash-activity li small{display:block;color:#8A7461;font-size:11.5px;margin-top:2px;}
 
+/* ── escolas: grid de cards ── */
+.escolas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+.escola-card{padding:0;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.escola-card:hover{border-color:rgba(200,175,127,.4);}
+.escola-cover{height:92px;background:linear-gradient(135deg,var(--vinho-alto),var(--palco));background-size:cover;background-position:center;position:relative;}
+.escola-card-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;}
+.escola-card:hover .escola-card-actions{opacity:1;}
+.escola-card-body{padding:30px 16px 16px;position:relative;}
+.escola-logo{
+  position:absolute;left:16px;top:-22px;width:48px;height:48px;border-radius:12px;background:var(--tinta);
+  border:2px solid var(--tinta);color:var(--ouro-luz);font-family:var(--serif);font-weight:700;font-size:18px;
+  display:grid;place-items:center;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.4);
+}
+.escola-logo img{width:100%;height:100%;object-fit:cover;}
+.escola-card-body .nome{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
+.escola-card-body .meta{font-size:12px;color:#B39F86;margin-top:2px;}
+.badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
+.badge{font-size:11px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;padding:.3em .8em;border-radius:99px;}
+
 .modal-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;
 }
 .modal-overlay.show{display:flex;}
-.modal{background:var(--tinta);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:26px;width:100%;max-width:420px;}
+.modal-overlay{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+.modal{background:rgba(26,10,14,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:26px;width:100%;max-width:420px;}
 .modal h3{font-size:19px;margin-bottom:18px;}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
 
@@ -188,6 +251,12 @@ main{flex:1;width:100%;}
 }
 .foto-item.sel{border-color:var(--ouro);}
 .foto-item img{width:100%;height:100%;object-fit:cover;}
+.foto-item img:not([src]),.foto-item img[src=""]{
+  background:linear-gradient(100deg,rgba(255,255,255,.02) 30%,rgba(255,255,255,.08) 50%,rgba(255,255,255,.02) 70%);
+  background-size:200% 100%;animation:gf-shine 1.6s linear infinite;
+}
+@keyframes gf-shine{to{background-position:-200% 0;}}
+@media(prefers-reduced-motion:reduce){.foto-item img:not([src]),.foto-item img[src=""]{animation:none;}}
 .foto-item img,.lightbox-img-wrap img,.post-imagem{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
 .foto-item .ck{
   position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:5px;background:rgba(26,10,14,.7);
@@ -328,13 +397,40 @@ main{flex:1;width:100%;}
 <div id="app">
   <div class="topbar">
     <div class="brand"><img src="assets/logo-icone.png" alt=""><span>Grand Focus</span></div>
+    <button class="topbar-busca" id="topbar-busca-btn" onclick="_abrirBuscaGlobal()" style="display:none;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="20" y1="20" x2="15.3" y2="15.3"/></svg>
+      <span>Buscar escola, aluno, evento…</span>
+      <span class="kbd">Ctrl K</span>
+    </button>
     <div class="who">
       <span class="role-chip" id="topbar-role">—</span>
-      <button class="who-perfil-btn" onclick="abrirModalPerfil()" title="Meu perfil">
-        <span class="who-avatar" id="topbar-avatar">?</span>
-        <span id="topbar-nome">—</span>
-      </button>
-      <button class="btn btn-sm" onclick="fazerLogout()">Sair</button>
+      <div class="sino-wrap" id="sino-wrap" style="display:none;">
+        <button class="icon-btn" title="Notificações" onclick="_toggleSinoNotificacoes()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-1.7 2.3h15.4L18 16Z"/><path d="M9.5 20.3a2.5 2.5 0 0 0 5 0"/></svg>
+          <span class="sino-dot" id="sino-dot" style="display:none;"></span>
+        </button>
+        <div class="perfil-menu-drop sino-drop" id="sino-drop">
+          <div class="sino-titulo">Recentes</div>
+          <ul class="dash-activity" id="sino-lista"></ul>
+        </div>
+      </div>
+      <div class="profile-wrap">
+        <button class="who-perfil-btn" onclick="_toggleMenuPerfil()" title="Menu do perfil">
+          <span class="who-avatar" id="topbar-avatar">?</span>
+          <span id="topbar-nome">—</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="perfil-menu-drop" id="perfil-menu-drop">
+          <button onclick="document.getElementById('perfil-menu-drop').classList.remove('open');abrirModalPerfil()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3"/></svg>
+            Editar perfil
+          </button>
+          <button class="danger" onclick="document.getElementById('perfil-menu-drop').classList.remove('open');fazerLogout()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4H9"/><polyline points="14 8 18.5 12 14 16"/><line x1="18.5" y1="12" x2="9" y2="12"/></svg>
+            Sair
+          </button>
+        </div>
+      </div>
     </div>
   </div>
   <main>
@@ -354,6 +450,7 @@ main{flex:1;width:100%;}
         <div class="tab" data-tab="comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="tab" data-tab="auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.3"/><path d="M3.5 20.2c0-3 2.5-5.4 5.5-5.4s5.5 2.4 5.5 5.4"/><line x1="18.5" y1="6.5" x2="18.5" y2="12.5"/><line x1="15.5" y1="9.5" x2="21.5" y2="9.5"/></svg><span>Criar acesso</span></div>
+        <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
 
@@ -518,6 +615,7 @@ main{flex:1;width:100%;}
       <div class="tabs">
         <div class="tab on" data-tab="eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
         <div class="tab" data-tab="comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
       <div class="escola-tab on" id="escolatab-eventos">
@@ -541,6 +639,7 @@ main{flex:1;width:100%;}
       <div class="tabs">
         <div class="tab on" data-tab="fotos" onclick="setRespTab('fotos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Fotos</span></div>
         <div class="tab" data-tab="comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
       <div class="resp-tab on" id="resptab-fotos">
@@ -748,6 +847,38 @@ main{flex:1;width:100%;}
   </div>
 </div>
 
+<!-- modal: conferir fotos antes de subir (evento/ensaio) -->
+<div class="modal-overlay" id="modal-preview-upload">
+  <div class="modal" style="max-width:560px;">
+    <h3>Conferir antes de enviar</h3>
+    <div class="hint" id="preview-upload-hint"></div>
+    <div class="foto-grid" id="preview-upload-grid" style="max-height:340px;overflow-y:auto;margin-bottom:6px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="_cancelarPreviewUpload()">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_confirmarPreviewUpload()">Enviar fotos</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: busca global (Ctrl+K, admin) -->
+<div class="modal-overlay" id="modal-busca">
+  <div class="modal" style="max-width:480px;padding:16px;">
+    <input type="text" id="busca-input" placeholder="Buscar escola, aluno ou evento…" oninput="_renderBuscaGlobal()" style="margin-bottom:10px;">
+    <div class="list" id="busca-resultados" style="max-height:340px;overflow-y:auto;"></div>
+  </div>
+</div>
+
+<!-- modal: credencial gerada (reset de senha) -->
+<div class="modal-overlay" id="modal-credencial">
+  <div class="modal" style="max-width:400px;">
+    <h3>Senha redefinida</h3>
+    <div class="credencial-box" id="credencial-modal-texto" style="display:block;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary btn-sm" onclick="fecharModal('modal-credencial')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal de confirmação genérico (substitui confirm() nativo em tudo) -->
 <div class="modal-overlay" id="modal-confirm">
   <div class="modal" style="max-width:420px;">
@@ -835,6 +966,7 @@ async function registrarAuditoria(acao, tabela, registroId, detalhe) {
 const ICON_LAPIS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 const ICON_LIXEIRA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 const ICON_VINCULO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const ICON_CHAVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13 19 4M15 8l2 2M18 5l2 2"/></svg>'
 
 function abrirModal(id) { document.getElementById(id).classList.add('show') }
 function fecharModal(id) { document.getElementById(id).classList.remove('show') }
@@ -903,6 +1035,9 @@ async function mostrarApp(user) {
   document.getElementById('topbar-role').textContent = ROLE_LABEL[data.role] || data.role
   document.getElementById('topbar-nome').textContent = data.nome || user.email
   atualizarAvatarTopbar()
+  document.getElementById('topbar-busca-btn').style.display = ['admin', 'super_admin'].includes(data.role) ? 'flex' : 'none'
+  document.getElementById('sino-wrap').style.display = data.role === 'avulso' ? 'none' : 'block'
+  if (data.role !== 'avulso') iniciarSinoNotificacoes()
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
@@ -991,6 +1126,94 @@ function _toggleSenhaLogin() {
   const inp = document.getElementById('login-pass')
   inp.type = inp.type === 'password' ? 'text' : 'password'
 }
+
+// só uma view fica visível por vez (depende do role), mas o estado de
+// recolhida/expandida é único — aplica nas 3 pra ficar consistente
+// quando o Luiz alternar de conta.
+function _toggleSidebar() {
+  const novoEstado = !document.querySelector('.view-shell.sidebar-collapsed')
+  document.querySelectorAll('.view-shell').forEach(s => s.classList.toggle('sidebar-collapsed', novoEstado))
+  localStorage.setItem('gf_sidebar_collapsed', novoEstado ? '1' : '0')
+}
+function _aplicarSidebarSalva() {
+  if (localStorage.getItem('gf_sidebar_collapsed') !== '1') return
+  document.querySelectorAll('.view-shell').forEach(s => s.classList.add('sidebar-collapsed'))
+}
+_aplicarSidebarSalva()
+
+function _toggleMenuPerfil() {
+  document.getElementById('perfil-menu-drop')?.classList.toggle('open')
+}
+document.addEventListener('click', e => {
+  const perfilDrop = document.getElementById('perfil-menu-drop')
+  if (perfilDrop && perfilDrop.classList.contains('open') && !e.target.closest('.profile-wrap')) perfilDrop.classList.remove('open')
+  const sinoDrop = document.getElementById('sino-drop')
+  if (sinoDrop && sinoDrop.classList.contains('open') && !e.target.closest('.sino-wrap')) sinoDrop.classList.remove('open')
+})
+
+// sino: pra admin, últimas ações da auditoria; pra escola/responsável,
+// últimos posts da comunidade que eles já enxergam (RLS filtra
+// sozinha). O "•" de novidade compara com o ultimo_acesso ANTERIOR a
+// esse login (marcarAcesso só atualiza o banco, não o objeto local) —
+// não é contador de não-lido de verdade, é só "surgiu desde a última
+// vez que você entrou".
+function _toggleSinoNotificacoes() {
+  const drop = document.getElementById('sino-drop')
+  const abrindo = !drop.classList.contains('open')
+  drop.classList.toggle('open')
+  if (abrindo) iniciarSinoNotificacoes()
+}
+async function iniciarSinoNotificacoes() {
+  const role = meuPerfil?.role
+  const wrap = document.getElementById('sino-lista')
+  if (!wrap) return
+  let itens = []
+  if (['admin', 'super_admin'].includes(role)) {
+    const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(8)
+    if (!error) itens = (data || []).map(a => ({ texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em }))
+  } else {
+    const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
+    if (!error) itens = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(imagem)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em }))
+  }
+  const desde = meuPerfil?.ultimo_acesso ? new Date(meuPerfil.ultimo_acesso) : null
+  const dot = document.getElementById('sino-dot')
+  if (dot) dot.style.display = (desde && itens.some(i => new Date(i.quando) > desde)) ? 'block' : 'none'
+  wrap.innerHTML = itens.length
+    ? itens.map(i => `<li>${esc(i.texto)}<small>${esc(i.sub)}</small></li>`).join('')
+    : '<li class="empty" style="border:0;">Nada por aqui ainda.</li>'
+}
+
+// busca global (Ctrl+K) — só admin, e só sobre o que a view admin já
+// carregou em memória (sem chamada nova ao banco).
+function _abrirBuscaGlobal() {
+  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) return
+  const input = document.getElementById('busca-input')
+  input.value = ''
+  document.getElementById('busca-resultados').innerHTML = '<div class="empty">Digite pra buscar…</div>'
+  abrirModal('modal-busca')
+  setTimeout(() => input.focus(), 50)
+}
+function _renderBuscaGlobal() {
+  const termo = document.getElementById('busca-input').value.trim().toLowerCase()
+  const wrap = document.getElementById('busca-resultados')
+  if (!termo) { wrap.innerHTML = '<div class="empty">Digite pra buscar…</div>'; return }
+  const resultados = []
+  store.escolas.filter(e => (e.nome || '').toLowerCase().includes(termo)).forEach(e =>
+    resultados.push({ tipo: 'Escola', nome: e.nome, onclick: `fecharModal('modal-busca');setAdminTab('escolas');abrirDetalheEscola('${e.id}')` }))
+  store.alunos.filter(a => (a.nome || '').toLowerCase().includes(termo)).forEach(a =>
+    resultados.push({ tipo: 'Aluno', nome: a.nome + (a.escola_id ? ' · ' + nomeEscola(a.escola_id) : ' · avulso'), onclick: `fecharModal('modal-busca');setAdminTab('alunos');abrirModalAluno('${a.id}')` }))
+  store.eventos.filter(ev => (ev.nome || '').toLowerCase().includes(termo)).forEach(ev =>
+    resultados.push({ tipo: 'Evento', nome: ev.nome, onclick: `fecharModal('modal-busca');setAdminTab('eventos');abrirEventoAdmin('${ev.id}')` }))
+  if (!resultados.length) { wrap.innerHTML = '<div class="empty">Nada encontrado.</div>'; return }
+  wrap.innerHTML = resultados.slice(0, 30).map(r => `
+    <div class="list-item" onclick="${r.onclick}">
+      <div><div class="nome" style="font-size:14.5px;">${esc(r.nome)}</div><div class="meta">${r.tipo}</div></div>
+    </div>
+  `).join('')
+}
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); _abrirBuscaGlobal() }
+})
 
 // ── meu perfil (foto, capa, nome, senha) ───────────────────────────
 let _perfilArquivos = { foto: null, capa: null }
@@ -1159,23 +1382,36 @@ function nomeEscola(id) { return store.escolas.find(e => e.id === id)?.nome || '
 function renderEscolas() {
   const el = document.getElementById('lista-escolas')
   if (!store.escolas.length) { el.innerHTML = '<div class="empty">Nenhuma escola cadastrada ainda.</div>'; return }
-  el.innerHTML = store.escolas.map(e => `
-    <div class="list-item" onclick="abrirDetalheEscola('${e.id}')">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar" id="esc-av-${e.id}">${esc((e.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(e.nome)}</div><div class="meta">${esc(e.cidade || '')} · ${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)</div></div>
+  el.innerHTML = '<div class="escolas-grid">' + store.escolas.map(e => {
+    const nAlunos = store.alunos.filter(a => a.escola_id === e.id).length
+    const nProf = store.professores.filter(p => p.escola_id === e.id).length
+    return `
+    <div class="escola-card card" onclick="abrirDetalheEscola('${e.id}')">
+      <div class="escola-cover" id="esc-cover-${e.id}">
+        <div class="escola-card-actions">
+          <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEscola('${e.id}')">${ICON_LAPIS}</div>
+          <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEscola('${e.id}')">${ICON_LIXEIRA}</div>
+        </div>
       </div>
-      <div class="actions">
-        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEscola('${e.id}')">${ICON_LAPIS}</div>
-        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEscola('${e.id}')">${ICON_LIXEIRA}</div>
+      <div class="escola-card-body">
+        <div class="escola-logo" id="esc-av-${e.id}">${esc((e.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="nome">${esc(e.nome)}</div>
+        <div class="meta">${esc(e.cidade || 'Sem cidade cadastrada')}</div>
+        <div class="badges">
+          <span class="badge">${nAlunos} aluno(s)</span>
+          <span class="badge">${nProf} professor(es)/diretor(es)</span>
+        </div>
       </div>
-    </div>
-  `).join('')
+    </div>`
+  }).join('') + '</div>'
   store.escolas.forEach(async e => {
     if (!e.capa_url) return
     const url = await _urlAssinada(e.capa_url)
-    const el2 = document.getElementById(`esc-av-${e.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+    if (!url) return
+    const cover = document.getElementById(`esc-cover-${e.id}`)
+    if (cover) cover.style.backgroundImage = `url('${url}')`
+    const av = document.getElementById(`esc-av-${e.id}`)
+    if (av) av.innerHTML = `<img src="${url}" alt="">`
   })
 }
 
@@ -1229,6 +1465,7 @@ function renderEventos() {
 
 function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
 function fmtDataHora(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
+function fmtUltimoAcesso(iso) { return iso ? fmtDataHora(iso) : 'nunca acessou' }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
 // ── modais: escola / aluno / evento ──────────────────────────────
@@ -1374,9 +1611,10 @@ function renderProfessores() {
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · ${p.escola_id ? esc(nomeEscola(p.escola_id)) : '—'}</div></div>
+        <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · ${p.escola_id ? esc(nomeEscola(p.escola_id)) : '—'} · Acesso: ${fmtUltimoAcesso(p.ultimo_acesso)}</div></div>
       </div>
       <div class="actions">
+        <div class="icon-btn" title="Resetar senha" onclick="event.stopPropagation();resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div>
         <div class="icon-btn" title="Editar" onclick="abrirModalProfessor('${p.user_id}')">${ICON_LAPIS}</div>
         <div class="icon-btn danger" title="Apagar" onclick="excluirProfessor('${p.user_id}')">${ICON_LIXEIRA}</div>
       </div>
@@ -1499,9 +1737,10 @@ function renderPais() {
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar">${esc((r.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'}</div></div>
+        <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'} · Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div></div>
       </div>
       <div class="actions">
+        <div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${r.user_id}','responsavel')">${ICON_CHAVE}</div>
         <div class="icon-btn" title="Vincular cônjuge" onclick="abrirVincularConjuge('${r.user_id}')">${ICON_VINCULO}</div>
         <div class="icon-btn danger" title="Apagar" onclick="excluirResponsavel('${r.user_id}')">${ICON_LIXEIRA}</div>
       </div>
@@ -1524,6 +1763,24 @@ async function excluirResponsavel(userId) {
   renderPais()
   toast('Apagado ✓')
   registrarAuditoria('apagou responsável', 'perfis', userId, r.nome || '')
+}
+
+// admin reseta qualquer um; proprietario/diretor só da própria escola —
+// a regra de verdade mora no RPC (resetar_senha, 007_contas.sql), isso
+// aqui é só a UI. Reaproveita gerarSenha() e o mesmo texto de
+// credencial que criarAcesso/salvarProfessor já usam.
+async function resetarSenhaUsuario(userId, origem) {
+  const p = origem === 'professor' ? store.professores.find(x => x.user_id === userId) : store.responsaveis.find(x => x.user_id === userId)
+  if (!p) return
+  const nome = p.nome || 'essa pessoa'
+  const ok = await confirmModal(`Gerar uma senha nova pra "${nome}"? A senha atual dela para de funcionar assim que você confirmar.`, { titulo: 'Resetar senha', okLabel: 'Gerar nova senha' })
+  if (!ok) return
+  const senha = gerarSenha()
+  const { error } = await db.rpc('resetar_senha', { alvo_user_id: userId, nova_senha: senha })
+  if (error) { toast('Erro ao redefinir senha: ' + error.message); return }
+  document.getElementById('credencial-modal-texto').textContent = `Usuário: ${p.username || '(sem usuário cadastrado)'}\nNova senha: ${senha}\n\nEnvie pra ${nome} — a senha antiga parou de funcionar.`
+  abrirModal('modal-credencial')
+  registrarAuditoria('redefiniu a senha de ' + nome, 'perfis', userId, null)
 }
 
 function abrirVincularConjuge(userId) {
@@ -1864,7 +2121,7 @@ async function abrirEventoAdmin(eventoId) {
     <div class="section-h"><h2>${esc(_eventoAtual.nome)}</h2></div>
     <div class="upload-drop" onclick="document.getElementById('evt-upload-input').click()">
       📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
-      <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEvento(this.files)">
+      <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEvento(this.files)">
     </div>
     <div id="evt-upload-status"></div>
     <div class="hint">Depois que a foto aparecer aqui embaixo, passe o mouse por cima e marque quais alunos aparecem nela — é assim que cada aluno/escola só vê as fotos dele.</div>
@@ -1882,6 +2139,58 @@ function fecharEventoAdmin() {
   document.getElementById('eventos-lista-wrap').style.display = 'block'
   document.getElementById('evento-detalhe-wrap').style.display = 'none'
   renderEventos()
+}
+
+// tela de conferência antes de efetivamente subir — nada vai pro
+// Supabase aqui, é só preview local (URL.createObjectURL) das fotos
+// escolhidas, com opção de tirar alguma antes de confirmar.
+let _previewUploadFiles = null
+let _previewUploadDestino = null
+function _prepararUploadEvento(files) {
+  if (!files?.length) return
+  _previewUploadFiles = [...files]
+  _previewUploadDestino = 'evento'
+  document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_eventoAtual?.nome || ''}" — confira antes de enviar.`
+  _renderPreviewUploadGrid()
+  abrirModal('modal-preview-upload')
+}
+function _prepararUploadEnsaio(files) {
+  if (!files?.length) return
+  _previewUploadFiles = [...files]
+  _previewUploadDestino = 'ensaio'
+  document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_ensaioAtual?.nome || ''}" — confira antes de enviar.`
+  _renderPreviewUploadGrid()
+  abrirModal('modal-preview-upload')
+}
+function _renderPreviewUploadGrid() {
+  const grid = document.getElementById('preview-upload-grid')
+  grid.innerHTML = _previewUploadFiles.map((f, i) => `
+    <div class="foto-item" style="cursor:default;">
+      <img src="${URL.createObjectURL(f)}" alt="">
+      <button class="foto-expand" style="opacity:1;" title="Tirar essa foto do envio" onclick="_removerDoPreviewUpload(${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('')
+}
+function _removerDoPreviewUpload(idx) {
+  _previewUploadFiles.splice(idx, 1)
+  if (!_previewUploadFiles.length) { _cancelarPreviewUpload(); return }
+  _renderPreviewUploadGrid()
+}
+function _cancelarPreviewUpload() {
+  fecharModal('modal-preview-upload')
+  _previewUploadFiles = null; _previewUploadDestino = null
+  const i1 = document.getElementById('evt-upload-input'); if (i1) i1.value = ''
+  const i2 = document.getElementById('ens-upload-input'); if (i2) i2.value = ''
+}
+async function _confirmarPreviewUpload() {
+  const files = _previewUploadFiles
+  const destino = _previewUploadDestino
+  fecharModal('modal-preview-upload')
+  _previewUploadFiles = null; _previewUploadDestino = null
+  if (destino === 'evento') await uploadFotosEvento(files)
+  else if (destino === 'ensaio') await uploadFotosEnsaio(files)
 }
 
 async function uploadFotosEvento(files) {
@@ -2536,6 +2845,7 @@ async function baixarComoZip(paths, nomeArquivo) {
   a.click()
   a.remove()
   toast('Download pronto ✓')
+  registrarAuditoria('baixou fotos em zip', 'fotos', null, `${paths.length} foto(s) — ${nomeArquivo || ''}`)
 }
 
 // gera um link de download temporário (~24h) pra compartilhar por fora
@@ -2874,7 +3184,7 @@ async function abrirEnsaioAdmin(ensaioId) {
     <div class="section-h"><h2>${esc(_ensaioAtual.nome)}</h2></div>
     <div class="upload-drop" onclick="document.getElementById('ens-upload-input').click()">
       📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
-      <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEnsaio(this.files)">
+      <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEnsaio(this.files)">
     </div>
     <div id="ens-upload-status"></div>
     <div class="hint">As fotos já sobem marcadas pra todo mundo escolhido na criação do ensaio — ajuste foto a foto se precisar.</div>
@@ -3258,6 +3568,7 @@ async function baixarSelecionadas() {
     a.remove()
     await new Promise(r => setTimeout(r, 350))
   }
+  registrarAuditoria('baixou fotos selecionadas', 'fotos', null, `${paths.length} foto(s)`)
 }
 
 // ══════════════════════════════════════════════════════════════
