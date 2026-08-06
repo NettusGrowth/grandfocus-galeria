@@ -21,6 +21,12 @@
 }
 *{box-sizing:border-box;}
 body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+* {scrollbar-width:thin;scrollbar-color:var(--ouro-fundo) var(--palco);}
+*::-webkit-scrollbar{width:10px;height:10px;}
+*::-webkit-scrollbar-track{background:var(--palco);}
+*::-webkit-scrollbar-thumb{background:var(--vinho-alto);border-radius:99px;border:2px solid var(--palco);}
+*::-webkit-scrollbar-thumb:hover{background:var(--ouro-fundo);}
+*::-webkit-scrollbar-corner{background:var(--palco);}
 img{max-width:100%;display:block;}
 a{color:inherit;}
 h1,h2,h3{font-family:var(--serif);font-weight:500;color:var(--ouro-luz);margin:0;}
@@ -1397,7 +1403,11 @@ function _abrirAjusteFoto(containerId) {
   previewImg.style.objectPosition = `${_ajustarPosicao.x}% ${_ajustarPosicao.y}%`
   const wrap = document.getElementById('ajustar-preview-wrap')
   const ehCapa = containerId.includes('capa')
-  wrap.style.aspectRatio = ehCapa ? '17 / 6' : '1 / 1'
+  // mede o tamanho real do container de destino em vez de chutar uma
+  // proporção — assim o preview do modal bate com o que vai aparecer
+  // de verdade lá, não uma aproximação.
+  const alvoRect = document.getElementById(containerId).getBoundingClientRect()
+  wrap.style.aspectRatio = `${alvoRect.width} / ${alvoRect.height}`
   wrap.style.borderRadius = ehCapa ? '10px' : '50%'
   abrirModal('modal-ajustar-foto')
 }
@@ -1456,11 +1466,11 @@ async function abrirModalPerfil() {
   document.getElementById('perfil-conf-senha').value = ''
 
   const avatarEl = document.getElementById('perfil-avatar-preview')
-  avatarEl.innerHTML = `${(meuPerfil?.nome || '?').trim().charAt(0).toUpperCase()}<div class="trocar" onclick="document.getElementById('perfil-foto-input').click()">Trocar foto</div><input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">`
+  avatarEl.innerHTML = `<span class="letra-fallback">${(meuPerfil?.nome || '?').trim().charAt(0).toUpperCase()}</span><div class="trocar" onclick="document.getElementById('perfil-foto-input').click()">Trocar foto</div><input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">`
   const capaEl = document.getElementById('perfil-capa-preview')
   capaEl.innerHTML = `<div class="trocar" onclick="document.getElementById('perfil-capa-input').click()">Trocar capa</div><input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">`
 
-  if (meuPerfil?.foto_url) { const url = await _urlAssinada(meuPerfil.foto_url); if (url) avatarEl.innerHTML = `<img src="${url}" alt="">` + avatarEl.innerHTML }
+  if (meuPerfil?.foto_url) { const url = await _urlAssinada(meuPerfil.foto_url); if (url) { avatarEl.querySelector('.letra-fallback')?.remove(); avatarEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) } }
   if (meuPerfil?.capa_url) { const url = await _urlAssinada(meuPerfil.capa_url); if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML }
   _posAplicar('perfil-avatar-preview', meuPerfil?.foto_pos)
   _posAplicar('perfil-capa-preview', meuPerfil?.capa_pos)
@@ -2112,8 +2122,8 @@ function abrirModalAluno(alunoId) {
   document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
 
   const fotoEl = document.getElementById('alu-foto-preview')
-  fotoEl.innerHTML = `${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}<div class="trocar" onclick="document.getElementById('alu-foto-input').click()">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
-  if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) { fotoEl.innerHTML = `<img src="${url}" alt="">` + fotoEl.innerHTML; _posAplicar('alu-foto-preview', a.foto_pos) } })
+  fotoEl.innerHTML = `<span class="letra-fallback">${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('alu-foto-input').click()">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
+  if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) { fotoEl.querySelector('.letra-fallback')?.remove(); fotoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('alu-foto-preview', a.foto_pos) } })
   else _posAplicar('alu-foto-preview', null)
 
   abrirModal('modal-aluno')
