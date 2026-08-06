@@ -1059,7 +1059,14 @@ async function mostrarApp(user) {
   let viewPromise
   if (data.role === 'admin' || data.role === 'super_admin') { document.getElementById('view-admin').classList.add('on'); viewPromise = iniciarViewAdmin() }
   else if (ESCOLA_ROLES.includes(data.role)) { document.getElementById('view-escola').classList.add('on'); viewPromise = iniciarViewEscola() }
-  else if (data.role === 'responsavel') { document.getElementById('view-responsavel').classList.add('on'); viewPromise = iniciarViewResponsavel() }
+  else if (data.role === 'responsavel') {
+    document.getElementById('view-responsavel').classList.add('on')
+    // sem aceite de LGPD, a view fica visível mas SEM carregar dado
+    // nenhum — antes disso o modal era só cosmético, dava pra fechar
+    // na mão (DevTools) e a galeria já tinha carregado por trás.
+    // _aceitarLgpd() é quem dispara o carregamento de verdade.
+    viewPromise = data.lgpd_aceito_em ? iniciarViewResponsavel() : Promise.resolve()
+  }
   else if (data.role === 'avulso') { document.getElementById('view-avulso').classList.add('on'); viewPromise = Promise.resolve() }
   else {
     toast('Esse tipo de acesso ainda não está disponível nessa versão — fale com a Grand Focus.')
@@ -1104,6 +1111,7 @@ async function _aceitarLgpd() {
   if (error) { toast('Erro ao registrar aceite: ' + error.message); return }
   if (meuPerfil) meuPerfil.lgpd_aceito_em = new Date().toISOString()
   fecharModal('modal-lgpd')
+  await iniciarViewResponsavel()
 }
 
 // Login é usuário+senha, não e-mail — traduz o usuário pro e-mail
