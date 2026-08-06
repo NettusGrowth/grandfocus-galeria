@@ -71,9 +71,23 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .topbar .brand{display:flex;align-items:center;gap:10px;}
 .topbar .brand img{width:30px;}
 .topbar .brand span{font-family:var(--serif);font-size:18px;color:var(--ouro-luz);}
-.topbar .who{display:flex;align-items:center;gap:16px;font-size:13px;color:#DBC9A8;}
+.topbar .who{display:flex;align-items:center;gap:14px;font-size:13px;color:#DBC9A8;}
 .topbar .who b{color:var(--ouro-luz);font-weight:500;}
 .role-chip{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;background:rgba(200,175,127,.15);color:var(--ouro);padding:.25em .7em;border-radius:99px;}
+.who-perfil-btn{display:flex;align-items:center;gap:8px;background:none;border:none;color:#DBC9A8;font-size:13px;font-family:var(--sans);cursor:pointer;padding:.25em .5em;border-radius:99px;transition:background .15s;}
+.who-perfil-btn:hover{background:rgba(200,175,127,.1);color:var(--ouro-luz);}
+.who-avatar{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:11.5px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
+.who-avatar img{width:100%;height:100%;object-fit:cover;}
+.perfil-capa{height:110px;border-radius:8px 8px 0 0;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin:-26px -26px 0;cursor:pointer;}
+.perfil-capa img{width:100%;height:100%;object-fit:cover;}
+.perfil-capa .trocar{position:absolute;inset:0;background:rgba(26,10,14,.5);display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;}
+.perfil-capa:hover .trocar{opacity:1;}
+.perfil-avatar-wrap{display:flex;justify-content:center;margin-top:-38px;margin-bottom:14px;position:relative;}
+.perfil-avatar-edit{width:76px;height:76px;border-radius:50%;border:3px solid var(--tinta);background:var(--ouro);color:var(--tinta);font-weight:700;font-size:26px;display:grid;place-items:center;cursor:pointer;overflow:hidden;position:relative;}
+.perfil-avatar-edit img{width:100%;height:100%;object-fit:cover;}
+.perfil-avatar-edit .trocar{position:absolute;inset:0;background:rgba(26,10,14,.55);display:flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;text-align:center;}
+.perfil-avatar-edit:hover .trocar{opacity:1;}
+.perfil-divisor{border:none;border-top:1px solid rgba(200,175,127,.16);margin:18px 0;}
 main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 
 .tabs{display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap;}
@@ -166,6 +180,18 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 .lightbox-foot img{width:16px;opacity:.7;}
 @media(max-width:640px){.lightbox-nav{width:36px;height:36px;font-size:18px;}.lightbox-nav.prev{left:6px;}.lightbox-nav.next{right:6px;}}
 
+.welcome-overlay{
+  display:none;position:fixed;inset:0;z-index:400;cursor:pointer;
+  background:radial-gradient(ellipse at 50% 30%, #58061C 0%, #3A0311 45%, #2B0210 78%);
+  align-items:center;justify-content:center;flex-direction:column;text-align:center;
+  opacity:0;transition:opacity .4s ease;
+}
+.welcome-overlay.show{display:flex;}
+.welcome-overlay.in{opacity:1;}
+.welcome-overlay img{width:64px;margin-bottom:20px;opacity:.95;filter:drop-shadow(0 0 26px rgba(200,175,127,.35));}
+.welcome-overlay h1{font-size:clamp(24px,4vw,34px);}
+.welcome-overlay .sub{margin-top:8px;font-size:12px;letter-spacing:.24em;text-transform:uppercase;color:var(--ouro-fundo);}
+
 .upload-drop{
   border:1.5px dashed rgba(200,175,127,.35);border-radius:8px;padding:26px;text-align:center;color:#B39F86;
   font-size:13px;cursor:pointer;margin-bottom:18px;
@@ -192,10 +218,16 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
     <h1>Grand Focus</h1>
     <div class="sub">Galeria Digital</div>
     <div id="login-error"></div>
-    <div class="field"><label>E-mail</label><input type="email" id="login-email" placeholder="seu@email.com"></div>
-    <div class="field"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+    <div class="field"><label>Usuário</label><input type="text" id="login-user" placeholder="seu.usuario" autocapitalize="off" autocomplete="username"></div>
+    <div class="field"><label>Senha</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
     <button class="btn btn-primary" id="login-btn" onclick="fazerLogin()">Entrar</button>
   </div>
+</div>
+
+<div class="welcome-overlay" id="welcome-overlay">
+  <img src="assets/logo-icone.png" alt="">
+  <h1 id="welcome-nome">Bem-vindo!</h1>
+  <div class="sub">Grand Focus · Galeria Digital</div>
 </div>
 
 <div id="app">
@@ -203,7 +235,10 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
     <div class="brand"><img src="assets/logo-icone.png" alt=""><span>Grand Focus</span></div>
     <div class="who">
       <span class="role-chip" id="topbar-role">—</span>
-      <span id="topbar-nome">—</span>
+      <button class="who-perfil-btn" onclick="abrirModalPerfil()" title="Meu perfil">
+        <span class="who-avatar" id="topbar-avatar">?</span>
+        <span id="topbar-nome">—</span>
+      </button>
       <button class="btn btn-sm" onclick="fazerLogout()">Sair</button>
     </div>
   </div>
@@ -257,7 +292,8 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
             <label>Filho(s) deste responsável</label>
             <div class="tag-picker" id="acesso-filhos-lista"></div>
           </div>
-          <div class="field"><label>E-mail de acesso</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
+          <div class="field"><label>Usuário de acesso (pra fazer login)</label><input type="text" id="acesso-usuario" placeholder="maria.silva" autocapitalize="off"></div>
+          <div class="field"><label>E-mail de contato (opcional, não é usado pra login)</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
           <button class="btn btn-primary" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
           <div class="credencial-box" id="acesso-resultado"></div>
         </div>
@@ -342,6 +378,32 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- modal: meu perfil -->
+<div class="modal-overlay" id="modal-perfil">
+  <div class="modal" style="max-width:400px;">
+    <div class="perfil-capa" id="perfil-capa-preview" onclick="document.getElementById('perfil-capa-input').click()">
+      <div class="trocar">Trocar capa</div>
+      <input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">
+    </div>
+    <div class="perfil-avatar-wrap">
+      <div class="perfil-avatar-edit" id="perfil-avatar-preview" onclick="document.getElementById('perfil-foto-input').click()">
+        ?
+        <div class="trocar">Trocar foto</div>
+        <input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">
+      </div>
+    </div>
+    <h3 style="text-align:center;">Meu perfil</h3>
+    <div class="field"><label>Nome completo</label><input type="text" id="perfil-nome" placeholder="Seu nome"></div>
+    <hr class="perfil-divisor">
+    <div class="field"><label>Nova senha (deixe em branco pra não trocar)</label><input type="password" id="perfil-nova-senha" placeholder="••••••••" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmar nova senha</label><input type="password" id="perfil-conf-senha" placeholder="••••••••" autocomplete="new-password"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-perfil')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="perfil-salvar-btn" onclick="salvarPerfil()">Salvar alterações</button>
+    </div>
+  </div>
+</div>
+
 <!-- visualizador de foto ampliada -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)fecharLightbox()">
   <button class="lightbox-close" onclick="fecharLightbox()" aria-label="Fechar">×</button>
@@ -388,6 +450,17 @@ function toast(msg) {
   toast._t = setTimeout(() => el.classList.remove('show'), 3200)
 }
 
+// best-effort — nunca trava o fluxo principal se falhar
+async function registrarAuditoria(acao, tabela, registroId, detalhe) {
+  try {
+    await db.from('auditoria').insert({
+      user_id: currentUser?.id || null,
+      user_nome: meuPerfil?.nome || currentUser?.email || null,
+      acao, tabela, registro_id: registroId || null, detalhe: detalhe || null,
+    })
+  } catch (e) { /* best-effort */ }
+}
+
 function abrirModal(id) { document.getElementById(id).classList.add('show') }
 function fecharModal(id) { document.getElementById(id).classList.remove('show') }
 
@@ -426,35 +499,165 @@ async function mostrarApp(user) {
     return
   }
   meuPerfil = data
+  marcarAcesso() // best-effort, não bloqueia
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'flex'
-  document.getElementById('topbar-role').textContent = { admin: 'Admin', escola: 'Escola', responsavel: 'Responsável' }[data.role] || data.role
+  document.getElementById('topbar-role').textContent = ROLE_LABEL[data.role] || data.role
   document.getElementById('topbar-nome').textContent = data.nome || user.email
+  atualizarAvatarTopbar()
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
   document.getElementById('view-responsavel').classList.remove('on')
 
-  if (data.role === 'admin') { document.getElementById('view-admin').classList.add('on'); await iniciarViewAdmin() }
-  else if (data.role === 'escola') { document.getElementById('view-escola').classList.add('on'); await iniciarViewEscola() }
-  else if (data.role === 'responsavel') { document.getElementById('view-responsavel').classList.add('on'); await iniciarViewResponsavel() }
-  else { toast('Papel de acesso desconhecido: ' + data.role + ' — fale com a Grand Focus.'); await db.auth.signOut() }
+  const ESCOLA_ROLES = ['escola', 'proprietario', 'diretor', 'professor']
+  let viewPromise
+  if (data.role === 'admin' || data.role === 'super_admin') { document.getElementById('view-admin').classList.add('on'); viewPromise = iniciarViewAdmin() }
+  else if (ESCOLA_ROLES.includes(data.role)) { document.getElementById('view-escola').classList.add('on'); viewPromise = iniciarViewEscola() }
+  else if (data.role === 'responsavel') { document.getElementById('view-responsavel').classList.add('on'); viewPromise = iniciarViewResponsavel() }
+  else {
+    toast('Esse tipo de acesso ainda não está disponível nessa versão — fale com a Grand Focus.')
+    await db.auth.signOut()
+    return
+  }
+  await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
 }
 
+const ROLE_LABEL = {
+  admin: 'Admin', super_admin: 'Admin', escola: 'Escola', proprietario: 'Proprietário',
+  diretor: 'Diretor', professor: 'Professor', responsavel: 'Responsável', aluno: 'Aluno', avulso: 'Avulso',
+}
+
+function mostrarBoasVindas(nome) {
+  return new Promise(resolve => {
+    const el = document.getElementById('welcome-overlay')
+    document.getElementById('welcome-nome').textContent = `Bem-vindo, ${nome}!`
+    el.classList.add('show')
+    requestAnimationFrame(() => el.classList.add('in'))
+    let fechado = false
+    const fechar = () => {
+      if (fechado) return
+      fechado = true
+      el.classList.remove('in')
+      setTimeout(() => { el.classList.remove('show'); resolve() }, 400)
+    }
+    el.onclick = fechar
+    setTimeout(fechar, 1600)
+  })
+}
+
+async function marcarAcesso() {
+  try { await db.rpc('marcar_acesso') } catch (e) { /* best-effort */ }
+}
+
+// Login é usuário+senha, não e-mail — traduz o usuário pro e-mail
+// (real ou sintético) cadastrado por trás via RPC pública, antes de
+// chamar o signIn de verdade. Erro genérico de propósito (não revela
+// se o usuário existe ou só a senha que está errada).
 async function fazerLogin() {
-  const email = document.getElementById('login-email').value.trim()
+  const username = document.getElementById('login-user').value.trim()
   const pass = document.getElementById('login-pass').value
   const errEl = document.getElementById('login-error')
   errEl.style.display = 'none'
-  if (!email || !pass) { errEl.textContent = 'Preencha e-mail e senha.'; errEl.style.display = 'block'; return }
+  if (!username || !pass) { errEl.textContent = 'Preencha usuário e senha.'; errEl.style.display = 'block'; return }
   const btn = document.getElementById('login-btn')
   btn.disabled = true; btn.textContent = 'Entrando…'
+
+  const { data: email, error: rpcErr } = await db.rpc('email_por_usuario', { p_username: username })
+  if (rpcErr || !email) {
+    btn.disabled = false; btn.textContent = 'Entrar'
+    errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block'
+    return
+  }
+
   const { error } = await db.auth.signInWithPassword({ email, password: pass })
   btn.disabled = false; btn.textContent = 'Entrar'
-  if (error) { errEl.textContent = 'E-mail ou senha incorretos.'; errEl.style.display = 'block' }
+  if (error) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block' }
 }
 
 async function fazerLogout() { await db.auth.signOut() }
+
+// ── meu perfil (foto, capa, nome, senha) ───────────────────────────
+let _perfilArquivos = { foto: null, capa: null }
+
+async function atualizarAvatarTopbar() {
+  const el = document.getElementById('topbar-avatar')
+  if (!el) return
+  if (meuPerfil?.foto_url) {
+    const url = await _urlAssinada(meuPerfil.foto_url)
+    if (url) { el.innerHTML = `<img src="${url}" alt="">`; return }
+  }
+  el.textContent = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
+}
+
+async function abrirModalPerfil() {
+  _perfilArquivos = { foto: null, capa: null }
+  document.getElementById('perfil-nome').value = meuPerfil?.nome || ''
+  document.getElementById('perfil-nova-senha').value = ''
+  document.getElementById('perfil-conf-senha').value = ''
+
+  const avatarEl = document.getElementById('perfil-avatar-preview')
+  avatarEl.innerHTML = `${(meuPerfil?.nome || '?').trim().charAt(0).toUpperCase()}<div class="trocar">Trocar foto</div><input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">`
+  const capaEl = document.getElementById('perfil-capa-preview')
+  capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">`
+
+  if (meuPerfil?.foto_url) { const url = await _urlAssinada(meuPerfil.foto_url); if (url) avatarEl.innerHTML = `<img src="${url}" alt="">` + avatarEl.innerHTML }
+  if (meuPerfil?.capa_url) { const url = await _urlAssinada(meuPerfil.capa_url); if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML }
+
+  abrirModal('modal-perfil')
+}
+
+function _perfilArquivoSelecionado(inputEl, tipo) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _perfilArquivos[tipo] = file
+  const preview = URL.createObjectURL(file)
+  const wrap = tipo === 'foto' ? document.getElementById('perfil-avatar-preview') : document.getElementById('perfil-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${preview}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+}
+
+async function salvarPerfil() {
+  const nome = document.getElementById('perfil-nome').value.trim()
+  const novaSenha = document.getElementById('perfil-nova-senha').value
+  const confSenha = document.getElementById('perfil-conf-senha').value
+  if (novaSenha && novaSenha.length < 6) { toast('A nova senha precisa ter pelo menos 6 caracteres'); return }
+  if (novaSenha && novaSenha !== confSenha) { toast('As senhas não conferem'); return }
+
+  const btn = document.getElementById('perfil-salvar-btn')
+  btn.disabled = true; btn.textContent = 'Salvando…'
+
+  let fotoPath = meuPerfil?.foto_url || null
+  let capaPath = meuPerfil?.capa_url || null
+
+  for (const [tipo, file] of Object.entries(_perfilArquivos)) {
+    if (!file) continue
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `perfis/${currentUser.id}/${tipo}.${ext}`
+    const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+    if (error) { toast(`Erro ao enviar ${tipo === 'foto' ? 'a foto' : 'a capa'}: ` + error.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
+    if (tipo === 'foto') fotoPath = path; else capaPath = path
+  }
+
+  const { error: perfilErr } = await db.rpc('atualizar_meu_perfil', { novo_nome: nome || null, nova_foto_url: fotoPath, nova_capa_url: capaPath })
+  if (perfilErr) { toast('Erro ao salvar perfil: ' + perfilErr.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
+
+  if (novaSenha) {
+    const { error: senhaErr } = await db.auth.updateUser({ password: novaSenha })
+    if (senhaErr) { toast('Perfil salvo, mas a senha não pôde ser trocada: ' + senhaErr.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
+  }
+
+  meuPerfil = { ...meuPerfil, nome: nome || meuPerfil.nome, foto_url: fotoPath, capa_url: capaPath }
+  document.getElementById('topbar-nome').textContent = meuPerfil.nome || currentUser.email
+  await atualizarAvatarTopbar()
+
+  btn.disabled = false; btn.textContent = 'Salvar alterações'
+  fecharModal('modal-perfil')
+  toast('Perfil atualizado ✓')
+  registrarAuditoria('atualizou o próprio perfil', 'perfis', currentUser.id, novaSenha ? 'trocou a senha também' : null)
+}
 
 // ══════════════════════════════════════════════════════════════
 // VIEW ADMIN
@@ -543,6 +746,7 @@ async function salvarEscola() {
   document.getElementById('esc-nome').value = ''; document.getElementById('esc-cidade').value = ''
   fecharModal('modal-escola')
   toast('Escola criada ✓')
+  registrarAuditoria('criou escola', 'escolas', data.id, nome)
 }
 
 function abrirModalAluno() {
@@ -562,6 +766,7 @@ async function salvarAluno() {
   document.getElementById('alu-nome').value = ''
   fecharModal('modal-aluno')
   toast('Aluno criado ✓')
+  registrarAuditoria('criou aluno', 'alunos', data.id, nome)
 }
 
 function abrirModalEvento() {
@@ -581,6 +786,7 @@ async function salvarEvento() {
   document.getElementById('evt-nome').value = ''; document.getElementById('evt-data').value = ''
   fecharModal('modal-evento')
   toast('Evento criado ✓')
+  registrarAuditoria('criou evento', 'eventos', data.id, nome)
 }
 
 // ── detalhe do evento (admin): upload + marcação de alunos ───────
@@ -761,8 +967,10 @@ function toggleAcessoFilho(id, el) {
 
 async function criarAcesso() {
   const tipo = document.getElementById('acesso-tipo').value
-  const email = document.getElementById('acesso-email').value.trim()
-  if (!email) { toast('Informe o e-mail de acesso'); return }
+  const username = document.getElementById('acesso-usuario').value.trim().toLowerCase()
+  const emailContato = document.getElementById('acesso-email').value.trim()
+  if (!username) { toast('Informe o usuário de acesso'); return }
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) { toast('Usuário só pode ter letras minúsculas, números, ponto, traço ou "_" (3 a 32 caracteres)'); return }
 
   let alvoId = null, nomeAlvo = '', filhoIds = []
   if (tipo === 'escola') {
@@ -780,10 +988,14 @@ async function criarAcesso() {
   const btn = document.getElementById('acesso-btn')
   btn.disabled = true; btn.textContent = 'Gerando…'
 
-  const { data: suData, error: suErr } = await db.auth.signUp({ email, password: senha, options: { data: { full_name: nomeAlvo } } })
+  // usuário/senha por fora — por baixo o Supabase Auth ainda exige um
+  // "e-mail"; usa o de contato se foi informado, senão sintetiza um
+  // interno que nunca é mostrado nem usado pra login de verdade.
+  const emailAuth = emailContato || `${username}@login.grandfocus.internal`
+  const { data: suData, error: suErr } = await db.auth.signUp({ email: emailAuth, password: senha, options: { data: { full_name: nomeAlvo } } })
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
 
-  const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo }
+  const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo, username }
   if (tipo === 'escola') perfilPayload.escola_id = alvoId
   const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
 
@@ -802,12 +1014,18 @@ async function criarAcesso() {
   const sessaoTrocou = session?.user?.id && session.user.id !== adminId
 
   btn.disabled = false; btn.textContent = 'Gerar acesso'
-  if (perfilErr) { toast('Conta criada, mas o perfil falhou: ' + perfilErr.message); return }
+  if (perfilErr) {
+    const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
+    toast(msg)
+    return
+  }
   if (vinculoErr) { toast('Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho a responsável já existente" pra corrigir.'); return }
 
   document.getElementById('acesso-resultado').style.display = 'block'
-  document.getElementById('acesso-resultado').textContent = `E-mail: ${email}\nSenha:  ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
+  document.getElementById('acesso-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
+  document.getElementById('acesso-usuario').value = ''
   document.getElementById('acesso-email').value = ''
+  registrarAuditoria('criou acesso (' + tipo + ')', 'perfis', suData.user?.id, `usuário ${username} — ${nomeAlvo}`)
   if (tipo === 'responsavel') {
     _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
     store.responsaveis.push({ user_id: suData.user.id, role: 'responsavel', nome: nomeAlvo })
@@ -838,6 +1056,7 @@ async function vincularFilho() {
   const { error } = await db.from('responsavel_alunos').insert({ user_id: userId, aluno_id: alunoId })
   if (error) { toast('Erro ao vincular: ' + error.message); return }
   toast('Filho vinculado ✓')
+  registrarAuditoria('vinculou filho a responsável', 'responsavel_alunos', alunoId, `aluno ${alunoId} → responsável ${userId}`)
 }
 
 // ══════════════════════════════════════════════════════════════
