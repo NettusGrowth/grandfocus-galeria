@@ -9,6 +9,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
 <style>
 :root{
   --palco:#2B0210; --vinho:#4B0416; --vinho-alto:#5C0A1E;
@@ -88,6 +90,17 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .perfil-avatar-edit .trocar{position:absolute;inset:0;background:rgba(26,10,14,.55);display:flex;align-items:center;justify-content:center;font-size:9.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;text-align:center;}
 .perfil-avatar-edit:hover .trocar{opacity:1;}
 .perfil-divisor{border:none;border-top:1px solid rgba(200,175,127,.16);margin:18px 0;}
+.list-avatar{width:34px;height:34px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:13px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
+.list-avatar img{width:100%;height:100%;object-fit:cover;}
+.icon-btn{width:30px;height:30px;border-radius:8px;background:rgba(75,4,22,.3);border:1px solid rgba(200,175,127,.2);color:#DBC9A8;display:grid;place-items:center;cursor:pointer;transition:all .15s;flex-shrink:0;}
+.icon-btn:hover{background:rgba(200,175,127,.15);color:var(--ouro-luz);}
+.icon-btn.danger:hover{background:rgba(224,85,112,.16);color:var(--vermelho);}
+.import-row-erro{background:rgba(224,85,112,.08);}
+.import-status-ok{color:var(--verde);font-size:11px;font-weight:700;}
+.import-status-erro{color:var(--vermelho);font-size:11px;font-weight:700;}
+table.import-tabela{width:100%;border-collapse:collapse;font-size:12.5px;}
+table.import-tabela td, table.import-tabela th{padding:6px 8px;border-bottom:1px solid rgba(200,175,127,.12);text-align:left;white-space:nowrap;}
+table.import-tabela th{color:var(--ouro-fundo);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;}
 main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 
 .tabs{display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap;}
@@ -249,20 +262,45 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
       <div class="tabs">
         <div class="tab on" data-tab="escolas" onclick="setAdminTab('escolas')">Escolas</div>
         <div class="tab" data-tab="alunos" onclick="setAdminTab('alunos')">Alunos</div>
+        <div class="tab" data-tab="professores" onclick="setAdminTab('professores')">Professores &amp; Diretores</div>
+        <div class="tab" data-tab="pais" onclick="setAdminTab('pais')">Pais</div>
         <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos &amp; Fotos</div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
       </div>
 
       <div class="admin-tab on" id="admintab-escolas">
-        <div class="section-h"><h2>Escolas de dança</h2><button class="btn btn-primary btn-sm" onclick="abrirModal('modal-escola')">+ Nova escola</button></div>
-        <div class="hint">1º passo — cadastre a escola. Depois vá em <b>Alunos</b> pra cadastrar os bailarinos dela (ou avulsos, sem escola).</div>
-        <div class="list" id="lista-escolas"></div>
+        <div id="escolas-lista-wrap">
+          <div class="section-h"><h2>Escolas de dança</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEscola()">+ Nova escola</button></div>
+          <div class="hint">1º passo — cadastre a escola. Depois vá em <b>Alunos</b> pra cadastrar os bailarinos dela (ou avulsos, sem escola).</div>
+          <div class="list" id="lista-escolas"></div>
+        </div>
+        <div id="escola-detalhe-wrap" style="display:none;"></div>
       </div>
 
       <div class="admin-tab" id="admintab-alunos" style="display:none;">
-        <div class="section-h"><h2>Alunos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalAluno()">+ Novo aluno</button></div>
-        <div class="hint">2º passo — cadastre os alunos. Depois vá em <b>Eventos &amp; Fotos</b> pra criar o evento e subir as fotos deles.</div>
+        <div class="section-h">
+          <h2>Alunos</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="btn btn-sm" onclick="baixarModeloAlunos()">⬇ Modelo Excel</button>
+            <button class="btn btn-sm" onclick="document.getElementById('alunos-import-input').click()">⬆ Importar planilha</button>
+            <input type="file" id="alunos-import-input" accept=".xlsx,.xls" style="display:none;" onchange="processarPlanilhaAlunos(this.files[0])">
+            <button class="btn btn-primary btn-sm" onclick="abrirModalAluno()">+ Novo aluno</button>
+          </div>
+        </div>
+        <div class="hint">2º passo — cadastre os alunos (um a um ou importando uma planilha). Depois vá em <b>Eventos &amp; Fotos</b> pra criar o evento e subir as fotos deles.</div>
         <div class="list" id="lista-alunos"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-professores" style="display:none;">
+        <div class="section-h"><h2>Professores &amp; Diretores</h2><button class="btn btn-primary btn-sm" onclick="abrirModalProfessor()">+ Novo professor/diretor</button></div>
+        <div class="hint">Sempre têm login próprio. Proprietário e diretor enxergam tudo da escola; professor também, por padrão.</div>
+        <div class="list" id="lista-professores"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-pais" style="display:none;">
+        <div class="section-h"><h2>Pais e responsáveis</h2></div>
+        <div class="hint">Responsáveis são criados na aba <b>Criar acesso</b> (precisa vincular a pelo menos um filho na hora). Aqui você gerencia quem já existe.</div>
+        <div class="list" id="lista-pais"></div>
       </div>
 
       <div class="admin-tab" id="admintab-eventos" style="display:none;">
@@ -282,6 +320,7 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
             <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
               <option value="escola">Escola de dança</option>
               <option value="responsavel">Responsável (pai/mãe)</option>
+              <option value="avulso">Avulso (colaborador ou cliente sem vínculo)</option>
             </select>
           </div>
           <div class="field" id="acesso-alvo-escola-wrap">
@@ -291,6 +330,18 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
           <div class="field" id="acesso-alvo-filhos-wrap" style="display:none;">
             <label>Filho(s) deste responsável</label>
             <div class="tag-picker" id="acesso-filhos-lista"></div>
+          </div>
+          <div class="field" id="acesso-nome-avulso-wrap" style="display:none;">
+            <label>Nome</label>
+            <input type="text" id="acesso-nome-avulso" placeholder="Nome dessa pessoa">
+          </div>
+          <div class="field" id="acesso-permissoes-wrap" style="display:none;">
+            <label>Permissões desta conta</label>
+            <div class="tag-picker" id="acesso-permissoes-lista">
+              <span class="tag-opt" data-perm="gerenciar_cadastro" onclick="this.classList.toggle('on')">Gerenciar cadastro (escolas/alunos/professores/pais)</span>
+              <span class="tag-opt" data-perm="postar_comunidade" onclick="this.classList.toggle('on')">Postar na comunidade</span>
+              <span class="tag-opt" data-perm="ver_auditoria" onclick="this.classList.toggle('on')">Ver log de auditoria</span>
+            </div>
           </div>
           <div class="field"><label>Usuário de acesso (pra fazer login)</label><input type="text" id="acesso-usuario" placeholder="maria.silva" autocapitalize="off"></div>
           <div class="field"><label>E-mail de contato (opcional, não é usado pra login)</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
@@ -329,15 +380,30 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
       <div id="responsavel-galeria"></div>
     </section>
 
+    <!-- ══════ VIEW AVULSO ══════ -->
+    <section class="view" id="view-avulso">
+      <div class="card" style="max-width:480px;margin:60px auto;text-align:center;">
+        <h2 style="margin-bottom:10px;">Bem-vindo(a) à Grand Focus</h2>
+        <div style="color:#DBC9A8;font-size:14px;">Sua conta foi criada. As áreas específicas pra esse tipo de acesso ainda estão sendo preparadas — em breve você terá acesso ao que foi liberado pra você. Qualquer dúvida, fale com a Grand Focus.</div>
+      </div>
+    </section>
+
   </main>
 </div>
 
 <!-- modal: nova escola -->
 <div class="modal-overlay" id="modal-escola">
   <div class="modal">
-    <h3>Nova escola de dança</h3>
+    <input type="hidden" id="esc-id">
+    <div class="perfil-capa" id="esc-capa-preview" onclick="document.getElementById('esc-capa-input').click()">
+      <div class="trocar">Trocar capa</div>
+      <input type="file" id="esc-capa-input" accept="image/*" style="display:none;" onchange="_escolaCapaSelecionada(this)">
+    </div>
+    <h3 id="esc-modal-titulo" style="margin-top:16px;">Nova escola de dança</h3>
     <div class="field"><label>Nome</label><input type="text" id="esc-nome" placeholder="Ex: Studio Arabesque"></div>
     <div class="field"><label>Cidade</label><input type="text" id="esc-cidade" placeholder="Ex: Uberlândia"></div>
+    <div class="field"><label>Descrição (opcional)</label><textarea id="esc-descricao" placeholder="Sobre a escola…" style="min-height:60px;"></textarea></div>
+    <div class="field"><label>Proprietário (opcional)</label><select id="esc-proprietario"><option value="">— nenhum —</option></select></div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-escola')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarEscola()">Salvar</button>
@@ -345,15 +411,24 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
   </div>
 </div>
 
-<!-- modal: novo aluno -->
+<!-- modal: novo/editar aluno -->
 <div class="modal-overlay" id="modal-aluno">
   <div class="modal">
-    <h3>Novo aluno</h3>
+    <input type="hidden" id="alu-id">
+    <div class="perfil-avatar-wrap" style="margin-top:0;">
+      <div class="perfil-avatar-edit" id="alu-foto-preview" onclick="document.getElementById('alu-foto-input').click()">
+        ?
+        <div class="trocar">Trocar foto</div>
+        <input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">
+      </div>
+    </div>
+    <h3 id="alu-modal-titulo" style="text-align:center;">Novo aluno</h3>
     <div class="field"><label>Nome</label><input type="text" id="alu-nome" placeholder="Nome do bailarino"></div>
     <div class="field">
       <label>Escola</label>
       <select id="alu-escola"><option value="">— Avulso (sem escola) —</option></select>
     </div>
+    <div class="field"><label>Data de nascimento (opcional)</label><input type="date" id="alu-nascimento"></div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
@@ -404,6 +479,77 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
   </div>
 </div>
 
+<!-- modal: prévia da importação de alunos -->
+<div class="modal-overlay" id="modal-import-alunos">
+  <div class="modal" style="max-width:640px;">
+    <h3>Importar alunos — conferir antes de enviar</h3>
+    <div id="import-resumo" style="margin-bottom:12px;font-size:13px;color:#DBC9A8;"></div>
+    <div style="max-height:360px;overflow-y:auto;border:1px solid rgba(200,175,127,.14);border-radius:8px;">
+      <table class="import-tabela" id="import-tabela"></table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-import-alunos')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="import-confirmar-btn" onclick="confirmarImportacaoAlunos()">Importar válidos</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: novo/editar professor/diretor -->
+<div class="modal-overlay" id="modal-professor">
+  <div class="modal">
+    <input type="hidden" id="prof-id">
+    <h3 id="prof-modal-titulo">Novo professor/diretor</h3>
+    <div class="field">
+      <label>Cargo</label>
+      <select id="prof-cargo">
+        <option value="professor">Professor</option>
+        <option value="diretor">Diretor</option>
+        <option value="proprietario">Proprietário</option>
+      </select>
+    </div>
+    <div class="field"><label>Nome completo</label><input type="text" id="prof-nome" placeholder="Nome"></div>
+    <div class="field"><label>Escola</label><select id="prof-escola"></select></div>
+    <div id="prof-acesso-campos">
+      <div class="field"><label>Usuário de acesso</label><input type="text" id="prof-usuario" placeholder="joao.professor" autocapitalize="off"></div>
+      <div class="field"><label>E-mail de contato (opcional)</label><input type="email" id="prof-email" placeholder="email@exemplo.com"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-professor')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="prof-salvar-btn" onclick="salvarProfessor()">Salvar</button>
+    </div>
+    <div class="credencial-box" id="prof-resultado"></div>
+  </div>
+</div>
+
+<!-- modal: vincular cônjuge (responsável) -->
+<div class="modal-overlay" id="modal-conjuge">
+  <div class="modal" style="max-width:420px;">
+    <input type="hidden" id="conj-origem-id">
+    <h3>Vincular cônjuge</h3>
+    <div class="hint" style="margin-bottom:14px;">O cônjuge passa a ver exatamente os mesmos filhos vinculados a esta conta.</div>
+    <div class="field">
+      <label>Responsável já cadastrado</label>
+      <select id="conj-destino"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-conjuge')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmarVincularConjuge()">Vincular</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal de confirmação genérico (substitui confirm() nativo em tudo) -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:420px;">
+    <h3 id="confirm-titulo">Confirmar</h3>
+    <div id="confirm-mensagem" style="color:#DBC9A8;font-size:14px;line-height:1.6;white-space:pre-line;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" id="confirm-btn-cancelar">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="confirm-btn-ok">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- visualizador de foto ampliada -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)fecharLightbox()">
   <button class="lightbox-close" onclick="fecharLightbox()" aria-label="Fechar">×</button>
@@ -438,7 +584,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], responsaveis: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], responsaveis: [], professores: [], vinculosResponsaveis: [] }
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -461,8 +607,34 @@ async function registrarAuditoria(acao, tabela, registroId, detalhe) {
   } catch (e) { /* best-effort */ }
 }
 
+const ICON_LAPIS = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const ICON_LIXEIRA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+const ICON_VINCULO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+
 function abrirModal(id) { document.getElementById(id).classList.add('show') }
 function fecharModal(id) { document.getElementById(id).classList.remove('show') }
+
+// Confirmação com tela bonita em vez de confirm() nativo. Uso:
+// if (!await confirmModal('Apagar mesmo?')) return
+function confirmModal(mensagem, opts = {}) {
+  return new Promise(resolve => {
+    document.getElementById('confirm-titulo').textContent = opts.titulo || 'Confirmar'
+    document.getElementById('confirm-mensagem').textContent = mensagem
+    const btnOk = document.getElementById('confirm-btn-ok')
+    const btnCancel = document.getElementById('confirm-btn-cancelar')
+    btnOk.textContent = opts.okLabel || 'Confirmar'
+    btnCancel.textContent = opts.cancelLabel || 'Cancelar'
+    btnOk.className = 'btn btn-sm ' + (opts.danger ? 'btn-danger' : 'btn-primary')
+    const limpar = (resultado) => {
+      fecharModal('modal-confirm')
+      btnOk.onclick = null; btnCancel.onclick = null
+      resolve(resultado)
+    }
+    btnOk.onclick = () => limpar(true)
+    btnCancel.onclick = () => limpar(false)
+    abrirModal('modal-confirm')
+  })
+}
 
 function gerarSenha() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
@@ -509,12 +681,14 @@ async function mostrarApp(user) {
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
   document.getElementById('view-responsavel').classList.remove('on')
+  document.getElementById('view-avulso').classList.remove('on')
 
   const ESCOLA_ROLES = ['escola', 'proprietario', 'diretor', 'professor']
   let viewPromise
   if (data.role === 'admin' || data.role === 'super_admin') { document.getElementById('view-admin').classList.add('on'); viewPromise = iniciarViewAdmin() }
   else if (ESCOLA_ROLES.includes(data.role)) { document.getElementById('view-escola').classList.add('on'); viewPromise = iniciarViewEscola() }
   else if (data.role === 'responsavel') { document.getElementById('view-responsavel').classList.add('on'); viewPromise = iniciarViewResponsavel() }
+  else if (data.role === 'avulso') { document.getElementById('view-avulso').classList.add('on'); viewPromise = Promise.resolve() }
   else {
     toast('Esse tipo de acesso ainda não está disponível nessa versão — fale com a Grand Focus.')
     await db.auth.signOut()
@@ -663,10 +837,16 @@ async function salvarPerfil() {
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewAdmin() {
-  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis()])
-  renderEscolas(); renderAlunos(); renderEventos()
+  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis()])
+  renderEscolas(); renderAlunos(); renderEventos(); renderProfessores(); renderPais()
   atualizarAcessoAlvo()
   popularVinculoSelects()
+}
+
+async function carregarVinculosResponsaveis() {
+  const { data, error } = await db.from('responsavel_alunos').select('user_id, aluno_id')
+  if (error) { toast('Erro ao carregar vínculos de responsáveis: ' + error.message); return }
+  store.vinculosResponsaveis = data || []
 }
 
 async function carregarResponsaveis() {
@@ -703,10 +883,23 @@ function renderEscolas() {
   const el = document.getElementById('lista-escolas')
   if (!store.escolas.length) { el.innerHTML = '<div class="empty">Nenhuma escola cadastrada ainda.</div>'; return }
   el.innerHTML = store.escolas.map(e => `
-    <div class="list-item">
-      <div><div class="nome">${esc(e.nome)}</div><div class="meta">${esc(e.cidade || '')} · ${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)</div></div>
+    <div class="list-item" onclick="abrirDetalheEscola('${e.id}')">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="esc-av-${e.id}">${esc((e.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(e.nome)}</div><div class="meta">${esc(e.cidade || '')} · ${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)</div></div>
+      </div>
+      <div class="actions">
+        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEscola('${e.id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEscola('${e.id}')">${ICON_LIXEIRA}</div>
+      </div>
     </div>
   `).join('')
+  store.escolas.forEach(async e => {
+    if (!e.capa_url) return
+    const url = await _urlAssinada(e.capa_url)
+    const el2 = document.getElementById(`esc-av-${e.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+  })
 }
 
 function renderAlunos() {
@@ -714,9 +907,22 @@ function renderAlunos() {
   if (!store.alunos.length) { el.innerHTML = '<div class="empty">Nenhum aluno cadastrado ainda.</div>'; return }
   el.innerHTML = store.alunos.map(a => `
     <div class="list-item">
-      <div><div class="nome">${esc(a.nome)}</div><div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'}</div></div>
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="alu-av-${a.id}">${esc((a.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'}${a.data_nascimento ? ' · ' + fmtData(a.data_nascimento) : ''}</div></div>
+      </div>
+      <div class="actions">
+        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalAluno('${a.id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirAluno('${a.id}')">${ICON_LIXEIRA}</div>
+      </div>
     </div>
   `).join('')
+  store.alunos.forEach(async a => {
+    if (!a.foto_url) return
+    const url = await _urlAssinada(a.foto_url)
+    const el2 = document.getElementById(`alu-av-${a.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+  })
 }
 
 function renderEventos() {
@@ -734,39 +940,510 @@ function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
 // ── modais: escola / aluno / evento ──────────────────────────────
+let _escolaCapaArquivo = null
+
+function abrirModalEscola(escolaId) {
+  _escolaCapaArquivo = null
+  const e = escolaId ? store.escolas.find(x => x.id === escolaId) : null
+
+  document.getElementById('esc-id').value = e?.id || ''
+  document.getElementById('esc-modal-titulo').textContent = e ? 'Editar escola' : 'Nova escola de dança'
+  document.getElementById('esc-nome').value = e?.nome || ''
+  document.getElementById('esc-cidade').value = e?.cidade || ''
+  document.getElementById('esc-descricao').value = e?.descricao || ''
+
+  const selProp = document.getElementById('esc-proprietario')
+  const staffDaEscola = e ? store.professores.filter(p => p.escola_id === e.id) : []
+  selProp.innerHTML = '<option value="">— nenhum —</option>' + staffDaEscola.map(p => `<option value="${p.user_id}">${esc(p.nome || '(sem nome)')}</option>`).join('')
+  selProp.value = e?.proprietario_user_id || ''
+
+  const capaEl = document.getElementById('esc-capa-preview')
+  capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="esc-capa-input" accept="image/*" style="display:none;" onchange="_escolaCapaSelecionada(this)">`
+  if (e?.capa_url) _urlAssinada(e.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+
+  abrirModal('modal-escola')
+}
+
+function _escolaCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _escolaCapaArquivo = file
+  const wrap = document.getElementById('esc-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+}
+
 async function salvarEscola() {
+  const id = document.getElementById('esc-id').value || null
   const nome = document.getElementById('esc-nome').value.trim()
   if (!nome) { toast('Informe o nome da escola'); return }
   const cidade = document.getElementById('esc-cidade').value.trim() || null
-  const { data, error } = await db.from('escolas').insert({ nome, cidade }).select().single()
+  const descricao = document.getElementById('esc-descricao').value.trim() || null
+  const proprietario_user_id = document.getElementById('esc-proprietario').value || null
+  const escolaId = id || crypto.randomUUID()
+
+  let capa_url = id ? (store.escolas.find(e => e.id === id)?.capa_url || null) : null
+  if (_escolaCapaArquivo) {
+    const ext = (_escolaCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `escolas/${escolaId}/capa.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _escolaCapaArquivo, { contentType: _escolaCapaArquivo.type, upsert: true })
+    if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    capa_url = path
+  }
+
+  const payload = { id: escolaId, nome, cidade, descricao, proprietario_user_id, capa_url }
+  let data, error
+  if (id) ({ data, error } = await db.from('escolas').update(payload).eq('id', id).select().single())
+  else ({ data, error } = await db.from('escolas').insert(payload).select().single())
   if (error) { toast('Erro: ' + error.message); return }
-  store.escolas.push(data)
+
+  const idx = store.escolas.findIndex(e => e.id === data.id)
+  if (idx >= 0) store.escolas[idx] = data; else store.escolas.push(data)
   store.escolas.sort((a, b) => a.nome.localeCompare(b.nome))
   renderEscolas(); atualizarAcessoAlvo()
-  document.getElementById('esc-nome').value = ''; document.getElementById('esc-cidade').value = ''
   fecharModal('modal-escola')
-  toast('Escola criada ✓')
-  registrarAuditoria('criou escola', 'escolas', data.id, nome)
+  toast(id ? 'Escola atualizada ✓' : 'Escola criada ✓')
+  registrarAuditoria(id ? 'editou escola' : 'criou escola', 'escolas', data.id, nome)
 }
 
-function abrirModalAluno() {
+async function excluirEscola(id) {
+  const e = store.escolas.find(x => x.id === id)
+  if (!e) return
+  const numAlunos = store.alunos.filter(a => a.escola_id === id).length
+  const numStaff = store.professores.filter(p => p.escola_id === id).length
+  let msg = `Apagar "${e.nome}" permanentemente?`
+  const avisos = []
+  if (numAlunos) avisos.push(`${numAlunos} aluno(s) ficarão avulsos`)
+  if (numStaff) avisos.push(`${numStaff} professor(es)/diretor(es) perderão o vínculo com a escola`)
+  if (avisos.length) msg += `\n\n⚠ ${avisos.join(' e ')}.`
+  const ok = await confirmModal(msg, { titulo: 'Apagar escola', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('escolas').delete().eq('id', id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.escolas = store.escolas.filter(x => x.id !== id)
+  store.alunos.forEach(a => { if (a.escola_id === id) a.escola_id = null })
+  store.professores.forEach(p => { if (p.escola_id === id) p.escola_id = null })
+  renderEscolas(); renderAlunos(); if (typeof renderProfessores === 'function') renderProfessores()
+  toast('Escola apagada ✓')
+  registrarAuditoria('apagou escola', 'escolas', id, e.nome)
+}
+
+// ── detalhe da escola (visão geral + quem está vinculado) ──────────
+async function abrirDetalheEscola(escolaId) {
+  const e = store.escolas.find(x => x.id === escolaId)
+  if (!e) return
+  document.getElementById('escolas-lista-wrap').style.display = 'none'
+  const wrap = document.getElementById('escola-detalhe-wrap')
+  wrap.style.display = 'block'
+
+  const alunosDaEscola = store.alunos.filter(a => a.escola_id === escolaId)
+  const staffDaEscola = store.professores.filter(p => p.escola_id === escolaId)
+  const { data: vinc } = await db.from('responsavel_alunos').select('user_id').in('aluno_id', alunosDaEscola.map(a => a.id).length ? alunosDaEscola.map(a => a.id) : ['00000000-0000-0000-0000-000000000000'])
+  const paisIds = [...new Set((vinc || []).map(v => v.user_id))]
+  const paisDaEscola = store.responsaveis.filter(r => paisIds.includes(r.user_id))
+  const proprietario = staffDaEscola.find(p => p.user_id === e.proprietario_user_id)
+
+  wrap.innerHTML = `
+    <button class="evento-back" onclick="fecharDetalheEscola()">← Voltar às escolas</button>
+    <div class="perfil-capa" id="esc-det-capa" style="cursor:default;margin:0 0 16px;height:140px;"></div>
+    <div class="section-h"><h2>${esc(e.nome)}</h2><div class="icon-btn" title="Editar" onclick="abrirModalEscola('${e.id}')">${ICON_LAPIS}</div></div>
+    <div class="meta" style="margin-bottom:4px;">${esc(e.cidade || '')}${proprietario ? ' · Proprietário: ' + esc(proprietario.nome || '') : ''}</div>
+    ${e.descricao ? `<div style="color:#DBC9A8;font-size:13.5px;margin:10px 0 20px;">${esc(e.descricao)}</div>` : ''}
+    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Alunos (${alunosDaEscola.length})</h2></div>
+    <div class="list">${alunosDaEscola.length ? alunosDaEscola.map(a => `<div class="list-item"><div class="nome">${esc(a.nome)}</div></div>`).join('') : '<div class="empty">Nenhum aluno vinculado ainda.</div>'}</div>
+    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Professores &amp; Diretores (${staffDaEscola.length})</h2></div>
+    <div class="list">${staffDaEscola.length ? staffDaEscola.map(p => `<div class="list-item"><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)}</div></div>`).join('') : '<div class="empty">Nenhum professor/diretor vinculado ainda.</div>'}</div>
+    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Pais vinculados (${paisDaEscola.length})</h2></div>
+    <div class="list">${paisDaEscola.length ? paisDaEscola.map(r => `<div class="list-item"><div class="nome">${esc(r.nome || '(sem nome)')}</div></div>`).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'}</div>
+  `
+  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;">` }
+}
+function fecharDetalheEscola() {
+  document.getElementById('escolas-lista-wrap').style.display = 'block'
+  document.getElementById('escola-detalhe-wrap').style.display = 'none'
+}
+
+// ══════════════════════════════════════════════════════════════
+// PROFESSORES & DIRETORES — sempre com login próprio
+// ══════════════════════════════════════════════════════════════
+async function carregarProfessores() {
+  const { data, error } = await db.from('perfis').select('*').in('role', ['proprietario', 'diretor', 'professor']).order('nome')
+  if (error) { toast('Erro ao carregar professores/diretores: ' + error.message); return }
+  store.professores = data || []
+}
+
+function renderProfessores() {
+  const el = document.getElementById('lista-professores')
+  if (!el) return
+  if (!store.professores.length) { el.innerHTML = '<div class="empty">Nenhum professor/diretor cadastrado ainda.</div>'; return }
+  el.innerHTML = store.professores.map(p => `
+    <div class="list-item">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · ${p.escola_id ? esc(nomeEscola(p.escola_id)) : '—'}</div></div>
+      </div>
+      <div class="actions">
+        <div class="icon-btn" title="Editar" onclick="abrirModalProfessor('${p.user_id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="excluirProfessor('${p.user_id}')">${ICON_LIXEIRA}</div>
+      </div>
+    </div>
+  `).join('')
+}
+
+function abrirModalProfessor(userId) {
+  const p = userId ? store.professores.find(x => x.user_id === userId) : null
+
+  document.getElementById('prof-id').value = p?.user_id || ''
+  document.getElementById('prof-modal-titulo').textContent = p ? 'Editar professor/diretor' : 'Novo professor/diretor'
+  document.getElementById('prof-cargo').value = p?.role || 'professor'
+  document.getElementById('prof-nome').value = p?.nome || ''
+
+  const selEsc = document.getElementById('prof-escola')
+  selEsc.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') || '<option value="">Cadastre uma escola primeiro</option>'
+  selEsc.value = p?.escola_id || ''
+
+  document.getElementById('prof-acesso-campos').style.display = p ? 'none' : 'block'
+  document.getElementById('prof-resultado').style.display = 'none'
+  document.getElementById('prof-usuario').value = ''
+  document.getElementById('prof-email').value = ''
+
+  abrirModal('modal-professor')
+}
+
+async function salvarProfessor() {
+  const id = document.getElementById('prof-id').value || null
+  const cargo = document.getElementById('prof-cargo').value
+  const nome = document.getElementById('prof-nome').value.trim()
+  const escola_id = document.getElementById('prof-escola').value
+  if (!nome) { toast('Informe o nome'); return }
+  if (!escola_id) { toast('Selecione a escola'); return }
+
+  const btn = document.getElementById('prof-salvar-btn')
+  btn.disabled = true; btn.textContent = 'Salvando…'
+
+  if (id) {
+    const { data, error } = await db.from('perfis').update({ nome, role: cargo, escola_id }).eq('user_id', id).select().single()
+    btn.disabled = false; btn.textContent = 'Salvar'
+    if (error) { toast('Erro: ' + error.message); return }
+    const idx = store.professores.findIndex(x => x.user_id === id)
+    if (idx >= 0) store.professores[idx] = data
+    store.professores.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    renderProfessores()
+    fecharModal('modal-professor')
+    toast('Atualizado ✓')
+    registrarAuditoria('editou professor/diretor', 'perfis', id, nome)
+    return
+  }
+
+  const username = document.getElementById('prof-usuario').value.trim().toLowerCase()
+  const emailContato = document.getElementById('prof-email').value.trim()
+  if (!username) { toast('Informe o usuário de acesso'); btn.disabled = false; btn.textContent = 'Salvar'; return }
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) { toast('Usuário só pode ter letras minúsculas, números, ponto, traço ou "_" (3 a 32 caracteres)'); btn.disabled = false; btn.textContent = 'Salvar'; return }
+
+  const senha = gerarSenha()
+  const adminId = currentUser.id
+  const emailAuth = emailContato || `${username}@login.grandfocus.internal`
+  const { data: suData, error: suErr } = await db.auth.signUp({ email: emailAuth, password: senha, options: { data: { full_name: nome } } })
+  if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
+
+  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert({ user_id: suData.user?.id, role: cargo, nome, escola_id, username }).select().single()
+
+  const { data: { session } } = await db.auth.getSession()
+  const sessaoTrocou = session?.user?.id && session.user.id !== adminId
+  btn.disabled = false; btn.textContent = 'Salvar'
+
+  if (perfilErr) {
+    const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
+    toast(msg)
+    return
+  }
+
+  store.professores.push(perfilData)
+  store.professores.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+  renderProfessores()
+
+  document.getElementById('prof-resultado').style.display = 'block'
+  document.getElementById('prof-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nome}.`
+  registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
+
+  if (sessaoTrocou) {
+    toast('Acesso criado. Sua sessão de admin foi encerrada por segurança — entre de novo.')
+    await db.auth.signOut()
+  } else {
+    toast('Professor/diretor criado ✓')
+  }
+}
+
+async function excluirProfessor(userId) {
+  const p = store.professores.find(x => x.user_id === userId)
+  if (!p) return
+  const donoDeEscola = store.escolas.filter(e => e.proprietario_user_id === userId)
+  let msg = `Apagar o acesso de "${p.nome || 'essa pessoa'}" permanentemente?`
+  if (donoDeEscola.length) msg += `\n\n⚠ Está definido(a) como proprietário(a) de: ${donoDeEscola.map(e => e.nome).join(', ')} — o campo ficará vazio lá.`
+  const ok = await confirmModal(msg, { titulo: 'Apagar acesso', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('perfis').delete().eq('user_id', userId)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.professores = store.professores.filter(x => x.user_id !== userId)
+  store.escolas.forEach(e => { if (e.proprietario_user_id === userId) e.proprietario_user_id = null })
+  renderProfessores()
+  toast('Apagado ✓')
+  registrarAuditoria('apagou professor/diretor', 'perfis', userId, p.nome || '')
+}
+
+// ══════════════════════════════════════════════════════════════
+// PAIS & RESPONSÁVEIS — criados em "Criar acesso"; aqui só gerencia
+// ══════════════════════════════════════════════════════════════
+function renderPais() {
+  const el = document.getElementById('lista-pais')
+  if (!el) return
+  if (!store.responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável cadastrado ainda — crie em "Criar acesso".</div>'; return }
+  el.innerHTML = store.responsaveis.map(r => {
+    const filhosIds = store.vinculosResponsaveis.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
+    const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
+    return `
+    <div class="list-item">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar">${esc((r.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'}</div></div>
+      </div>
+      <div class="actions">
+        <div class="icon-btn" title="Vincular cônjuge" onclick="abrirVincularConjuge('${r.user_id}')">${ICON_VINCULO}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="excluirResponsavel('${r.user_id}')">${ICON_LIXEIRA}</div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function excluirResponsavel(userId) {
+  const r = store.responsaveis.find(x => x.user_id === userId)
+  if (!r) return
+  const filhos = store.vinculosResponsaveis.filter(v => v.user_id === userId)
+  let msg = `Apagar o acesso de "${r.nome || 'esse responsável'}" permanentemente?`
+  if (filhos.length) msg += `\n\n⚠ Vai perder o vínculo com ${filhos.length} filho(s) — eles continuam cadastrados, só esse responsável deixa de vê-los.`
+  const ok = await confirmModal(msg, { titulo: 'Apagar responsável', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('perfis').delete().eq('user_id', userId)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.responsaveis = store.responsaveis.filter(x => x.user_id !== userId)
+  store.vinculosResponsaveis = store.vinculosResponsaveis.filter(v => v.user_id !== userId)
+  renderPais()
+  toast('Apagado ✓')
+  registrarAuditoria('apagou responsável', 'perfis', userId, r.nome || '')
+}
+
+function abrirVincularConjuge(userId) {
+  document.getElementById('conj-origem-id').value = userId
+  const sel = document.getElementById('conj-destino')
+  sel.innerHTML = store.responsaveis.filter(r => r.user_id !== userId).map(r => `<option value="${r.user_id}">${esc(r.nome || '(sem nome)')}</option>`).join('') || '<option value="">Nenhum outro responsável cadastrado</option>'
+  abrirModal('modal-conjuge')
+}
+
+async function confirmarVincularConjuge() {
+  const origemId = document.getElementById('conj-origem-id').value
+  const destinoId = document.getElementById('conj-destino').value
+  if (!destinoId) { toast('Escolha o outro responsável'); return }
+  const filhosOrigem = store.vinculosResponsaveis.filter(v => v.user_id === origemId).map(v => v.aluno_id)
+  const filhosDestinoAtual = new Set(store.vinculosResponsaveis.filter(v => v.user_id === destinoId).map(v => v.aluno_id))
+  const novosFilhos = filhosOrigem.filter(id => !filhosDestinoAtual.has(id))
+  if (!novosFilhos.length) { toast('Esse responsável já vê todos os mesmos filhos'); fecharModal('modal-conjuge'); return }
+  const rows = novosFilhos.map(aluno_id => ({ user_id: destinoId, aluno_id }))
+  const { error } = await db.from('responsavel_alunos').insert(rows)
+  if (error) { toast('Erro ao vincular: ' + error.message); return }
+  store.vinculosResponsaveis.push(...rows)
+  renderPais()
+  fecharModal('modal-conjuge')
+  toast('Cônjuge vinculado aos mesmos filhos ✓')
+  registrarAuditoria('vinculou cônjuge', 'responsavel_alunos', destinoId, `${novosFilhos.length} filho(s) copiados de ${origemId}`)
+}
+
+let _alunoFotoArquivo = null
+
+function abrirModalAluno(alunoId) {
   const sel = document.getElementById('alu-escola')
   sel.innerHTML = '<option value="">— Avulso (sem escola) —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  _alunoFotoArquivo = null
+  const a = alunoId ? store.alunos.find(x => x.id === alunoId) : null
+
+  document.getElementById('alu-id').value = a?.id || ''
+  document.getElementById('alu-modal-titulo').textContent = a ? 'Editar aluno' : 'Novo aluno'
+  document.getElementById('alu-nome').value = a?.nome || ''
+  document.getElementById('alu-escola').value = a?.escola_id || ''
+  document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
+
+  const fotoEl = document.getElementById('alu-foto-preview')
+  fotoEl.innerHTML = `${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}<div class="trocar">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
+  if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) fotoEl.innerHTML = `<img src="${url}" alt="">` + fotoEl.innerHTML })
+
   abrirModal('modal-aluno')
 }
+
+function _alunoFotoSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _alunoFotoArquivo = file
+  const wrap = document.getElementById('alu-foto-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+}
+
 async function salvarAluno() {
+  const id = document.getElementById('alu-id').value || null
   const nome = document.getElementById('alu-nome').value.trim()
   if (!nome) { toast('Informe o nome do aluno'); return }
   const escola_id = document.getElementById('alu-escola').value || null
-  const { data, error } = await db.from('alunos').insert({ nome, escola_id }).select().single()
+  const data_nascimento = document.getElementById('alu-nascimento').value || null
+  const alunoId = id || crypto.randomUUID()
+
+  let foto_url = id ? (store.alunos.find(a => a.id === id)?.foto_url || null) : null
+  if (_alunoFotoArquivo) {
+    const ext = (_alunoFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `alunos/${alunoId}/foto.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _alunoFotoArquivo, { contentType: _alunoFotoArquivo.type, upsert: true })
+    if (upErr) { toast('Erro ao enviar a foto: ' + upErr.message); return }
+    foto_url = path
+  }
+
+  const payload = { id: alunoId, nome, escola_id, data_nascimento, foto_url }
+  let data, error
+  if (id) {
+    ({ data, error } = await db.from('alunos').update(payload).eq('id', id).select().single())
+  } else {
+    ({ data, error } = await db.from('alunos').insert(payload).select().single())
+  }
   if (error) { toast('Erro: ' + error.message); return }
-  store.alunos.push(data)
+
+  const idx = store.alunos.findIndex(a => a.id === data.id)
+  if (idx >= 0) store.alunos[idx] = data; else store.alunos.push(data)
   store.alunos.sort((a, b) => a.nome.localeCompare(b.nome))
   renderAlunos(); renderEscolas()
-  document.getElementById('alu-nome').value = ''
   fecharModal('modal-aluno')
-  toast('Aluno criado ✓')
-  registrarAuditoria('criou aluno', 'alunos', data.id, nome)
+  toast(id ? 'Aluno atualizado ✓' : 'Aluno criado ✓')
+  registrarAuditoria(id ? 'editou aluno' : 'criou aluno', 'alunos', data.id, nome)
+}
+
+async function excluirAluno(id) {
+  const a = store.alunos.find(x => x.id === id)
+  if (!a) return
+  const [{ count: fotoCount }, { count: respCount }] = await Promise.all([
+    db.from('foto_aluno').select('*', { count: 'exact', head: true }).eq('aluno_id', id),
+    db.from('responsavel_alunos').select('*', { count: 'exact', head: true }).eq('aluno_id', id),
+  ])
+  let msg = `Apagar "${a.nome}" permanentemente?`
+  const avisos = []
+  if (fotoCount) avisos.push(`${fotoCount} foto(s) marcada(s) com ele`)
+  if (respCount) avisos.push(`${respCount} responsável(is) vinculado(s)`)
+  if (avisos.length) msg += `\n\n⚠ ${avisos.join(' e ')} — o vínculo será removido junto (as fotos em si continuam existindo, só a marcação some).`
+  const ok = await confirmModal(msg, { titulo: 'Apagar aluno', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('alunos').delete().eq('id', id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.alunos = store.alunos.filter(x => x.id !== id)
+  renderAlunos(); renderEscolas()
+  toast('Aluno apagado ✓')
+  registrarAuditoria('apagou aluno', 'alunos', id, a.nome)
+}
+
+// ── importação em massa via Excel ──────────────────────────────────
+function baixarModeloAlunos() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nome', 'Escola', 'Data de Nascimento'],
+    ['Ex: Ana Beatriz Souza', 'Studio Entrepliés', '15/03/2015'],
+    ['Ex: Carlos Eduardo Lima (deixe Escola em branco pra avulso)', '', ''],
+  ])
+  ws['!cols'] = [{ wch: 34 }, { wch: 24 }, { wch: 18 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Alunos')
+  XLSX.writeFile(wb, 'modelo-alunos-grandfocus.xlsx')
+}
+
+let _importAlunosLinhas = []
+async function processarPlanilhaAlunos(file) {
+  if (!file) return
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const linhas = XLSX.utils.sheet_to_json(ws, { defval: '' })
+  document.getElementById('alunos-import-input').value = ''
+
+  _importAlunosLinhas = linhas.map((linha, i) => {
+    const nome = String(linha['Nome'] || '').trim()
+    const escolaNome = String(linha['Escola'] || '').trim()
+    const nascStr = String(linha['Data de Nascimento'] || '').trim()
+    let erro = null, escola_id = null, data_nascimento = null
+
+    if (!nome) erro = 'Nome vazio'
+    else if (/^ex:/i.test(nome)) erro = 'Linha de exemplo — apague antes de importar'
+
+    if (!erro && escolaNome) {
+      const escAlvo = store.escolas.find(e => e.nome.trim().toLowerCase() === escolaNome.toLowerCase())
+      if (!escAlvo) erro = `Escola "${escolaNome}" não encontrada`
+      else escola_id = escAlvo.id
+    }
+
+    if (!erro && nascStr) {
+      const m = nascStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+      if (!m) { erro = 'Data de nascimento inválida (use DD/MM/AAAA)' }
+      else {
+        const dia = parseInt(m[1], 10), mes = parseInt(m[2], 10), ano = parseInt(m[3], 10)
+        const dt = new Date(ano, mes - 1, dia)
+        // new Date "rola" datas que não existem (ex: 31/02 vira 02/03) — se não bate
+        // de volta com o que foi digitado, o dia não existe nesse mês de verdade.
+        if (dt.getFullYear() !== ano || dt.getMonth() !== mes - 1 || dt.getDate() !== dia) {
+          erro = 'Data de nascimento inválida (esse dia não existe nesse mês)'
+        } else {
+          data_nascimento = `${ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`
+        }
+      }
+    }
+
+    if (!erro) {
+      const dupIdx = linhas.findIndex((l2, j) => j < i && String(l2['Nome'] || '').trim().toLowerCase() === nome.toLowerCase() && String(l2['Escola'] || '').trim().toLowerCase() === escolaNome.toLowerCase())
+      if (dupIdx !== -1) erro = `Linha duplicada (igual à linha ${dupIdx + 2})`
+    }
+
+    return { linha: i + 2, nome, escolaNome, nascStr, escola_id, data_nascimento, erro }
+  })
+
+  renderImportPreview()
+  abrirModal('modal-import-alunos')
+}
+
+function renderImportPreview() {
+  const ok = _importAlunosLinhas.filter(l => !l.erro).length
+  const comErro = _importAlunosLinhas.length - ok
+  document.getElementById('import-resumo').textContent = `${_importAlunosLinhas.length} linha(s) lida(s) — ${ok} pronta(s) pra importar${comErro ? `, ${comErro} com erro (serão ignoradas)` : ''}.`
+  document.getElementById('import-tabela').innerHTML = `<tr><th>#</th><th>Nome</th><th>Escola</th><th>Nascimento</th><th>Status</th></tr>` +
+    _importAlunosLinhas.map(l => `
+      <tr class="${l.erro ? 'import-row-erro' : ''}">
+        <td>${l.linha}</td><td>${esc(l.nome)}</td><td>${esc(l.escolaNome || 'Avulso')}</td><td>${esc(l.nascStr || '—')}</td>
+        <td>${l.erro ? `<span class="import-status-erro">${esc(l.erro)}</span>` : '<span class="import-status-ok">OK</span>'}</td>
+      </tr>
+    `).join('')
+  const btn = document.getElementById('import-confirmar-btn')
+  btn.disabled = ok === 0
+  btn.textContent = `Importar ${ok} válido(s)`
+}
+
+async function confirmarImportacaoAlunos() {
+  const validos = _importAlunosLinhas.filter(l => !l.erro)
+  if (!validos.length) return
+  const btn = document.getElementById('import-confirmar-btn')
+  btn.disabled = true; btn.textContent = 'Importando…'
+  const rows = validos.map(l => ({ nome: l.nome, escola_id: l.escola_id, data_nascimento: l.data_nascimento }))
+  const { data, error } = await db.from('alunos').insert(rows).select()
+  btn.disabled = false; btn.textContent = 'Importar válidos'
+  if (error) { toast('Erro ao importar: ' + error.message); return }
+  store.alunos.push(...(data || []))
+  store.alunos.sort((a, b) => a.nome.localeCompare(b.nome))
+  renderAlunos(); renderEscolas()
+  fecharModal('modal-import-alunos')
+  toast(`${data.length} aluno(s) importado(s) ✓`)
+  registrarAuditoria('importou alunos em massa', 'alunos', null, `${data.length} aluno(s) via planilha`)
 }
 
 function abrirModalEvento() {
@@ -941,6 +1618,9 @@ function atualizarAcessoAlvo() {
   const tipo = document.getElementById('acesso-tipo').value
   document.getElementById('acesso-alvo-escola-wrap').style.display = tipo === 'escola' ? 'block' : 'none'
   document.getElementById('acesso-alvo-filhos-wrap').style.display = tipo === 'responsavel' ? 'block' : 'none'
+  document.getElementById('acesso-permissoes-wrap').style.display = tipo === 'avulso' ? 'block' : 'none'
+  document.getElementById('acesso-nome-avulso-wrap').style.display = tipo === 'avulso' ? 'block' : 'none'
+  if (tipo === 'avulso') document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
   if (tipo === 'escola') {
     const sel = document.getElementById('acesso-alvo')
     sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') || '<option value="">Cadastre uma escola primeiro</option>'
@@ -972,11 +1652,15 @@ async function criarAcesso() {
   if (!username) { toast('Informe o usuário de acesso'); return }
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) { toast('Usuário só pode ter letras minúsculas, números, ponto, traço ou "_" (3 a 32 caracteres)'); return }
 
-  let alvoId = null, nomeAlvo = '', filhoIds = []
+  let alvoId = null, nomeAlvo = '', filhoIds = [], permissoes = []
   if (tipo === 'escola') {
     alvoId = document.getElementById('acesso-alvo').value
     if (!alvoId) { toast('Cadastre e selecione uma escola primeiro'); return }
     nomeAlvo = nomeEscola(alvoId)
+  } else if (tipo === 'avulso') {
+    nomeAlvo = document.getElementById('acesso-nome-avulso').value.trim()
+    if (!nomeAlvo) { toast('Informe o nome'); return }
+    permissoes = [...document.querySelectorAll('#acesso-permissoes-lista .tag-opt.on')].map(el => el.dataset.perm)
   } else {
     filhoIds = [..._acessoFilhosSel]
     if (!filhoIds.length) { toast('Selecione pelo menos um filho'); return }
@@ -1005,6 +1689,11 @@ async function criarAcesso() {
     const { error } = await db.from('responsavel_alunos').insert(rows)
     vinculoErr = error
   }
+  if (!perfilErr && tipo === 'avulso' && permissoes.length) {
+    const rows = permissoes.map(chave => ({ user_id: suData.user.id, chave, valor: true }))
+    const { error } = await db.from('permissoes_extra').insert(rows)
+    vinculoErr = error
+  }
 
   // signUp pode ter trocado a sessão ativa pro usuário novo (se a
   // confirmação de e-mail estiver desligada no projeto) — nesse caso,
@@ -1019,12 +1708,20 @@ async function criarAcesso() {
     toast(msg)
     return
   }
-  if (vinculoErr) { toast('Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho a responsável já existente" pra corrigir.'); return }
+  if (vinculoErr) {
+    const msgVinc = tipo === 'avulso'
+      ? 'Conta criada, mas as permissões falharam: ' + vinculoErr.message
+      : 'Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho a responsável já existente" pra corrigir.'
+    toast(msgVinc)
+    return
+  }
 
   document.getElementById('acesso-resultado').style.display = 'block'
   document.getElementById('acesso-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
   document.getElementById('acesso-usuario').value = ''
   document.getElementById('acesso-email').value = ''
+  document.getElementById('acesso-nome-avulso').value = ''
+  document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
   registrarAuditoria('criou acesso (' + tipo + ')', 'perfis', suData.user?.id, `usuário ${username} — ${nomeAlvo}`)
   if (tipo === 'responsavel') {
     _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
