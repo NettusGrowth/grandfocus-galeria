@@ -299,6 +299,7 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
         <div class="tab" data-tab="ensaios" onclick="setAdminTab('ensaios')">Ensaios Avulsos</div>
         <div class="tab" data-tab="galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()">Galeria</div>
         <div class="tab" data-tab="comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()">Comunidade</div>
+        <div class="tab" data-tab="auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()">Auditoria</div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
       </div>
 
@@ -367,6 +368,18 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
         <div class="hint">Veja e participe do mural de cada escola. Publique numa escola, em várias ou em todas de uma vez.</div>
         <div id="comunidade-admin-composer-wrap"></div>
         <div id="comunidade-admin-feed"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-auditoria" style="display:none;">
+        <div class="section-h">
+          <h2>Auditoria</h2>
+          <input type="text" id="auditoria-busca" placeholder="Buscar por ação, pessoa ou detalhe…" style="max-width:280px;" oninput="renderAuditoria()">
+        </div>
+        <div class="hint">Registro de ações importantes: criar/editar/apagar escolas, alunos, fotos, trocar senha, publicar/apagar na comunidade etc. A busca só procura no que já foi carregado — use "Carregar mais" se não achar.</div>
+        <div class="list" id="lista-auditoria"></div>
+        <div style="text-align:center;margin-top:16px;">
+          <button class="btn btn-sm" id="auditoria-carregar-mais" onclick="carregarMaisAuditoria()">Carregar mais</button>
+        </div>
       </div>
 
       <div class="admin-tab" id="admintab-acesso" style="display:none;">
@@ -2251,6 +2264,66 @@ async function iniciarComunidadeResponsavel() {
   _feedContainerAtual = 'comunidade-responsavel-feed'
   await carregarFeed({ tipo: 'responsavel' })
   renderFeed('comunidade-responsavel-feed')
+}
+
+// ══════════════════════════════════════════════════════════════
+// AUDITORIA — só leitura, só admin (RLS já restringe: auditoria_admin_select).
+// Carrega em páginas em vez de tudo de uma vez, porque esse log só
+// cresce; a busca filtra o que já foi carregado, não o banco inteiro.
+// ══════════════════════════════════════════════════════════════
+let _auditoriaEntries = []
+let _auditoriaPagina = 0
+let _auditoriaFimDosDados = false
+const AUDITORIA_PAGE_SIZE = 100
+
+async function iniciarAuditoriaAdmin() {
+  if (_auditoriaEntries.length) { renderAuditoria(); return }
+  await carregarMaisAuditoria()
+}
+
+async function carregarMaisAuditoria() {
+  const btn = document.getElementById('auditoria-carregar-mais')
+  if (btn) { btn.disabled = true; btn.textContent = 'Carregando…' }
+  const from = _auditoriaPagina * AUDITORIA_PAGE_SIZE
+  const to = from + AUDITORIA_PAGE_SIZE - 1
+  const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).range(from, to)
+  if (btn) { btn.disabled = false; btn.textContent = 'Carregar mais' }
+  if (error) { toast('Erro ao carregar auditoria: ' + error.message); return }
+  _auditoriaEntries.push(...(data || []))
+  _auditoriaPagina++
+  if (!data || data.length < AUDITORIA_PAGE_SIZE) _auditoriaFimDosDados = true
+  renderAuditoria()
+}
+
+function renderAuditoria() {
+  const wrap = document.getElementById('lista-auditoria')
+  if (!wrap) return
+  const termo = (document.getElementById('auditoria-busca')?.value || '').toLowerCase().trim()
+  let entries = _auditoriaEntries
+  if (termo) {
+    entries = entries.filter(e =>
+      (e.acao || '').toLowerCase().includes(termo) ||
+      (e.user_nome || '').toLowerCase().includes(termo) ||
+      (e.detalhe || '').toLowerCase().includes(termo) ||
+      (e.tabela || '').toLowerCase().includes(termo)
+    )
+  }
+  if (!entries.length) { wrap.innerHTML = '<div class="empty">Nada por aqui ainda.</div>'; atualizarBotaoCarregarMaisAuditoria(); return }
+  wrap.innerHTML = entries.map(e => `
+    <div class="list-item" style="cursor:default;">
+      <div>
+        <div class="nome" style="font-size:14.5px;">${esc(e.acao)}</div>
+        <div class="meta">${esc(e.user_nome || '—')} · ${fmtDataHora(e.criado_em)}${e.detalhe ? ' · ' + esc(e.detalhe) : ''}</div>
+      </div>
+    </div>
+  `).join('')
+  atualizarBotaoCarregarMaisAuditoria()
+}
+
+function atualizarBotaoCarregarMaisAuditoria() {
+  const btn = document.getElementById('auditoria-carregar-mais')
+  if (!btn) return
+  btn.style.display = _auditoriaFimDosDados ? 'none' : 'inline-flex'
 }
 
 async function renderFotosEventoAdmin() {
