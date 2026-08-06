@@ -615,6 +615,7 @@ main{flex:1;width:100%;}
       <div class="tabs">
         <div class="tab on" data-tab="eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
         <div class="tab" data-tab="comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="tab" data-tab="equipe" onclick="setEscolaTab('equipe');iniciarEquipeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Equipe</span></div>
         <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
@@ -628,6 +629,14 @@ main{flex:1;width:100%;}
       <div class="escola-tab" id="escolatab-comunidade" style="display:none;">
         <div id="comunidade-escola-composer-wrap"></div>
         <div id="comunidade-escola-feed"></div>
+      </div>
+      <div class="escola-tab" id="escolatab-equipe" style="display:none;">
+        <div class="section-h"><h2>Equipe</h2></div>
+        <div class="hint">Professores, diretores e responsáveis vinculados à sua escola. Esqueceu a senha? Peça pra alguém aqui redefinir a sua.</div>
+        <h3 style="font-size:15px;margin:18px 0 10px;">Professores &amp; Diretores</h3>
+        <div class="list" id="equipe-lista-professores"></div>
+        <h3 style="font-size:15px;margin:22px 0 10px;">Pais &amp; Responsáveis</h3>
+        <div class="list" id="equipe-lista-pais"></div>
       </div>
       </div>
     </div>
@@ -1038,6 +1047,8 @@ async function mostrarApp(user) {
   document.getElementById('topbar-busca-btn').style.display = ['admin', 'super_admin'].includes(data.role) ? 'flex' : 'none'
   document.getElementById('sino-wrap').style.display = data.role === 'avulso' ? 'none' : 'block'
   if (data.role !== 'avulso') iniciarSinoNotificacoes()
+  const tabEquipe = document.querySelector('#view-escola .tab[data-tab="equipe"]')
+  if (tabEquipe) tabEquipe.style.display = ['proprietario', 'diretor'].includes(data.role) ? 'flex' : 'none'
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
@@ -3449,6 +3460,49 @@ async function iniciarViewEscola() {
   const { data: alunos } = await db.from('alunos').select('*').eq('escola_id', meuPerfil.escola_id).order('nome')
   store.alunos = alunos || []
   renderEventosEscola()
+}
+
+// aba Equipe (só proprietário/diretor) — a RLS de perfis (014) já
+// filtra sozinha pra só devolver gente da própria escola; aqui é só
+// carregar e reaproveitar resetarSenhaUsuario() que já existe.
+let _equipeEscolaVinculos = []
+async function iniciarEquipeEscola() {
+  const [{ data: professores, error: e1 }, { data: responsaveis, error: e2 }] = await Promise.all([
+    db.from('perfis').select('*').in('role', ['proprietario', 'diretor', 'professor']).order('nome'),
+    db.from('perfis').select('*').eq('role', 'responsavel').order('nome'),
+  ])
+  if (e1 || e2) { toast('Erro ao carregar equipe: ' + (e1 || e2).message); return }
+  store.professores = professores || []
+  store.responsaveis = responsaveis || []
+  const idsResp = store.responsaveis.map(r => r.user_id)
+  const { data: vinc } = idsResp.length
+    ? await db.from('responsavel_alunos').select('user_id, aluno_id').in('user_id', idsResp)
+    : { data: [] }
+  _equipeEscolaVinculos = vinc || []
+  renderEquipeEscola()
+}
+function renderEquipeEscola() {
+  const elProf = document.getElementById('equipe-lista-professores')
+  if (elProf) {
+    elProf.innerHTML = store.professores.length ? store.professores.map(p => `
+      <div class="list-item" style="cursor:default;">
+        <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · Acesso: ${fmtUltimoAcesso(p.ultimo_acesso)}</div></div>
+        <div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div></div>
+      </div>
+    `).join('') : '<div class="empty">Nenhum outro professor/diretor por aqui ainda.</div>'
+  }
+  const elPais = document.getElementById('equipe-lista-pais')
+  if (elPais) {
+    elPais.innerHTML = store.responsaveis.length ? store.responsaveis.map(r => {
+      const filhosIds = _equipeEscolaVinculos.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
+      const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
+      return `
+      <div class="list-item" style="cursor:default;">
+        <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'} · Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div></div>
+        <div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${r.user_id}','responsavel')">${ICON_CHAVE}</div></div>
+      </div>`
+    }).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'
+  }
 }
 
 function renderEventosEscola() {
