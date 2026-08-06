@@ -265,6 +265,8 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
         <div class="tab" data-tab="professores" onclick="setAdminTab('professores')">Professores &amp; Diretores</div>
         <div class="tab" data-tab="pais" onclick="setAdminTab('pais')">Pais</div>
         <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')">Eventos &amp; Fotos</div>
+        <div class="tab" data-tab="ensaios" onclick="setAdminTab('ensaios')">Ensaios Avulsos</div>
+        <div class="tab" data-tab="galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()">Galeria</div>
         <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')">Criar acesso</div>
       </div>
 
@@ -310,6 +312,19 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
           <div class="list" id="lista-eventos"></div>
         </div>
         <div id="evento-detalhe-wrap" style="display:none;"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-ensaios" style="display:none;">
+        <div id="ensaios-lista-wrap">
+          <div class="section-h"><h2>Ensaios Avulsos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEnsaio()">+ Novo ensaio</button></div>
+          <div class="hint">Pra fotos que não são de um evento de escola inteiro — escolhe direto quem vai ver (aluno, responsável, professor, diretor), sem depender de vínculo de escola.</div>
+          <div class="list" id="lista-ensaios"></div>
+        </div>
+        <div id="ensaio-detalhe-wrap" style="display:none;"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-galeria" style="display:none;">
+        <div id="galeria-admin-wrap"></div>
       </div>
 
       <div class="admin-tab" id="admintab-acesso" style="display:none;">
@@ -438,17 +453,53 @@ main{flex:1;padding:28px;max-width:1180px;margin:0 auto;width:100%;}
 
 <!-- modal: novo evento -->
 <div class="modal-overlay" id="modal-evento">
-  <div class="modal">
-    <h3>Novo evento</h3>
+  <div class="modal" style="max-width:520px;">
+    <input type="hidden" id="evt-id">
+    <div class="perfil-capa" id="evt-capa-preview" onclick="document.getElementById('evt-capa-input').click()">
+      <div class="trocar">Trocar capa</div>
+      <input type="file" id="evt-capa-input" accept="image/*" style="display:none;" onchange="_eventoCapaSelecionada(this)">
+    </div>
+    <h3 id="evt-modal-titulo" style="margin-top:16px;">Novo evento</h3>
     <div class="field"><label>Nome</label><input type="text" id="evt-nome" placeholder="Ex: Recital de Verão 2026"></div>
     <div class="field"><label>Data</label><input type="date" id="evt-data"></div>
     <div class="field">
       <label>Escola</label>
-      <select id="evt-escola"><option value="">— Avulso / geral —</option></select>
+      <select id="evt-escola" onchange="_renderEventoSeletorAlunos()"><option value="">— Avulso / geral —</option></select>
+    </div>
+    <div class="field" id="evt-alunos-wrap" style="display:none;">
+      <label>Quem participa deste evento? <span style="text-transform:none;font-weight:400;color:#B39F86;">(marca automaticamente essas fotos pra eles)</span></label>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <input type="text" id="evt-alunos-busca" placeholder="Buscar aluno…" style="max-width:220px;" oninput="_renderEventoSeletorAlunos()">
+        <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos</button>
+      </div>
+      <div class="tag-picker" id="evt-alunos-lista" style="max-height:180px;overflow-y:auto;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-evento')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarEvento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: novo/editar ensaio avulso -->
+<div class="modal-overlay" id="modal-ensaio">
+  <div class="modal" style="max-width:560px;">
+    <input type="hidden" id="ens-id">
+    <div class="perfil-capa" id="ens-capa-preview" onclick="document.getElementById('ens-capa-input').click()">
+      <div class="trocar">Trocar capa</div>
+      <input type="file" id="ens-capa-input" accept="image/*" style="display:none;" onchange="_ensaioCapaSelecionada(this)">
+    </div>
+    <h3 id="ens-modal-titulo" style="margin-top:16px;">Novo ensaio avulso</h3>
+    <div class="field"><label>Nome</label><input type="text" id="ens-nome" placeholder="Ex: Ensaio individual — Bia"></div>
+    <div class="field"><label>Data</label><input type="date" id="ens-data"></div>
+    <div class="field">
+      <label>Quem vai ver essas fotos? <span style="text-transform:none;font-weight:400;color:#B39F86;">(aluno, responsável, professor, diretor — pessoa a pessoa)</span></label>
+      <input type="text" id="ens-busca" placeholder="Buscar por nome…" style="margin-bottom:6px;" oninput="_renderEnsaioSeletorPessoas()">
+      <div class="tag-picker" id="ens-pessoas-lista" style="max-height:220px;overflow-y:auto;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-ensaio')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarEnsaio()">Salvar</button>
     </div>
   </div>
 </div>
@@ -584,7 +635,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], responsaveis: [], professores: [], vinculosResponsaveis: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [] }
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -838,7 +889,7 @@ async function salvarPerfil() {
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewAdmin() {
   await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis()])
-  renderEscolas(); renderAlunos(); renderEventos(); renderProfessores(); renderPais()
+  renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais()
   atualizarAcessoAlvo()
   popularVinculoSelects()
 }
@@ -927,13 +978,27 @@ function renderAlunos() {
 
 function renderEventos() {
   const el = document.getElementById('lista-eventos')
-  if (!store.eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento cadastrado ainda.</div>'; return }
-  el.innerHTML = store.eventos.map(ev => `
+  const eventos = store.eventos.filter(e => e.tipo !== 'ensaio')
+  if (!eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento cadastrado ainda.</div>'; return }
+  el.innerHTML = eventos.map(ev => `
     <div class="list-item" onclick="abrirEventoAdmin('${ev.id}')">
-      <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}</div></div>
-      <div class="actions"><span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span></div>
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="evt-av-${ev.id}">${esc((ev.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}</div></div>
+      </div>
+      <div class="actions">
+        <span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span>
+        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEvento('${ev.id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEventos)">${ICON_LIXEIRA}</div>
+      </div>
     </div>
   `).join('')
+  eventos.forEach(async ev => {
+    if (!ev.capa_url) return
+    const url = await _urlAssinada(ev.capa_url)
+    const el2 = document.getElementById(`evt-av-${ev.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+  })
 }
 
 function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
@@ -1446,24 +1511,117 @@ async function confirmarImportacaoAlunos() {
   registrarAuditoria('importou alunos em massa', 'alunos', null, `${data.length} aluno(s) via planilha`)
 }
 
-function abrirModalEvento() {
+let _eventoCapaArquivo = null
+let _eventoAlunosSelecionados = new Set()
+
+function abrirModalEvento(eventoId) {
+  const ev = eventoId ? store.eventos.find(x => x.id === eventoId) : null
+  _eventoCapaArquivo = null
+  _eventoAlunosSelecionados = new Set(ev?.alunos_selecionados || [])
+
+  document.getElementById('evt-id').value = ev?.id || ''
+  document.getElementById('evt-modal-titulo').textContent = ev ? 'Editar evento' : 'Novo evento'
+  document.getElementById('evt-nome').value = ev?.nome || ''
+  document.getElementById('evt-data').value = ev?.data || ''
+  document.getElementById('evt-alunos-busca').value = ''
+
   const sel = document.getElementById('evt-escola')
   sel.innerHTML = '<option value="">— Avulso / geral —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  sel.value = ev?.escola_id || ''
+
+  const capaEl = document.getElementById('evt-capa-preview')
+  capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="evt-capa-input" accept="image/*" style="display:none;" onchange="_eventoCapaSelecionada(this)">`
+  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+
+  _renderEventoSeletorAlunos()
   abrirModal('modal-evento')
 }
+
+function _eventoCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _eventoCapaArquivo = file
+  const wrap = document.getElementById('evt-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+}
+
+function _renderEventoSeletorAlunos() {
+  const escolaId = document.getElementById('evt-escola').value
+  const wrap = document.getElementById('evt-alunos-wrap')
+  wrap.style.display = escolaId ? 'block' : 'none'
+  if (!escolaId) { _eventoAlunosSelecionados = new Set(); return }
+  const busca = document.getElementById('evt-alunos-busca').value.toLowerCase()
+  const alunos = store.alunos.filter(a => a.escola_id === escolaId && a.nome.toLowerCase().includes(busca))
+  const el = document.getElementById('evt-alunos-lista')
+  el.innerHTML = alunos.length ? alunos.map(a => `
+    <span class="tag-opt${_eventoAlunosSelecionados.has(a.id) ? ' on' : ''}" onclick="_eventoToggleAluno('${a.id}',this)">${esc(a.nome)}</span>
+  `).join('') : '<span style="opacity:.6;font-size:12px;">Nenhum aluno dessa escola ainda</span>'
+}
+
+function _eventoToggleAluno(alunoId, el) {
+  if (_eventoAlunosSelecionados.has(alunoId)) _eventoAlunosSelecionados.delete(alunoId)
+  else _eventoAlunosSelecionados.add(alunoId)
+  el.classList.toggle('on')
+}
+
+function _eventoSelecionarTodosAlunos() {
+  const escolaId = document.getElementById('evt-escola').value
+  if (!escolaId) return
+  store.alunos.filter(a => a.escola_id === escolaId).forEach(a => _eventoAlunosSelecionados.add(a.id))
+  _renderEventoSeletorAlunos()
+}
+
 async function salvarEvento() {
+  const id = document.getElementById('evt-id').value || null
   const nome = document.getElementById('evt-nome').value.trim()
   if (!nome) { toast('Informe o nome do evento'); return }
   const data_ = document.getElementById('evt-data').value || null
   const escola_id = document.getElementById('evt-escola').value || null
-  const { data, error } = await db.from('eventos').insert({ nome, data: data_, escola_id }).select().single()
+  const eventoId = id || crypto.randomUUID()
+
+  let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
+  if (_eventoCapaArquivo) {
+    const ext = (_eventoCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `eventos-capa/${eventoId}/capa.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _eventoCapaArquivo, { contentType: _eventoCapaArquivo.type, upsert: true })
+    if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    capa_url = path
+  }
+
+  const payload = { id: eventoId, nome, data: data_, escola_id, capa_url, alunos_selecionados: [..._eventoAlunosSelecionados] }
+  let data, error
+  if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
+  else ({ data, error } = await db.from('eventos').insert(payload).select().single())
   if (error) { toast('Erro: ' + error.message); return }
-  store.eventos.unshift(data)
+
+  const idx = store.eventos.findIndex(e => e.id === data.id)
+  if (idx >= 0) store.eventos[idx] = data; else store.eventos.unshift(data)
   renderEventos()
-  document.getElementById('evt-nome').value = ''; document.getElementById('evt-data').value = ''
   fecharModal('modal-evento')
-  toast('Evento criado ✓')
-  registrarAuditoria('criou evento', 'eventos', data.id, nome)
+  toast(id ? 'Evento atualizado ✓' : 'Evento criado ✓')
+  registrarAuditoria(id ? 'editou evento' : 'criou evento', 'eventos', data.id, nome)
+}
+
+async function excluirEvento(id, aposApagar) {
+  const ev = store.eventos.find(x => x.id === id)
+  if (!ev) return
+  const numFotos = store.fotos.filter(f => f.evento_id === id).length
+  let msg = `Apagar "${ev.nome}" permanentemente?`
+  if (numFotos) msg += `\n\n⚠ ${numFotos} foto(s) desse evento serão apagadas junto — sem volta.`
+  const ok = await confirmModal(msg, { titulo: 'Apagar evento', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const paths = store.fotos.filter(f => f.evento_id === id).map(f => f.storage_path)
+  const { error } = await db.from('eventos').delete().eq('id', id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  store.eventos = store.eventos.filter(x => x.id !== id)
+  store.fotos = store.fotos.filter(f => f.evento_id !== id)
+  toast('Apagado ✓')
+  registrarAuditoria('apagou evento', 'eventos', id, ev.nome)
+  if (typeof aposApagar === 'function') aposApagar()
 }
 
 // ── detalhe do evento (admin): upload + marcação de alunos ───────
@@ -1502,6 +1660,7 @@ function fecharEventoAdmin() {
 async function uploadFotosEvento(files) {
   if (!files?.length || !_eventoAtual) return
   const statusEl = document.getElementById('evt-upload-status')
+  const roster = _eventoAtual.alunos_selecionados || []
   let ok = 0
   for (const file of files) {
     statusEl.textContent = `Enviando ${file.name}… (${ok + 1}/${files.length})`
@@ -1512,9 +1671,16 @@ async function uploadFotosEvento(files) {
     const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _eventoAtual.id, storage_path: path }).select().single()
     if (insErr) { toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
+    // marca automaticamente todo mundo que participa do evento — dá
+    // pra ajustar foto a foto depois (desmarcar quem não aparece nela)
+    if (roster.length) {
+      const tags = roster.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
+      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
+      if (!tagErr) store.fotoAluno.push(...tags)
+    }
     ok++
   }
-  statusEl.textContent = `${ok} foto(s) enviada(s) ✓`
+  statusEl.textContent = `${ok} foto(s) enviada(s) ✓${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`
   document.getElementById('evt-upload-input').value = ''
   renderFotosEventoAdmin()
 }
@@ -1582,6 +1748,7 @@ async function renderFotosEventoAdmin() {
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
+      <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEventoAdmin)">${ICON_LIXEIRA}</button>
       <div class="tagbar">
         <div class="tag-picker">
           ${alunosDisponiveis.map(a => `<span class="tag-opt${(store.fotoAluno.find(x => x.foto_id === f.id && x.aluno_id === a.id)) ? ' on' : ''}" onclick="event.stopPropagation();toggleTagAluno('${f.id}','${a.id}',this)">${esc(a.nome)}</span>`).join('') || '<span style="opacity:.6">nenhum aluno cadastrado pra essa escola ainda</span>'}
@@ -1607,6 +1774,506 @@ async function toggleTagAluno(fotoId, alunoId, chipEl) {
     const { error } = await db.from('foto_aluno').insert({ foto_id: fotoId, aluno_id: alunoId })
     if (error) { toast('Erro: ' + error.message); return }
     store.fotoAluno.push({ foto_id: fotoId, aluno_id: alunoId })
+    chipEl.classList.add('on')
+  }
+}
+
+// apaga a foto de vez (banco + arquivo) — só admin chega nesse botão,
+// mas a policy de "fotos" e do storage também travam por segurança.
+async function excluirFoto(fotoId, aposApagar) {
+  const ok = await confirmModal('Apagar essa foto permanentemente? Não dá pra desfazer.', { titulo: 'Apagar foto', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const foto = store.fotos.find(f => f.id === fotoId)
+  const { error: dbErr } = await db.from('fotos').delete().eq('id', fotoId)
+  if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return }
+  if (foto?.storage_path) { try { await db.storage.from(BUCKET).remove([foto.storage_path]) } catch (e) { /* best-effort */ } }
+  store.fotos = store.fotos.filter(f => f.id !== fotoId)
+  store.fotoAluno = store.fotoAluno.filter(x => x.foto_id !== fotoId)
+  toast('Foto apagada ✓')
+  registrarAuditoria('apagou foto', 'fotos', fotoId, foto?.storage_path || '')
+  if (typeof aposApagar === 'function') aposApagar()
+}
+
+async function excluirFotosEmMassa(fotoIds, aposApagar) {
+  if (!fotoIds.length) return
+  const ok = await confirmModal(`Apagar ${fotoIds.length} foto(s) permanentemente? Não dá pra desfazer.`, { titulo: 'Apagar fotos selecionadas', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const paths = fotoIds.map(id => store.fotos.find(f => f.id === id)?.storage_path).filter(Boolean)
+  const { error: dbErr } = await db.from('fotos').delete().in('id', fotoIds)
+  if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return }
+  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  store.fotos = store.fotos.filter(f => !fotoIds.includes(f.id))
+  store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id))
+  toast(`${fotoIds.length} foto(s) apagada(s) ✓`)
+  registrarAuditoria('apagou fotos em massa', 'fotos', null, `${fotoIds.length} foto(s)`)
+  if (typeof aposApagar === 'function') aposApagar()
+}
+
+// baixa uma lista de storage_paths como .zip (JSZip via CDN)
+async function baixarComoZip(paths, nomeArquivo) {
+  if (!paths.length) return
+  toast(`Preparando ${paths.length} foto(s)…`)
+  const zip = new JSZip()
+  for (const path of paths) {
+    const url = await _urlAssinada(path)
+    if (!url) continue
+    try {
+      const resp = await fetch(url)
+      const blob = await resp.blob()
+      zip.file(path.split('/').pop(), blob)
+    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+  }
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = nomeArquivo || 'fotos-grandfocus.zip'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  toast('Download pronto ✓')
+}
+
+// gera um link de download temporário (~24h) pra compartilhar por fora
+async function compartilharFoto(fotoId) {
+  const foto = store.fotos.find(f => f.id === fotoId)
+  if (!foto) return
+  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(foto.storage_path, 60 * 60 * 24)
+  if (error || !data?.signedUrl) { toast('Erro ao gerar link: ' + (error?.message || '')); return }
+  try {
+    await navigator.clipboard.writeText(data.signedUrl)
+    toast('Link copiado ✓ (válido por 24h)')
+  } catch (e) {
+    toast('Link gerado (válido por 24h), mas não consegui copiar automático — confere o console.')
+    console.log('Link pra compartilhar:', data.signedUrl)
+  }
+  registrarAuditoria('gerou link de compartilhamento', 'fotos', fotoId, foto.storage_path)
+}
+
+// ══════════════════════════════════════════════════════════════
+// GALERIA (admin) — navega Escola → Aluno → Ano → Evento → Fotos
+// ══════════════════════════════════════════════════════════════
+let _galEscolaId = undefined // undefined = nível raiz (escolas); 'avulsos' = pseudo-escola; ou id real
+let _galAlunoId = null
+let _galAno = null
+let _galFiltroTexto = ''
+let _galSelecao = new Set()
+
+async function iniciarGaleriaAdmin() {
+  _galEscolaId = undefined; _galAlunoId = null; _galAno = null; _galFiltroTexto = ''; _galSelecao = new Set()
+  if (!store.fotos.length) {
+    const { data } = await db.from('fotos').select('*')
+    store.fotos = data || []
+  }
+  if (!store.fotoAluno.length) {
+    const { data } = await db.from('foto_aluno').select('*')
+    store.fotoAluno = data || []
+  }
+  renderGaleriaAdmin()
+}
+
+function _galBreadcrumb() {
+  const partes = [`<span onclick="_galEscolaId=undefined;_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">Galeria</span>`]
+  if (_galEscolaId !== undefined) {
+    const nome = _galEscolaId === 'avulsos' ? 'Avulsos' : esc(nomeEscola(_galEscolaId))
+    partes.push(`<span onclick="_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">${nome}</span>`)
+  }
+  if (_galAlunoId) {
+    const a = store.alunos.find(x => x.id === _galAlunoId)
+    partes.push(`<span onclick="_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(a?.nome || '')}</span>`)
+  }
+  if (_galAno) partes.push(`<span>${_galAno}</span>`)
+  return partes.join(' <span style="opacity:.4;">/</span> ')
+}
+
+function renderGaleriaAdmin() {
+  const wrap = document.getElementById('galeria-admin-wrap')
+  if (!wrap) return
+  const crumb = `<div class="meta" style="margin-bottom:16px;font-size:13px;">${_galBreadcrumb()}</div>`
+
+  if (_galAlunoId && _galAno) { wrap.innerHTML = crumb; renderGaleriaFotosDoAno(wrap); return }
+  if (_galAlunoId) { wrap.innerHTML = crumb; renderGaleriaAnosDoAluno(wrap); return }
+  if (_galEscolaId !== undefined) { wrap.innerHTML = crumb; renderGaleriaAlunosDaEscola(wrap); return }
+  wrap.innerHTML = crumb; renderGaleriaEscolas(wrap)
+}
+
+function renderGaleriaEscolas(wrap) {
+  const cards = [...store.escolas.map(e => ({ id: e.id, nome: e.nome, capa: e.capa_url, sub: `${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)` }))]
+  cards.push({ id: 'avulsos', nome: 'Avulsos', capa: null, sub: `${store.alunos.filter(a => !a.escola_id).length} aluno(s)` })
+  wrap.innerHTML += `<div class="list">${cards.map(c => `
+    <div class="list-item" onclick="_galEscolaId='${c.id}';renderGaleriaAdmin()">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="gal-esc-${c.id}">${esc((c.nome || '?').charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(c.nome)}</div><div class="meta">${c.sub}</div></div>
+      </div>
+    </div>`).join('')}</div>`
+  cards.forEach(async c => {
+    if (!c.capa) return
+    const url = await _urlAssinada(c.capa)
+    const el = document.getElementById(`gal-esc-${c.id}`)
+    if (url && el) el.innerHTML = `<img src="${url}" alt="">`
+  })
+}
+
+function renderGaleriaAlunosDaEscola(wrap) {
+  const alunos = _galEscolaId === 'avulsos' ? store.alunos.filter(a => !a.escola_id) : store.alunos.filter(a => a.escola_id === _galEscolaId)
+  wrap.innerHTML += `
+    <div class="field" style="max-width:320px;"><input type="text" placeholder="Buscar aluno…" oninput="_galFiltroTexto=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroTexto)}"></div>
+    <div class="list" id="gal-lista-alunos"></div>`
+  const filtrados = alunos.filter(a => a.nome.toLowerCase().includes(_galFiltroTexto))
+  const el = document.getElementById('gal-lista-alunos')
+  if (!filtrados.length) { el.innerHTML = '<div class="empty">Nenhum aluno aqui.</div>'; return }
+  el.innerHTML = filtrados.map(a => `
+    <div class="list-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="gal-alu-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
+      </div>
+    </div>`).join('')
+  filtrados.forEach(async a => {
+    if (!a.foto_url) return
+    const url = await _urlAssinada(a.foto_url)
+    const el2 = document.getElementById(`gal-alu-${a.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+  })
+}
+
+function _fotosDoAluno(alunoId) {
+  const fotoIds = new Set(store.fotoAluno.filter(x => x.aluno_id === alunoId).map(x => x.foto_id))
+  return store.fotos.filter(f => fotoIds.has(f.id))
+}
+
+function renderGaleriaAnosDoAluno(wrap) {
+  const fotos = _fotosDoAluno(_galAlunoId)
+  const anos = new Map()
+  fotos.forEach(f => {
+    const ev = store.eventos.find(e => e.id === f.evento_id)
+    const ano = ev?.data ? ev.data.slice(0, 4) : 'Sem data'
+    anos.set(ano, (anos.get(ano) || 0) + 1)
+  })
+  const anosOrdenados = [...anos.keys()].sort().reverse()
+  wrap.innerHTML += `<div class="section-h"><button class="btn btn-sm" onclick="abrirUploadRapidoAluno()">📤 Fazer upload pra este aluno</button></div>
+    <div class="list">${anosOrdenados.length ? anosOrdenados.map(ano => `
+      <div class="list-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
+        <div class="nome">${ano}</div><div class="meta">${anos.get(ano)} foto(s)</div>
+      </div>`).join('') : '<div class="empty">Nenhuma foto marcada pra esse aluno ainda.</div>'}</div>`
+}
+
+function renderGaleriaFotosDoAno(wrap) {
+  const fotos = _fotosDoAluno(_galAlunoId).filter(f => {
+    const ev = store.eventos.find(e => e.id === f.evento_id)
+    const ano = ev?.data ? ev.data.slice(0, 4) : 'Sem data'
+    return ano === _galAno
+  })
+  _lightboxFotos = fotos
+  _galSelecao = new Set()
+
+  const porEvento = new Map()
+  fotos.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
+
+  wrap.innerHTML += `
+    <div class="foto-toolbar">
+      <span class="meta">${fotos.length} foto(s)</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
+        <button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>
+      </div>
+    </div>
+    ${[...porEvento.entries()].map(([eventoId, lista]) => {
+      const ev = store.eventos.find(e => e.id === eventoId)
+      return `<div class="galeria-secao">
+        <h3 class="galeria-secao-titulo">${esc(ev?.nome || '(evento removido)')}</h3>
+        <div class="foto-grid">${lista.map(f => `
+          <div class="foto-item${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="_galToggleSelecao('${f.id}')">
+            <img data-path="${esc(f.storage_path)}" alt="">
+            <div class="ck">${_galSelecao.has(f.id) ? '✓' : ''}</div>
+            <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="foto-expand" style="right:34px;" title="Compartilhar" onclick="event.stopPropagation();compartilharFoto('${f.id}')">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg>
+            </button>
+            <button class="foto-expand" style="right:62px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>
+          </div>`).join('')}
+        </div>
+      </div>`
+    }).join('')}
+  `
+  fotos.forEach(async f => {
+    const img = wrap.querySelector(`#gal-fg-${f.id} img`)
+    const url = await _urlAssinada(f.storage_path)
+    if (url && img) img.src = url
+  })
+}
+
+function _galToggleSelecao(fotoId) {
+  if (_galSelecao.has(fotoId)) _galSelecao.delete(fotoId); else _galSelecao.add(fotoId)
+  const item = document.getElementById('gal-fg-' + fotoId)
+  if (item) { item.classList.toggle('sel', _galSelecao.has(fotoId)); item.querySelector('.ck').textContent = _galSelecao.has(fotoId) ? '✓' : '' }
+  const btnBaixar = document.getElementById('gal-btn-baixar')
+  const btnApagar = document.getElementById('gal-btn-apagar')
+  if (btnBaixar) { btnBaixar.disabled = _galSelecao.size === 0; btnBaixar.textContent = `Baixar selecionadas (${_galSelecao.size})` }
+  if (btnApagar) btnApagar.disabled = _galSelecao.size === 0
+}
+
+// atalho: cria (ou reaproveita) um evento "avulso" desse ano pro aluno e
+// já abre a tela de upload de fotos dele, com o aluno pré-selecionado
+async function abrirUploadRapidoAluno() {
+  const a = store.alunos.find(x => x.id === _galAlunoId)
+  if (!a) return
+  const nomeEvento = `Fotos avulsas — ${a.nome}`
+  let evento = store.eventos.find(e => e.nome === nomeEvento && e.escola_id === (a.escola_id || null))
+  if (!evento) {
+    const { data, error } = await db.from('eventos').insert({ nome: nomeEvento, data: hojeISO(), escola_id: a.escola_id || null }).select().single()
+    if (error) { toast('Erro ao criar: ' + error.message); return }
+    store.eventos.unshift(data)
+    evento = data
+  }
+  setAdminTab('eventos')
+  await abrirEventoAdmin(evento.id)
+}
+
+function hojeISO() { return new Date().toISOString().slice(0, 10) }
+
+// ══════════════════════════════════════════════════════════════
+// ENSAIOS AVULSOS — mesma tabela "eventos" (tipo='ensaio'), mas o
+// destinatário é escolhido pessoa a pessoa: aluno (via foto_aluno,
+// os responsáveis dele enxergam automaticamente) ou direto pra um
+// professor/diretor/responsável/avulso (via foto_pessoa).
+// ══════════════════════════════════════════════════════════════
+function renderEnsaios() {
+  const el = document.getElementById('lista-ensaios')
+  if (!el) return
+  const ensaios = store.eventos.filter(e => e.tipo === 'ensaio')
+  if (!ensaios.length) { el.innerHTML = '<div class="empty">Nenhum ensaio avulso cadastrado ainda.</div>'; return }
+  el.innerHTML = ensaios.map(ev => `
+    <div class="list-item" onclick="abrirEnsaioAdmin('${ev.id}')">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="ens-av-${ev.id}">${esc((ev.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${(ev.alunos_selecionados?.length || 0) + (ev.pessoas_selecionadas?.length || 0)} destinatário(s)</div></div>
+      </div>
+      <div class="actions">
+        <span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span>
+        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEnsaio('${ev.id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEnsaios)">${ICON_LIXEIRA}</div>
+      </div>
+    </div>
+  `).join('')
+  ensaios.forEach(async ev => {
+    if (!ev.capa_url) return
+    const url = await _urlAssinada(ev.capa_url)
+    const el2 = document.getElementById(`ens-av-${ev.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="">`
+  })
+}
+
+function _todasPessoasSelecionaveis() {
+  const alunos = store.alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome, sub: a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso' }))
+  const staff = store.professores.map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: esc(ROLE_LABEL[p.role] || p.role) }))
+  const pais = store.responsaveis.map(r => ({ tipo: 'pessoa', id: r.user_id, nome: r.nome || '(sem nome)', sub: 'Responsável' }))
+  return [...alunos, ...staff, ...pais]
+}
+
+let _ensaioAlunosSel = new Set()
+let _ensaioPessoasSel = new Set()
+let _ensaioCapaArquivo = null
+
+function abrirModalEnsaio(ensaioId) {
+  const ev = ensaioId ? store.eventos.find(x => x.id === ensaioId) : null
+  _ensaioCapaArquivo = null
+  _ensaioAlunosSel = new Set(ev?.alunos_selecionados || [])
+  _ensaioPessoasSel = new Set(ev?.pessoas_selecionadas || [])
+
+  document.getElementById('ens-id').value = ev?.id || ''
+  document.getElementById('ens-modal-titulo').textContent = ev ? 'Editar ensaio avulso' : 'Novo ensaio avulso'
+  document.getElementById('ens-nome').value = ev?.nome || ''
+  document.getElementById('ens-data').value = ev?.data || ''
+  document.getElementById('ens-busca').value = ''
+
+  const capaEl = document.getElementById('ens-capa-preview')
+  capaEl.innerHTML = `<div class="trocar">Trocar capa</div><input type="file" id="ens-capa-input" accept="image/*" style="display:none;" onchange="_ensaioCapaSelecionada(this)">`
+  if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML })
+
+  _renderEnsaioSeletorPessoas()
+  abrirModal('modal-ensaio')
+}
+
+function _ensaioCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _ensaioCapaArquivo = file
+  const wrap = document.getElementById('ens-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+}
+
+function _renderEnsaioSeletorPessoas() {
+  const busca = document.getElementById('ens-busca').value.toLowerCase()
+  const pessoas = _todasPessoasSelecionaveis().filter(p => p.nome.toLowerCase().includes(busca))
+  const el = document.getElementById('ens-pessoas-lista')
+  el.innerHTML = pessoas.length ? pessoas.map(p => {
+    const marcado = p.tipo === 'aluno' ? _ensaioAlunosSel.has(p.id) : _ensaioPessoasSel.has(p.id)
+    return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="_ensaioTogglePessoa('${p.tipo}','${p.id}',this)">${esc(p.nome)} · ${p.sub}</span>`
+  }).join('') : '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
+}
+
+function _ensaioTogglePessoa(tipo, id, el) {
+  const set = tipo === 'aluno' ? _ensaioAlunosSel : _ensaioPessoasSel
+  if (set.has(id)) set.delete(id); else set.add(id)
+  el.classList.toggle('on')
+}
+
+async function salvarEnsaio() {
+  const id = document.getElementById('ens-id').value || null
+  const nome = document.getElementById('ens-nome').value.trim()
+  if (!nome) { toast('Informe o nome'); return }
+  const data_ = document.getElementById('ens-data').value || null
+  const ensaioId = id || crypto.randomUUID()
+
+  let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
+  if (_ensaioCapaArquivo) {
+    const ext = (_ensaioCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `eventos-capa/${ensaioId}/capa.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _ensaioCapaArquivo, { contentType: _ensaioCapaArquivo.type, upsert: true })
+    if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    capa_url = path
+  }
+
+  const payload = {
+    id: ensaioId, nome, data: data_, capa_url, tipo: 'ensaio', escola_id: null,
+    alunos_selecionados: [..._ensaioAlunosSel], pessoas_selecionadas: [..._ensaioPessoasSel],
+  }
+  let data, error
+  if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
+  else ({ data, error } = await db.from('eventos').insert(payload).select().single())
+  if (error) { toast('Erro: ' + error.message); return }
+
+  const idx = store.eventos.findIndex(e => e.id === data.id)
+  if (idx >= 0) store.eventos[idx] = data; else store.eventos.unshift(data)
+  renderEnsaios()
+  fecharModal('modal-ensaio')
+  toast(id ? 'Ensaio atualizado ✓' : 'Ensaio criado ✓')
+  registrarAuditoria(id ? 'editou ensaio avulso' : 'criou ensaio avulso', 'eventos', data.id, nome)
+}
+
+let _ensaioAtual = null
+async function abrirEnsaioAdmin(ensaioId) {
+  _ensaioAtual = store.eventos.find(e => e.id === ensaioId)
+  if (!_ensaioAtual) return
+  document.getElementById('ensaios-lista-wrap').style.display = 'none'
+  const wrap = document.getElementById('ensaio-detalhe-wrap')
+  wrap.style.display = 'block'
+  wrap.innerHTML = `
+    <button class="evento-back" onclick="fecharEnsaioAdmin()">← Voltar aos ensaios</button>
+    <div class="section-h"><h2>${esc(_ensaioAtual.nome)}</h2></div>
+    <div class="upload-drop" onclick="document.getElementById('ens-upload-input').click()">
+      📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
+      <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEnsaio(this.files)">
+    </div>
+    <div id="ens-upload-status"></div>
+    <div class="hint">As fotos já sobem marcadas pra todo mundo escolhido na criação do ensaio — ajuste foto a foto se precisar.</div>
+    <div class="foto-grid" id="ens-fotos-grid"></div>
+  `
+  const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
+  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
+  store.fotos = store.fotos.filter(f => f.evento_id !== ensaioId).concat(data || [])
+  const fotoIds = (data || []).map(f => f.id)
+  if (fotoIds.length) {
+    const [{ data: fa }, { data: fp }] = await Promise.all([
+      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
+      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+    ])
+    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  }
+  renderFotosEnsaioAdmin()
+}
+function fecharEnsaioAdmin() {
+  _ensaioAtual = null
+  document.getElementById('ensaios-lista-wrap').style.display = 'block'
+  document.getElementById('ensaio-detalhe-wrap').style.display = 'none'
+  renderEnsaios()
+}
+
+async function uploadFotosEnsaio(files) {
+  if (!files?.length || !_ensaioAtual) return
+  const statusEl = document.getElementById('ens-upload-status')
+  const rosterAlunos = _ensaioAtual.alunos_selecionados || []
+  const rosterPessoas = _ensaioAtual.pessoas_selecionadas || []
+  let ok = 0
+  for (const file of files) {
+    statusEl.textContent = `Enviando ${file.name}… (${ok + 1}/${files.length})`
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `${_ensaioAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
+    if (upErr) { toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _ensaioAtual.id, storage_path: path }).select().single()
+    if (insErr) { toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    store.fotos.push(fotoRow)
+    if (rosterAlunos.length) {
+      const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
+      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
+      if (!tagErr) store.fotoAluno.push(...tags)
+    }
+    if (rosterPessoas.length) {
+      const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
+      const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
+      if (!tagErr) store.fotoPessoa.push(...tags)
+    }
+    ok++
+  }
+  const total = rosterAlunos.length + rosterPessoas.length
+  statusEl.textContent = `${ok} foto(s) enviada(s) ✓${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`
+  document.getElementById('ens-upload-input').value = ''
+  renderFotosEnsaioAdmin()
+}
+
+async function renderFotosEnsaioAdmin() {
+  const grid = document.getElementById('ens-fotos-grid')
+  const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
+  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; return }
+  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
+    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
+  )
+  _lightboxFotos = fotos
+  grid.innerHTML = fotos.map(f => `
+    <div class="foto-item" id="efitem-${f.id}">
+      <img data-path="${esc(f.storage_path)}" alt="">
+      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEnsaioAdmin)">${ICON_LIXEIRA}</button>
+      <div class="tagbar">
+        <div class="tag-picker">
+          ${pessoasDisponiveis.map(p => {
+            const marcado = p.tipo === 'aluno'
+              ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === p.id)
+              : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === p.id)
+            return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="event.stopPropagation();${p.tipo === 'aluno' ? `toggleTagAluno('${f.id}','${p.id}',this)` : `toggleTagPessoa('${f.id}','${p.id}',this)`}">${esc(p.nome)}</span>`
+          }).join('') || '<span style="opacity:.6">ninguém selecionado na criação do ensaio</span>'}
+        </div>
+      </div>
+    </div>
+  `).join('')
+  fotos.forEach(async f => {
+    const img = grid.querySelector(`#efitem-${f.id} img`)
+    const url = await _urlAssinada(f.storage_path)
+    if (url && img) img.src = url
+  })
+}
+
+async function toggleTagPessoa(fotoId, userId, chipEl) {
+  const existente = store.fotoPessoa.find(x => x.foto_id === fotoId && x.user_id === userId)
+  if (existente) {
+    const { error } = await db.from('foto_pessoa').delete().eq('foto_id', fotoId).eq('user_id', userId)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoPessoa = store.fotoPessoa.filter(x => x !== existente)
+    chipEl.classList.remove('on')
+  } else {
+    const { error } = await db.from('foto_pessoa').insert({ foto_id: fotoId, user_id: userId })
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoPessoa.push({ foto_id: fotoId, user_id: userId })
     chipEl.classList.add('on')
   }
 }
