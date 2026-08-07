@@ -11,6 +11,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
 <style>
 :root{
   --palco:#100910; --vinho:#4B0416; --vinho-alto:#5C0A1E;
@@ -512,51 +514,67 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .evento-back{background:none;border:none;color:var(--ouro-fundo);font-size:12.5px;cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:.4em;}
 .evento-back:hover{color:var(--ouro-luz);}
 
-/* ── comunidade ── */
-.comunidade-composer{margin-bottom:22px;}
-.comunidade-composer textarea{resize:vertical;min-height:70px;}
-.composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;flex-wrap:wrap;}
-.composer-anexo{cursor:pointer;}
-.composer-destaque-opt{display:flex;align-items:center;gap:6px;font-size:12px;color:#DBC9A8;cursor:pointer;}
+/* ── comunidade: composer estilo mural social (avatar + campo, ações
+   em pílulas) — visual redesenhado do zero, não é ajuste incremental
+   do form simples que tinha antes. ── */
+.comunidade-composer{margin-bottom:24px;}
+.composer-user-row{display:flex;gap:12px;align-items:flex-start;}
+.composer-user-row .list-avatar{width:42px;height:42px;font-size:15px;border:2px solid rgba(200,175,127,.35);flex-shrink:0;}
+.composer-user-row .composer-campo{flex:1;min-width:0;}
+.comunidade-composer textarea{resize:none;overflow:hidden;min-height:44px;border:none;background:rgba(16,9,16,.35);border-radius:12px;padding:12px 14px;transition:height .1s;}
+.comunidade-composer textarea:focus{background:rgba(16,9,16,.5);box-shadow:0 0 0 1px rgba(200,175,127,.35) inset;}
+.composer-divisor{height:1px;background:rgba(200,175,127,.14);margin:14px 0 12px;}
+.composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.composer-anexos{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.composer-anexo{cursor:pointer;background:none;border:none;color:#C9B9A4;font-size:12.5px;padding:6px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;transition:background .12s,color .12s;}
+.composer-anexo:hover{background:rgba(200,175,127,.12);color:var(--ouro-luz);}
+.composer-destaque-opt{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#DBC9A8;cursor:pointer;background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.25);border-radius:99px;padding:5px 10px 5px 8px;}
 .composer-destaque-opt input{width:auto;}
-#feed-composer-preview img{max-height:160px;border-radius:8px;margin-top:10px;}
+#feed-composer-preview img{max-height:160px;border-radius:8px;}
+#feed-composer-preview{margin-top:10px;}
 
-.post-card{background:rgba(75,4,22,.2);border:1px solid rgba(200,175,127,.14);border-radius:10px;padding:18px;margin-bottom:14px;}
-.post-card.destaque{border-color:var(--ouro);background:rgba(200,175,127,.08);}
-.post-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+/* ── card de post: elevado (mesma linguagem de profundidade dos cards
+   do resto do painel), destaque vira faixa dourada lateral em vez de
+   só mudar a borda inteira. ── */
+.post-card{background:rgba(75,4,22,.32);border:1px solid rgba(200,175,127,.16);border-radius:14px;padding:18px;margin-bottom:16px;box-shadow:0 6px 20px -10px rgba(0,0,0,.55);transition:box-shadow .15s,transform .15s;position:relative;}
+.post-card:hover{box-shadow:0 10px 28px -10px rgba(0,0,0,.65);}
+.post-card.destaque{border-color:rgba(200,175,127,.4);background:rgba(200,175,127,.07);}
+.post-card.destaque::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:99px;background:var(--ouro);}
+.post-head{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
 .post-autor{font-family:var(--serif);font-size:15.5px;color:var(--ouro-luz);}
 .post-meta{font-size:11.5px;color:#B39F86;margin-top:1px;}
 .post-destaque-tag{font-size:10.5px;letter-spacing:.05em;color:var(--ouro);border:1px solid var(--ouro);padding:.2em .6em;border-radius:99px;flex-shrink:0;}
-.post-texto{font-size:14px;color:#EADFCF;white-space:pre-wrap;margin-bottom:10px;}
-.post-imagem{width:100%;max-height:420px;object-fit:cover;border-radius:8px;cursor:pointer;margin-bottom:10px;}
-.post-actions{display:flex;gap:16px;border-top:1px solid rgba(200,175,127,.12);padding-top:10px;}
-.post-reagir,.post-comentar-btn{background:none;border:none;color:#C9B9A4;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--sans);padding:0;}
-.post-reagir:hover,.post-comentar-btn:hover{color:var(--ouro-luz);}
+.post-texto{font-size:14px;line-height:1.5;color:#EADFCF;white-space:pre-wrap;margin-bottom:12px;}
+.post-imagem{width:100%;max-height:420px;object-fit:cover;border-radius:10px;cursor:pointer;margin-bottom:10px;}
+.post-actions{display:flex;align-items:center;gap:14px;border-top:1px solid rgba(200,175,127,.12);padding-top:10px;}
+.post-actions-divisor{width:1px;align-self:stretch;background:rgba(200,175,127,.14);}
+.post-reagir,.post-comentar-btn{background:none;border:none;color:#C9B9A4;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:5px;font-family:var(--sans);padding:5px 8px;border-radius:8px;transition:background .12s,color .12s;}
+.post-reagir:hover,.post-comentar-btn:hover{color:var(--ouro-luz);background:rgba(200,175,127,.1);}
 .post-reagir.on{color:var(--vermelho);}
 .post-comentarios{margin-top:12px;padding-top:12px;border-top:1px solid rgba(200,175,127,.12);}
-.post-coment-item{font-size:13px;color:#DBC9A8;padding:6px 0;display:flex;align-items:baseline;gap:6px;}
+.post-coment-item{font-size:13px;color:#DBC9A8;padding:8px 12px;margin-bottom:6px;display:flex;align-items:baseline;gap:6px;background:rgba(16,9,16,.3);border-radius:12px;}
 .post-coment-item b{color:var(--ouro-luz);flex-shrink:0;}
 .post-coment-item span{flex:1;}
 .post-coment-apagar{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;flex-shrink:0;}
 .post-coment-apagar:hover{color:var(--vermelho);}
 .post-coment-novo{display:flex;gap:8px;margin-top:8px;}
 .post-coment-novo input{flex:1;}
-.post-coment-item.resposta{margin-left:30px;}
+.post-coment-item.resposta{margin-left:30px;background:rgba(16,9,16,.18);}
 .post-coment-responder{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;font-size:11px;flex-shrink:0;}
 .post-coment-responder:hover{color:var(--ouro-luz);}
 
 /* ── autor com foto real, mídia múltipla, reações com tipo ── */
-.post-head .list-avatar{overflow:hidden;}
+.post-head .list-avatar{overflow:hidden;width:42px;height:42px;border:2px solid rgba(200,175,127,.3);}
 .post-head .list-avatar img{width:100%;height:100%;object-fit:cover;}
 .post-cargo{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ouro-fundo);background:rgba(200,175,127,.12);padding:.15em .55em;border-radius:99px;margin-left:6px;}
 .post-midia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:10px;}
-.post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
-.post-midia-grid video{width:100%;border-radius:8px;background:#000;}
-.post-reacoes-row{display:flex;gap:4px;}
-.post-reagir-opt{background:none;border:1px solid transparent;border-radius:6px;color:#C9B9A4;font-size:15px;cursor:pointer;padding:2px 6px;font-family:var(--sans);}
-.post-reagir-opt:hover{background:rgba(200,175,127,.1);}
-.post-reagir-opt.on{border-color:var(--ouro);background:rgba(200,175,127,.15);}
-.post-reacoes-contagem{font-size:12px;color:#C9B9A4;align-self:center;margin-left:2px;}
+.post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
+.post-midia-grid video{width:100%;border-radius:10px;background:#000;}
+.post-reacoes-row{display:flex;gap:2px;background:rgba(16,9,16,.3);border-radius:99px;padding:3px;}
+.post-reagir-opt{background:none;border:1px solid transparent;border-radius:99px;color:#C9B9A4;font-size:15px;cursor:pointer;padding:3px 7px;font-family:var(--sans);transition:background .12s;}
+.post-reagir-opt:hover{background:rgba(200,175,127,.12);}
+.post-reagir-opt.on{border-color:var(--ouro);background:rgba(200,175,127,.18);}
+.post-reacoes-contagem{font-size:12px;color:#C9B9A4;align-self:center;margin-left:4px;}
 
 /* ── avisos fixos no topo + busca/filtro do feed ── */
 .feed-avisos{margin-bottom:22px;}
@@ -577,6 +595,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .aud-badge.exclusao{background:rgba(224,85,112,.15);color:var(--vermelho);}
 .aud-badge.seguranca{background:rgba(168,120,224,.18);color:#C9A8F0;}
 .aud-badge.outro{background:rgba(200,175,127,.1);color:#B39F86;}
+.aud-badge.login{background:rgba(90,160,224,.15);color:#7FB4E8;}
 
 /* ── Ctrl+K command palette ── */
 .command-palette{overflow:hidden;}
@@ -608,6 +627,21 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .sino-drop .dash-activity li:not(.lida) .sino-item-txt{font-weight:600;}
 .sino-item-icone{flex-shrink:0;font-size:14px;line-height:1.4;}
 .sino-item-dot{position:absolute;right:0;top:12px;width:6px;height:6px;border-radius:50%;background:var(--vermelho);}
+
+/* ── header de comunidade: capa + nome customizados por escola ── */
+.comunidade-header{position:relative;height:110px;border-radius:14px;overflow:hidden;margin-bottom:18px;background:linear-gradient(155deg,#4B0416,#2B0210);}
+.comunidade-header img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;}
+.comunidade-header::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,9,16,.1),rgba(16,9,16,.82));}
+.comunidade-header .conteudo{position:relative;z-index:1;height:100%;display:flex;align-items:flex-end;justify-content:space-between;padding:14px 18px;gap:10px;}
+.comunidade-header h2{font-size:19px;}
+.comunidade-header .cam-btn{width:32px;height:32px;}
+
+/* ── filtro de categoria do feed + doc anexado ── */
+.feed-cat-chips{display:flex;gap:6px;margin-bottom:10px;}
+.post-doc-card{display:flex;align-items:center;gap:10px;background:rgba(75,4,22,.35);border:1px solid rgba(200,175,127,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px;text-decoration:none;cursor:pointer;}
+.post-doc-card svg{width:20px;height:20px;color:var(--ouro);flex-shrink:0;}
+.post-doc-card span{font-size:12.5px;color:#DBC9A8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.post-coment-moderado{font-size:9.5px;color:var(--ouro-fundo);border:1px solid rgba(200,175,127,.3);border-radius:99px;padding:0 .5em;margin-left:4px;}
 
 @media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
 </style>
@@ -800,7 +834,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
 
       <div class="admin-tab" id="admintab-pais" style="display:none;">
-        <div class="section-h"><h2>Pais e responsáveis</h2><button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button></div>
+        <div class="section-h"><h2>Pais e responsáveis</h2><div style="display:flex;gap:8px;"><button class="btn btn-sm" onclick="abrirModal('modal-vincular-filho')">🔗 Vincular filho existente</button><button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button></div></div>
         <div class="filtro-row">
           <input type="text" id="pai-busca" placeholder="Buscar por nome, e-mail, telefone ou filho…" oninput="renderPais()" style="max-width:360px;">
         </div>
@@ -837,7 +871,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <h2>Comunidade</h2>
           <select id="comunidade-admin-escola-filtro" onchange="_comunidadeAdminTrocarEscola(this.value)"></select>
         </div>
-        <div class="hint">Veja e participe do mural de cada escola. Publique numa escola, em várias ou em todas de uma vez.</div>
+        <div id="comunidade-admin-header"></div>
         <div id="comunidade-admin-composer-wrap"></div>
         <div id="comunidade-admin-feed"></div>
       </div>
@@ -846,18 +880,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="section-h">
           <h2>Auditoria</h2>
           <button class="btn btn-sm" onclick="exportarAuditoriaCSV()">📥 Exportar CSV</button>
+          <button class="btn btn-sm" onclick="exportarAuditoriaPDF()">📄 Exportar PDF</button>
         </div>
         <div class="filtro-row">
           <input type="text" id="auditoria-busca" placeholder="Buscar por ação, pessoa ou detalhe…" oninput="renderAuditoria()">
           <input type="date" id="auditoria-de" title="De" onchange="_auditoriaRecarregar()">
           <input type="date" id="auditoria-ate" title="Até" onchange="_auditoriaRecarregar()">
-          <select id="auditoria-usuario" onchange="renderAuditoria()"><option value="">Todos os usuários</option></select>
-          <select id="auditoria-tipo" onchange="renderAuditoria()">
+          <select id="auditoria-usuario" onchange="_auditoriaRecarregar()"><option value="">Todos os usuários</option></select>
+          <select id="auditoria-tipo" onchange="_auditoriaRecarregar()">
             <option value="">Todos os tipos</option>
             <option value="criacao">Criação</option>
             <option value="edicao">Edição</option>
             <option value="exclusao">Exclusão</option>
             <option value="seguranca">Segurança</option>
+            <option value="login">Login</option>
           </select>
         </div>
         <table class="tabela-auditoria" id="tabela-auditoria"><tbody id="lista-auditoria"></tbody></table>
@@ -893,6 +929,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div id="escola-evento-detalhe" style="display:none;"></div>
       </div>
       <div class="escola-tab" id="escolatab-comunidade" style="display:none;">
+        <div id="comunidade-escola-header"></div>
         <div id="comunidade-escola-composer-wrap"></div>
         <div id="comunidade-escola-feed"></div>
       </div>
@@ -927,6 +964,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div id="responsavel-galeria"></div>
       </div>
       <div class="resp-tab" id="resptab-comunidade" style="display:none;">
+        <div id="comunidade-responsavel-header"></div>
         <div id="comunidade-responsavel-feed"></div>
       </div>
       </div>
@@ -970,6 +1008,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <input type="hidden" id="vinc-esc-id">
     <input type="hidden" id="vinc-esc-modo">
     <h3 id="vinc-esc-titulo">Vincular</h3>
+    <div class="field" id="vinc-esc-novo-wrap" style="display:none;">
+      <button type="button" class="btn btn-sm" style="width:100%;" onclick="_criarNovoAlunoNaEscola()">+ Cadastrar aluno novo nessa escola</button>
+      <div class="meta" style="margin-top:6px;">Ou vincule um aluno já cadastrado (avulso ou de outra escola):</div>
+    </div>
     <div class="field">
       <label id="vinc-esc-label-pessoa">Pessoa</label>
       <input type="text" id="vinc-esc-busca" placeholder="Buscar pelo nome…" oninput="_renderVincEscolaLista()">
@@ -1169,8 +1211,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <button class="btn btn-primary btn-sm" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
     </div>
     <div class="credencial-box" id="acesso-resultado"></div>
-    <hr class="perfil-divisor">
-    <h3 style="font-size:16px;margin-bottom:14px;">Vincular filho a responsável já existente</h3>
+  </div>
+</div>
+
+<!-- drawer: vincular filho a responsável já existente -->
+<div class="modal-overlay" id="modal-vincular-filho">
+  <div class="modal" style="max-width:420px;">
+    <h3>Vincular filho existente</h3>
     <div class="meta" style="margin-bottom:14px;">Use isso quando uma família já tem login e precisa adicionar outro filho (matriculou, nasceu, etc.) — sem criar um segundo acesso.</div>
     <div class="field">
       <label>Responsável</label>
@@ -1180,7 +1227,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <label>Aluno</label>
       <select id="vinc-aluno"></select>
     </div>
-    <button class="btn btn-primary btn-sm" onclick="vincularFilho()">Vincular</button>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-vincular-filho')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="vincularFilho()">Vincular</button>
+    </div>
   </div>
 </div>
 
@@ -1241,6 +1291,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <button class="btn btn-primary btn-sm" id="prof-salvar-btn" onclick="salvarProfessor()">Salvar</button>
     </div>
     <div class="credencial-box" id="prof-resultado"></div>
+  </div>
+</div>
+
+<!-- modal: personalizar comunidade (nome+capa por escola) -->
+<div class="modal-overlay" id="modal-comunidade-header">
+  <div class="modal" style="max-width:420px;">
+    <div class="perfil-capa" id="ch-capa-preview">
+      <div class="trocar" onclick="document.getElementById('ch-capa-input').click()">Trocar capa</div>
+      <input type="file" id="ch-capa-input" accept="image/*" style="display:none;" onchange="_chCapaSelecionada(this)">
+    </div>
+    <h3 style="margin-top:16px;">Personalizar comunidade</h3>
+    <div class="field"><label>Nome da comunidade</label><input type="text" id="ch-nome" placeholder="Ex: Mural Studio Arabesque"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-comunidade-header')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_salvarComunidadeHeader()">Salvar</button>
+    </div>
   </div>
 </div>
 
@@ -1475,6 +1541,22 @@ function gerarSenha() {
   return s
 }
 
+// wa.me sem número abre o WhatsApp com a mensagem pronta pro usuário
+// escolher o contato na hora — não precisa guardar telefone pra isso
+// funcionar. Com telefone cadastrado, abre direto na conversa. Nenhum
+// dos dois envia sozinho: só o clique de "Enviar" dentro do
+// WhatsApp/e-mail é que realmente despacha — aqui é só o link.
+function _credencialBoxHTML(username, senha, mensagemExtra, opts = {}) {
+  const msg = `Olá! Segue seu acesso à Galeria Grand Focus:\n\nUsuário: ${username}\nSenha: ${senha}\n\nAcesse em ${location.origin}${location.pathname}`
+  const tel = (opts.telefone || '').replace(/\D/g, '')
+  const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`
+  const mail = `mailto:${opts.email || ''}?subject=${encodeURIComponent('Seu acesso à Galeria Grand Focus')}&body=${encodeURIComponent(msg)}`
+  return `${esc(`Usuário: ${username}`)}\n${esc(`Senha:   ${senha}`)}\n\n${esc(mensagemExtra)}<div style="white-space:normal;display:flex;gap:8px;margin-top:12px;">
+    <a class="btn btn-sm" href="${wa}" target="_blank" rel="noopener">📲 Enviar por WhatsApp</a>
+    <a class="btn btn-sm" href="${mail}">✉️ Enviar por e-mail</a>
+  </div>`
+}
+
 // ── auth ────────────────────────────────────────────────────────
 function iniciarAuth() {
   db.auth.onAuthStateChange((_event, session) => {
@@ -1504,6 +1586,7 @@ async function mostrarApp(user) {
   }
   meuPerfil = data
   marcarAcesso() // best-effort, não bloqueia
+  registrarAuditoria('fez login', 'perfis', user.id, null)
   if (data.role === 'responsavel' && !data.lgpd_aceito_em) abrirModal('modal-lgpd')
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'flex'
@@ -1648,8 +1731,9 @@ function _toggleSinoNotificacoes() {
 // diferente da Auditoria (log cru de tudo), o sino só mostra eventos de
 // alto valor: criação de cadastros, publicações na comunidade, links
 // privados gerados — não espelha toda ação de edição/rotina.
-const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado/i
+const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos/i
 function _notifIcone(texto) {
+  if (/upload/i.test(texto)) return '📷'
   if (/publicou|comunidade|coment/i.test(texto)) return '💬'
   if (/senha|permiss|link privado/i.test(texto)) return '🔒'
   if (/enviad|upload|foto/i.test(texto)) return '📷'
@@ -2594,6 +2678,7 @@ function abrirVincularNaEscola(escolaId, modo) {
   document.getElementById('vinc-esc-titulo').textContent = titulos[modo]
   document.getElementById('vinc-esc-label-pessoa').textContent = labels[modo]
   document.getElementById('vinc-esc-campo-aluno-extra').style.display = modo === 'pai' ? 'block' : 'none'
+  document.getElementById('vinc-esc-novo-wrap').style.display = modo === 'aluno' ? 'block' : 'none'
   if (modo === 'pai') {
     const sel = document.getElementById('vinc-esc-aluno-extra')
     const alunosDaEscola = store.alunos.filter(a => a.escola_id === escolaId)
@@ -2648,6 +2733,12 @@ async function confirmarVincularEscola() {
   toast('Vinculado ✓')
   renderEscolas(); if (typeof renderAlunos === 'function') renderAlunos(); if (typeof renderProfessores === 'function') renderProfessores(); if (typeof renderPais === 'function') renderPais()
   abrirDetalheEscola(escolaId)
+}
+
+function _criarNovoAlunoNaEscola() {
+  const escolaId = document.getElementById('vinc-esc-id').value
+  fecharModal('modal-vincular-escola')
+  abrirModalAluno(null, escolaId)
 }
 
 async function desvincularAlunoDaEscola(alunoId) {
@@ -2902,7 +2993,7 @@ async function salvarProfessor() {
   renderProfessores()
 
   document.getElementById('prof-resultado').style.display = 'block'
-  document.getElementById('prof-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nome}.`
+  document.getElementById('prof-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email: emailContato })
   registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
   toast('Professor/diretor criado ✓')
 }
@@ -3097,7 +3188,7 @@ async function salvarPai() {
   renderPais()
 
   document.getElementById('pai-resultado').style.display = 'block'
-  document.getElementById('pai-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nome}.`
+  document.getElementById('pai-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email, telefone })
   registrarAuditoria('criou responsável', 'perfis', suData.user?.id, `usuário ${username} — ${nome}`)
   toast('Responsável criado ✓')
 }
@@ -3132,7 +3223,7 @@ async function resetarSenhaUsuario(userId, origem) {
   const senha = gerarSenha()
   const { error } = await db.rpc('resetar_senha', { alvo_user_id: userId, nova_senha: senha })
   if (error) { toast('Erro ao redefinir senha: ' + error.message); return }
-  document.getElementById('credencial-modal-texto').textContent = `Usuário: ${p.username || '(sem usuário cadastrado)'}\nNova senha: ${senha}\n\nEnvie pra ${nome} — a senha antiga parou de funcionar.`
+  document.getElementById('credencial-modal-texto').innerHTML = _credencialBoxHTML(p.username || '(sem usuário cadastrado)', senha, `Envie pra ${nome} — a senha antiga parou de funcionar.`, { email: p.email, telefone: p.telefone })
   abrirModal('modal-credencial')
   registrarAuditoria('redefiniu a senha de ' + nome, 'perfis', userId, null)
 }
@@ -3164,7 +3255,7 @@ async function confirmarVincularConjuge() {
 
 let _alunoFotoArquivo = null
 
-function abrirModalAluno(alunoId) {
+function abrirModalAluno(alunoId, escolaIdPreset) {
   const sel = document.getElementById('alu-escola')
   sel.innerHTML = '<option value="">— Avulso (sem escola) —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
   _alunoFotoArquivo = null
@@ -3173,7 +3264,7 @@ function abrirModalAluno(alunoId) {
   document.getElementById('alu-id').value = a?.id || ''
   document.getElementById('alu-modal-titulo').textContent = a ? 'Editar aluno' : 'Novo aluno'
   document.getElementById('alu-nome').value = a?.nome || ''
-  document.getElementById('alu-escola').value = a?.escola_id || ''
+  document.getElementById('alu-escola').value = a?.escola_id || escolaIdPreset || ''
   document.getElementById('alu-turma').value = a?.turma || ''
   document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
   document.getElementById('alu-observacoes').value = a?.observacoes || ''
@@ -3702,6 +3793,12 @@ function _renderFilaUpload(prefixo, files, estados) {
 
 async function uploadFotosEvento(files) {
   if (!files?.length || !_eventoAtual) return
+  // captura o evento/roster no início — o upload continua rodando em
+  // segundo plano se o admin trocar de evento (ou sair da aba) no meio
+  // do envio, e _eventoAtual muda de baixo; sem isso, o resto dos
+  // arquivos ia parar registrado no evento errado.
+  const eventoId = _eventoAtual.id
+  const eventoNome = _eventoAtual.nome || ''
   const roster = _eventoAtual.alunos_selecionados || []
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('evt', files, estados)
@@ -3710,11 +3807,11 @@ async function uploadFotosEvento(files) {
     const file = files[i]
     estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `${_eventoAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _eventoAtual.id, storage_path: path, thumb_path: thumbPath }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -3728,8 +3825,13 @@ async function uploadFotosEvento(files) {
     ok++
   }
   toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`)
-  document.getElementById('evt-upload-input').value = ''
-  renderFotosEventoAdmin()
+  const inputEl = document.getElementById('evt-upload-input')
+  if (inputEl) inputEl.value = ''
+  if (_eventoAtual?.id === eventoId) renderFotosEventoAdmin()
+  // grava na auditoria (não só o toast, que some em segundos) pra
+  // upload em massa aparecer no sino de notificações mesmo que ninguém
+  // estivesse olhando a tela quando o envio terminou.
+  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', eventoId, `${ok} de ${files.length} foto(s) — ${eventoNome}`)
 }
 
 // signed URL dura 300s no servidor — cachear evita gerar uma nova (round
@@ -3973,12 +4075,24 @@ async function carregarFeed(contexto) {
 
 function renderFeedAtual() { if (_feedContainerAtual) renderFeed(_feedContainerAtual) }
 
-let _feedFiltroTexto = '', _feedFiltroDe = '', _feedFiltroAte = ''
+let _feedFiltroTexto = '', _feedFiltroDe = '', _feedFiltroAte = '', _feedFiltroCategoria = ''
 function _feedAplicarFiltro() {
   _feedFiltroTexto = document.getElementById('feed-filtro-texto')?.value.trim().toLowerCase() || ''
   _feedFiltroDe = document.getElementById('feed-filtro-de')?.value || ''
   _feedFiltroAte = document.getElementById('feed-filtro-ate')?.value || ''
   renderFeedAtual()
+}
+function _feedFiltrarCategoria(cat) {
+  _feedFiltroCategoria = _feedFiltroCategoria === cat ? '' : cat
+  renderFeedAtual()
+}
+function _feedPassaCategoria(p) {
+  if (!_feedFiltroCategoria) return true
+  const midias = _feedMidias[p.id] || []
+  if (_feedFiltroCategoria === 'avisos') return p.destaque
+  if (_feedFiltroCategoria === 'midias') return midias.some(m => m.tipo === 'foto' || m.tipo === 'video') || !!p.imagem_url
+  if (_feedFiltroCategoria === 'docs') return midias.some(m => m.tipo === 'documento')
+  return true
 }
 function _feedFiltrar(posts) {
   return posts.filter(p => {
@@ -3986,22 +4100,28 @@ function _feedFiltrar(posts) {
     const dia = (p.criado_em || '').slice(0, 10)
     if (_feedFiltroDe && dia < _feedFiltroDe) return false
     if (_feedFiltroAte && dia > _feedFiltroAte) return false
+    if (!_feedPassaCategoria(p)) return false
     return true
   })
 }
 
+const FEED_CATEGORIAS = [{ id: 'avisos', label: '📌 Avisos' }, { id: 'midias', label: '🖼️ Mídias' }, { id: 'docs', label: '📄 PDFs' }]
 function renderFeed(containerId) {
   const wrap = document.getElementById(containerId)
   if (!wrap) return
-  const filtrando = _feedFiltroTexto || _feedFiltroDe || _feedFiltroAte
+  const filtrando = _feedFiltroTexto || _feedFiltroDe || _feedFiltroAte || _feedFiltroCategoria
   const avisos = _feedPosts.filter(p => p.destaque)
-  const normais = _feedFiltrar(_feedPosts.filter(p => !p.destaque))
+  // com filtro ativo, busca em TODOS os posts (inclusive destaque) —
+  // senão "Avisos" nunca acharia nada, já que eles ficam de fora da
+  // lista normal (moram só no bloco fixo do topo, escondido ao filtrar).
+  const normais = _feedFiltrar(filtrando ? _feedPosts : _feedPosts.filter(p => !p.destaque))
   const barraFiltro = `
     <div class="feed-filtro-row">
       <input type="text" id="feed-filtro-texto" placeholder="Buscar no feed…" value="${esc(_feedFiltroTexto)}" oninput="_feedAplicarFiltro()">
       <input type="date" id="feed-filtro-de" title="De" value="${_feedFiltroDe}" onchange="_feedAplicarFiltro()">
       <input type="date" id="feed-filtro-ate" title="Até" value="${_feedFiltroAte}" onchange="_feedAplicarFiltro()">
-    </div>`
+    </div>
+    <div class="feed-cat-chips">${FEED_CATEGORIAS.map(c => `<span class="chip${_feedFiltroCategoria === c.id ? ' on' : ''}" onclick="_feedFiltrarCategoria('${c.id}')">${c.label}</span>`).join('')}</div>`
   const blocoAvisos = (avisos.length && !filtrando) ? `
     <div class="feed-avisos">
       <div class="feed-avisos-titulo">📌 Avisos em destaque</div>
@@ -4018,7 +4138,7 @@ function renderFeed(containerId) {
         if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${autor.foto_pos || POS_PADRAO};">`
       })
     }
-    ;(_feedMidias[p.id] || []).forEach(async m => {
+    ;(_feedMidias[p.id] || []).filter(m => m.tipo !== 'documento').forEach(async m => {
       const el = document.getElementById('post-midia-' + m.id)
       const url = await _urlAssinada(m.storage_path)
       if (!url || !el) return
@@ -4037,6 +4157,20 @@ function _postMidiaHTML(m) {
   }
   return `<img id="post-midia-${m.id}" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
 }
+function _postDocHTML(m) {
+  const nome = (m.storage_path.split('/').pop() || 'documento').replace(/^midia-\d+\./, 'anexo.')
+  return `<a class="post-doc-card" id="post-midia-${m.id}" data-path="${esc(m.storage_path)}" href="#" onclick="event.preventDefault();_abrirDocumentoPost('${m.id}')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6Z"/><path d="M15 2v5h5"/></svg>
+    <span>${esc(nome)}</span>
+  </a>`
+}
+async function _abrirDocumentoPost(midiaId) {
+  const el = document.getElementById('post-midia-' + midiaId)
+  const path = el?.dataset?.path
+  if (!path) return
+  const url = await _urlAssinada(path)
+  if (url) window.open(url, '_blank')
+}
 
 function _postCardHTML(p) {
   const r = _feedReacoes[p.id] || { porTipo: {}, minhaTipo: null }
@@ -4046,6 +4180,8 @@ function _postCardHTML(p) {
   const autor = _perfilPorUserId(p.autor_user_id)
   const cargo = autor?.role ? (ROLE_LABEL[autor.role] || autor.role) : (p.autor_user_id ? 'Admin' : 'Grand Focus')
   const midias = _feedMidias[p.id] || []
+  const midiasVisuais = midias.filter(m => m.tipo !== 'documento')
+  const midiasDocs = midias.filter(m => m.tipo === 'documento')
   const totalReacoes = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
   return `
     <div class="post-card${p.destaque ? ' destaque' : ''}">
@@ -4059,13 +4195,15 @@ function _postCardHTML(p) {
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
       </div>
       ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
-      ${midias.length ? `<div class="post-midia-grid">${midias.map(m => _postMidiaHTML(m)).join('')}</div>` : ''}
+      ${midiasVisuais.length ? `<div class="post-midia-grid">${midiasVisuais.map(m => _postMidiaHTML(m)).join('')}</div>` : ''}
+      ${midiasDocs.length ? midiasDocs.map(m => _postDocHTML(m)).join('') : ''}
       ${(!midias.length && p.imagem_url) ? `<img class="post-imagem" id="post-img-${p.id}" onclick="abrirLightboxPost('${p.id}')" alt="">` : ''}
       <div class="post-actions">
         <div class="post-reacoes-row">
           ${Object.entries(REACOES).map(([tipo, emoji]) => `<button class="post-reagir-opt${r.minhaTipo === tipo ? ' on' : ''}" title="${tipo}" onclick="reagirPost('${p.id}','${tipo}')">${emoji}</button>`).join('')}
           ${totalReacoes ? `<span class="post-reacoes-contagem" id="post-reacoes-contagem-${p.id}">${totalReacoes}</span>` : `<span id="post-reacoes-contagem-${p.id}"></span>`}
         </div>
+        <div class="post-actions-divisor"></div>
         <button class="post-comentar-btn" id="post-comentbtn-${p.id}" onclick="toggleComentarios('${p.id}')">💬 Comentar${nComent ? ' · ' + nComent : ''}</button>
       </div>
       <div class="post-comentarios" id="post-coment-wrap-${p.id}" style="display:none;">
@@ -4124,10 +4262,13 @@ async function carregarComentarios(postId) {
 }
 
 function _comentItemHTML(c, postId, resposta) {
-  const podeApagar = c.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)
+  const proprio = c.autor_user_id === currentUser.id
+  const ehModeracao = !proprio && ['admin', 'super_admin'].includes(meuPerfil.role)
+  const podeApagar = proprio || ehModeracao
   return `
     <div class="post-coment-item${resposta ? ' resposta' : ''}">
       <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
+      ${ehModeracao ? `<span class="post-coment-moderado" title="Você pode remover como moderação — não é seu comentário">Moderação</span>` : ''}
       ${!resposta ? `<button class="post-coment-responder" onclick="_mostrarRespostaInput('${c.id}','${postId}')" title="Responder">Responder</button>` : ''}
       ${podeApagar ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
     </div>`
@@ -4170,16 +4311,26 @@ async function enviarComentario(postId, parentId) {
   if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
 }
 
+// distingue "apaguei meu próprio comentário" de "moderei o comentário de
+// outra pessoa" — mensagem de confirmação e log de auditoria diferentes
+// pra cada caso, pra deixar o poder de moderação explícito (não some em
+// silêncio como se fosse o dono apagando).
 async function apagarComentario(comentarioId, postId) {
-  if (!await confirmModal('Apagar esse comentário?', { titulo: 'Apagar comentário', okLabel: 'Apagar', danger: true })) return
+  const c = (_feedComentariosCache[postId] || []).find(x => x.id === comentarioId)
+  const ehModeracao = !!c && c.autor_user_id !== currentUser.id
+  const msg = ehModeracao
+    ? `Remover o comentário de ${c.autor_nome || 'outra pessoa'} como moderação?\n\n"${(c.texto || '').slice(0, 140)}"`
+    : 'Apagar esse comentário?'
+  if (!await confirmModal(msg, { titulo: ehModeracao ? 'Remover comentário (moderação)' : 'Apagar comentário', okLabel: ehModeracao ? 'Remover' : 'Apagar', danger: true })) return
   const { error } = await db.from('post_comentarios').delete().eq('id', comentarioId)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
-  if (_feedComentariosCache[postId]) _feedComentariosCache[postId] = _feedComentariosCache[postId].filter(c => c.id !== comentarioId)
+  if (_feedComentariosCache[postId]) _feedComentariosCache[postId] = _feedComentariosCache[postId].filter(x => x.id !== comentarioId)
   _feedComentCount[postId] = Math.max(0, (_feedComentCount[postId] || 1) - 1)
   renderComentarios(postId)
   const btn = document.getElementById('post-comentbtn-' + postId)
   if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
-  registrarAuditoria('apagou um comentário da comunidade', 'post_comentarios', comentarioId, null)
+  if (ehModeracao) registrarAuditoria('removeu comentário de outro usuário (moderação)', 'post_comentarios', comentarioId, `autor: ${c.autor_nome || '—'} — "${(c.texto || '').slice(0, 80)}"`)
+  else registrarAuditoria('apagou o próprio comentário da comunidade', 'post_comentarios', comentarioId, null)
 }
 
 async function apagarPost(postId) {
@@ -4223,16 +4374,32 @@ function _composerHTML(contexto) {
           ${store.escolas.map(e => `<span class="tag-opt" data-escola="${e.id}" onclick="_toggleDestinoPost(this)">${esc(e.nome)}</span>`).join('')}
         </div>
       </div>` : ''}
-      <textarea id="feed-composer-texto" rows="3" placeholder="Escreva um recado pra comunidade..."></textarea>
-      <div id="feed-composer-preview" class="post-midia-grid"></div>
+      <div class="composer-user-row">
+        <span class="list-avatar" id="composer-avatar">${esc((meuPerfil?.nome || '?').trim().charAt(0).toUpperCase())}</span>
+        <div class="composer-campo">
+          <textarea id="feed-composer-texto" rows="1" placeholder="Escreva um recado pra comunidade..." oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <div id="feed-composer-preview" class="post-midia-grid"></div>
+        </div>
+      </div>
+      <div class="composer-divisor"></div>
       <div class="composer-actions">
-        <label class="btn btn-sm composer-anexo">📷 Fotos<input type="file" accept="image/*" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'foto')"></label>
-        <label class="btn btn-sm composer-anexo">🎬 Vídeo<input type="file" accept="video/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'video')"></label>
-        ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Aviso Importante / Fixar no Topo</label>` : ''}
+        <div class="composer-anexos">
+          <label class="composer-anexo">📷 Fotos<input type="file" accept="image/*" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'foto')"></label>
+          <label class="composer-anexo">🎬 Vídeo<input type="file" accept="video/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'video')"></label>
+          <label class="composer-anexo">📄 Documento<input type="file" accept=".pdf,.doc,.docx" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'documento')"></label>
+          ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Aviso Importante / Fixar no Topo</label>` : ''}
+        </div>
         <button class="btn btn-primary btn-sm" onclick="publicarPost()">Publicar</button>
       </div>
     </div>
   `
+}
+function _composerAtualizarAvatar() {
+  const el = document.getElementById('composer-avatar')
+  if (!el || !meuPerfil?.foto_url) return
+  _urlAssinada(meuPerfil.foto_url).then(url => {
+    if (url) el.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`
+  })
 }
 
 function _toggleDestinoPost(el) {
@@ -4249,14 +4416,25 @@ function _toggleDestinoPost(el) {
 
 function _composerRenderPreview() {
   const wrap = document.getElementById('feed-composer-preview')
-  wrap.innerHTML = _composerMidias.map((m, i) => `
+  wrap.innerHTML = _composerMidias.map((m, i) => {
+    if (m.tipo === 'documento') {
+      return `<div class="post-doc-card" style="position:relative;padding-right:32px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 2h9l5 5v15H6Z"/><path d="M15 2v5h5"/></svg>
+        <span>${esc(m.file.name)}</span>
+        <button class="foto-expand" style="opacity:1;top:4px;right:4px;" onclick="_composerRemoverMidia(${i})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>`
+    }
+    return `
     <div style="position:relative;">
       ${m.tipo === 'video' ? `<video src="${URL.createObjectURL(m.file)}" controls style="width:100%;border-radius:8px;"></video>` : `<img src="${URL.createObjectURL(m.file)}" alt="">`}
       <button class="foto-expand" style="opacity:1;top:4px;right:4px;" onclick="_composerRemoverMidia(${i})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
       </button>
     </div>
-  `).join('')
+  `
+  }).join('')
 }
 function _composerMidiaSelecionada(inputEl, tipo) {
   const files = [...(inputEl.files || [])]
@@ -4306,7 +4484,8 @@ async function publicarPost() {
 
   for (let i = 0; i < _composerMidias.length; i++) {
     const { tipo, file } = _composerMidias[i]
-    const ext = (file.name.split('.').pop() || (tipo === 'video' ? 'mp4' : 'jpg')).toLowerCase().replace(/[^a-z0-9]/g, '')
+    const extPadrao = tipo === 'video' ? 'mp4' : (tipo === 'documento' ? 'pdf' : 'jpg')
+    const ext = (file.name.split('.').pop() || extPadrao).toLowerCase().replace(/[^a-z0-9]/g, '')
     const path = `posts/${post.id}/midia-${i}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
     if (upErr) { toast(`Publicação criada, mas uma mídia falhou: ${upErr.message}`); continue }
@@ -4318,6 +4497,7 @@ async function publicarPost() {
   registrarAuditoria('publicou na comunidade', 'posts', post.id, global ? 'todas as escolas' : null)
 
   textoEl.value = ''
+  textoEl.style.height = 'auto'
   _composerMidias = []
   const previewEl = document.getElementById('feed-composer-preview')
   if (previewEl) previewEl.innerHTML = ''
@@ -4332,12 +4512,75 @@ async function publicarPost() {
 }
 
 // ── admin: mural por escola, com seletor de qual escola ver ────────
+// header da comunidade — capa + nome PRÓPRIOS da comunidade daquela
+// escola (caem pro nome/capa da escola em si se não tiver nada
+// customizado). Só proprietário/diretor/admin editam.
+let _comunidadeHeaderEscolaId = null
+async function _renderComunidadeHeader(containerId, escolaId) {
+  const wrap = document.getElementById(containerId)
+  if (!wrap) return
+  if (!escolaId) { wrap.innerHTML = ''; return }
+  const e = store.escolas.find(x => x.id === escolaId)
+  if (!e) { wrap.innerHTML = ''; return }
+  const podeEditar = ['admin', 'super_admin', 'proprietario', 'diretor'].includes(meuPerfil.role)
+  const nome = e.comunidade_nome || `Mural ${e.nome}`
+  wrap.innerHTML = `
+    <div class="comunidade-header" id="comunidade-header-${escolaId}">
+      <div class="conteudo">
+        <h2>${esc(nome)}</h2>
+        ${podeEditar ? `<div class="cam-btn" title="Personalizar comunidade" onclick="_abrirEditarComunidadeHeader('${escolaId}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></div>` : ''}
+      </div>
+    </div>`
+  const capaPath = e.comunidade_capa_url || e.capa_url
+  if (capaPath) { const url = await _urlAssinada(capaPath); if (url) document.getElementById(`comunidade-header-${escolaId}`)?.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) }
+}
+function _abrirEditarComunidadeHeader(escolaId) {
+  const e = store.escolas.find(x => x.id === escolaId)
+  _comunidadeHeaderEscolaId = escolaId
+  document.getElementById('ch-nome').value = e?.comunidade_nome || ''
+  const capaEl = document.getElementById('ch-capa-preview')
+  capaEl.innerHTML = `<div class="trocar" onclick="document.getElementById('ch-capa-input').click()">Trocar capa</div><input type="file" id="ch-capa-input" accept="image/*" style="display:none;" onchange="_chCapaSelecionada(this)">`
+  if (e?.comunidade_capa_url || e?.capa_url) _urlAssinada(e.comunidade_capa_url || e.capa_url).then(url => { if (url) capaEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) })
+  abrirModal('modal-comunidade-header')
+}
+let _chCapaArquivo = null
+function _chCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _chCapaArquivo = file
+  document.getElementById('ch-capa-preview').querySelector('img')?.remove()
+  document.getElementById('ch-capa-preview').insertAdjacentHTML('afterbegin', `<img src="${URL.createObjectURL(file)}" alt="">`)
+}
+async function _salvarComunidadeHeader() {
+  const escolaId = _comunidadeHeaderEscolaId
+  const nome = document.getElementById('ch-nome').value.trim() || null
+  let capaPath = store.escolas.find(x => x.id === escolaId)?.comunidade_capa_url || null
+  if (_chCapaArquivo) {
+    const ext = (_chCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `escolas/${escolaId}/comunidade-capa.${ext}`
+    const { error } = await db.storage.from(BUCKET).upload(path, _chCapaArquivo, { contentType: _chCapaArquivo.type, upsert: true })
+    if (error) { toast('Erro ao enviar capa: ' + error.message); return }
+    capaPath = path
+  }
+  const { data, error } = await db.from('escolas').update({ comunidade_nome: nome, comunidade_capa_url: capaPath }).eq('id', escolaId).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  const idx = store.escolas.findIndex(x => x.id === escolaId)
+  if (idx >= 0) store.escolas[idx] = data
+  _chCapaArquivo = null
+  fecharModal('modal-comunidade-header')
+  toast('Comunidade personalizada ✓')
+  registrarAuditoria('personalizou comunidade', 'escolas', escolaId, nome || '')
+  ;['comunidade-admin-header', 'comunidade-escola-header'].forEach(id => { if (document.getElementById(id)) _renderComunidadeHeader(id, escolaId) })
+}
+
 async function iniciarComunidadeAdmin() {
   const sel = document.getElementById('comunidade-admin-escola-filtro')
   if (sel.options.length !== store.escolas.length) sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
   if (!_comunidadeAdminEscolaAtual && store.escolas.length) _comunidadeAdminEscolaAtual = store.escolas[0].id
   sel.value = _comunidadeAdminEscolaAtual || ''
+  await _renderComunidadeHeader('comunidade-admin-header', _comunidadeAdminEscolaAtual)
   document.getElementById('comunidade-admin-composer-wrap').innerHTML = _composerHTML({ tipo: 'admin' })
+  _composerAtualizarAvatar()
   _feedContainerAtual = 'comunidade-admin-feed'
   if (!_comunidadeAdminEscolaAtual) { document.getElementById('comunidade-admin-feed').innerHTML = '<div class="empty">Cadastre uma escola primeiro.</div>'; return }
   await carregarFeed({ tipo: 'admin', escolaId: _comunidadeAdminEscolaAtual })
@@ -4346,6 +4589,7 @@ async function iniciarComunidadeAdmin() {
 async function _comunidadeAdminTrocarEscola(escolaId) {
   _comunidadeAdminEscolaAtual = escolaId
   _feedContainerAtual = 'comunidade-admin-feed'
+  await _renderComunidadeHeader('comunidade-admin-header', escolaId)
   await carregarFeed({ tipo: 'admin', escolaId })
   renderFeed('comunidade-admin-feed')
 }
@@ -4353,7 +4597,9 @@ async function _comunidadeAdminTrocarEscola(escolaId) {
 // ── escola: mural da própria escola ─────────────────────────────────
 async function iniciarComunidadeEscola() {
   const podePostar = await podePostarComunidade()
+  await _renderComunidadeHeader('comunidade-escola-header', meuPerfil.escola_id)
   document.getElementById('comunidade-escola-composer-wrap').innerHTML = podePostar ? _composerHTML({ tipo: 'escola', escolaId: meuPerfil.escola_id }) : ''
+  if (podePostar) _composerAtualizarAvatar()
   _feedContainerAtual = 'comunidade-escola-feed'
   await carregarFeed({ tipo: 'escola', escolaId: meuPerfil.escola_id })
   renderFeed('comunidade-escola-feed')
@@ -4361,6 +4607,9 @@ async function iniciarComunidadeEscola() {
 
 // ── responsável: murais de todas as escolas dos filhos + globais,
 // já filtrado pelo RLS (posts_visiveis usa meus_alunos()) — nunca posta.
+// Sem header de comunidade única aqui: o feed dele já mistura mais de
+// uma escola (um filho em cada) + posts globais, não faz sentido
+// mostrar a capa de só uma delas no topo.
 async function iniciarComunidadeResponsavel() {
   _feedContainerAtual = 'comunidade-responsavel-feed'
   await carregarFeed({ tipo: 'responsavel' })
@@ -4378,6 +4627,7 @@ let _auditoriaFimDosDados = false
 const AUDITORIA_PAGE_SIZE = 100
 
 async function iniciarAuditoriaAdmin() {
+  await _auditoriaPopularFiltroUsuarios()
   if (_auditoriaEntries.length) { renderAuditoria(); return }
   await carregarMaisAuditoria()
 }
@@ -4389,6 +4639,20 @@ function _auditoriaRecarregar() {
   carregarMaisAuditoria()
 }
 
+// mesmas palavras-chave do classificador client-side (_auditoriaClasse),
+// usadas aqui pra montar um filtro OR/ILIKE que empurra o filtro de tipo
+// pro banco — sem isso, "carregar mais" ia trazer páginas cheias de
+// linhas de outro tipo que a paginação nunca alcançava. "outro" é a
+// sobra do que não bate em nenhum padrão — não dá pra expressar isso
+// como ILIKE, então esse tipo continua só no filtro client-side.
+const AUDITORIA_TIPO_PADROES = {
+  exclusao: ['apag', 'exclu', 'remov', 'desvincul'],
+  seguranca: ['senha', 'permiss', 'vinculou cônjuge', 'link privado'],
+  criacao: ['criou', 'cadastrou', 'publicou', 'gerou', 'vinculou'],
+  edicao: ['editou', 'atualizou', 'redefiniu'],
+  login: ['fez login'],
+}
+
 async function carregarMaisAuditoria() {
   const btn = document.getElementById('auditoria-carregar-mais')
   if (btn) { btn.disabled = true; btn.textContent = 'Carregando…' }
@@ -4397,38 +4661,45 @@ async function carregarMaisAuditoria() {
   let q = db.from('auditoria').select('*').order('criado_em', { ascending: false })
   const de = document.getElementById('auditoria-de')?.value
   const ate = document.getElementById('auditoria-ate')?.value
+  const usuario = document.getElementById('auditoria-usuario')?.value
+  const tipo = document.getElementById('auditoria-tipo')?.value
   if (de) q = q.gte('criado_em', de + 'T00:00:00')
   if (ate) q = q.lte('criado_em', ate + 'T23:59:59')
+  if (usuario) q = q.eq('user_nome', usuario)
+  if (tipo && AUDITORIA_TIPO_PADROES[tipo]) q = q.or(AUDITORIA_TIPO_PADROES[tipo].map(p => `acao.ilike.%${p}%`).join(','))
   const { data, error } = await q.range(from, to)
   if (btn) { btn.disabled = false; btn.textContent = 'Carregar mais' }
   if (error) { toast('Erro ao carregar auditoria: ' + error.message); return }
   _auditoriaEntries.push(...(data || []))
   _auditoriaPagina++
   if (!data || data.length < AUDITORIA_PAGE_SIZE) _auditoriaFimDosDados = true
-  _auditoriaPopularFiltroUsuarios()
   renderAuditoria()
 }
 
-function _auditoriaPopularFiltroUsuarios() {
+// busca os nomes distintos direto no banco (não só os já carregados na
+// página atual) — roda uma vez só, senão o dropdown ia encolher toda
+// vez que um filtro de usuário/tipo reduzisse o que está carregado.
+async function _auditoriaPopularFiltroUsuarios() {
   const sel = document.getElementById('auditoria-usuario')
-  if (!sel) return
-  const atual = sel.value
-  const nomes = [...new Set(_auditoriaEntries.map(e => e.user_nome).filter(Boolean))].sort()
+  if (!sel || sel.dataset.populado) return
+  const { data } = await db.from('auditoria').select('user_nome').not('user_nome', 'is', null)
+  const nomes = [...new Set((data || []).map(e => e.user_nome))].sort()
   sel.innerHTML = '<option value="">Todos os usuários</option>' + nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
-  sel.value = nomes.includes(atual) ? atual : ''
+  sel.dataset.populado = '1'
 }
 
 // classifica pelo texto da própria ação (todas as chamadas registrarAuditoria(...)
 // já usam verbos consistentes em português) — sem precisar de coluna nova.
 function _auditoriaClasse(acao) {
   const a = (acao || '').toLowerCase()
+  if (/fez login/.test(a)) return 'login'
   if (/apag|exclu|remov|desvincul/.test(a)) return 'exclusao'
   if (/senha|permiss|vinculou cônjuge|link privado/.test(a)) return 'seguranca'
   if (/criou|cadastrou|publicou|gerou|vinculou/.test(a)) return 'criacao'
   if (/editou|atualizou|redefiniu/.test(a)) return 'edicao'
   return 'outro'
 }
-const AUDITORIA_TIPO_LABEL = { criacao: 'Criação', edicao: 'Edição', exclusao: 'Exclusão', seguranca: 'Segurança', outro: 'Outro' }
+const AUDITORIA_TIPO_LABEL = { criacao: 'Criação', edicao: 'Edição', exclusao: 'Exclusão', seguranca: 'Segurança', login: 'Login', outro: 'Outro' }
 
 function renderAuditoria() {
   const wrap = document.getElementById('lista-auditoria')
@@ -4450,11 +4721,10 @@ function renderAuditoria() {
   if (!entries.length) { wrap.innerHTML = '<tr><td class="empty">Nada por aqui ainda.</td></tr>'; atualizarBotaoCarregarMaisAuditoria(); return }
   wrap.innerHTML = entries.map(e => {
     const classe = _auditoriaClasse(e.acao)
-    const foto = e.tabela === 'fotos' ? store.fotos.find(f => f.id === e.registro_id) : null
     return `
     <tr>
       <td><span class="aud-badge ${classe}">${AUDITORIA_TIPO_LABEL[classe]}</span></td>
-      <td>${foto ? `<img class="aud-thumb" id="aud-thumb-${e.id}" alt="">` : ''}</td>
+      <td>${TABELAS_COM_MIDIA.includes(e.tabela) ? `<img class="aud-thumb" id="aud-thumb-${e.id}" alt="">` : ''}</td>
       <td>
         <div class="nome" style="font-size:14px;">${esc(e.acao)}</div>
         ${e.detalhe ? `<div class="meta">${esc(e.detalhe)}</div>` : ''}
@@ -4464,14 +4734,31 @@ function renderAuditoria() {
     </tr>`
   }).join('')
   entries.forEach(async e => {
-    if (e.tabela !== 'fotos') return
-    const foto = store.fotos.find(f => f.id === e.registro_id)
-    if (!foto) return
-    const url = await _urlAssinada(foto.thumb_path || foto.storage_path)
+    if (!TABELAS_COM_MIDIA.includes(e.tabela)) return
+    const path = await _auditoriaThumbPath(e)
     const img = document.getElementById('aud-thumb-' + e.id)
+    if (!path) { img?.closest('td') && (img.closest('td').innerHTML = ''); return }
+    const url = await _urlAssinada(path)
     if (url && img) img.src = url
   })
   atualizarBotaoCarregarMaisAuditoria()
+}
+
+// tabelas cujo registro_id aponta pra algo com uma imagem associável —
+// usado tanto pra decidir se reserva a célula de thumbnail quanto pra
+// resolver o caminho real dela.
+const TABELAS_COM_MIDIA = ['fotos', 'escolas', 'alunos', 'eventos', 'perfis', 'posts']
+async function _auditoriaThumbPath(e) {
+  if (e.tabela === 'fotos') { const f = store.fotos.find(x => x.id === e.registro_id); return f?.thumb_path || f?.storage_path || null }
+  if (e.tabela === 'escolas') return store.escolas.find(x => x.id === e.registro_id)?.capa_url || null
+  if (e.tabela === 'alunos') return store.alunos.find(x => x.id === e.registro_id)?.foto_url || null
+  if (e.tabela === 'eventos') return store.eventos.find(x => x.id === e.registro_id)?.capa_url || null
+  if (e.tabela === 'perfis') return (store.professores.find(x => x.user_id === e.registro_id) || store.responsaveis.find(x => x.user_id === e.registro_id))?.foto_url || null
+  if (e.tabela === 'posts') {
+    const { data } = await db.from('post_midias').select('storage_path').eq('post_id', e.registro_id).eq('tipo', 'foto').order('ordem').limit(1)
+    return data?.[0]?.storage_path || null
+  }
+  return null
 }
 
 function atualizarBotaoCarregarMaisAuditoria() {
@@ -4493,6 +4780,25 @@ function exportarAuditoriaCSV() {
   a.download = `auditoria-grandfocus-${hojeISO()}.csv`
   document.body.appendChild(a); a.click(); a.remove()
   registrarAuditoria('exportou relatório de auditoria (CSV)', 'auditoria', null, `${_auditoriaEntries.length} registro(s)`)
+}
+
+function exportarAuditoriaPDF() {
+  if (!_auditoriaEntries.length) { toast('Nada pra exportar ainda'); return }
+  const { jsPDF } = window.jspdf
+  const doc = new jsPDF({ orientation: 'landscape' })
+  doc.setFontSize(14)
+  doc.text('Auditoria — Grand Focus', 14, 16)
+  doc.setFontSize(9)
+  doc.text(`Gerado em ${fmtDataHora(new Date().toISOString())} — ${_auditoriaEntries.length} registro(s)`, 14, 22)
+  doc.autoTable({
+    startY: 28,
+    head: [['Tipo', 'Ação', 'Usuário', 'Detalhe', 'Data/Hora']],
+    body: _auditoriaEntries.map(e => [AUDITORIA_TIPO_LABEL[_auditoriaClasse(e.acao)], e.acao || '', e.user_nome || '—', e.detalhe || '', fmtDataHora(e.criado_em)]),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [75, 4, 22] },
+  })
+  doc.save(`auditoria-grandfocus-${hojeISO()}.pdf`)
+  registrarAuditoria('exportou relatório de auditoria (PDF)', 'auditoria', null, `${_auditoriaEntries.length} registro(s)`)
 }
 
 function _fotoItemHTML(f, alunosDisponiveis) {
@@ -5100,6 +5406,11 @@ function fecharEnsaioAdmin() {
 
 async function uploadFotosEnsaio(files) {
   if (!files?.length || !_ensaioAtual) return
+  // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
+  // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
+  // o envio ainda está rolando em segundo plano.
+  const ensaioId = _ensaioAtual.id
+  const ensaioNome = _ensaioAtual.nome || ''
   const rosterAlunos = _ensaioAtual.alunos_selecionados || []
   const rosterPessoas = _ensaioAtual.pessoas_selecionadas || []
   const estados = files.map(() => 'aguardando')
@@ -5109,11 +5420,11 @@ async function uploadFotosEnsaio(files) {
     const file = files[i]
     estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `${_ensaioAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _ensaioAtual.id, storage_path: path, thumb_path: thumbPath }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     if (rosterAlunos.length) {
@@ -5131,8 +5442,10 @@ async function uploadFotosEnsaio(files) {
   }
   const total = rosterAlunos.length + rosterPessoas.length
   toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`)
-  document.getElementById('ens-upload-input').value = ''
-  renderFotosEnsaioAdmin()
+  const inputEl = document.getElementById('ens-upload-input')
+  if (inputEl) inputEl.value = ''
+  if (_ensaioAtual?.id === ensaioId) renderFotosEnsaioAdmin()
+  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', ensaioId, `${ok} de ${files.length} foto(s) — ${ensaioNome}`)
 }
 
 async function renderFotosEnsaioAdmin() {
@@ -5276,13 +5589,13 @@ async function criarAcesso() {
   if (vinculoErr) {
     const msgVinc = tipo === 'avulso'
       ? 'Conta criada, mas as permissões falharam: ' + vinculoErr.message
-      : 'Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho a responsável já existente" pra corrigir.'
+      : 'Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho existente" na aba Pais pra corrigir.'
     toast(msgVinc)
     return
   }
 
   document.getElementById('acesso-resultado').style.display = 'block'
-  document.getElementById('acesso-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nomeAlvo}.`
+  document.getElementById('acesso-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nomeAlvo}.`, { email: emailContato })
   document.getElementById('acesso-usuario').value = ''
   document.getElementById('acesso-email').value = ''
   document.getElementById('acesso-nome-avulso').value = ''
@@ -5311,6 +5624,9 @@ async function vincularFilho() {
   if (!userId || !alunoId) { toast('Escolha o responsável e o aluno'); return }
   const { error } = await db.from('responsavel_alunos').insert({ user_id: userId, aluno_id: alunoId })
   if (error) { toast('Erro ao vincular: ' + error.message); return }
+  store.vinculosResponsaveis.push({ user_id: userId, aluno_id: alunoId })
+  fecharModal('modal-vincular-filho')
+  renderPais()
   toast('Filho vinculado ✓')
   registrarAuditoria('vinculou filho a responsável', 'responsavel_alunos', alunoId, `aluno ${alunoId} → responsável ${userId}`)
 }
