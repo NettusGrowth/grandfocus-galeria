@@ -4776,7 +4776,8 @@ async function publicarPost() {
     const path = `posts/${post.id}/midia-${i}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
     if (upErr) { toast(`Publicação criada, mas uma mídia falhou: ${upErr.message}`); continue }
-    await db.from('post_midias').insert({ post_id: post.id, tipo, storage_path: path, ordem: i })
+    const { error: midiaErr } = await db.from('post_midias').insert({ post_id: post.id, tipo, storage_path: path, ordem: i })
+    if (midiaErr) toast(`Publicação criada, mas uma mídia falhou: ${midiaErr.message}`)
   }
 
   if (destinosExtras.length) await db.from('post_escolas').insert(destinosExtras.map(id => ({ post_id: post.id, escola_id: id })))
