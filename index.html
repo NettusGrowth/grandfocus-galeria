@@ -573,7 +573,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-cargo{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ouro-fundo);background:rgba(200,175,127,.12);padding:.15em .55em;border-radius:99px;margin-left:6px;}
 .post-midia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:10px;}
 .post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
-.post-midia-grid video{width:100%;border-radius:10px;background:#000;}
+.video-player{grid-column:1/-1;position:relative;border-radius:10px;overflow:hidden;background:#000;}
+.video-player video{width:100%;display:block;max-height:420px;background:#000;cursor:pointer;}
+.vp-overlay-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(16,9,16,.22);cursor:pointer;transition:background .15s;}
+.vp-overlay-play:hover{background:rgba(16,9,16,.34);}
+.vp-overlay-play svg{width:56px;height:56px;filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));}
+.vp-controls{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:center;gap:8px;padding:8px 10px;background:linear-gradient(180deg,transparent,rgba(16,9,16,.88));opacity:0;transition:opacity .15s;}
+.video-player:hover .vp-controls,.video-player.vp-pausado .vp-controls{opacity:1;}
+.vp-btn{background:none;border:0;color:var(--ouro-luz);cursor:pointer;padding:2px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vp-btn svg{width:20px;height:20px;}
+.vp-time{font-size:11px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;flex-shrink:0;}
+.vp-seek{flex:1;accent-color:var(--ouro);height:3px;cursor:pointer;}
 .post-reacoes-row{display:flex;gap:2px;background:rgba(16,9,16,.3);border-radius:99px;padding:3px;}
 .post-reagir-opt{background:none;border:1px solid transparent;border-radius:99px;color:#C9B9A4;font-size:15px;cursor:pointer;padding:3px 7px;font-family:var(--sans);transition:background .12s;}
 .post-reagir-opt:hover{background:rgba(200,175,127,.12);}
@@ -2137,6 +2147,7 @@ async function salvarPerfil() {
     const path = `perfis/${currentUser.id}/${tipo}.webp`
     const { error } = await db.storage.from(BUCKET).upload(path, leve, { contentType: 'image/webp', upsert: true })
     if (error) { toast(`Erro ao enviar ${tipo === 'foto' ? 'a foto' : 'a capa'}: ` + error.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
+    _invalidarUrlCache(path)
     if (tipo === 'foto') fotoPath = path; else capaPath = path
   }
 
@@ -2563,6 +2574,7 @@ async function salvarEscola() {
     const path = `escolas/${escolaId}/capa.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, _escolaCapaArquivo, { contentType: _escolaCapaArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    _invalidarUrlCache(path)
     capa_url = path
   }
 
@@ -2691,6 +2703,7 @@ async function _escolaDetalheCapaSelecionada(inputEl) {
   const path = `escolas/${escolaId}/capa.${ext}`
   const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
   if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+  _invalidarUrlCache(path)
   const { data, error } = await db.from('escolas').update({ capa_url: path }).eq('id', escolaId).select().single()
   if (error) { toast('Erro: ' + error.message); return }
   const idx = store.escolas.findIndex(x => x.id === escolaId)
@@ -2958,13 +2971,13 @@ async function _uploadFotoCapaProfessor(userId) {
     const ext = (_profFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${userId}/foto.${ext}`
     const { error } = await db.storage.from(BUCKET).upload(path, _profFotoArquivo, { contentType: _profFotoArquivo.type, upsert: true })
-    if (!error) foto_url = path
+    if (!error) { foto_url = path; _invalidarUrlCache(path) }
   }
   if (_profCapaArquivo) {
     const ext = (_profCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${userId}/capa.${ext}`
     const { error } = await db.storage.from(BUCKET).upload(path, _profCapaArquivo, { contentType: _profCapaArquivo.type, upsert: true })
-    if (!error) capa_url = path
+    if (!error) { capa_url = path; _invalidarUrlCache(path) }
   }
   return { foto_url, capa_url }
 }
@@ -3179,7 +3192,7 @@ async function salvarPai() {
       const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
       const path = `perfis/${id}/foto.${ext}`
       const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
-      if (!upErr) { foto_url = path; foto_pos = _posValor('pai-foto-preview') }
+      if (!upErr) { foto_url = path; foto_pos = _posValor('pai-foto-preview'); _invalidarUrlCache(path) }
     }
     const payload = { nome, email, telefone }
     if (foto_url) { payload.foto_url = foto_url; payload.foto_pos = foto_pos }
@@ -3361,6 +3374,7 @@ async function salvarAluno() {
     const path = `alunos/${alunoId}/foto.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, _alunoFotoArquivo, { contentType: _alunoFotoArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a foto: ' + upErr.message); return }
+    _invalidarUrlCache(path)
     foto_url = path
   }
 
@@ -3642,6 +3656,7 @@ async function salvarEvento() {
     const path = `eventos-capa/${eventoId}/capa.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, _eventoCapaArquivo, { contentType: _eventoCapaArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    _invalidarUrlCache(path)
     capa_url = path
   }
 
@@ -3890,6 +3905,10 @@ async function _urlAssinada(path) {
   if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
   return url
 }
+// chamar depois de QUALQUER upload com upsert:true num caminho fixo
+// (avatar/capa) — sem isso, o cache acima continua servindo a URL
+// assinada antiga por até 270s e a foto nova só aparece com F5.
+function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path) }
 
 // prévia (com marca d'água) quando existir; fotos de antes do Estágio E
 // não têm thumb_path, cai pro original — nunca quebra a grade.
@@ -4184,7 +4203,7 @@ function renderFeed(containerId) {
       const el = document.getElementById('post-midia-' + m.id)
       const url = await _urlAssinada(m.storage_path)
       if (!url || !el) return
-      if (el.tagName === 'IMG') { el.src = url } else { el.querySelector('source').src = url; el.load() }
+      if (el.tagName === 'IMG') { el.src = url } else { el.querySelector('source').src = url; el.load(); _vpLigarEventos(m.id) }
     })
     if (p.imagem_url && !(_feedMidias[p.id] || []).length) {
       const img = document.getElementById('post-img-' + p.id)
@@ -4195,9 +4214,63 @@ function renderFeed(containerId) {
 
 function _postMidiaHTML(m) {
   if (m.tipo === 'video') {
-    return `<video id="post-midia-${m.id}" controls preload="none" style="grid-column:1/-1;"><source src="" type="video/mp4"></video>`
+    return `<div class="video-player vp-pausado" id="vp-${m.id}">
+      <video id="post-midia-${m.id}" preload="metadata" playsinline onclick="_vpAlternar('${m.id}')"><source src="" type="video/mp4"></video>
+      <div class="vp-overlay-play" id="vp-overlay-${m.id}" onclick="_vpAlternar('${m.id}')">
+        <svg viewBox="0 0 24 24" fill="var(--ouro-luz)"><path d="M8 5v14l11-7Z"/></svg>
+      </div>
+      <div class="vp-controls" onclick="event.stopPropagation()">
+        <button class="vp-btn" id="vp-playbtn-${m.id}" onclick="_vpAlternar('${m.id}')" title="Play/Pausa">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z"/></svg>
+        </button>
+        <span class="vp-time" id="vp-time-${m.id}">0:00 / 0:00</span>
+        <input type="range" class="vp-seek" id="vp-seek-${m.id}" min="0" max="100" value="0" oninput="_vpBuscar('${m.id}',this.value)">
+        <button class="vp-btn" onclick="_vpTelaCheia('${m.id}')" title="Tela cheia">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
+        </button>
+      </div>
+    </div>`
   }
   return `<img id="post-midia-${m.id}" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
+}
+// player customizado (play/pausa, progresso, tempo, tela cheia) na
+// paleta Grand Focus — troca os controles nativos feios do <video>.
+function _vpAlternar(id) {
+  const v = document.getElementById('post-midia-' + id)
+  if (!v) return
+  if (v.paused) v.play(); else v.pause()
+}
+function _vpBuscar(id, val) {
+  const v = document.getElementById('post-midia-' + id)
+  if (v?.duration) v.currentTime = (val / 100) * v.duration
+}
+function _vpTelaCheia(id) {
+  const v = document.getElementById('post-midia-' + id)
+  if (v?.requestFullscreen) v.requestFullscreen()
+  else if (v?.webkitEnterFullscreen) v.webkitEnterFullscreen()
+}
+function _vpFmtTempo(s) {
+  if (!isFinite(s) || s < 0) return '0:00'
+  const m = Math.floor(s / 60), sec = Math.floor(s % 60)
+  return `${m}:${String(sec).padStart(2, '0')}`
+}
+function _vpLigarEventos(id) {
+  const v = document.getElementById('post-midia-' + id)
+  if (!v || v.dataset.vpLigado) return
+  v.dataset.vpLigado = '1'
+  const wrap = document.getElementById('vp-' + id)
+  const playBtn = document.getElementById('vp-playbtn-' + id)
+  const seek = document.getElementById('vp-seek-' + id)
+  const tempo = document.getElementById('vp-time-' + id)
+  const iconPlay = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7Z"/></svg>'
+  const iconPause = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7Zm6 0h4v14h-4Z"/></svg>'
+  v.addEventListener('play', () => { wrap?.classList.remove('vp-pausado'); if (playBtn) playBtn.innerHTML = iconPause })
+  v.addEventListener('pause', () => { wrap?.classList.add('vp-pausado'); if (playBtn) playBtn.innerHTML = iconPlay })
+  v.addEventListener('timeupdate', () => {
+    if (seek && v.duration) seek.value = (v.currentTime / v.duration) * 100
+    if (tempo) tempo.textContent = `${_vpFmtTempo(v.currentTime)} / ${_vpFmtTempo(v.duration)}`
+  })
+  v.addEventListener('loadedmetadata', () => { if (tempo) tempo.textContent = `0:00 / ${_vpFmtTempo(v.duration)}` })
 }
 function _postDocHTML(m) {
   const nome = (m.storage_path.split('/').pop() || 'documento').replace(/^midia-\d+\./, 'anexo.')
@@ -4619,6 +4692,7 @@ async function _salvarComunidadeHeader() {
     const path = `escolas/${escolaId}/comunidade-capa.${ext}`
     const { error } = await db.storage.from(BUCKET).upload(path, _chCapaArquivo, { contentType: _chCapaArquivo.type, upsert: true })
     if (error) { toast('Erro ao enviar capa: ' + error.message); return }
+    _invalidarUrlCache(path)
     capaPath = path
   }
   const { data, error } = await db.from('escolas').update({ comunidade_nome: nome, comunidade_capa_url: capaPath }).eq('id', escolaId).select().single()
@@ -5403,6 +5477,7 @@ async function salvarEnsaio() {
     const path = `eventos-capa/${ensaioId}/capa.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, _ensaioCapaArquivo, { contentType: _ensaioCapaArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+    _invalidarUrlCache(path)
     capa_url = path
   }
 
