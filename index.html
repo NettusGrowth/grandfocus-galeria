@@ -4153,6 +4153,29 @@ function lightboxNav(delta) {
 function _lightboxToggleZoom() {
   document.getElementById('lightbox-img-wrap').classList.toggle('zoomed')
 }
+// baixa via fetch+blob em vez de só apontar a.href pra URL assinada —
+// o atributo download="" do <a> é ignorado pelos navegadores modernos
+// pra URL cross-origin (o caso de toda signed URL do Supabase Storage,
+// que aponta pra outro domínio), então clicar só ABRIA a foto numa
+// aba nova em vez de baixar. blob: é sempre same-origin de verdade,
+// então o download funciona sempre, em qualquer navegador.
+async function _baixarUrl(url, nomeArquivo) {
+  try {
+    const resp = await fetch(url)
+    if (!resp.ok) throw new Error('Falha ao buscar o arquivo')
+    const blob = await resp.blob()
+    const blobUrl = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = nomeArquivo || 'arquivo'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+  } catch (e) {
+    toast('Erro ao baixar: ' + e.message)
+  }
+}
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
   let url, nomeArquivo, fotoId
@@ -4167,12 +4190,7 @@ async function _lightboxBaixar() {
     nomeArquivo = f.storage_path.split('/').pop(); fotoId = f.id
   }
   if (!url) { toast('Erro ao gerar link de download'); return }
-  const a = document.createElement('a')
-  a.href = url
-  a.download = nomeArquivo
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+  await _baixarUrl(url, nomeArquivo)
   if (!publico) registrarAuditoria('baixou foto (lightbox)', 'fotos', fotoId, '')
 }
 async function renderLightboxAtual() {
@@ -6047,8 +6065,7 @@ function renderEventosEscola(listElId, chipsElId) {
         <div class="nome">${esc(ev.nome)}</div>
         <div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${totalMidias} mídia(s)</div>
         <div class="evento-card-acoes">
-          <button class="btn btn-sm" type="button" onclick="event.stopPropagation();_abrirEventoEscolaFoco('${ev.id}','upload')">📤 Fazer Upload</button>
-          <button class="btn btn-sm" type="button" onclick="event.stopPropagation();_abrirEventoEscolaFoco('${ev.id}','galeria')">👁️ Ver Galeria</button>
+          <button class="btn btn-sm" type="button" style="flex:1;" onclick="event.stopPropagation();abrirEventoEscola('${ev.id}')">👁️ Ver Galeria</button>
         </div>
       </div>
     </div>`
@@ -6060,11 +6077,6 @@ function renderEventosEscola(listElId, chipsElId) {
     if (url && capaEl) { capaEl.style.backgroundImage = `url('${url}')`; capaEl.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
 }
-async function _abrirEventoEscolaFoco(eventoId, foco) {
-  await abrirEventoEscola(eventoId)
-  if (foco === 'upload') document.getElementById('esc-evt-dropzone')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-}
-
 // ── Dashboard/Turmas do professor (Bloco 6) — só pra role=professor;
 // proprietário/diretor/escola continuam caindo direto em Eventos como
 // sempre, esse dashboard não mexe no fluxo deles. ──────────────────
@@ -6130,11 +6142,6 @@ async function abrirEventoEscola(eventoId) {
   wrap.innerHTML = `
     <button class="evento-back" onclick="fecharEventoEscola()">← Voltar aos eventos</button>
     <div class="section-h"><h2>${esc(_eventoEscolaAtual.nome)}</h2></div>
-    <div class="upload-drop" id="esc-evt-dropzone" onclick="document.getElementById('esc-evt-upload-input').click()">
-      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
-      <input type="file" id="esc-evt-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEventoEscola([...this.files])">
-    </div>
-    <div id="escevt-upload-status"></div>
     <div class="foto-toolbar">
       <div class="chip-row" id="escola-chip-alunos"></div>
       <button class="btn btn-primary btn-sm" id="escola-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button>
@@ -6145,47 +6152,8 @@ async function abrirEventoEscola(eventoId) {
   chips.innerHTML = `<span class="chip on" data-aluno="" onclick="filtrarFotosAluno('',this)">Todos</span>` +
     store.alunos.map(a => `<span class="chip" data-aluno="${a.id}" onclick="filtrarFotosAluno('${a.id}',this)">${esc(a.nome)}</span>`).join('')
   renderFotosGrid('escola-fotos-grid')
-  _ligarDropzone('esc-evt-dropzone', 'esc-evt-upload-input', files => uploadFotosEventoEscola(files))
 }
 
-// upload direto (sem tela de prévia/subpastas/marcação manual — isso é
-// só pra equipe da escola marcar presença rápido; o motor completo com
-// Ato/subpasta e ajuste foto a foto continua exclusivo do admin). Marca
-// automaticamente o "elenco" do evento (alunos_selecionados), igual o
-// admin já faz.
-async function uploadFotosEventoEscola(files) {
-  if (!files?.length || !_eventoEscolaAtual) return
-  const eventoId = _eventoEscolaAtual.id
-  const eventoNome = _eventoEscolaAtual.nome || ''
-  const roster = _eventoEscolaAtual.alunos_selecionados || []
-  const estados = files.map(() => 'aguardando')
-  _renderFilaUpload('escevt', files, estados)
-  let ok = 0
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    estados[i] = 'enviando'; _renderFilaUpload('escevt', files, estados)
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
-    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('escevt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath }).select().single()
-    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('escevt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
-    store.fotos.push(fotoRow)
-    if (roster.length) {
-      const tags = roster.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
-      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (!tagErr) store.fotoAluno.push(...tags)
-    }
-    estados[i] = 'ok'; _renderFilaUpload('escevt', files, estados)
-    ok++
-  }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`)
-  const inputEl = document.getElementById('esc-evt-upload-input')
-  if (inputEl) inputEl.value = ''
-  if (_eventoEscolaAtual?.id === eventoId) renderFotosGrid('escola-fotos-grid')
-  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', eventoId, `${ok} de ${files.length} foto(s) — ${eventoNome}`)
-}
 function fecharEventoEscola() {
   _eventoEscolaAtual = null
   document.getElementById('escola-eventos-wrap').style.display = 'block'
@@ -6255,12 +6223,7 @@ async function baixarSelecionadas() {
   for (let i = 0; i < paths.length; i++) {
     const url = await _urlAssinada(paths[i])
     if (!url) continue
-    const a = document.createElement('a')
-    a.href = url
-    a.download = paths[i].split('/').pop()
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
+    await _baixarUrl(url, paths[i].split('/').pop())
     await new Promise(r => setTimeout(r, 350))
   }
   registrarAuditoria('baixou fotos selecionadas', 'fotos', null, `${paths.length} foto(s)`)
@@ -7045,9 +7008,9 @@ async function _renderSelPubLiberado() {
   `
   const grid = document.getElementById('selpub-liberado-grid')
   grid.innerHTML = _selPubFotosLiberadas.map((f, i) => `
-    <a class="selpub-card" style="cursor:pointer;" href="${f.url}" download="foto-${i + 1}.jpg" title="Baixar essa foto">
+    <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
       <img src="${f.url}" alt="">
-    </a>`).join('')
+    </div>`).join('')
 }
 
 // baixa em lotes (chunks) em vez de um zip gigante só — pedidos grandes
