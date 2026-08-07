@@ -4185,6 +4185,13 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowRight') lightboxNav(1)
   else if (e.key === 'ArrowLeft') lightboxNav(-1)
 })
+document.addEventListener('keydown', e => {
+  const lb = document.getElementById('selpub-lightbox')
+  if (!lb || !lb.classList.contains('show')) return
+  if (e.key === 'Escape') _selPubFecharLightbox()
+  else if (e.key === 'ArrowRight') _selPubLightboxNav(1)
+  else if (e.key === 'ArrowLeft') _selPubLightboxNav(-1)
+})
 
 // bloqueia o menu de botão direito nas prévias de foto — é só um
 // obstáculo pequeno (print de tela ou dev tools contornam fácil), a
