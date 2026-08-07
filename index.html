@@ -374,6 +374,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .evento-card .body{padding:14px 16px;}
 .evento-card .nome{font-family:var(--serif);font-size:16px;color:var(--ouro-luz);}
 .evento-card .meta{font-size:12px;color:#B39F86;margin-top:2px;}
+.status-badge.concluido{background:rgba(75,4,22,.6);color:#C9B9A4;}
+.status-badge.ativo{background:rgba(61,207,142,.25);color:var(--verde);border-color:rgba(61,207,142,.4);}
+.evento-card-acoes{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.evento-card-acoes .btn{flex:1;white-space:nowrap;}
 
 /* ── seção com botão de ação no cabeçalho (usado nos detalhes) ── */
 .subsecao-h{display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px;gap:10px;}
@@ -910,7 +914,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <section class="view" id="view-escola">
     <div class="view-shell">
       <div class="tabs">
+        <div class="tab" data-tab="dashboard-prof" data-tip="Dashboard" id="tab-dashboard-prof" style="display:none;" onclick="setEscolaTab('dashboard-prof')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg><span>Dashboard</span></div>
         <div class="tab on" data-tab="eventos" data-tip="Eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
+        <div class="tab" data-tab="turmas" data-tip="Minhas Turmas" id="tab-turmas" style="display:none;" onclick="setEscolaTab('turmas');renderTurmasProfessor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c.5-2.3 2.3-3.7 4.5-3.7S12.5 16.7 13 19"/><circle cx="8.5" cy="10" r="2.6"/><path d="M14.5 15.8c1.7.4 2.9 1.6 3.3 3.2"/><circle cx="16" cy="9" r="2.1"/></svg><span>Minhas Turmas</span></div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="tab" data-tab="equipe" data-tip="Equipe" onclick="setEscolaTab('equipe');iniciarEquipeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Equipe</span></div>
         <div class="sidebar-footer">
@@ -921,10 +927,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
+      <div class="escola-tab" id="escolatab-dashboard-prof" style="display:none;">
+        <div id="prof-dash-banner"></div>
+        <div class="section-h" style="margin-top:22px;"><h2>Seus eventos</h2></div>
+        <div class="feed-cat-chips" id="prof-dash-status-chips"></div>
+        <div id="prof-dash-eventos"></div>
+      </div>
+      <div class="escola-tab" id="escolatab-turmas" style="display:none;">
+        <div class="section-h"><h2>Minhas Turmas</h2></div>
+        <div class="hint">Alunos da sua escola, agrupados pela turma cadastrada em cada um.</div>
+        <div id="prof-turmas-lista"></div>
+      </div>
       <div class="escola-tab on" id="escolatab-eventos">
         <div id="escola-eventos-wrap">
           <div class="section-h"><h2>Seus eventos</h2></div>
-          <div class="list" id="escola-lista-eventos"></div>
+          <div class="feed-cat-chips" id="escola-eventos-status-chips"></div>
+          <div id="escola-lista-eventos"></div>
         </div>
         <div id="escola-evento-detalhe" style="display:none;"></div>
       </div>
@@ -938,8 +956,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="hint">Professores, diretores e responsáveis vinculados à sua escola. Esqueceu a senha? Peça pra alguém aqui redefinir a sua.</div>
         <h3 style="font-size:15px;margin:18px 0 10px;">Professores &amp; Diretores</h3>
         <div class="list" id="equipe-lista-professores"></div>
-        <h3 style="font-size:15px;margin:22px 0 10px;">Pais &amp; Responsáveis</h3>
-        <div class="list" id="equipe-lista-pais"></div>
+        <div id="equipe-secao-pais">
+          <h3 style="font-size:15px;margin:22px 0 10px;">Pais &amp; Responsáveis</h3>
+          <div class="list" id="equipe-lista-pais"></div>
+        </div>
       </div>
       </div>
     </div>
@@ -1656,13 +1676,25 @@ async function marcarAcesso() {
   try { await db.rpc('marcar_acesso') } catch (e) { /* best-effort */ }
 }
 
+// best-effort — um serviço externo fora do ar não pode travar o aceite
+// dos termos; se falhar, grava sem IP (ainda fica a data/hora, que é o
+// essencial). ipify é público e não exige chave.
+async function _obterIpPublico() {
+  try {
+    const resp = await fetch('https://api.ipify.org?format=json')
+    const data = await resp.json()
+    return data?.ip || null
+  } catch (e) { return null }
+}
+
 async function _aceitarLgpd() {
   const btn = document.getElementById('lgpd-btn-aceitar')
   btn.disabled = true; btn.textContent = 'Salvando…'
-  const { error } = await db.rpc('aceitar_lgpd')
+  const ip = await _obterIpPublico()
+  const { error } = await db.rpc('aceitar_lgpd', { p_ip: ip })
   btn.disabled = false; btn.textContent = 'Aceito, continuar'
   if (error) { toast('Erro ao registrar aceite: ' + error.message); return }
-  if (meuPerfil) meuPerfil.lgpd_aceito_em = new Date().toISOString()
+  if (meuPerfil) { meuPerfil.lgpd_aceito_em = new Date().toISOString(); meuPerfil.lgpd_ip = ip }
   fecharModal('modal-lgpd')
   await iniciarViewResponsavel()
 }
@@ -3042,6 +3074,7 @@ function renderPais() {
         <div>
           <div class="nome">${esc(r.nome || '(sem nome)')}</div>
           <div class="meta">${r.telefone ? esc(r.telefone) + ' · ' : ''}Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div>
+          <div class="meta" style="opacity:.7;">${r.lgpd_aceito_em ? `LGPD aceito em ${fmtDataHora(r.lgpd_aceito_em)}${r.lgpd_ip ? ' · IP ' + esc(r.lgpd_ip) : ''}` : 'LGPD ainda não aceito'}</div>
           ${nomesFilhos.length ? `<div class="badges" style="margin-top:6px;">${nomesFilhos.map(n => `<span class="badge">${esc(n)}</span>`).join('')}</div>` : '<div class="meta" style="margin-top:4px;opacity:.7;">sem filhos vinculados</div>'}
         </div>
       </div>
@@ -4198,7 +4231,7 @@ function _postCardHTML(p) {
         <span class="list-avatar" id="post-avatar-${p.id}">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
         <div style="flex:1;min-width:0;">
           <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}<span class="post-cargo">${esc(cargo)}</span></div>
-          <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${fmtDataHora(p.criado_em)}</div>
+          <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${p.turma ? `Turma ${esc(p.turma)} · ` : ''}${fmtDataHora(p.criado_em)}</div>
         </div>
         ${p.destaque ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
@@ -4373,6 +4406,12 @@ function abrirLightboxPost(postId, midiaId) {
 function _composerHTML(contexto) {
   const isAdmin = contexto.tipo === 'admin'
   const podeDestacar = isAdmin || ['proprietario', 'diretor'].includes(meuPerfil.role)
+  // professor publica no mural da própria escola (não tem seletor de
+  // escola — isso é só do admin), mas pode direcionar o post pra uma
+  // turma específica em vez de "toda a escola". Turma continua sendo
+  // o campo de texto livre de alunos.turma, sem tabela de atribuição.
+  const souProfessorNaEscola = contexto.tipo === 'escola' && meuPerfil.role === 'professor'
+  const turmas = souProfessorNaEscola ? [...new Set(store.alunos.map(a => a.turma).filter(Boolean))].sort() : []
   return `
     <div class="card comunidade-composer">
       ${isAdmin ? `
@@ -4382,6 +4421,14 @@ function _composerHTML(contexto) {
           <span class="tag-opt" data-escola="__global__" onclick="_toggleDestinoPost(this)">Todas as escolas</span>
           ${store.escolas.map(e => `<span class="tag-opt" data-escola="${e.id}" onclick="_toggleDestinoPost(this)">${esc(e.nome)}</span>`).join('')}
         </div>
+      </div>` : ''}
+      ${souProfessorNaEscola ? `
+      <div class="field">
+        <label>Publicar para</label>
+        <select id="feed-composer-turma">
+          <option value="">Toda a Escola</option>
+          ${turmas.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('')}
+        </select>
       </div>` : ''}
       <div class="composer-user-row">
         <span class="list-avatar" id="composer-avatar">${esc((meuPerfil?.nome || '?').trim().charAt(0).toUpperCase())}</span>
@@ -4480,13 +4527,15 @@ async function publicarPost() {
 
   const destaqueEl = document.getElementById('feed-composer-destaque')
   const destaque = !!destaqueEl?.checked
+  const turmaEl = document.getElementById('feed-composer-turma')
+  const turma = turmaEl?.value || null
 
   const btn = document.querySelector('.comunidade-composer .btn-primary')
   if (btn) { btn.disabled = true; btn.textContent = 'Publicando…' }
 
   const { data: post, error } = await db.from('posts').insert({
     autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, escola_id: escolaId,
-    global, destaque, texto: texto || null,
+    global, destaque, texto: texto || null, turma,
   }).select().single()
 
   if (error) { toast('Erro ao publicar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }; return }
@@ -4511,6 +4560,7 @@ async function publicarPost() {
   const previewEl = document.getElementById('feed-composer-preview')
   if (previewEl) previewEl.innerHTML = ''
   if (destaqueEl) destaqueEl.checked = false
+  if (turmaEl) turmaEl.value = ''
   document.querySelectorAll('#feed-composer-destinos .tag-opt').forEach(t => t.classList.remove('on'))
 
   if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }
@@ -5655,12 +5705,20 @@ async function vincularFilho() {
 // VIEW ESCOLA
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewEscola() {
-  const { data: eventos, error } = await db.from('eventos').select('*').order('data', { ascending: false })
+  // embed de count (fotos(count)) traz o total de mídias de cada evento
+  // numa tacada só — sem isso seria uma query extra por card.
+  const { data: eventos, error } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
   if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
   store.eventos = eventos || []
   const { data: alunos } = await db.from('alunos').select('*').eq('escola_id', meuPerfil.escola_id).order('nome')
   store.alunos = alunos || []
   renderEventosEscola()
+  if (meuPerfil.role === 'professor') {
+    document.getElementById('tab-dashboard-prof').style.display = 'flex'
+    document.getElementById('tab-turmas').style.display = 'flex'
+    _iniciarDashboardProfessor()
+    setEscolaTab('dashboard-prof')
+  }
 }
 
 // aba Equipe (só proprietário/diretor) — a RLS de perfis (014) já
@@ -5683,17 +5741,25 @@ async function iniciarEquipeEscola() {
   renderEquipeEscola()
 }
 function renderEquipeEscola() {
+  // professor enxerga colega de equipe (RLS liberou isso no Bloco 6),
+  // mas não reseta senha de ninguém (resetar_senha() já rejeita
+  // professor no banco desde sempre) nem enxerga a lista de pais — só
+  // proprietário/diretor tinham essa visibilidade, e não abri essa
+  // porta a mais.
+  const souProfessor = meuPerfil.role === 'professor'
   const elProf = document.getElementById('equipe-lista-professores')
   if (elProf) {
     elProf.innerHTML = store.professores.length ? store.professores.map(p => `
       <div class="list-item" style="cursor:default;">
         <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · Acesso: ${fmtUltimoAcesso(p.ultimo_acesso)}</div></div>
-        <div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div></div>
+        ${souProfessor ? '' : `<div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div></div>`}
       </div>
     `).join('') : '<div class="empty">Nenhum outro professor/diretor por aqui ainda.</div>'
   }
+  const secaoPais = document.getElementById('equipe-secao-pais')
+  if (secaoPais) secaoPais.style.display = souProfessor ? 'none' : 'block'
   const elPais = document.getElementById('equipe-lista-pais')
-  if (elPais) {
+  if (elPais && !souProfessor) {
     elPais.innerHTML = store.responsaveis.length ? store.responsaveis.map(r => {
       const filhosIds = _equipeEscolaVinculos.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
       const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
@@ -5706,12 +5772,109 @@ function renderEquipeEscola() {
   }
 }
 
-function renderEventosEscola() {
-  const el = document.getElementById('escola-lista-eventos')
+// "Ativo"/"Concluído" é derivado da data do evento (sem data = sempre
+// ativo, tipo ensaio contínuo) — não existe uma coluna de status
+// separada, e criar uma só pra isso seria estado duplicado (a data já
+// diz tudo) e sujeito a ficar desincronizado.
+function _statusEvento(ev) {
+  if (!ev.data) return 'ativo'
+  return new Date(ev.data + 'T23:59:59') < new Date() ? 'concluido' : 'ativo'
+}
+let _escolaFiltroStatus = 'todos'
+function _filtrarEventosEscolaStatus(status, listElId, chipsElId) {
+  _escolaFiltroStatus = status
+  renderEventosEscola(listElId, chipsElId)
+}
+// mesma grade de cards serve tanto a aba "Eventos" quanto o bloco
+// "Seus eventos" do Dashboard do professor — parametrizado pelos ids
+// em vez de duplicar a função inteira pra segunda tela.
+function renderEventosEscola(listElId, chipsElId) {
+  listElId = listElId || 'escola-lista-eventos'
+  chipsElId = chipsElId || 'escola-eventos-status-chips'
+  const el = document.getElementById(listElId)
+  if (!el) return
+  const chipsEl = document.getElementById(chipsElId)
+  if (chipsEl) {
+    chipsEl.innerHTML = ['todos', 'ativo', 'concluido'].map(s => {
+      const label = { todos: 'Todos', ativo: 'Ativos', concluido: 'Concluídos' }[s]
+      return `<span class="chip${_escolaFiltroStatus === s ? ' on' : ''}" onclick="_filtrarEventosEscolaStatus('${s}','${listElId}','${chipsElId}')">${label}</span>`
+    }).join('')
+  }
   if (!store.eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento publicado pra sua escola ainda.</div>'; return }
-  el.innerHTML = store.eventos.map(ev => `
-    <div class="list-item" onclick="abrirEventoEscola('${ev.id}')">
-      <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : ''}</div></div>
+  const eventos = _escolaFiltroStatus === 'todos' ? store.eventos : store.eventos.filter(ev => _statusEvento(ev) === _escolaFiltroStatus)
+  if (!eventos.length) { el.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
+  el.innerHTML = '<div class="eventos-grid">' + eventos.map(ev => {
+    const status = _statusEvento(ev)
+    const totalMidias = ev.fotos?.[0]?.count ?? 0
+    return `
+    <div class="card evento-card" onclick="abrirEventoEscola('${ev.id}')">
+      <div class="capa" id="esc-ev-cover-${ev.id}">
+        <span class="data-badge status-badge ${status}">${status === 'ativo' ? 'Ativo' : 'Concluído'}</span>
+      </div>
+      <div class="body">
+        <div class="nome">${esc(ev.nome)}</div>
+        <div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${totalMidias} mídia(s)</div>
+        <div class="evento-card-acoes">
+          <button class="btn btn-sm" type="button" onclick="event.stopPropagation();_abrirEventoEscolaFoco('${ev.id}','upload')">📤 Fazer Upload</button>
+          <button class="btn btn-sm" type="button" onclick="event.stopPropagation();_abrirEventoEscolaFoco('${ev.id}','galeria')">👁️ Ver Galeria</button>
+        </div>
+      </div>
+    </div>`
+  }).join('') + '</div>'
+  eventos.forEach(async ev => {
+    if (!ev.capa_url) return
+    const url = await _urlAssinada(ev.capa_url)
+    const capaEl = document.getElementById(`esc-ev-cover-${ev.id}`)
+    if (url && capaEl) { capaEl.style.backgroundImage = `url('${url}')`; capaEl.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
+  })
+}
+async function _abrirEventoEscolaFoco(eventoId, foco) {
+  await abrirEventoEscola(eventoId)
+  if (foco === 'upload') document.getElementById('esc-evt-dropzone')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+// ── Dashboard/Turmas do professor (Bloco 6) — só pra role=professor;
+// proprietário/diretor/escola continuam caindo direto em Eventos como
+// sempre, esse dashboard não mexe no fluxo deles. ──────────────────
+function _iniciarDashboardProfessor() {
+  const banner = document.getElementById('prof-dash-banner')
+  if (!banner) return
+  const h = new Date().getHours()
+  const periodo = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
+  const primeiroNome = (meuPerfil?.nome || '').trim().split(' ')[0] || ''
+  const totalFotos = store.eventos.reduce((soma, ev) => soma + (ev.fotos?.[0]?.count ?? 0), 0)
+  banner.innerHTML = `
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;">
+      <div>
+        <h2 style="font-family:var(--serif);font-size:22px;color:var(--ouro-luz);">${periodo}${primeiroNome ? ', ' + esc(primeiroNome) : ''} 👋</h2>
+        <div class="meta">${new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</div>
+      </div>
+      <div style="display:flex;gap:24px;">
+        <div style="text-align:center;"><div style="font-size:26px;font-weight:700;color:var(--ouro-luz);">${store.eventos.length}</div><div class="meta">Eventos atribuídos</div></div>
+        <div style="text-align:center;"><div style="font-size:26px;font-weight:700;color:var(--ouro-luz);">${totalFotos}</div><div class="meta">Fotos enviadas</div></div>
+      </div>
+    </div>
+  `
+  renderEventosEscola('prof-dash-eventos', 'prof-dash-status-chips')
+}
+
+function renderTurmasProfessor() {
+  const el = document.getElementById('prof-turmas-lista')
+  if (!el) return
+  if (!store.alunos.length) { el.innerHTML = '<div class="empty">Nenhum aluno cadastrado na sua escola ainda.</div>'; return }
+  const grupos = new Map()
+  store.alunos.forEach(a => { const t = a.turma || 'Sem turma'; if (!grupos.has(t)) grupos.set(t, []); grupos.get(t).push(a) })
+  const ordem = [...grupos.keys()].sort((a, b) => a === 'Sem turma' ? 1 : b === 'Sem turma' ? -1 : a.localeCompare(b))
+  el.innerHTML = ordem.map(turma => `
+    <div class="subpasta-grupo">
+      <div class="subpasta-titulo"><h3>👥 ${esc(turma)}</h3><span class="meta">${grupos.get(turma).length} aluno(s)</span></div>
+      <div class="list">${grupos.get(turma).map(a => `
+        <div class="list-item" style="cursor:default;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span class="list-avatar">${esc((a.nome || '?').trim().charAt(0).toUpperCase())}</span>
+            <div class="nome">${esc(a.nome)}</div>
+          </div>
+        </div>`).join('')}</div>
     </div>
   `).join('')
 }
@@ -5735,6 +5898,11 @@ async function abrirEventoEscola(eventoId) {
   wrap.innerHTML = `
     <button class="evento-back" onclick="fecharEventoEscola()">← Voltar aos eventos</button>
     <div class="section-h"><h2>${esc(_eventoEscolaAtual.nome)}</h2></div>
+    <div class="upload-drop" id="esc-evt-dropzone" onclick="document.getElementById('esc-evt-upload-input').click()">
+      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
+      <input type="file" id="esc-evt-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosEventoEscola([...this.files])">
+    </div>
+    <div id="escevt-upload-status"></div>
     <div class="foto-toolbar">
       <div class="chip-row" id="escola-chip-alunos"></div>
       <button class="btn btn-primary btn-sm" id="escola-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button>
@@ -5745,6 +5913,46 @@ async function abrirEventoEscola(eventoId) {
   chips.innerHTML = `<span class="chip on" data-aluno="" onclick="filtrarFotosAluno('',this)">Todos</span>` +
     store.alunos.map(a => `<span class="chip" data-aluno="${a.id}" onclick="filtrarFotosAluno('${a.id}',this)">${esc(a.nome)}</span>`).join('')
   renderFotosGrid('escola-fotos-grid')
+  _ligarDropzone('esc-evt-dropzone', 'esc-evt-upload-input', files => uploadFotosEventoEscola(files))
+}
+
+// upload direto (sem tela de prévia/subpastas/marcação manual — isso é
+// só pra equipe da escola marcar presença rápido; o motor completo com
+// Ato/subpasta e ajuste foto a foto continua exclusivo do admin). Marca
+// automaticamente o "elenco" do evento (alunos_selecionados), igual o
+// admin já faz.
+async function uploadFotosEventoEscola(files) {
+  if (!files?.length || !_eventoEscolaAtual) return
+  const eventoId = _eventoEscolaAtual.id
+  const eventoNome = _eventoEscolaAtual.nome || ''
+  const roster = _eventoEscolaAtual.alunos_selecionados || []
+  const estados = files.map(() => 'aguardando')
+  _renderFilaUpload('escevt', files, estados)
+  let ok = 0
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    estados[i] = 'enviando'; _renderFilaUpload('escevt', files, estados)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
+    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('escevt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    const thumbPath = await _enviarThumb(file, path)
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath }).select().single()
+    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('escevt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    store.fotos.push(fotoRow)
+    if (roster.length) {
+      const tags = roster.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
+      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
+      if (!tagErr) store.fotoAluno.push(...tags)
+    }
+    estados[i] = 'ok'; _renderFilaUpload('escevt', files, estados)
+    ok++
+  }
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`)
+  const inputEl = document.getElementById('esc-evt-upload-input')
+  if (inputEl) inputEl.value = ''
+  if (_eventoEscolaAtual?.id === eventoId) renderFotosGrid('escola-fotos-grid')
+  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', eventoId, `${ok} de ${files.length} foto(s) — ${eventoNome}`)
 }
 function fecharEventoEscola() {
   _eventoEscolaAtual = null
