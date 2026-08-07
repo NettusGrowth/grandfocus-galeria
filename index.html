@@ -60,6 +60,15 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+/* ── galeria pública (link privado) ── */
+#view-publica{min-height:100vh;background:var(--palco);}
+.publica-topo{display:flex;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid rgba(200,175,127,.16);}
+.publica-topo img{width:28px;}
+.publica-topo span{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
+.publica-conteudo{max-width:1100px;margin:0 auto;padding:28px;}
+.publica-senha-card{max-width:360px;margin:60px auto;text-align:center;}
+.publica-capa{width:100%;height:220px;border-radius:14px;object-fit:cover;margin-bottom:18px;}
+
 /* ── login ── */
 #login-screen{
   min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
@@ -347,6 +356,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mini-avatar img{width:100%;height:100%;object-fit:cover;}
 .mini-avatar.mais{background:rgba(75,4,22,.7);color:#DBC9A8;font-size:9px;}
 
+/* ── eventos/ensaios: grid de cards com capa (mesmo padrão de escolas) ── */
+.eventos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+.evento-card{padding:0;overflow:hidden;cursor:pointer;transition:border-color .15s;}
+.evento-card:hover{border-color:rgba(200,175,127,.4);}
+.evento-card .capa{height:120px;background:linear-gradient(135deg,var(--vinho-alto),var(--palco));background-size:cover;background-position:center;position:relative;}
+.evento-card .capa::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,9,16,0) 40%,rgba(16,9,16,.8) 100%);}
+.evento-card .data-badge{position:absolute;top:10px;left:10px;background:rgba(16,9,16,.7);backdrop-filter:blur(4px);color:var(--ouro-luz);font-size:11px;padding:.3em .7em;border-radius:99px;border:1px solid rgba(200,175,127,.3);}
+.evento-card .actions-overlay{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2;}
+.evento-card:hover .actions-overlay{opacity:1;}
+.evento-card .body{padding:14px 16px;}
+.evento-card .nome{font-family:var(--serif);font-size:16px;color:var(--ouro-luz);}
+.evento-card .meta{font-size:12px;color:#B39F86;margin-top:2px;}
+
 /* ── seção com botão de ação no cabeçalho (usado nos detalhes) ── */
 .subsecao-h{display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px;gap:10px;}
 .subsecao-h h2{font-size:16px;}
@@ -407,8 +429,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   align-items:center;justify-content:center;flex-direction:column;padding:40px 20px;
 }
 .lightbox.show{display:flex;}
-.lightbox-img-wrap{max-width:90vw;max-height:78vh;display:flex;align-items:center;justify-content:center;}
-.lightbox-img-wrap img{max-width:90vw;max-height:78vh;object-fit:contain;border:1px solid rgba(200,175,127,.4);border-radius:4px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.lightbox-img-wrap{max-width:90vw;max-height:78vh;display:flex;align-items:center;justify-content:center;overflow:auto;}
+.lightbox-img-wrap img{max-width:90vw;max-height:78vh;object-fit:contain;border:1px solid rgba(200,175,127,.4);border-radius:4px;box-shadow:0 20px 60px rgba(0,0,0,.6);cursor:zoom-in;transition:max-width .2s,max-height .2s;}
+.lightbox-img-wrap.zoomed{align-items:flex-start;justify-content:flex-start;}
+.lightbox-img-wrap.zoomed img{max-width:none;max-height:none;width:180%;cursor:zoom-out;}
 .lightbox-close{
   position:absolute;top:22px;right:26px;width:38px;height:38px;border-radius:50%;background:rgba(75,4,22,.6);
   border:1px solid var(--ouro);color:var(--ouro-luz);font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer;
@@ -440,9 +464,40 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 .upload-drop{
   border:1.5px dashed rgba(200,175,127,.35);border-radius:8px;padding:26px;text-align:center;color:#B39F86;
-  font-size:13px;cursor:pointer;margin-bottom:18px;
+  font-size:13px;cursor:pointer;margin-bottom:18px;transition:border-color .15s,background .15s,color .15s;
 }
 .upload-drop:hover{border-color:var(--ouro);color:var(--ouro-luz);}
+.upload-drop.dragover{border-color:var(--ouro-luz);background:rgba(200,175,127,.1);color:var(--ouro-luz);}
+
+/* ── header do evento/ensaio: capa desfocada de fundo ── */
+.evento-header-banner{
+  position:relative;border-radius:14px;padding:22px 24px;margin-bottom:18px;overflow:hidden;
+  background:linear-gradient(155deg,#4B0416,#2B0210);min-height:96px;display:flex;align-items:flex-end;
+}
+.evento-header-banner .bg-blur{position:absolute;inset:-10px;background-size:cover;background-position:center;filter:blur(14px) brightness(.55);}
+.evento-header-banner .overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,9,16,.3),rgba(16,9,16,.85));}
+.evento-header-banner .conteudo{position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;}
+.evento-header-banner h2{font-size:22px;}
+.evento-header-banner .meta{color:#DBC9A8;font-size:12.5px;margin-top:4px;}
+
+/* ── fila de upload com barra de progresso ── */
+.upload-fila{display:flex;flex-direction:column;gap:6px;margin:12px 0;}
+.upload-fila-item{display:flex;align-items:center;gap:10px;font-size:12px;color:#DBC9A8;}
+.upload-fila-item .nome-arq{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.upload-fila-item .barra{flex-shrink:0;width:120px;height:6px;border-radius:99px;background:rgba(200,175,127,.15);overflow:hidden;}
+.upload-fila-item .barra-fill{height:100%;background:var(--ouro);border-radius:99px;transition:width .2s;}
+.upload-fila-item.erro .barra-fill{background:var(--vermelho);}
+.upload-fila-item .status-icone{width:14px;flex-shrink:0;text-align:center;}
+.upload-progresso-global{margin:10px 0;}
+.upload-progresso-global .barra{height:8px;border-radius:99px;background:rgba(200,175,127,.15);overflow:hidden;}
+.upload-progresso-global .barra-fill{height:100%;background:linear-gradient(90deg,var(--ouro),var(--ouro-luz));border-radius:99px;transition:width .2s;}
+.upload-progresso-global .label{font-size:12px;color:#DBC9A8;margin-bottom:6px;display:flex;justify-content:space-between;}
+
+/* ── subpastas dentro de um evento ── */
+.subpasta-grupo{margin-bottom:22px;}
+.subpasta-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(200,175,127,.14);}
+.subpasta-titulo h3{font-size:14px;color:var(--ouro-luz);font-family:var(--serif);}
+.subpasta-titulo .meta{font-size:11.5px;color:#8A7461;}
 
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
@@ -487,6 +542,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </style>
 </head>
 <body>
+
+<!-- galeria pública (link privado, sem login) — só aparece com ?g=TOKEN na URL -->
+<div id="view-publica" style="display:none;">
+  <div class="publica-topo">
+    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <span>Grand Focus</span>
+  </div>
+  <div id="publica-conteudo" class="publica-conteudo"></div>
+</div>
 
 <div id="login-screen">
   <div class="login-card">
@@ -671,7 +735,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-eventos" style="display:none;">
         <div id="eventos-lista-wrap">
           <div class="section-h"><h2>Eventos &amp; Fotos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEvento()">+ Novo evento</button></div>
-          <div class="hint">3º passo — crie um evento (o ensaio, recital ou espetáculo) e clique nele pra subir as fotos e marcar quais alunos aparecem em cada uma. É isso que aparece pras escolas/responsáveis.</div>
+          <div class="filtro-row">
+            <input type="text" id="evt-busca-lista" placeholder="Buscar evento pelo nome…" oninput="renderEventos()">
+            <select id="evt-filtro-escola" onchange="renderEventos()"><option value="">Todas as escolas</option></select>
+            <select id="evt-filtro-ano" onchange="renderEventos()"><option value="">Todos os anos</option></select>
+          </div>
           <div class="list" id="lista-eventos"></div>
         </div>
         <div id="evento-detalhe-wrap" style="display:none;"></div>
@@ -680,7 +748,6 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-ensaios" style="display:none;">
         <div id="ensaios-lista-wrap">
           <div class="section-h"><h2>Ensaios Avulsos</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEnsaio()">+ Novo ensaio</button></div>
-          <div class="hint">Pra fotos que não são de um evento de escola inteiro — escolhe direto quem vai ver (aluno, responsável, professor, diretor), sem depender de vínculo de escola.</div>
           <div class="list" id="lista-ensaios"></div>
         </div>
         <div id="ensaio-detalhe-wrap" style="display:none;"></div>
@@ -877,6 +944,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
     <h3 id="evt-modal-titulo" style="margin-top:16px;">Novo evento</h3>
     <div class="field"><label>Nome</label><input type="text" id="evt-nome" placeholder="Ex: Recital de Verão 2026"></div>
+    <div class="field"><label>Categoria</label><select id="evt-categoria"><option value="">— nenhuma —</option></select></div>
     <div class="field"><label>Data</label><input type="date" id="evt-data"></div>
     <div class="field">
       <label>Escola</label>
@@ -889,6 +957,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos</button>
       </div>
       <div class="tag-picker" id="evt-alunos-lista" style="max-height:180px;overflow-y:auto;"></div>
+    </div>
+    <div class="field" id="evt-link-wrap" style="display:none;">
+      <label>Link privado (sem precisar de login)</label>
+      <div class="hint" style="margin-bottom:8px;">Ideal pra mandar por WhatsApp. Senha é opcional.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="text" id="evt-link-senha" placeholder="Senha (opcional)">
+        <button class="btn btn-sm" type="button" onclick="_gerarLinkPublicoEvento()">Gerar/Atualizar link</button>
+      </div>
+      <div class="credencial-box" id="evt-link-resultado" style="display:none;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-evento')">Cancelar</button>
@@ -907,11 +984,24 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
     <h3 id="ens-modal-titulo" style="margin-top:16px;">Novo ensaio avulso</h3>
     <div class="field"><label>Nome</label><input type="text" id="ens-nome" placeholder="Ex: Ensaio individual — Bia"></div>
+    <div class="field"><label>Categoria</label><select id="ens-categoria"><option value="">— nenhuma —</option></select></div>
     <div class="field"><label>Data</label><input type="date" id="ens-data"></div>
     <div class="field">
-      <label>Quem vai ver essas fotos? <span style="text-transform:none;font-weight:400;color:#B39F86;">(aluno, responsável, professor, diretor — pessoa a pessoa)</span></label>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <label style="margin-bottom:0;">Quem vai ver essas fotos? <span style="text-transform:none;font-weight:400;color:#B39F86;">(aluno, responsável, professor, diretor)</span></label>
+        <button class="btn btn-sm" type="button" onclick="_ensaioSelecionarTodosAlunos()">Selecionar todos os alunos</button>
+      </div>
       <input type="text" id="ens-busca" placeholder="Buscar por nome…" style="margin-bottom:6px;" oninput="_renderEnsaioSeletorPessoas()">
       <div class="tag-picker" id="ens-pessoas-lista" style="max-height:220px;overflow-y:auto;"></div>
+    </div>
+    <div class="field" id="ens-link-wrap" style="display:none;">
+      <label>Link privado (sem precisar de login)</label>
+      <div class="hint" style="margin-bottom:8px;">Ideal pra mandar por WhatsApp. Senha é opcional.</div>
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <input type="text" id="ens-link-senha" placeholder="Senha (opcional)">
+        <button class="btn btn-sm" type="button" onclick="_gerarLinkPublicoEnsaio()">Gerar/Atualizar link</button>
+      </div>
+      <div class="credencial-box" id="ens-link-resultado" style="display:none;"></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-ensaio')">Cancelar</button>
@@ -1195,10 +1285,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <button class="lightbox-close" onclick="fecharLightbox()" aria-label="Fechar">×</button>
   <button class="lightbox-nav prev" onclick="lightboxNav(-1)" aria-label="Anterior">‹</button>
   <button class="lightbox-nav next" onclick="lightboxNav(1)" aria-label="Próxima">›</button>
-  <div class="lightbox-img-wrap"><img id="lightbox-img" src="" alt=""></div>
+  <div class="lightbox-img-wrap" id="lightbox-img-wrap"><img id="lightbox-img" src="" alt="" onclick="event.stopPropagation();_lightboxToggleZoom()"></div>
   <div class="lightbox-foot">
     <img src="assets/logo-icone.png" alt="">
     <span id="lightbox-caption"></span>
+    <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
   </div>
 </div>
 
@@ -1995,28 +2086,54 @@ function renderAlunos() {
   })
 }
 
+const CATEGORIAS_EVENTO = ['Espetáculo', 'Recital', 'Ensaio', 'Festival']
+const CATEGORIAS_ENSAIO = ['Ensaio Individual', 'Portfólio', 'Ensaio de Solo', 'Book']
+
+function _popularFiltroAnos(selectId, lista) {
+  const sel = document.getElementById(selectId)
+  if (!sel) return
+  const atual = sel.value
+  const anos = [...new Set(lista.map(ev => ev.data ? ev.data.slice(0, 4) : null).filter(Boolean))].sort().reverse()
+  sel.innerHTML = '<option value="">Todos os anos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('')
+  sel.value = anos.includes(atual) ? atual : ''
+}
+
 function renderEventos() {
   const el = document.getElementById('lista-eventos')
-  const eventos = store.eventos.filter(e => e.tipo !== 'ensaio')
-  if (!eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento cadastrado ainda.</div>'; return }
-  el.innerHTML = eventos.map(ev => `
-    <div class="list-item" onclick="abrirEventoAdmin('${ev.id}')">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar" id="evt-av-${ev.id}">${esc((ev.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}</div></div>
+  const todos = store.eventos.filter(e => e.tipo !== 'ensaio')
+  if (!todos.length) { el.innerHTML = '<div class="empty">Nenhum evento cadastrado ainda.</div>'; return }
+  _popularFiltroEscolas('evt-filtro-escola')
+  _popularFiltroAnos('evt-filtro-ano', todos)
+  const busca = (document.getElementById('evt-busca-lista')?.value || '').trim().toLowerCase()
+  const filtroEscola = document.getElementById('evt-filtro-escola')?.value || ''
+  const filtroAno = document.getElementById('evt-filtro-ano')?.value || ''
+  const eventos = todos.filter(ev =>
+    (!busca || (ev.nome || '').toLowerCase().includes(busca)) &&
+    (!filtroEscola || (filtroEscola === 'avulso' ? !ev.escola_id : ev.escola_id === filtroEscola)) &&
+    (!filtroAno || (ev.data || '').startsWith(filtroAno))
+  )
+  if (!eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento encontrado com esse filtro.</div>'; return }
+  el.innerHTML = '<div class="eventos-grid">' + eventos.map(ev => `
+    <div class="card evento-card" onclick="abrirEventoAdmin('${ev.id}')">
+      <div class="capa" id="evt-cover-${ev.id}">
+        ${ev.data ? `<span class="data-badge">${fmtData(ev.data)}</span>` : ''}
+        <div class="actions-overlay">
+          <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEvento('${ev.id}')">${ICON_LAPIS}</div>
+          <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEventos)">${ICON_LIXEIRA}</div>
+        </div>
       </div>
-      <div class="actions">
-        <span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span>
-        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEvento('${ev.id}')">${ICON_LAPIS}</div>
-        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEventos)">${ICON_LIXEIRA}</div>
+      <div class="body">
+        <div class="nome">${esc(ev.nome)}</div>
+        <div class="meta">${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}${ev.categoria ? ' · ' + esc(ev.categoria) : ''}</div>
+        <div class="meta" style="margin-top:4px;">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
       </div>
     </div>
-  `).join('')
+  `).join('') + '</div>'
   eventos.forEach(async ev => {
     if (!ev.capa_url) return
     const url = await _urlAssinada(ev.capa_url)
-    const el2 = document.getElementById(`evt-av-${ev.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${ev.capa_pos || POS_PADRAO};">`
+    const el2 = document.getElementById(`evt-cover-${ev.id}`)
+    if (url && el2) { el2.style.backgroundImage = `url('${url}')`; el2.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
 }
 
@@ -3041,6 +3158,10 @@ function abrirModalEvento(eventoId) {
   document.getElementById('evt-data').value = ev?.data || ''
   document.getElementById('evt-alunos-busca').value = ''
 
+  const selCat = document.getElementById('evt-categoria')
+  selCat.innerHTML = '<option value="">— nenhuma —</option>' + CATEGORIAS_EVENTO.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+  selCat.value = ev?.categoria || ''
+
   const sel = document.getElementById('evt-escola')
   sel.innerHTML = '<option value="">— Avulso / geral —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
   sel.value = ev?.escola_id || ''
@@ -3050,8 +3171,39 @@ function abrirModalEvento(eventoId) {
   if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('evt-capa-preview', ev.capa_pos) } })
   else _posAplicar('evt-capa-preview', null)
 
+  document.getElementById('evt-link-wrap').style.display = ev ? 'block' : 'none'
+  document.getElementById('evt-link-senha').value = ''
+  const resEl = document.getElementById('evt-link-resultado')
+  resEl.style.display = 'none'
+  if (ev?.link_token) { resEl.style.display = 'block'; resEl.textContent = _urlLinkPublico(ev.link_token) }
+
   _renderEventoSeletorAlunos()
   abrirModal('modal-evento')
+}
+
+function _urlLinkPublico(token) { return `${location.origin}${location.pathname}?g=${token}` }
+
+async function _gerarLinkPublicoEvento() {
+  const id = document.getElementById('evt-id').value
+  if (!id) { toast('Salve o evento primeiro'); return }
+  const senha = document.getElementById('evt-link-senha').value.trim()
+  const ev = store.eventos.find(x => x.id === id)
+  let token = ev?.link_token
+  if (!token) {
+    token = crypto.randomUUID().replace(/-/g, '')
+    const { error } = await db.from('eventos').update({ link_token: token }).eq('id', id)
+    if (error) { toast('Erro ao gerar link: ' + error.message); return }
+    if (ev) ev.link_token = token
+  }
+  if (senha) {
+    const { error: eSenha } = await db.rpc('definir_senha_link', { p_evento_id: id, p_senha: senha })
+    if (eSenha) { toast('Link gerado, mas a senha falhou: ' + eSenha.message); return }
+  }
+  const resEl = document.getElementById('evt-link-resultado')
+  resEl.style.display = 'block'
+  resEl.textContent = _urlLinkPublico(token) + (senha ? `\nSenha: ${senha}` : '')
+  toast('Link privado pronto ✓')
+  registrarAuditoria('gerou link privado', 'eventos', id, ev?.nome || '')
 }
 
 function _eventoCapaSelecionada(inputEl) {
@@ -3099,6 +3251,7 @@ async function salvarEvento() {
   if (!nome) { toast('Informe o nome do evento'); return }
   const data_ = document.getElementById('evt-data').value || null
   const escola_id = document.getElementById('evt-escola').value || null
+  const categoria = document.getElementById('evt-categoria').value || null
   const eventoId = id || crypto.randomUUID()
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
@@ -3110,7 +3263,7 @@ async function salvarEvento() {
     capa_url = path
   }
 
-  const payload = { id: eventoId, nome, data: data_, escola_id, capa_url, capa_pos: _posValor('evt-capa-preview'), alunos_selecionados: [..._eventoAlunosSelecionados] }
+  const payload = { id: eventoId, nome, data: data_, escola_id, categoria, capa_url, capa_pos: _posValor('evt-capa-preview'), alunos_selecionados: [..._eventoAlunosSelecionados] }
   let data, error
   if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
   else ({ data, error } = await db.from('eventos').insert(payload).select().single())
@@ -3145,23 +3298,67 @@ async function excluirEvento(id, aposApagar) {
 
 // ── detalhe do evento (admin): upload + marcação de alunos ───────
 let _eventoAtual = null
-async function abrirEventoAdmin(eventoId) {
+let _eventoFotoSelecao = new Set()
+let _eventoVoltarContexto = null
+function _eventoVoltar() {
+  if (_eventoVoltarContexto) { const fn = _eventoVoltarContexto.onClick; _eventoVoltarContexto = null; fn(); return }
+  fecharEventoAdmin()
+}
+
+// wiring genérico de drag&drop — usado no evento e no ensaio. O
+// feedback visual (classe .dragover) só liga/desliga; quem decide o
+// que fazer com os arquivos soltos é o callback.
+function _ligarDropzone(elId, inputId, onFiles) {
+  const el = document.getElementById(elId)
+  if (!el) return
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover') })
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'))
+  el.addEventListener('drop', e => {
+    e.preventDefault(); el.classList.remove('dragover')
+    const files = [...e.dataTransfer.files].filter(f => f.type.startsWith('image/'))
+    if (files.length) onFiles(files)
+  })
+}
+
+async function abrirEventoAdmin(eventoId, voltarContexto) {
   _eventoAtual = store.eventos.find(e => e.id === eventoId)
   if (!_eventoAtual) return
+  _eventoFotoSelecao = new Set()
+  _eventoVoltarContexto = voltarContexto || null
   document.getElementById('eventos-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('evento-detalhe-wrap')
   wrap.style.display = 'block'
   wrap.innerHTML = `
-    <button class="evento-back" onclick="fecharEventoAdmin()">← Voltar aos eventos</button>
-    <div class="section-h"><h2>${esc(_eventoAtual.nome)}</h2></div>
-    <div class="upload-drop" onclick="document.getElementById('evt-upload-input').click()">
-      📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
+    <button class="evento-back" onclick="_eventoVoltar()">← ${voltarContexto ? esc(voltarContexto.label) : 'Voltar aos eventos'}</button>
+    <div class="evento-header-banner">
+      <div class="bg-blur" id="evt-header-bg"></div>
+      <div class="overlay"></div>
+      <div class="conteudo">
+        <div>
+          <h2>${esc(_eventoAtual.nome)}</h2>
+          <div class="meta">${_eventoAtual.data ? fmtData(_eventoAtual.data) : 'sem data'}${_eventoAtual.escola_id ? ' · ' + esc(nomeEscola(_eventoAtual.escola_id)) : ' · Avulso/geral'}${_eventoAtual.categoria ? ' · ' + esc(_eventoAtual.categoria) : ''}</div>
+        </div>
+        <button class="icon-btn" title="Editar evento" onclick="abrirModalEvento('${_eventoAtual.id}')">${ICON_LAPIS}</button>
+      </div>
+    </div>
+    <div class="upload-drop" id="evt-dropzone" onclick="document.getElementById('evt-upload-input').click()">
+      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEvento(this.files)">
     </div>
     <div id="evt-upload-status"></div>
-    <div class="hint">Depois que a foto aparecer aqui embaixo, passe o mouse por cima e marque quais alunos aparecem nela — é assim que cada aluno/escola só vê as fotos dele.</div>
-    <div class="foto-grid" id="evt-fotos-grid"></div>
+    <div class="hint">Depois que a foto aparecer aqui embaixo, passe o mouse por cima e marque quais alunos aparecem nela — é assim que cada aluno/escola só vê as fotos dele. Selecione várias (clique no ✓) pra marcar todas de uma vez, criar um Ato/subpasta, ou apagar em massa.</div>
+    <div class="foto-toolbar" id="evt-toolbar" style="display:none;">
+      <div class="chip-row" id="evt-toolbar-tags"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="evt-subpasta-nome" placeholder="Nome do Ato/subpasta" style="max-width:160px;">
+        <button class="btn btn-sm" onclick="_eventoAplicarSubpasta()">Mover pra subpasta</button>
+        <button class="btn btn-sm btn-danger" onclick="_eventoApagarSelecionadas()">Apagar selecionadas</button>
+      </div>
+    </div>
+    <div id="evt-fotos-por-subpasta"></div>
   `
+  if (_eventoAtual.capa_url) { const url = await _urlAssinada(_eventoAtual.capa_url); if (url) document.getElementById('evt-header-bg').style.backgroundImage = `url('${url}')` }
+  _ligarDropzone('evt-dropzone', 'evt-upload-input', files => _prepararUploadEvento(files))
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
   if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
   store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
@@ -3228,20 +3425,48 @@ async function _confirmarPreviewUpload() {
   else if (destino === 'ensaio') await uploadFotosEnsaio(files)
 }
 
+// fila de upload com progresso por arquivo (estado discreto: aguardando
+// → enviando → concluído/erro — a Storage API do Supabase não expõe
+// progresso por byte, então a barra individual reflete o ESTADO do
+// arquivo, não porcentagem de bytes; a barra global reflete quantos
+// arquivos já terminaram do total, isso sim é uma % real).
+function _renderFilaUpload(prefixo, files, estados) {
+  const statusEl = document.getElementById(`${prefixo}-upload-status`)
+  if (!statusEl) return
+  const concluidos = estados.filter(s => s === 'ok' || s === 'erro').length
+  const pct = Math.round((concluidos / files.length) * 100)
+  statusEl.innerHTML = `
+    <div class="upload-progresso-global">
+      <div class="label"><span>Enviando ${concluidos}/${files.length}</span><span>${pct}%</span></div>
+      <div class="barra"><div class="barra-fill" style="width:${pct}%;"></div></div>
+    </div>
+    <div class="upload-fila">
+      ${files.map((f, i) => {
+        const st = estados[i]
+        const w = st === 'aguardando' ? 0 : st === 'enviando' ? 55 : 100
+        const icone = st === 'ok' ? '✓' : st === 'erro' ? '✕' : st === 'enviando' ? '…' : ''
+        return `<div class="upload-fila-item${st === 'erro' ? ' erro' : ''}"><span class="status-icone">${icone}</span><span class="nome-arq">${esc(f.name)}</span><span class="barra"><span class="barra-fill" style="width:${w}%;"></span></span></div>`
+      }).join('')}
+    </div>
+  `
+}
+
 async function uploadFotosEvento(files) {
   if (!files?.length || !_eventoAtual) return
-  const statusEl = document.getElementById('evt-upload-status')
   const roster = _eventoAtual.alunos_selecionados || []
+  const estados = files.map(() => 'aguardando')
+  _renderFilaUpload('evt', files, estados)
   let ok = 0
-  for (const file of files) {
-    statusEl.textContent = `Enviando ${file.name}… (${ok + 1}/${files.length})`
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${_eventoAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
-    if (upErr) { toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
     const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _eventoAtual.id, storage_path: path, thumb_path: thumbPath }).select().single()
-    if (insErr) { toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
     // pra ajustar foto a foto depois (desmarcar quem não aparece nela)
@@ -3250,9 +3475,10 @@ async function uploadFotosEvento(files) {
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
       if (!tagErr) store.fotoAluno.push(...tags)
     }
+    estados[i] = 'ok'; _renderFilaUpload('evt', files, estados)
     ok++
   }
-  statusEl.textContent = `${ok} foto(s) enviada(s) ✓${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`)
   document.getElementById('evt-upload-input').value = ''
   renderFotosEventoAdmin()
 }
@@ -3349,13 +3575,44 @@ function abrirLightbox(fotoId) {
   document.getElementById('lightbox').classList.add('show')
 }
 function fecharLightbox() {
-  document.getElementById('lightbox').classList.remove('show')
+  const lb = document.getElementById('lightbox')
+  lb.classList.remove('show')
+  delete lb.dataset.modo
   document.getElementById('lightbox-img').src = ''
+  document.getElementById('lightbox-img-wrap').classList.remove('zoomed')
 }
 function lightboxNav(delta) {
-  if (!_lightboxFotos.length) return
-  _lightboxIdx = (_lightboxIdx + delta + _lightboxFotos.length) % _lightboxFotos.length
-  renderLightboxAtual()
+  const publico = document.getElementById('lightbox').dataset.modo === 'publico'
+  const lista = publico ? _publicaFotos : _lightboxFotos
+  if (!lista.length) return
+  _lightboxIdx = (_lightboxIdx + delta + lista.length) % lista.length
+  document.getElementById('lightbox-img-wrap').classList.remove('zoomed')
+  if (publico) _renderPublicaLightboxAtual(); else renderLightboxAtual()
+}
+function _lightboxToggleZoom() {
+  document.getElementById('lightbox-img-wrap').classList.toggle('zoomed')
+}
+async function _lightboxBaixar() {
+  const publico = document.getElementById('lightbox').dataset.modo === 'publico'
+  let url, nomeArquivo, fotoId
+  if (publico) {
+    const f = _publicaFotos[_lightboxIdx]
+    if (!f) return
+    url = f.urlOriginal || f.url; nomeArquivo = `foto-${_lightboxIdx + 1}.jpg`; fotoId = f.id
+  } else {
+    const f = _lightboxFotos[_lightboxIdx]
+    if (!f) return
+    url = await _urlAssinada(f.storage_path)
+    nomeArquivo = f.storage_path.split('/').pop(); fotoId = f.id
+  }
+  if (!url) { toast('Erro ao gerar link de download'); return }
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nomeArquivo
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  if (!publico) registrarAuditoria('baixou foto (lightbox)', 'fotos', fotoId, '')
 }
 async function renderLightboxAtual() {
   const f = _lightboxFotos[_lightboxIdx]
@@ -3791,17 +4048,12 @@ function atualizarBotaoCarregarMaisAuditoria() {
   btn.style.display = _auditoriaFimDosDados ? 'none' : 'inline-flex'
 }
 
-async function renderFotosEventoAdmin() {
-  const grid = document.getElementById('evt-fotos-grid')
-  const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
-  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; return }
-  const alunosDisponiveis = _eventoAtual.escola_id
-    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
-    : store.alunos.filter(a => !a.escola_id)
-  _lightboxFotos = fotos
-  grid.innerHTML = fotos.map(f => `
-    <div class="foto-item" id="fitem-${f.id}">
+function _fotoItemHTML(f, alunosDisponiveis) {
+  const sel = _eventoFotoSelecao.has(f.id)
+  return `
+    <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" onclick="_eventoToggleSelecaoFoto('${f.id}')">
       <img data-path="${esc(f.storage_path)}" alt="">
+      <span class="ck">${sel ? '✓' : ''}</span>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -3811,13 +4063,81 @@ async function renderFotosEventoAdmin() {
           ${alunosDisponiveis.map(a => `<span class="tag-opt${(store.fotoAluno.find(x => x.foto_id === f.id && x.aluno_id === a.id)) ? ' on' : ''}" onclick="event.stopPropagation();toggleTagAluno('${f.id}','${a.id}',this)">${esc(a.nome)}</span>`).join('') || '<span style="opacity:.6">nenhum aluno cadastrado pra essa escola ainda</span>'}
         </div>
       </div>
+    </div>`
+}
+
+async function renderFotosEventoAdmin() {
+  const wrap = document.getElementById('evt-fotos-por-subpasta')
+  const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
+  if (!fotos.length) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
+  const alunosDisponiveis = _eventoAtual.escola_id
+    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
+    : store.alunos.filter(a => !a.escola_id)
+  _lightboxFotos = fotos
+  const grupos = new Map()
+  fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
+  const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
+  wrap.innerHTML = ordemGrupos.map(nome => `
+    <div class="subpasta-grupo">
+      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span></div>` : ''}
+      <div class="foto-grid">${grupos.get(nome).map(f => _fotoItemHTML(f, alunosDisponiveis)).join('')}</div>
     </div>
   `).join('')
   fotos.forEach(async f => {
-    const img = grid.querySelector(`#fitem-${f.id} img`)
+    const img = wrap.querySelector(`#fitem-${f.id} img`)
     const url = await _urlPreview(f)
     if (url && img) img.src = url
   })
+  _atualizarToolbarEvento()
+}
+
+function _eventoToggleSelecaoFoto(fotoId) {
+  if (_eventoFotoSelecao.has(fotoId)) _eventoFotoSelecao.delete(fotoId)
+  else _eventoFotoSelecao.add(fotoId)
+  const item = document.getElementById(`fitem-${fotoId}`)
+  if (item) { item.classList.toggle('sel', _eventoFotoSelecao.has(fotoId)); item.querySelector('.ck').textContent = _eventoFotoSelecao.has(fotoId) ? '✓' : '' }
+  _atualizarToolbarEvento()
+}
+
+function _atualizarToolbarEvento() {
+  const toolbar = document.getElementById('evt-toolbar')
+  if (!toolbar) return
+  if (!_eventoFotoSelecao.size) { toolbar.style.display = 'none'; return }
+  toolbar.style.display = 'flex'
+  const alunosDisponiveis = _eventoAtual.escola_id
+    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
+    : store.alunos.filter(a => !a.escola_id)
+  const tagsEl = document.getElementById('evt-toolbar-tags')
+  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar aluno em todas:</span>` +
+    alunosDisponiveis.map(a => `<span class="chip" onclick="_eventoMarcarAlunoEmMassa('${a.id}')">${esc(a.nome)}</span>`).join('')
+}
+
+async function _eventoMarcarAlunoEmMassa(alunoId) {
+  const fotoIds = [..._eventoFotoSelecao]
+  const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === alunoId))
+  if (!novos.length) { toast('Todas as selecionadas já têm esse aluno marcado'); return }
+  const rows = novos.map(foto_id => ({ foto_id, aluno_id: alunoId }))
+  const { error } = await db.from('foto_aluno').insert(rows)
+  if (error) { toast('Erro: ' + error.message); return }
+  store.fotoAluno.push(...rows)
+  toast(`Aluno marcado em ${novos.length} foto(s) ✓`)
+  renderFotosEventoAdmin()
+}
+
+async function _eventoAplicarSubpasta() {
+  const nome = document.getElementById('evt-subpasta-nome').value.trim()
+  if (!nome) { toast('Digite o nome da subpasta/Ato'); return }
+  const fotoIds = [..._eventoFotoSelecao]
+  const { error } = await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
+  if (error) { toast('Erro: ' + error.message); return }
+  store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
+  _eventoFotoSelecao = new Set()
+  toast(`${fotoIds.length} foto(s) movidas pra "${nome}" ✓`)
+  renderFotosEventoAdmin()
+}
+
+async function _eventoApagarSelecionadas() {
+  await excluirFotosEmMassa([..._eventoFotoSelecao], () => { _eventoFotoSelecao = new Set(); renderFotosEventoAdmin() })
 }
 
 async function toggleTagAluno(fotoId, alunoId, chipEl) {
@@ -4079,6 +4399,7 @@ function _galToggleSelecao(fotoId) {
 async function abrirUploadRapidoAluno() {
   const a = store.alunos.find(x => x.id === _galAlunoId)
   if (!a) return
+  const escolaCtx = _galEscolaId, alunoCtx = _galAlunoId, anoCtx = _galAno
   const nomeEvento = `Fotos avulsas — ${a.nome}`
   let evento = store.eventos.find(e => e.nome === nomeEvento && e.escola_id === (a.escola_id || null))
   if (!evento) {
@@ -4088,7 +4409,10 @@ async function abrirUploadRapidoAluno() {
     evento = data
   }
   setAdminTab('eventos')
-  await abrirEventoAdmin(evento.id)
+  await abrirEventoAdmin(evento.id, {
+    label: `Voltar para Galeria de ${a.nome}`,
+    onClick: () => { setAdminTab('galeria'); _galEscolaId = escolaCtx; _galAlunoId = alunoCtx; _galAno = anoCtx; renderGaleriaAdmin() },
+  })
 }
 
 function hojeISO() { return new Date().toISOString().slice(0, 10) }
@@ -4104,25 +4428,43 @@ function renderEnsaios() {
   if (!el) return
   const ensaios = store.eventos.filter(e => e.tipo === 'ensaio')
   if (!ensaios.length) { el.innerHTML = '<div class="empty">Nenhum ensaio avulso cadastrado ainda.</div>'; return }
-  el.innerHTML = ensaios.map(ev => `
-    <div class="list-item" onclick="abrirEnsaioAdmin('${ev.id}')">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar" id="ens-av-${ev.id}">${esc((ev.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${(ev.alunos_selecionados?.length || 0) + (ev.pessoas_selecionadas?.length || 0)} destinatário(s)</div></div>
+  el.innerHTML = '<div class="eventos-grid">' + ensaios.map(ev => {
+    const clientes = [
+      ...(ev.alunos_selecionados || []).map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean),
+      ...(ev.pessoas_selecionadas || []).map(id => store.professores.find(p => p.user_id === id)?.nome || store.responsaveis.find(r => r.user_id === id)?.nome).filter(Boolean),
+    ]
+    return `
+    <div class="card evento-card" onclick="abrirEnsaioAdmin('${ev.id}')">
+      <div class="capa" id="ens-cover-${ev.id}">
+        ${ev.data ? `<span class="data-badge">${fmtData(ev.data)}</span>` : ''}
+        <div class="actions-overlay">
+          <div class="icon-btn" title="Copiar link privado" onclick="event.stopPropagation();_copiarLinkPrivado('${ev.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 15l6-6M10 6l1-1a3.5 3.5 0 0 1 5 5l-1 1M14 18l-1 1a3.5 3.5 0 0 1-5-5l1-1"/></svg></div>
+          <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEnsaio('${ev.id}')">${ICON_LAPIS}</div>
+          <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEnsaios)">${ICON_LIXEIRA}</div>
+        </div>
       </div>
-      <div class="actions">
-        <span class="meta">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</span>
-        <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEnsaio('${ev.id}')">${ICON_LAPIS}</div>
-        <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEvento('${ev.id}', renderEnsaios)">${ICON_LIXEIRA}</div>
+      <div class="body">
+        <div class="nome">${esc(ev.nome)}</div>
+        <div class="meta">${ev.categoria ? esc(ev.categoria) + ' · ' : ''}${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
+        ${clientes.length ? `<div class="badges" style="margin-top:8px;">${clientes.slice(0, 3).map(n => `<span class="badge">${esc(n)}</span>`).join('')}${clientes.length > 3 ? `<span class="badge">+${clientes.length - 3}</span>` : ''}</div>` : ''}
       </div>
-    </div>
-  `).join('')
+    </div>`
+  }).join('') + '</div>'
   ensaios.forEach(async ev => {
     if (!ev.capa_url) return
     const url = await _urlAssinada(ev.capa_url)
-    const el2 = document.getElementById(`ens-av-${ev.id}`)
-    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${ev.capa_pos || POS_PADRAO};">`
+    const el2 = document.getElementById(`ens-cover-${ev.id}`)
+    if (url && el2) { el2.style.backgroundImage = `url('${url}')`; el2.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
+}
+
+async function _copiarLinkPrivado(eventoId) {
+  const ev = store.eventos.find(x => x.id === eventoId)
+  if (!ev?.link_token) { toast('Esse ensaio ainda não tem link — gere em "Editar"'); return }
+  try {
+    await navigator.clipboard.writeText(_urlLinkPublico(ev.link_token))
+    toast('Link privado copiado ✓')
+  } catch (e) { toast('Não deu pra copiar automaticamente — abra Editar pra ver o link.') }
 }
 
 function _todasPessoasSelecionaveis() {
@@ -4148,13 +4490,51 @@ function abrirModalEnsaio(ensaioId) {
   document.getElementById('ens-data').value = ev?.data || ''
   document.getElementById('ens-busca').value = ''
 
+  const selCat = document.getElementById('ens-categoria')
+  selCat.innerHTML = '<option value="">— nenhuma —</option>' + CATEGORIAS_ENSAIO.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+  selCat.value = ev?.categoria || ''
+
   const capaEl = document.getElementById('ens-capa-preview')
   capaEl.innerHTML = `<div class="trocar" onclick="document.getElementById('ens-capa-input').click()">Trocar capa</div><input type="file" id="ens-capa-input" accept="image/*" style="display:none;" onchange="_ensaioCapaSelecionada(this)">`
   if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('ens-capa-preview', ev.capa_pos) } })
   else _posAplicar('ens-capa-preview', null)
 
+  document.getElementById('ens-link-wrap').style.display = ev ? 'block' : 'none'
+  document.getElementById('ens-link-senha').value = ''
+  const resEl = document.getElementById('ens-link-resultado')
+  resEl.style.display = 'none'
+  if (ev?.link_token) { resEl.style.display = 'block'; resEl.textContent = _urlLinkPublico(ev.link_token) }
+
   _renderEnsaioSeletorPessoas()
   abrirModal('modal-ensaio')
+}
+
+function _ensaioSelecionarTodosAlunos() {
+  store.alunos.forEach(a => _ensaioAlunosSel.add(a.id))
+  _renderEnsaioSeletorPessoas()
+}
+
+async function _gerarLinkPublicoEnsaio() {
+  const id = document.getElementById('ens-id').value
+  if (!id) { toast('Salve o ensaio primeiro'); return }
+  const senha = document.getElementById('ens-link-senha').value.trim()
+  const ev = store.eventos.find(x => x.id === id)
+  let token = ev?.link_token
+  if (!token) {
+    token = crypto.randomUUID().replace(/-/g, '')
+    const { error } = await db.from('eventos').update({ link_token: token }).eq('id', id)
+    if (error) { toast('Erro ao gerar link: ' + error.message); return }
+    if (ev) ev.link_token = token
+  }
+  if (senha) {
+    const { error: eSenha } = await db.rpc('definir_senha_link', { p_evento_id: id, p_senha: senha })
+    if (eSenha) { toast('Link gerado, mas a senha falhou: ' + eSenha.message); return }
+  }
+  const resEl = document.getElementById('ens-link-resultado')
+  resEl.style.display = 'block'
+  resEl.textContent = _urlLinkPublico(token) + (senha ? `\nSenha: ${senha}` : '')
+  toast('Link privado pronto ✓')
+  registrarAuditoria('gerou link privado', 'eventos', id, ev?.nome || '')
 }
 
 function _ensaioCapaSelecionada(inputEl) {
@@ -4191,6 +4571,7 @@ async function salvarEnsaio() {
   const nome = document.getElementById('ens-nome').value.trim()
   if (!nome) { toast('Informe o nome'); return }
   const data_ = document.getElementById('ens-data').value || null
+  const categoria = document.getElementById('ens-categoria').value || null
   const ensaioId = id || crypto.randomUUID()
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
@@ -4203,7 +4584,7 @@ async function salvarEnsaio() {
   }
 
   const payload = {
-    id: ensaioId, nome, data: data_, capa_url, capa_pos: _posValor('ens-capa-preview'), tipo: 'ensaio', escola_id: null,
+    id: ensaioId, nome, data: data_, categoria, capa_url, capa_pos: _posValor('ens-capa-preview'), tipo: 'ensaio', escola_id: null,
     alunos_selecionados: [..._ensaioAlunosSel], pessoas_selecionadas: [..._ensaioPessoasSel],
   }
   let data, error
@@ -4228,15 +4609,27 @@ async function abrirEnsaioAdmin(ensaioId) {
   wrap.style.display = 'block'
   wrap.innerHTML = `
     <button class="evento-back" onclick="fecharEnsaioAdmin()">← Voltar aos ensaios</button>
-    <div class="section-h"><h2>${esc(_ensaioAtual.nome)}</h2></div>
-    <div class="upload-drop" onclick="document.getElementById('ens-upload-input').click()">
-      📤 Clique pra escolher fotos (pode selecionar várias de uma vez)
+    <div class="evento-header-banner">
+      <div class="bg-blur" id="ens-header-bg"></div>
+      <div class="overlay"></div>
+      <div class="conteudo">
+        <div>
+          <h2>${esc(_ensaioAtual.nome)}</h2>
+          <div class="meta">${_ensaioAtual.data ? fmtData(_ensaioAtual.data) : 'sem data'}${_ensaioAtual.categoria ? ' · ' + esc(_ensaioAtual.categoria) : ''}</div>
+        </div>
+        <button class="icon-btn" title="Editar ensaio" onclick="abrirModalEnsaio('${_ensaioAtual.id}')">${ICON_LAPIS}</button>
+      </div>
+    </div>
+    <div class="upload-drop" id="ens-dropzone" onclick="document.getElementById('ens-upload-input').click()">
+      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEnsaio(this.files)">
     </div>
     <div id="ens-upload-status"></div>
     <div class="hint">As fotos já sobem marcadas pra todo mundo escolhido na criação do ensaio — ajuste foto a foto se precisar.</div>
     <div class="foto-grid" id="ens-fotos-grid"></div>
   `
+  if (_ensaioAtual.capa_url) { const url = await _urlAssinada(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
+  _ligarDropzone('ens-dropzone', 'ens-upload-input', files => _prepararUploadEnsaio(files))
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
   if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
   store.fotos = store.fotos.filter(f => f.evento_id !== ensaioId).concat(data || [])
@@ -4260,19 +4653,21 @@ function fecharEnsaioAdmin() {
 
 async function uploadFotosEnsaio(files) {
   if (!files?.length || !_ensaioAtual) return
-  const statusEl = document.getElementById('ens-upload-status')
   const rosterAlunos = _ensaioAtual.alunos_selecionados || []
   const rosterPessoas = _ensaioAtual.pessoas_selecionadas || []
+  const estados = files.map(() => 'aguardando')
+  _renderFilaUpload('ens', files, estados)
   let ok = 0
-  for (const file of files) {
-    statusEl.textContent = `Enviando ${file.name}… (${ok + 1}/${files.length})`
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${_ensaioAtual.id}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
-    if (upErr) { toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
     const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: _ensaioAtual.id, storage_path: path, thumb_path: thumbPath }).select().single()
-    if (insErr) { toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     if (rosterAlunos.length) {
       const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
@@ -4284,10 +4679,11 @@ async function uploadFotosEnsaio(files) {
       const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
       if (!tagErr) store.fotoPessoa.push(...tags)
     }
+    estados[i] = 'ok'; _renderFilaUpload('ens', files, estados)
     ok++
   }
   const total = rosterAlunos.length + rosterPessoas.length
-  statusEl.textContent = `${ok} foto(s) enviada(s) ✓${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`)
   document.getElementById('ens-upload-input').value = ''
   renderFotosEnsaioAdmin()
 }
@@ -4739,12 +5135,90 @@ function renderGaleriaAgrupada() {
   atualizarBotaoBaixar()
 }
 
+// ── galeria pública (link privado, sem login) ─────────────────────
+// Edge Function é chamada com o anon key como Bearer — é assim que o
+// gateway do Supabase valida a requisição, mesmo pra visitante sem
+// nenhuma sessão; o anon key é público por natureza, não é segredo.
+// Quem realmente trava o acesso é a validação de token/senha lá dentro
+// da função (via galeria_publica_dados(), rodando com service role).
+let _publicaFotos = []
+async function _carregarGaleriaPublica(token, senha) {
+  const conteudo = document.getElementById('publica-conteudo')
+  conteudo.innerHTML = '<div class="empty">Carregando…</div>'
+  let resp
+  try {
+    resp = await fetch(`${SUPABASE_URL}/functions/v1/galeria-publica`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ token, senha: senha || null }),
+    })
+  } catch (e) {
+    conteudo.innerHTML = '<div class="empty">Não foi possível conectar. Confira sua internet e tente de novo.</div>'
+    return
+  }
+  const data = await resp.json().catch(() => ({}))
+  if (!resp.ok || data.error) {
+    if (/senha/i.test(data.error || '')) { _renderPublicaSenhaCard(token, /^.+$/.test(senha || '')); return }
+    conteudo.innerHTML = `<div class="empty">${esc(data.error || 'Não foi possível abrir esse link.')}</div>`
+    return
+  }
+  _publicaFotos = data.fotos || []
+  conteudo.innerHTML = `
+    ${data.evento?.capaUrl ? `<img class="publica-capa" src="${data.evento.capaUrl}" alt="">` : ''}
+    <h2>${esc(data.evento?.nome || 'Galeria')}</h2>
+    <div class="meta" style="margin-bottom:20px;">${data.evento?.data ? fmtData(data.evento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
+    ${_publicaFotos.length ? '<div class="foto-grid" id="publica-grid"></div>' : '<div class="empty">Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
+  `
+  const grid = document.getElementById('publica-grid')
+  if (grid) {
+    grid.innerHTML = _publicaFotos.map((f, i) => `
+      <div class="foto-item" style="cursor:pointer;" onclick="_publicaAbrirLightbox(${i})"><img src="${f.url}" alt=""></div>
+    `).join('')
+  }
+}
+
+function _renderPublicaSenhaCard(token, senhaErrada) {
+  document.getElementById('publica-conteudo').innerHTML = `
+    <div class="card publica-senha-card">
+      <h3 style="margin-bottom:6px;">Esta galeria tem senha</h3>
+      <div class="meta" style="margin-bottom:16px;">${senhaErrada ? 'Senha incorreta — tente de novo.' : 'Digite a senha que você recebeu pra ver as fotos.'}</div>
+      <div class="field"><input type="password" id="publica-senha-input" placeholder="Senha" onkeydown="if(event.key==='Enter')_carregarGaleriaPublica('${token}',document.getElementById('publica-senha-input').value)"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="_carregarGaleriaPublica('${token}',document.getElementById('publica-senha-input').value)">Entrar</button>
+    </div>
+  `
+}
+
+// lightbox público reaproveita o MESMO markup #lightbox do admin, mas
+// as URLs já vêm prontas da Edge Function — não precisa de _urlPreview.
+function _publicaAbrirLightbox(idx) {
+  _lightboxIdx = idx
+  _renderPublicaLightboxAtual()
+  document.getElementById('lightbox').classList.add('show')
+  document.getElementById('lightbox').dataset.modo = 'publico'
+}
+function _renderPublicaLightboxAtual() {
+  const f = _publicaFotos[_lightboxIdx]
+  if (!f) return
+  document.getElementById('lightbox-img').src = f.url
+  document.getElementById('lightbox-caption').textContent = `${_lightboxIdx + 1} de ${_publicaFotos.length}`
+}
+
+function _iniciarModoPublico(token) {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'none'
+  document.getElementById('view-publica').style.display = 'block'
+  _carregarGaleriaPublica(token, null)
+}
+
 // ── boot ────────────────────────────────────────────────────────
+const _tokenPublico = new URLSearchParams(location.search).get('g')
 if (_configPendente) {
   const errEl = document.getElementById('login-error')
   errEl.textContent = '⚠ Configure SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script> (Project Settings → API do seu projeto) antes de usar.'
   errEl.style.display = 'block'
   document.getElementById('login-btn').disabled = true
+} else if (_tokenPublico) {
+  _iniciarModoPublico(_tokenPublico)
 } else {
   iniciarAuth()
 }
