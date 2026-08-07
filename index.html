@@ -7,7 +7,7 @@
 <link rel="icon" href="assets/logo-icone.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@200;300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
@@ -18,6 +18,8 @@
   --papel:#F6F0E6; --tinta:#1A0A0E; --vermelho:#E05570; --verde:#3DCF8E;
   --serif:"Cormorant Garamond",Georgia,serif;
   --sans:"Jost","Futura",system-ui,-apple-system,sans-serif;
+  --sans-num:"Plus Jakarta Sans",var(--sans);
+  --vinho-nobre:#1E0810; --dourado:#D4AF37;
 }
 *{box-sizing:border-box;}
 body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
@@ -80,9 +82,9 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
   background:rgba(16,9,16,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;
 }
-.topbar .brand{display:flex;align-items:center;gap:10px;}
-.topbar .brand img{width:30px;}
-.topbar .brand span{font-family:var(--serif);font-size:18px;color:var(--ouro-luz);}
+.topbar .brand{display:flex;align-items:center;gap:11px;}
+.topbar .brand img{width:36px;filter:drop-shadow(0 0 10px rgba(212,175,55,.4)) brightness(1.12) contrast(1.08);}
+.topbar .brand span{font-family:var(--serif);font-size:19px;font-weight:600;color:var(--ouro-luz);letter-spacing:.02em;}
 .topbar-busca{
   display:flex;align-items:center;gap:9px;background:rgba(0,0,0,.22);border:1px solid rgba(200,175,127,.2);
   color:#B39F86;padding:.5em .9em;border-radius:9px;font-family:var(--sans);font-size:12.5px;cursor:pointer;
@@ -156,27 +158,37 @@ table.import-tabela th{color:var(--ouro-fundo);font-size:10.5px;text-transform:u
 main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 /* ── navegação: sidebar fixa em telas largas, vira barra no mobile ── */
-.view-shell{display:grid;grid-template-columns:216px 1fr;align-items:start;}
+.view-shell{display:grid;grid-template-columns:260px 1fr;align-items:start;}
 .view-content{padding:28px;max-width:1180px;width:100%;}
 .tabs{
-  display:flex;flex-direction:column;gap:2px;padding:20px 12px;flex-wrap:nowrap;
+  display:flex;flex-direction:column;gap:2px;padding:20px 10px;flex-wrap:nowrap;
   border-right:1px solid rgba(200,175,127,.14);
-  position:sticky;top:0;max-height:100vh;overflow-y:auto;background:var(--palco);
+  position:sticky;top:0;max-height:100vh;overflow-y:auto;
+  background:linear-gradient(180deg,#16050C 0%,#0C0A0D 100%);
 }
 .tab{
-  display:flex;align-items:center;gap:10px;font-size:13.5px;letter-spacing:.02em;padding:.65em .9em;border-radius:8px;
-  color:#B39F86;cursor:pointer;border:1px solid transparent;transition:background .15s,color .15s,border-color .15s;
-  white-space:nowrap;
+  display:flex;align-items:center;gap:10px;font-size:13.5px;letter-spacing:.02em;padding:.65em .85em;border-radius:12px;
+  color:#B39F86;cursor:pointer;border:1px solid transparent;border-left:2px solid transparent;
+  transition:background .15s,color .15s,border-color .15s;white-space:nowrap;position:relative;
 }
 .tab svg{width:16px;height:16px;flex-shrink:0;opacity:.85;}
 .tab span{overflow:hidden;text-overflow:ellipsis;}
 .tab:hover{background:rgba(255,255,255,.03);color:#DBC9A8;}
-.tab.on{background:rgba(200,175,127,.12);color:var(--ouro-luz);border-color:rgba(200,175,127,.28);font-weight:500;}
+.tab.on{background:#2D0B18;color:var(--ouro-luz);border-left-color:var(--dourado);font-weight:500;}
 .tab.on svg{opacity:1;}
-.navgroup-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8A7461;padding:14px 12px 6px;}
+.navgroup-label{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8C7853;padding:14px 12px 6px;}
 .navgroup-label:first-child{padding-top:4px;}
 .view{display:none;}
 .view.on{display:block;}
+
+.sidebar-footer{
+  margin-top:10px;display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;
+  background:rgba(75,4,22,.45);border:1px solid rgba(200,175,127,.16);
+}
+.sidebar-footer .sf-info{min-width:0;flex:1;}
+.sidebar-footer .sf-nome{font-size:12.5px;color:#EADFCF;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sidebar-footer .sf-role{font-size:10.5px;color:#8C7853;text-transform:uppercase;letter-spacing:.06em;}
+.sidebar-footer .icon-btn{width:26px;height:26px;flex-shrink:0;}
 
 .sidebar-toggle{
   display:flex;align-items:center;gap:10px;margin-top:auto;padding:.65em .9em;border-radius:8px;
@@ -184,13 +196,25 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 }
 .sidebar-toggle:hover{background:rgba(255,255,255,.03);color:#DBC9A8;}
 .sidebar-toggle svg{width:15px;height:15px;flex-shrink:0;transition:transform .2s;}
-.view-shell.sidebar-collapsed{grid-template-columns:60px 1fr;}
-.view-shell.sidebar-collapsed .tab{justify-content:center;padding:.65em;}
+.view-shell.sidebar-collapsed{grid-template-columns:64px 1fr;}
+.view-shell.sidebar-collapsed .tabs{overflow-x:hidden;}
+.view-shell.sidebar-collapsed .tab{justify-content:center;padding:.65em;border-left:none;}
+.view-shell.sidebar-collapsed .tab.on{border-left:none;box-shadow:inset 2px 0 0 var(--dourado);}
 .view-shell.sidebar-collapsed .tab span,
-.view-shell.sidebar-collapsed .sidebar-toggle span{display:none;}
+.view-shell.sidebar-collapsed .navgroup-label,
+.view-shell.sidebar-collapsed .sidebar-toggle span,
+.view-shell.sidebar-collapsed .sidebar-footer .sf-info,
+.view-shell.sidebar-collapsed .sidebar-footer .icon-btn{display:none;}
+.view-shell.sidebar-collapsed .sidebar-footer{justify-content:center;padding:8px;}
 .view-shell.sidebar-collapsed .sidebar-toggle{justify-content:center;}
 .view-shell.sidebar-collapsed .sidebar-toggle svg{transform:rotate(180deg);}
-@media(max-width:900px){.sidebar-toggle{display:none;}}
+.view-shell.sidebar-collapsed .tab{position:relative;}
+.view-shell.sidebar-collapsed .tab:hover::after{
+  content:attr(data-tip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);
+  background:var(--tinta);border:1px solid rgba(200,175,127,.3);color:var(--ouro-luz);font-size:12px;
+  padding:.4em .8em;border-radius:6px;white-space:nowrap;z-index:80;box-shadow:0 8px 20px rgba(0,0,0,.4);pointer-events:none;
+}
+@media(max-width:900px){.sidebar-toggle{display:none;}.sidebar-footer{display:none;}}
 
 @media(max-width:900px){
   .view-shell{display:block;}
@@ -218,13 +242,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .hint b{color:var(--ouro-luz);}
 
 /* ── dashboard ── */
-.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:22px;}
-.kpi-card{background:rgba(75,4,22,.5);border:1px solid rgba(200,175,127,.24);border-radius:10px;padding:18px 20px;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);}
-.kpi-card .kpi-label{font-size:11.5px;letter-spacing:.07em;text-transform:uppercase;color:#C9AF87;font-weight:500;display:flex;align-items:center;justify-content:space-between;}
-.kpi-card .kpi-label svg{width:15px;height:15px;color:var(--ouro);flex-shrink:0;}
-.kpi-card .kpi-val{font-family:var(--sans);font-weight:700;font-size:32px;color:var(--ouro-luz);margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:.01em;}
-
-.quick-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:26px;}
+.quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
 .quick-btn{
   display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,var(--ouro-luz),var(--ouro));border:1px solid var(--ouro);
   color:var(--tinta);padding:.8em 1.2em;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s;
@@ -247,21 +265,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .dash-empty{list-style:none;display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 10px;color:#8A7461;font-size:12.5px;text-align:center;}
 .dash-empty svg{width:26px;height:26px;color:var(--ouro-fundo);}
 
-/* ── grade de módulos (tom sobre tom, sem cor fora da paleta) ── */
-.modulos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:26px;}
+/* ── grade de módulos: bento grid tom-sobre-tom, uma única cor de marca ── */
+.modulos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
+@media(max-width:900px){.modulos-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.modulos-grid{grid-template-columns:1fr;}}
 .modulo-card{
-  border-radius:18px;padding:20px;cursor:pointer;border:1px solid rgba(200,175,127,.22);
+  border-radius:18px;padding:20px;cursor:pointer;border:1px solid rgba(212,175,55,.15);
+  background:linear-gradient(155deg,var(--vinho-nobre),#250A14);
   transition:transform .15s,border-color .15s,box-shadow .15s;position:relative;overflow:hidden;
 }
-.modulo-card:hover{transform:translateY(-2px);border-color:rgba(239,215,167,.55);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px rgba(239,215,167,.15);}
-.modulo-card.t-vinho{background:linear-gradient(155deg,#4B0416,#2B0210);}
-.modulo-card.t-burgundy{background:linear-gradient(155deg,#5C0A1E,#3A0311);}
-.modulo-card.t-bronze{background:linear-gradient(155deg,#4A3418,#2B1D0C);}
-.modulo-card.t-grafite{background:linear-gradient(155deg,#332A28,#1E1917);}
-.modulo-card .mi{width:34px;height:34px;border-radius:9px;background:rgba(239,215,167,.14);display:grid;place-items:center;margin-bottom:14px;}
+.modulo-card:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.5);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px rgba(212,175,55,.15);}
+.modulo-card .mi{width:34px;height:34px;border-radius:9px;background:rgba(212,175,55,.14);display:grid;place-items:center;margin-bottom:14px;}
 .modulo-card .mi svg{width:17px;height:17px;color:var(--ouro-luz);}
 .modulo-card .mn{font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);margin-bottom:6px;}
-.modulo-card .mv{font-family:var(--sans);font-weight:700;font-size:22px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
+.modulo-card .mv{font-family:var(--sans-num);font-weight:700;font-size:22px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
 .modulo-card .ms{font-size:11px;color:#C9AF87;margin-left:6px;}
 
 /* ── escolas: grid de cards ── */
@@ -463,22 +480,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         </div>
       </div>
       <div class="profile-wrap">
-        <button class="who-perfil-btn" onclick="_toggleMenuPerfil()" title="Menu do perfil">
+        <button class="who-perfil-btn" onclick="abrirModalPerfil()" title="Editar perfil">
           <span class="who-avatar" id="topbar-avatar">?</span>
           <span id="topbar-nome">—</span>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div class="perfil-menu-drop" id="perfil-menu-drop">
-          <button onclick="document.getElementById('perfil-menu-drop').classList.remove('open');abrirModalPerfil()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3"/></svg>
-            Editar perfil
-          </button>
-          <button class="danger" onclick="document.getElementById('perfil-menu-drop').classList.remove('open');fazerLogout()">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4H9"/><polyline points="14 8 18.5 12 14 16"/><line x1="18.5" y1="12" x2="9" y2="12"/></svg>
-            Sair
-          </button>
-        </div>
       </div>
+      <button class="icon-btn" title="Sair" onclick="fazerLogout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20H5.5A1.5 1.5 0 0 1 4 18.5v-13A1.5 1.5 0 0 1 5.5 4H9"/><polyline points="14 8 18.5 12 14 16"/><line x1="18.5" y1="12" x2="9" y2="12"/></svg>
+      </button>
     </div>
   </div>
   <main>
@@ -488,21 +497,25 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="view-shell">
       <div class="tabs">
         <div class="navgroup-label">Geral</div>
-        <div class="tab on" data-tab="dashboard" onclick="setAdminTab('dashboard');iniciarDashboardAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg><span>Dashboard</span></div>
+        <div class="tab on" data-tab="dashboard" data-tip="Dashboard" onclick="setAdminTab('dashboard');iniciarDashboardAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg><span>Dashboard</span></div>
         <div class="navgroup-label">Gestão</div>
-        <div class="tab" data-tab="escolas" onclick="setAdminTab('escolas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg><span>Escolas</span></div>
-        <div class="tab" data-tab="alunos" onclick="setAdminTab('alunos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg><span>Alunos</span></div>
-        <div class="tab" data-tab="professores" onclick="setAdminTab('professores')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Professores &amp; Diretores</span></div>
-        <div class="tab" data-tab="pais" onclick="setAdminTab('pais')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9.3-8.8C1.3 8.8 3 5.5 6.2 5.2c1.8-.2 3.3.8 3.8 2 .5-1.2 2-2.2 3.8-2 3.2.3 4.9 3.6 3.5 7C20 16.6 12 21 12 21Z"/></svg><span>Pais</span></div>
+        <div class="tab" data-tab="escolas" data-tip="Escolas" onclick="setAdminTab('escolas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg><span>Escolas</span></div>
+        <div class="tab" data-tab="alunos" data-tip="Alunos" onclick="setAdminTab('alunos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg><span>Alunos</span></div>
+        <div class="tab" data-tab="professores" data-tip="Professores &amp; Diretores" onclick="setAdminTab('professores')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Professores &amp; Diretores</span></div>
+        <div class="tab" data-tab="pais" data-tip="Pais" onclick="setAdminTab('pais')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9.3-8.8C1.3 8.8 3 5.5 6.2 5.2c1.8-.2 3.3.8 3.8 2 .5-1.2 2-2.2 3.8-2 3.2.3 4.9 3.6 3.5 7C20 16.6 12 21 12 21Z"/></svg><span>Pais</span></div>
         <div class="navgroup-label">Mídias</div>
-        <div class="tab" data-tab="eventos" onclick="setAdminTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos &amp; Fotos</span></div>
-        <div class="tab" data-tab="ensaios" onclick="setAdminTab('ensaios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg><span>Ensaios Avulsos</span></div>
-        <div class="tab" data-tab="galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
+        <div class="tab" data-tab="eventos" data-tip="Eventos &amp; Fotos" onclick="setAdminTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos &amp; Fotos</span></div>
+        <div class="tab" data-tab="ensaios" data-tip="Ensaios Avulsos" onclick="setAdminTab('ensaios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg><span>Ensaios Avulsos</span></div>
+        <div class="tab" data-tab="galeria" data-tip="Galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
         <div class="navgroup-label">Social</div>
-        <div class="tab" data-tab="comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="navgroup-label">Sistema</div>
-        <div class="tab" data-tab="auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
-        <div class="tab" data-tab="acesso" onclick="setAdminTab('acesso')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="3.3"/><path d="M3.5 20.2c0-3 2.5-5.4 5.5-5.4s5.5 2.4 5.5 5.4"/><line x1="18.5" y1="6.5" x2="18.5" y2="12.5"/><line x1="15.5" y1="9.5" x2="21.5" y2="9.5"/></svg><span>Criar acesso</span></div>
+        <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
+        <div class="sidebar-footer">
+          <span class="who-avatar" id="sb-avatar-admin">?</span>
+          <div class="sf-info"><div class="sf-nome" id="sb-nome-admin">—</div><div class="sf-role" id="sb-role-admin">Administrador</div></div>
+          <button class="icon-btn" title="Editar perfil" onclick="abrirModalPerfil()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3"/></svg></button>
+        </div>
         <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
@@ -510,17 +523,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-dashboard">
         <div class="section-h" style="align-items:flex-end;">
           <div><h2 id="dash-saudacao">Olá</h2><div id="dash-data" style="margin-top:4px;font-size:12.5px;color:#B39F86;"></div></div>
-        </div>
-        <div class="kpi-grid" id="dash-kpis">
-          <div class="kpi-card"><div class="kpi-label">Escolas<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="1.3"/></svg></div><div class="kpi-val num" id="dash-kpi-escolas">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Bailarinos<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg></div><div class="kpi-val num" id="dash-kpi-alunos">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Responsáveis<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.4-9.3-8.8C1.3 8.8 3 5.5 6.2 5.2c1.8-.2 3.3.8 3.8 2 .5-1.2 2-2.2 3.8-2 3.2.3 4.9 3.6 3.5 7C20 16.6 12 21 12 21Z"/></svg></div><div class="kpi-val num" id="dash-kpi-responsaveis">—</div></div>
-          <div class="kpi-card"><div class="kpi-label">Fotos<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4.5" width="18" height="15" rx="2"/></svg></div><div class="kpi-val num" id="dash-kpi-fotos">—</div></div>
-        </div>
-        <div class="quick-row">
-          <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Cadastrar escola</button>
-          <button class="quick-btn" type="button" onclick="setAdminTab('alunos');abrirModalAluno()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo aluno</button>
-          <button class="quick-btn" type="button" onclick="setAdminTab('eventos');abrirModalEvento()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo evento</button>
+          <div class="quick-row" style="margin-bottom:0;">
+            <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Cadastrar escola</button>
+            <button class="quick-btn" type="button" onclick="setAdminTab('alunos');abrirModalAluno()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo aluno</button>
+            <button class="quick-btn" type="button" onclick="setAdminTab('eventos');abrirModalEvento()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo evento</button>
+          </div>
         </div>
         <div class="modulos-grid" id="dash-modulos">
           <div class="modulo-card t-vinho" onclick="setAdminTab('escolas')">
@@ -568,7 +575,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
       <div class="admin-tab" id="admintab-escolas" style="display:none;">
         <div id="escolas-lista-wrap">
-          <div class="section-h"><h2>Escolas de dança</h2><button class="btn btn-primary btn-sm" onclick="abrirModalEscola()">+ Nova escola</button></div>
+          <div class="section-h"><h2>Escolas de dança</h2><div style="display:flex;gap:8px;"><button class="btn btn-sm" onclick="abrirModal('modal-acesso');atualizarAcessoAlvo()">Criar acesso</button><button class="btn btn-primary btn-sm" onclick="abrirModalEscola()">+ Nova escola</button></div></div>
           <div class="hint">1º passo — cadastre a escola. Depois vá em <b>Alunos</b> pra cadastrar os bailarinos dela (ou avulsos, sem escola).</div>
           <div class="list" id="lista-escolas"></div>
         </div>
@@ -596,8 +603,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
 
       <div class="admin-tab" id="admintab-pais" style="display:none;">
-        <div class="section-h"><h2>Pais e responsáveis</h2></div>
-        <div class="hint">Responsáveis são criados na aba <b>Criar acesso</b> (precisa vincular a pelo menos um filho na hora). Aqui você gerencia quem já existe.</div>
+        <div class="section-h"><h2>Pais e responsáveis</h2><button class="btn btn-primary btn-sm" onclick="document.getElementById('acesso-tipo').value='responsavel';abrirModal('modal-acesso');atualizarAcessoAlvo()">+ Criar acesso</button></div>
+        <div class="hint">Responsáveis são criados no botão <b>Criar acesso</b> acima (precisa vincular a pelo menos um filho na hora). Aqui você gerencia quem já existe.</div>
         <div class="list" id="lista-pais"></div>
       </div>
 
@@ -645,57 +652,6 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         </div>
       </div>
 
-      <div class="admin-tab" id="admintab-acesso" style="display:none;">
-        <div class="section-h"><h2>Criar acesso</h2></div>
-        <div class="card" style="max-width:460px;margin-bottom:20px;">
-          <div class="field">
-            <label>Tipo de conta</label>
-            <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
-              <option value="escola">Escola de dança</option>
-              <option value="responsavel">Responsável (pai/mãe)</option>
-              <option value="avulso">Avulso (colaborador ou cliente sem vínculo)</option>
-            </select>
-          </div>
-          <div class="field" id="acesso-alvo-escola-wrap">
-            <label>Qual escola?</label>
-            <select id="acesso-alvo"></select>
-          </div>
-          <div class="field" id="acesso-alvo-filhos-wrap" style="display:none;">
-            <label>Filho(s) deste responsável</label>
-            <div class="tag-picker" id="acesso-filhos-lista"></div>
-          </div>
-          <div class="field" id="acesso-nome-avulso-wrap" style="display:none;">
-            <label>Nome</label>
-            <input type="text" id="acesso-nome-avulso" placeholder="Nome dessa pessoa">
-          </div>
-          <div class="field" id="acesso-permissoes-wrap" style="display:none;">
-            <label>Permissões desta conta</label>
-            <div class="tag-picker" id="acesso-permissoes-lista">
-              <span class="tag-opt" data-perm="gerenciar_cadastro" onclick="this.classList.toggle('on')">Gerenciar cadastro (escolas/alunos/professores/pais)</span>
-              <span class="tag-opt" data-perm="postar_comunidade" onclick="this.classList.toggle('on')">Postar na comunidade</span>
-              <span class="tag-opt" data-perm="ver_auditoria" onclick="this.classList.toggle('on')">Ver log de auditoria</span>
-            </div>
-          </div>
-          <div class="field"><label>Usuário de acesso (pra fazer login)</label><input type="text" id="acesso-usuario" placeholder="maria.silva" autocapitalize="off"></div>
-          <div class="field"><label>E-mail de contato (opcional, não é usado pra login)</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
-          <button class="btn btn-primary" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
-          <div class="credencial-box" id="acesso-resultado"></div>
-        </div>
-
-        <div class="card" style="max-width:460px;">
-          <h3 style="font-size:16px;margin-bottom:14px;">Vincular filho a responsável já existente</h3>
-          <div class="meta" style="margin-bottom:14px;">Use isso quando uma família já tem login e precisa adicionar outro filho (matriculou, nasceu, etc.) — sem criar um segundo acesso.</div>
-          <div class="field">
-            <label>Responsável</label>
-            <select id="vinc-responsavel"></select>
-          </div>
-          <div class="field">
-            <label>Aluno</label>
-            <select id="vinc-aluno"></select>
-          </div>
-          <button class="btn btn-primary btn-sm" onclick="vincularFilho()">Vincular</button>
-        </div>
-      </div>
       </div>
     </div>
     </section>
@@ -704,9 +660,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <section class="view" id="view-escola">
     <div class="view-shell">
       <div class="tabs">
-        <div class="tab on" data-tab="eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
-        <div class="tab" data-tab="comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
-        <div class="tab" data-tab="equipe" onclick="setEscolaTab('equipe');iniciarEquipeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Equipe</span></div>
+        <div class="tab on" data-tab="eventos" data-tip="Eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
+        <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="tab" data-tab="equipe" data-tip="Equipe" onclick="setEscolaTab('equipe');iniciarEquipeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Equipe</span></div>
+        <div class="sidebar-footer">
+          <span class="who-avatar" id="sb-avatar-escola">?</span>
+          <div class="sf-info"><div class="sf-nome" id="sb-nome-escola">—</div><div class="sf-role" id="sb-role-escola">Escola</div></div>
+          <button class="icon-btn" title="Editar perfil" onclick="abrirModalPerfil()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3"/></svg></button>
+        </div>
         <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
@@ -737,8 +698,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <section class="view" id="view-responsavel">
     <div class="view-shell">
       <div class="tabs">
-        <div class="tab on" data-tab="fotos" onclick="setRespTab('fotos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Fotos</span></div>
-        <div class="tab" data-tab="comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="tab on" data-tab="fotos" data-tip="Fotos" onclick="setRespTab('fotos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Fotos</span></div>
+        <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="sidebar-footer">
+          <span class="who-avatar" id="sb-avatar-resp">?</span>
+          <div class="sf-info"><div class="sf-nome" id="sb-nome-resp">—</div><div class="sf-role" id="sb-role-resp">Responsável</div></div>
+          <button class="icon-btn" title="Editar perfil" onclick="abrirModalPerfil()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.4"/><path d="M5 20.5c0-3.6 3.1-6.3 7-6.3s7 2.7 7 6.3"/></svg></button>
+        </div>
         <div class="sidebar-toggle" onclick="_toggleSidebar()" title="Recolher menu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg><span>Recolher</span></div>
       </div>
       <div class="view-content">
@@ -885,6 +851,60 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <button class="btn btn-sm" onclick="fecharModal('modal-perfil')">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="perfil-salvar-btn" onclick="salvarPerfil()">Salvar alterações</button>
     </div>
+  </div>
+</div>
+
+<!-- modal: criar acesso (escola/responsável/avulso) + vincular filho -->
+<div class="modal-overlay" id="modal-acesso">
+  <div class="modal" style="max-width:460px;">
+    <h3>Criar acesso</h3>
+    <div class="field">
+      <label>Tipo de conta</label>
+      <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
+        <option value="escola">Escola de dança</option>
+        <option value="responsavel">Responsável (pai/mãe)</option>
+        <option value="avulso">Avulso (colaborador ou cliente sem vínculo)</option>
+      </select>
+    </div>
+    <div class="field" id="acesso-alvo-escola-wrap">
+      <label>Qual escola?</label>
+      <select id="acesso-alvo"></select>
+    </div>
+    <div class="field" id="acesso-alvo-filhos-wrap" style="display:none;">
+      <label>Filho(s) deste responsável</label>
+      <div class="tag-picker" id="acesso-filhos-lista"></div>
+    </div>
+    <div class="field" id="acesso-nome-avulso-wrap" style="display:none;">
+      <label>Nome</label>
+      <input type="text" id="acesso-nome-avulso" placeholder="Nome dessa pessoa">
+    </div>
+    <div class="field" id="acesso-permissoes-wrap" style="display:none;">
+      <label>Permissões desta conta</label>
+      <div class="tag-picker" id="acesso-permissoes-lista">
+        <span class="tag-opt" data-perm="gerenciar_cadastro" onclick="this.classList.toggle('on')">Gerenciar cadastro (escolas/alunos/professores/pais)</span>
+        <span class="tag-opt" data-perm="postar_comunidade" onclick="this.classList.toggle('on')">Postar na comunidade</span>
+        <span class="tag-opt" data-perm="ver_auditoria" onclick="this.classList.toggle('on')">Ver log de auditoria</span>
+      </div>
+    </div>
+    <div class="field"><label>Usuário de acesso (pra fazer login)</label><input type="text" id="acesso-usuario" placeholder="maria.silva" autocapitalize="off"></div>
+    <div class="field"><label>E-mail de contato (opcional, não é usado pra login)</label><input type="email" id="acesso-email" placeholder="email@exemplo.com"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-acesso')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="acesso-btn" onclick="criarAcesso()">Gerar acesso</button>
+    </div>
+    <div class="credencial-box" id="acesso-resultado"></div>
+    <hr class="perfil-divisor">
+    <h3 style="font-size:16px;margin-bottom:14px;">Vincular filho a responsável já existente</h3>
+    <div class="meta" style="margin-bottom:14px;">Use isso quando uma família já tem login e precisa adicionar outro filho (matriculou, nasceu, etc.) — sem criar um segundo acesso.</div>
+    <div class="field">
+      <label>Responsável</label>
+      <select id="vinc-responsavel"></select>
+    </div>
+    <div class="field">
+      <label>Aluno</label>
+      <select id="vinc-aluno"></select>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="vincularFilho()">Vincular</button>
   </div>
 </div>
 
@@ -1154,6 +1174,8 @@ async function mostrarApp(user) {
   document.getElementById('app').style.display = 'flex'
   document.getElementById('topbar-role').textContent = ROLE_LABEL[data.role] || data.role
   document.getElementById('topbar-nome').textContent = data.nome || user.email
+  document.querySelectorAll('.sidebar-footer .sf-nome').forEach(el => el.textContent = data.nome || user.email)
+  document.querySelectorAll('.sidebar-footer .sf-role').forEach(el => el.textContent = ROLE_LABEL[data.role] || data.role)
   atualizarAvatarTopbar()
   document.getElementById('topbar-busca-btn').style.display = ['admin', 'super_admin'].includes(data.role) ? 'flex' : 'none'
   document.getElementById('sino-wrap').style.display = data.role === 'avulso' ? 'none' : 'block'
@@ -1271,12 +1293,7 @@ function _aplicarSidebarSalva() {
 }
 _aplicarSidebarSalva()
 
-function _toggleMenuPerfil() {
-  document.getElementById('perfil-menu-drop')?.classList.toggle('open')
-}
 document.addEventListener('click', e => {
-  const perfilDrop = document.getElementById('perfil-menu-drop')
-  if (perfilDrop && perfilDrop.classList.contains('open') && !e.target.closest('.profile-wrap')) perfilDrop.classList.remove('open')
   const sinoDrop = document.getElementById('sino-drop')
   if (sinoDrop && sinoDrop.classList.contains('open') && !e.target.closest('.sino-wrap')) sinoDrop.classList.remove('open')
 })
@@ -1454,11 +1471,13 @@ let _perfilArquivos = { foto: null, capa: null }
 async function atualizarAvatarTopbar() {
   const el = document.getElementById('topbar-avatar')
   if (!el) return
+  const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar')]
   if (meuPerfil?.foto_url) {
     const url = await _urlAssinada(meuPerfil.foto_url)
-    if (url) { el.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`; return }
+    if (url) { alvos.forEach(a => a.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`); return }
   }
-  el.textContent = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
+  const letra = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
+  alvos.forEach(a => a.textContent = letra)
 }
 
 async function abrirModalPerfil() {
@@ -1571,11 +1590,7 @@ function _dashSaudacao() {
 // auditoria da aba Auditoria, só que com um recorte curto.
 async function iniciarDashboardAdmin() {
   _dashSaudacao()
-  document.getElementById('dash-kpi-escolas').textContent = store.escolas.length
-  document.getElementById('dash-kpi-alunos').textContent = store.alunos.length
-  document.getElementById('dash-kpi-responsaveis').textContent = store.responsaveis.length
   const { count, error } = await db.from('fotos').select('id', { count: 'exact', head: true })
-  document.getElementById('dash-kpi-fotos').textContent = error ? '—' : (count ?? 0)
   _dashCarregarAtividade()
   _dashRenderAcessos()
   _dashCarregarModulos(error ? null : count)
@@ -2037,7 +2052,7 @@ async function excluirProfessor(userId) {
 function renderPais() {
   const el = document.getElementById('lista-pais')
   if (!el) return
-  if (!store.responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável cadastrado ainda — crie em "Criar acesso".</div>'; return }
+  if (!store.responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável cadastrado ainda — use o botão "Criar acesso" acima.</div>'; return }
   el.innerHTML = store.responsaveis.map(r => {
     const filhosIds = store.vinculosResponsaveis.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
     const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
