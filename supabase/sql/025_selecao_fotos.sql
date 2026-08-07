@@ -133,7 +133,7 @@ begin
     raise exception 'Senha incorreta.';
   end if;
   if v_gal.status = 'expirada' or (v_gal.expira_em is not null and v_gal.expira_em < now()) then
-    raise exception 'Essa galeria expirou.';
+    raise exception 'Esta galeria de seleção expirou em %. Entre em contato com o estúdio para reativar o acesso.', to_char(v_gal.expira_em, 'DD/MM/YYYY');
   end if;
 
   select json_agg(json_build_object('id', id, 'storage_path', storage_path, 'ordem', ordem) order by ordem)
@@ -181,6 +181,12 @@ begin
   if v_gal.senha_hash is not null and (p_senha is null or crypt(p_senha, v_gal.senha_hash) <> v_gal.senha_hash) then
     raise exception 'Senha incorreta.';
   end if;
+  -- defesa em profundidade: a galeria pode ter expirado DEPOIS que o
+  -- cliente já tinha a página aberta (carregou antes, envia depois) —
+  -- sem isso, o bloqueio em selecao_publica_dados() não pegaria esse caso.
+  if v_gal.status = 'expirada' or (v_gal.expira_em is not null and v_gal.expira_em < now()) then
+    raise exception 'Esta galeria de seleção expirou em %. Entre em contato com o estúdio para reativar o acesso.', to_char(v_gal.expira_em, 'DD/MM/YYYY');
+  end if;
 
   -- só aceita ids de fotos que realmente pertencem a essa galeria —
   -- sem isso, alguém poderia mandar um array de IDs inventado.
@@ -203,6 +209,14 @@ begin
     observacoes = excluded.observacoes, enviado_em = now();
 
   update selecao_galerias set status = 'enviada' where id = v_gal.id and status = 'ativa';
+
+  -- alimenta o sino de notificações do admin — o cliente público não
+  -- tem sessão (role anon), então não dá pra ele mesmo inserir em
+  -- auditoria (a policy exige auth.uid()); como essa função roda
+  -- SECURITY DEFINER, o insert aqui dentro ignora essa trava do mesmo
+  -- jeito que outras RPCs desse módulo já ignoram RLS pra ler/gravar.
+  insert into auditoria (user_id, user_nome, acao, tabela, registro_id, detalhe)
+  values (null, v_gal.cliente_nome, 'enviou pedido de fotos extras — R$ ' || to_char(v_total, 'FM999999990.00'), 'selecao_galerias', v_gal.id, v_gal.titulo);
 
   return json_build_object('qtd_selecionada', v_qtd_sel, 'qtd_incluida', v_gal.qtd_incluida, 'qtd_extra', v_qtd_extra, 'valor_total', v_total);
 end;

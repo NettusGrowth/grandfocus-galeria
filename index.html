@@ -1916,8 +1916,9 @@ function _toggleSinoNotificacoes() {
 // diferente da Auditoria (log cru de tudo), o sino só mostra eventos de
 // alto valor: criação de cadastros, publicações na comunidade, links
 // privados gerados — não espelha toda ação de edição/rotina.
-const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos/i
+const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos|enviou pedido de fotos extras/i
 function _notifIcone(texto) {
+  if (/pedido de fotos extras/i.test(texto)) return '💰'
   if (/upload/i.test(texto)) return '📷'
   if (/publicou|comunidade|coment/i.test(texto)) return '💬'
   if (/senha|permiss|link privado/i.test(texto)) return '🔒'
@@ -1952,7 +1953,14 @@ async function iniciarSinoNotificacoes() {
       itens = (data || [])
         .filter(a => NOTIF_ALTO_VALOR.test(a.acao || ''))
         .slice(0, 15)
-        .map(a => ({ texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em, onClick: `setAdminTab('auditoria');iniciarAuditoriaAdmin()` }))
+        .map(a => ({
+          texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em,
+          // pedido de seleção tem alvo próprio (o hub daquele pedido) —
+          // o resto continua caindo na Auditoria genérica, como sempre.
+          onClick: a.tabela === 'selecao_galerias' && a.registro_id
+            ? `setAdminTab('selecao');abrirSelecaoDetalhe('${a.registro_id}')`
+            : `setAdminTab('auditoria');iniciarAuditoriaAdmin()`,
+        }))
     }
   } else {
     const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
@@ -6821,6 +6829,7 @@ async function _carregarSelecaoPublica(token, senha) {
   const { data, error } = await _selecaoPublicaFetch('dados', token, senha)
   if (error) {
     if (/senha/i.test(error)) { _renderSelPubSenhaCard(token, !!senha); return }
+    if (/expirou/i.test(error)) { _renderSelPubExpiradaCard(error); return }
     conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`
     return
   }
@@ -6839,6 +6848,16 @@ async function _carregarSelecaoPublica(token, senha) {
     _selPub.selecionados = new Set(salvos)
   }
   _renderSelPub()
+}
+
+function _renderSelPubExpiradaCard(mensagem) {
+  document.getElementById('selpub-sticky').style.display = 'none'
+  document.getElementById('selecao-pub-conteudo').innerHTML = `
+    <div class="card publica-senha-card">
+      <h3 style="margin-bottom:6px;">⏳ Galeria expirada</h3>
+      <div class="meta">${esc(mensagem)}</div>
+    </div>
+  `
 }
 
 function _renderSelPubSenhaCard(token, senhaErrada) {
@@ -7018,37 +7037,56 @@ async function _renderSelPubLiberado() {
   _selPubFotosLiberadas = data.fotos || []
   conteudo.innerHTML = `
     <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
-    <div class="selpub-banner">🎉 Pagamento confirmado! Suas fotos em alta resolução estão liberadas — clique numa foto pra baixar, ou baixe todas de uma vez.</div>
-    ${_selPubFotosLiberadas.length ? `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${_selPubFotosLiberadas.length})</button>` : ''}
+    <div class="selpub-banner">🎉 Pagamento confirmado! Suas fotos em alta resolução estão liberadas.</div>
+    ${_selPubFotosLiberadas.length ? `<button class="btn btn-primary" style="margin-bottom:8px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${_selPubFotosLiberadas.length})</button>` : ''}
+    <div class="meta" style="margin-bottom:16px;">ou clique em qualquer foto abaixo pra baixar ela sozinha, na hora</div>
     <div class="selpub-grid" id="selpub-liberado-grid"></div>
   `
   const grid = document.getElementById('selpub-liberado-grid')
   grid.innerHTML = _selPubFotosLiberadas.map((f, i) => `
-    <a class="selpub-card" style="cursor:pointer;" href="${f.url}" download="foto-${i + 1}.jpg">
+    <a class="selpub-card" style="cursor:pointer;" href="${f.url}" download="foto-${i + 1}.jpg" title="Baixar essa foto">
       <img src="${f.url}" alt="">
     </a>`).join('')
 }
 
+// baixa em lotes (chunks) em vez de um zip gigante só — pedidos grandes
+// (centenas de fotos em alta) em memória ao mesmo tempo derrubavam o
+// navegador no celular; cada lote fecha e baixa o próprio .zip antes do
+// próximo começar, então o pico de memória fica limitado ao tamanho de
+// UM lote, não do pedido inteiro. Pedido pequeno (≤ TAMANHO_LOTE)
+// continua saindo num .zip só, sem "parte 1 de 1" confuso.
 async function _selPubBaixarTodas() {
   const fotos = _selPubFotosLiberadas
   if (!fotos.length) return
-  toast(`Preparando ${fotos.length} foto(s)…`)
-  const zip = new JSZip()
-  for (let i = 0; i < fotos.length; i++) {
-    try {
-      const resp = await fetch(fotos[i].url)
-      const blob = await resp.blob()
-      zip.file(`foto-${i + 1}.jpg`, blob)
-    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
-  }
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
+  const TAMANHO_LOTE = 25
+  const lotes = []
+  for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
   const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-')
-  a.download = `${nomeBase}.zip`
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
+
+  for (let lote = 0; lote < lotes.length; lote++) {
+    toast(lotes.length > 1 ? `Preparando lote ${lote + 1} de ${lotes.length}…` : `Preparando ${fotos.length} foto(s)…`)
+    const zip = new JSZip()
+    for (let i = 0; i < lotes[lote].length; i++) {
+      const idxGlobal = lote * TAMANHO_LOTE + i
+      try {
+        const resp = await fetch(lotes[lote][i].url)
+        const blob = await resp.blob()
+        zip.file(`foto-${idxGlobal + 1}.jpg`, blob)
+      } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+    }
+    const blob = await zip.generateAsync({ type: 'blob' })
+    const a = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    a.href = url
+    a.download = lotes.length > 1 ? `${nomeBase}-parte-${lote + 1}-de-${lotes.length}.zip` : `${nomeBase}.zip`
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000) // dá tempo do navegador iniciar o download antes de liberar a memória
+    // pausa curta entre lotes — sem isso, disparar vários downloads em
+    // sequência muito rápida faz o navegador bloquear como "pop-up".
+    if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
+  }
 }
 
 // ── boot ────────────────────────────────────────────────────────

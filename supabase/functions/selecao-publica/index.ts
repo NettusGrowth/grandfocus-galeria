@@ -78,6 +78,7 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
 
 function mapErro(msg: string) {
   if (/senha/i.test(msg)) return 'Senha incorreta.'
+  if (/expirou/i.test(msg)) return msg // já vem formatada com a data pelo RPC — repassa como está
   if (/liberado/i.test(msg)) return 'Ainda não liberado pelo estúdio.'
   if (/inválida/i.test(msg)) return msg
   return 'Link inválido ou expirado.'
