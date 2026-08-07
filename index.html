@@ -146,13 +146,17 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .perfil-capa:hover .trocar{opacity:1;}
 .capa-premium{height:220px;border-radius:16px;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin-bottom:16px;cursor:default;}
 .capa-premium img{width:100%;height:100%;object-fit:cover;}
-.capa-premium .cam-btn{
+.capa-premium .cam-btn,.perfil-capa .cam-btn{
   position:absolute;right:14px;bottom:14px;width:38px;height:38px;border-radius:50%;background:rgba(16,9,16,.65);
   border:1px solid rgba(200,175,127,.4);color:var(--ouro-luz);display:grid;place-items:center;cursor:pointer;
   backdrop-filter:blur(4px);transition:background .15s;z-index:2;
 }
-.capa-premium .cam-btn:hover{background:rgba(16,9,16,.9);}
-.capa-premium .cam-btn svg{width:17px;height:17px;}
+.capa-premium .cam-btn:hover,.perfil-capa .cam-btn:hover{background:rgba(16,9,16,.9);}
+.capa-premium .cam-btn svg,.perfil-capa .cam-btn svg{width:17px;height:17px;}
+.perfil-secao-titulo{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);margin:18px 0 10px;padding-top:14px;border-top:1px solid rgba(200,175,127,.14);}
+.perfil-secao-titulo:first-of-type{border-top:none;padding-top:0;margin-top:14px;}
+.skeleton-capa{position:absolute;inset:0;background:linear-gradient(100deg,rgba(255,255,255,.02) 30%,rgba(255,255,255,.09) 50%,rgba(255,255,255,.02) 70%);background-size:200% 100%;animation:gf-shine 1.6s linear infinite;display:none;}
+.skeleton-capa.on{display:block;}
 .atalhos-escola{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px;}
 .perfil-capa .arraste-dica{
   position:absolute;left:8px;bottom:8px;font-size:9.5px;color:var(--ouro-fundo);background:rgba(26,10,14,.6);
@@ -537,6 +541,73 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-coment-apagar:hover{color:var(--vermelho);}
 .post-coment-novo{display:flex;gap:8px;margin-top:8px;}
 .post-coment-novo input{flex:1;}
+.post-coment-item.resposta{margin-left:30px;}
+.post-coment-responder{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;font-size:11px;flex-shrink:0;}
+.post-coment-responder:hover{color:var(--ouro-luz);}
+
+/* ── autor com foto real, mídia múltipla, reações com tipo ── */
+.post-head .list-avatar{overflow:hidden;}
+.post-head .list-avatar img{width:100%;height:100%;object-fit:cover;}
+.post-cargo{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ouro-fundo);background:rgba(200,175,127,.12);padding:.15em .55em;border-radius:99px;margin-left:6px;}
+.post-midia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:10px;}
+.post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:8px;cursor:pointer;}
+.post-midia-grid video{width:100%;border-radius:8px;background:#000;}
+.post-reacoes-row{display:flex;gap:4px;}
+.post-reagir-opt{background:none;border:1px solid transparent;border-radius:6px;color:#C9B9A4;font-size:15px;cursor:pointer;padding:2px 6px;font-family:var(--sans);}
+.post-reagir-opt:hover{background:rgba(200,175,127,.1);}
+.post-reagir-opt.on{border-color:var(--ouro);background:rgba(200,175,127,.15);}
+.post-reacoes-contagem{font-size:12px;color:#C9B9A4;align-self:center;margin-left:2px;}
+
+/* ── avisos fixos no topo + busca/filtro do feed ── */
+.feed-avisos{margin-bottom:22px;}
+.feed-avisos-titulo{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.feed-filtro-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+.feed-filtro-row input[type="text"]{max-width:260px;}
+.feed-filtro-row input[type="date"]{max-width:150px;width:auto;}
+
+/* ── auditoria: tabela compacta + badges de severidade ── */
+.tabela-auditoria{width:100%;border-collapse:collapse;font-size:13px;}
+.tabela-auditoria tr{border-bottom:1px solid rgba(200,175,127,.1);}
+.tabela-auditoria tr:hover{background:rgba(75,4,22,.25);}
+.tabela-auditoria td{padding:9px 8px;vertical-align:middle;}
+.tabela-auditoria .aud-thumb{width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0;}
+.aud-badge{font-size:10px;letter-spacing:.03em;text-transform:uppercase;padding:.25em .6em;border-radius:99px;white-space:nowrap;font-weight:600;}
+.aud-badge.criacao{background:rgba(61,207,142,.15);color:var(--verde);}
+.aud-badge.edicao{background:rgba(200,175,127,.18);color:var(--ouro-luz);}
+.aud-badge.exclusao{background:rgba(224,85,112,.15);color:var(--vermelho);}
+.aud-badge.seguranca{background:rgba(168,120,224,.18);color:#C9A8F0;}
+.aud-badge.outro{background:rgba(200,175,127,.1);color:#B39F86;}
+
+/* ── Ctrl+K command palette ── */
+.command-palette{overflow:hidden;}
+.cmdk-busca-row{display:flex;align-items:center;gap:10px;padding:16px 18px;border-bottom:1px solid rgba(200,175,127,.16);}
+.cmdk-busca-row input{border:none;background:none;padding:0;font-size:15px;}
+.cmdk-busca-row input:focus{outline:none;border:none;}
+.cmdk-resultados{max-height:420px;overflow-y:auto;padding:8px;}
+.cmdk-secao-titulo{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);padding:10px 10px 4px;display:flex;align-items:center;gap:6px;}
+.cmdk-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;}
+.cmdk-item:hover,.cmdk-item.sel{background:rgba(200,175,127,.12);}
+.cmdk-item .cmdk-avatar{width:28px;height:28px;border-radius:8px;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:11px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
+.cmdk-item .cmdk-avatar img{width:100%;height:100%;object-fit:cover;}
+.cmdk-item .cmdk-txt{flex:1;min-width:0;}
+.cmdk-item .cmdk-nome{font-size:13.5px;color:#EADFCF;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cmdk-item .cmdk-nome mark{background:rgba(200,175,127,.35);color:var(--ouro-luz);border-radius:2px;}
+.cmdk-item .cmdk-sub{font-size:11px;color:#8A7461;}
+.cmdk-footer{display:flex;gap:16px;padding:10px 18px;border-top:1px solid rgba(200,175,127,.16);font-size:11px;color:#8A7461;}
+.cmdk-key{display:inline-block;border:1px solid rgba(200,175,127,.3);border-radius:4px;padding:1px 6px;margin-right:5px;font-family:monospace;color:#C9B9A4;}
+.cmdk-acao-rapida-btn{background:none;border:1px solid rgba(200,175,127,.25);color:#DBC9A8;border-radius:8px;padding:8px 10px;font-size:12.5px;text-align:left;cursor:pointer;font-family:var(--sans);}
+.cmdk-acao-rapida-btn:hover{border-color:var(--ouro);color:var(--ouro-luz);}
+.cmdk-acoes-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 10px 10px;}
+
+/* ── sino de notificações ── */
+.sino-footer{display:flex;justify-content:space-between;gap:8px;padding:8px 8px 4px;border-top:1px solid rgba(200,175,127,.16);margin-top:4px;}
+.sino-footer button{background:none;border:none;color:var(--ouro-fundo);font-size:11px;cursor:pointer;font-family:var(--sans);padding:4px;}
+.sino-footer button:hover{color:var(--ouro-luz);}
+.sino-drop .dash-activity li{cursor:pointer;display:flex;align-items:flex-start;gap:8px;position:relative;}
+.sino-drop .dash-activity li.lida{opacity:.55;}
+.sino-drop .dash-activity li:not(.lida) .sino-item-txt{font-weight:600;}
+.sino-item-icone{flex-shrink:0;font-size:14px;line-height:1.4;}
+.sino-item-dot{position:absolute;right:0;top:12px;width:6px;height:6px;border-radius:50%;background:var(--vermelho);}
 
 @media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
 </style>
@@ -592,8 +663,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <span class="sino-dot" id="sino-dot" style="display:none;"></span>
         </button>
         <div class="perfil-menu-drop sino-drop" id="sino-drop">
-          <div class="sino-titulo">Recentes</div>
+          <div class="sino-titulo">Notificações</div>
           <ul class="dash-activity" id="sino-lista"></ul>
+          <div class="sino-footer">
+            <button onclick="_notifMarcarTodasLidas()">Marcar tudo como lido</button>
+            <button onclick="fecharModal('modal-busca');document.getElementById('sino-drop').classList.remove('open');if(['admin','super_admin'].includes(meuPerfil?.role)){setAdminTab('auditoria');iniciarAuditoriaAdmin()}">Ver histórico</button>
+          </div>
         </div>
       </div>
       <div class="profile-wrap">
@@ -770,10 +845,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-auditoria" style="display:none;">
         <div class="section-h">
           <h2>Auditoria</h2>
-          <input type="text" id="auditoria-busca" placeholder="Buscar por ação, pessoa ou detalhe…" style="max-width:280px;" oninput="renderAuditoria()">
+          <button class="btn btn-sm" onclick="exportarAuditoriaCSV()">📥 Exportar CSV</button>
         </div>
-        <div class="hint">Registro de ações importantes: criar/editar/apagar escolas, alunos, fotos, trocar senha, publicar/apagar na comunidade etc. A busca só procura no que já foi carregado — use "Carregar mais" se não achar.</div>
-        <div class="list" id="lista-auditoria"></div>
+        <div class="filtro-row">
+          <input type="text" id="auditoria-busca" placeholder="Buscar por ação, pessoa ou detalhe…" oninput="renderAuditoria()">
+          <input type="date" id="auditoria-de" title="De" onchange="_auditoriaRecarregar()">
+          <input type="date" id="auditoria-ate" title="Até" onchange="_auditoriaRecarregar()">
+          <select id="auditoria-usuario" onchange="renderAuditoria()"><option value="">Todos os usuários</option></select>
+          <select id="auditoria-tipo" onchange="renderAuditoria()">
+            <option value="">Todos os tipos</option>
+            <option value="criacao">Criação</option>
+            <option value="edicao">Edição</option>
+            <option value="exclusao">Exclusão</option>
+            <option value="seguranca">Segurança</option>
+          </select>
+        </div>
+        <table class="tabela-auditoria" id="tabela-auditoria"><tbody id="lista-auditoria"></tbody></table>
         <div style="text-align:center;margin-top:16px;">
           <button class="btn btn-sm" id="auditoria-carregar-mais" onclick="carregarMaisAuditoria()">Carregar mais</button>
         </div>
@@ -1014,7 +1101,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <div class="modal-overlay" id="modal-perfil">
   <div class="modal" style="max-width:400px;">
     <div class="perfil-capa" id="perfil-capa-preview">
-      <div class="trocar" onclick="document.getElementById('perfil-capa-input').click()">Trocar capa</div>
+      <div class="skeleton-capa" id="perfil-capa-skeleton"></div>
+      <div class="cam-btn" title="Trocar capa" onclick="document.getElementById('perfil-capa-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+      </div>
       <input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">
     </div>
     <div class="perfil-avatar-wrap">
@@ -1023,10 +1113,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="trocar" onclick="document.getElementById('perfil-foto-input').click()">Trocar foto</div>
         <input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">
       </div>
+      <div class="cam-badge" title="Trocar foto" onclick="document.getElementById('perfil-foto-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.2"/></svg>
+      </div>
     </div>
-    <h3 style="text-align:center;">Meu perfil</h3>
+    <h3 style="text-align:center;" id="perfil-modal-titulo">Meu perfil</h3>
+    <div class="perfil-secao-titulo">Informações do perfil</div>
     <div class="field"><label>Nome completo</label><input type="text" id="perfil-nome" placeholder="Seu nome"></div>
-    <hr class="perfil-divisor">
+    <div class="perfil-secao-titulo">Alterar senha de acesso</div>
     <div class="field"><label>Nova senha (deixe em branco pra não trocar)</label><input type="password" id="perfil-nova-senha" placeholder="••••••••" autocomplete="new-password"></div>
     <div class="field"><label>Confirmar nova senha</label><input type="password" id="perfil-conf-senha" placeholder="••••••••" autocomplete="new-password"></div>
     <div class="modal-actions">
@@ -1231,14 +1325,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <!-- modal: busca global (Ctrl+K, admin) -->
 <div class="modal-overlay" id="modal-busca" onclick="if(event.target===this)fecharModal('modal-busca')">
-  <div class="modal" style="max-width:480px;padding:16px;">
-    <div style="display:flex;justify-content:flex-end;">
-      <button type="button" onclick="fecharModal('modal-busca')" aria-label="Fechar" style="background:none;border:0;color:var(--ouro-fundo);cursor:pointer;padding:4px;line-height:0;">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+  <div class="modal command-palette" style="max-width:560px;padding:0;">
+    <div class="cmdk-busca-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="flex-shrink:0;color:var(--ouro-fundo);"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="20" y1="20" x2="15.3" y2="15.3"/></svg>
+      <input type="text" id="busca-input" placeholder="Buscar escola, aluno, professor, responsável, evento…" oninput="_renderBuscaGlobal()" onkeydown="_buscaTeclado(event)">
+      <button type="button" onclick="fecharModal('modal-busca')" aria-label="Fechar" class="icon-btn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
       </button>
     </div>
-    <input type="text" id="busca-input" placeholder="Buscar escola, aluno ou evento…" oninput="_renderBuscaGlobal()" style="margin-bottom:10px;">
-    <div class="list" id="busca-resultados" style="max-height:340px;overflow-y:auto;"></div>
+    <div id="busca-resultados" class="cmdk-resultados"></div>
+    <div class="cmdk-footer">
+      <span><span class="cmdk-key">↑↓</span> navegar</span>
+      <span><span class="cmdk-key">Enter</span> abrir</span>
+      <span><span class="cmdk-key">Esc</span> fechar</span>
+    </div>
   </div>
 </div>
 
@@ -1545,53 +1645,171 @@ function _toggleSinoNotificacoes() {
   drop.classList.toggle('open')
   if (abrindo) iniciarSinoNotificacoes()
 }
+// diferente da Auditoria (log cru de tudo), o sino só mostra eventos de
+// alto valor: criação de cadastros, publicações na comunidade, links
+// privados gerados — não espelha toda ação de edição/rotina.
+const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado/i
+function _notifIcone(texto) {
+  if (/publicou|comunidade|coment/i.test(texto)) return '💬'
+  if (/senha|permiss|link privado/i.test(texto)) return '🔒'
+  if (/enviad|upload|foto/i.test(texto)) return '📷'
+  return '⚙️'
+}
+function _notifLidasAte() { return localStorage.getItem('gf_notif_lidas_ate') || '' }
+function _notifMarcarTodasLidas() {
+  localStorage.setItem('gf_notif_lidas_ate', new Date().toISOString())
+  iniciarSinoNotificacoes()
+}
+// agrupa repetições da MESMA ação, pela MESMA pessoa, no MESMO minuto —
+// evita 5 linhas iguais quando alguém apaga/envia várias fotos seguidas.
+function _notifAgrupar(itens) {
+  const grupos = new Map()
+  itens.forEach(i => {
+    const chave = i.texto + '|' + i.sub.split(' · ')[0] + '|' + (i.quando || '').slice(0, 16)
+    if (!grupos.has(chave)) grupos.set(chave, { ...i, n: 0 })
+    grupos.get(chave).n++
+  })
+  return [...grupos.values()].map(g => ({ ...g, texto: g.n > 1 ? `${g.texto} (${g.n}×)` : g.texto }))
+}
+
 async function iniciarSinoNotificacoes() {
   const role = meuPerfil?.role
   const wrap = document.getElementById('sino-lista')
   if (!wrap) return
   let itens = []
   if (['admin', 'super_admin'].includes(role)) {
-    const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(8)
-    if (!error) itens = (data || []).map(a => ({ texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em }))
+    const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(40)
+    if (!error) {
+      itens = (data || [])
+        .filter(a => NOTIF_ALTO_VALOR.test(a.acao || ''))
+        .slice(0, 15)
+        .map(a => ({ texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em, onClick: `setAdminTab('auditoria');iniciarAuditoriaAdmin()` }))
+    }
   } else {
     const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
-    if (!error) itens = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(imagem)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em }))
+    if (!error) itens = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: meuPerfil.role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` }))
   }
-  const desde = meuPerfil?.ultimo_acesso ? new Date(meuPerfil.ultimo_acesso) : null
+  itens = _notifAgrupar(itens)
+  const lidasAte = _notifLidasAte()
   const dot = document.getElementById('sino-dot')
-  if (dot) dot.style.display = (desde && itens.some(i => new Date(i.quando) > desde)) ? 'block' : 'none'
+  const naoLidas = itens.filter(i => i.quando > lidasAte)
+  if (dot) dot.style.display = naoLidas.length ? 'block' : 'none'
   wrap.innerHTML = itens.length
-    ? itens.map(i => `<li>${esc(i.texto)}<small>${esc(i.sub)}</small></li>`).join('')
+    ? itens.map((i, idx) => `
+      <li class="${i.quando > lidasAte ? '' : 'lida'}" onclick="_notifClicar(${idx})">
+        <span class="sino-item-icone">${_notifIcone(i.texto)}</span>
+        <span class="sino-item-txt">${esc(i.texto)}<small>${esc(i.sub)}</small></span>
+        ${i.quando > lidasAte ? '<span class="sino-item-dot"></span>' : ''}
+      </li>`).join('')
     : '<li class="empty" style="border:0;">Nada por aqui ainda.</li>'
+  window._notifItensAtuais = itens
+}
+function _notifClicar(idx) {
+  const it = window._notifItensAtuais?.[idx]
+  if (!it) return
+  document.getElementById('sino-drop')?.classList.remove('open')
+  if (it.onClick) (new Function(it.onClick))()
 }
 
 // busca global (Ctrl+K) — só admin, e só sobre o que a view admin já
 // carregou em memória (sem chamada nova ao banco).
+const CMDK_ACOES_RAPIDAS = [
+  { label: '+ Novo evento', onClick: "setAdminTab('eventos');abrirModalEvento()" },
+  { label: '+ Novo aluno', onClick: "setAdminTab('alunos');abrirModalAluno()" },
+  { label: '+ Nova escola', onClick: "setAdminTab('escolas');abrirModalEscola()" },
+  { label: '+ Novo professor', onClick: "setAdminTab('professores');abrirModalProfessor()" },
+]
+function _buscasRecentes() { try { return JSON.parse(localStorage.getItem('gf_buscas_recentes') || '[]') } catch { return [] } }
+function _salvarBuscaRecente(termo) {
+  if (!termo) return
+  const atuais = _buscasRecentes().filter(t => t !== termo)
+  atuais.unshift(termo)
+  localStorage.setItem('gf_buscas_recentes', JSON.stringify(atuais.slice(0, 5)))
+}
+
 function _abrirBuscaGlobal() {
   if (!['admin', 'super_admin'].includes(meuPerfil?.role)) return
   const input = document.getElementById('busca-input')
   input.value = ''
-  document.getElementById('busca-resultados').innerHTML = '<div class="empty">Digite pra buscar…</div>'
+  _renderBuscaGlobal()
   abrirModal('modal-busca')
   setTimeout(() => input.focus(), 50)
 }
+
+function _highlight(texto, termo) {
+  if (!termo) return esc(texto)
+  const idx = (texto || '').toLowerCase().indexOf(termo)
+  if (idx === -1) return esc(texto)
+  return esc(texto.slice(0, idx)) + '<mark>' + esc(texto.slice(idx, idx + termo.length)) + '</mark>' + esc(texto.slice(idx + termo.length))
+}
+
 function _renderBuscaGlobal() {
   const termo = document.getElementById('busca-input').value.trim().toLowerCase()
   const wrap = document.getElementById('busca-resultados')
-  if (!termo) { wrap.innerHTML = '<div class="empty">Digite pra buscar…</div>'; return }
-  const resultados = []
-  store.escolas.filter(e => (e.nome || '').toLowerCase().includes(termo)).forEach(e =>
-    resultados.push({ tipo: 'Escola', nome: e.nome, onclick: `fecharModal('modal-busca');setAdminTab('escolas');abrirDetalheEscola('${e.id}')` }))
-  store.alunos.filter(a => (a.nome || '').toLowerCase().includes(termo)).forEach(a =>
-    resultados.push({ tipo: 'Aluno', nome: a.nome + (a.escola_id ? ' · ' + nomeEscola(a.escola_id) : ' · avulso'), onclick: `fecharModal('modal-busca');setAdminTab('alunos');abrirModalAluno('${a.id}')` }))
-  store.eventos.filter(ev => (ev.nome || '').toLowerCase().includes(termo)).forEach(ev =>
-    resultados.push({ tipo: 'Evento', nome: ev.nome, onclick: `fecharModal('modal-busca');setAdminTab('eventos');abrirEventoAdmin('${ev.id}')` }))
-  if (!resultados.length) { wrap.innerHTML = '<div class="empty">Nada encontrado.</div>'; return }
-  wrap.innerHTML = resultados.slice(0, 30).map(r => `
-    <div class="list-item" onclick="${r.onclick}">
-      <div><div class="nome" style="font-size:14.5px;">${esc(r.nome)}</div><div class="meta">${r.tipo}</div></div>
-    </div>
+
+  if (!termo) {
+    const recentes = _buscasRecentes()
+    wrap.innerHTML = `
+      <div class="cmdk-secao-titulo">Ações rápidas</div>
+      <div class="cmdk-acoes-grid">${CMDK_ACOES_RAPIDAS.map(a => `<button class="cmdk-acao-rapida-btn" onclick="fecharModal('modal-busca');${a.onClick}">${esc(a.label)}</button>`).join('')}</div>
+      ${recentes.length ? `<div class="cmdk-secao-titulo">Buscas recentes</div>${recentes.map(t => `<div class="cmdk-item" onclick="document.getElementById('busca-input').value=${JSON.stringify(t)};_renderBuscaGlobal()"><span class="cmdk-avatar">🕘</span><div class="cmdk-txt"><div class="cmdk-nome">${esc(t)}</div></div></div>`).join('')}` : ''}
+    `
+    return
+  }
+
+  const secoes = [
+    { titulo: 'Escolas', itens: store.escolas.filter(e => (e.nome || '').toLowerCase().includes(termo)).map(e => ({ id: e.id, nome: e.nome, sub: e.cidade || '', letra: (e.nome || '?').charAt(0), foto: e.capa_url, onClick: `setAdminTab('escolas');abrirDetalheEscola('${e.id}')` })) },
+    { titulo: 'Alunos', itens: store.alunos.filter(a => (a.nome || '').toLowerCase().includes(termo)).map(a => ({ id: a.id, nome: a.nome, sub: a.escola_id ? nomeEscola(a.escola_id) : 'avulso', letra: (a.nome || '?').charAt(0), foto: a.foto_url, onClick: `setAdminTab('alunos');abrirModalAluno('${a.id}')` })) },
+    { titulo: 'Professores & Diretores', itens: store.professores.filter(p => (p.nome || '').toLowerCase().includes(termo)).map(p => ({ id: p.user_id, nome: p.nome, sub: ROLE_LABEL[p.role] || p.role, letra: (p.nome || '?').charAt(0), foto: p.foto_url, onClick: `setAdminTab('professores');abrirModalProfessor('${p.user_id}')` })) },
+    { titulo: 'Responsáveis', itens: store.responsaveis.filter(r => (r.nome || '').toLowerCase().includes(termo)).map(r => ({ id: r.user_id, nome: r.nome, sub: 'Responsável', letra: (r.nome || '?').charAt(0), foto: r.foto_url, onClick: `setAdminTab('pais');abrirModalPai('${r.user_id}')` })) },
+    { titulo: 'Eventos & Ensaios', itens: store.eventos.filter(ev => (ev.nome || '').toLowerCase().includes(termo)).map(ev => ({ id: ev.id, nome: ev.nome, sub: ev.data ? fmtData(ev.data) : '', letra: (ev.nome || '?').charAt(0), foto: ev.capa_url, onClick: ev.tipo === 'ensaio' ? `setAdminTab('ensaios');abrirEnsaioAdmin('${ev.id}')` : `setAdminTab('eventos');abrirEventoAdmin('${ev.id}')` })) },
+  ].filter(s => s.itens.length)
+
+  if (!secoes.length) { wrap.innerHTML = '<div class="empty" style="padding:24px;">Nada encontrado.</div>'; return }
+
+  let idx = 0
+  wrap.innerHTML = secoes.map(s => `
+    <div class="cmdk-secao-titulo">${esc(s.titulo)}</div>
+    ${s.itens.slice(0, 8).map(it => {
+      const html = `
+        <div class="cmdk-item" data-idx="${idx}" onclick="_buscaAbrir(${idx})">
+          <span class="cmdk-avatar" id="cmdk-av-${idx}">${esc((it.letra || '?').toUpperCase())}</span>
+          <div class="cmdk-txt"><div class="cmdk-nome">${_highlight(it.nome, termo)}</div>${it.sub ? `<div class="cmdk-sub">${esc(it.sub)}</div>` : ''}</div>
+        </div>`
+      _cmdkResultados[idx] = it
+      idx++
+      return html
+    }).join('')}
   `).join('')
+  _cmdkResultados.length = idx
+  _cmdkSelIdx = -1
+  secoes.forEach(s => s.itens.slice(0, 8).forEach(async it => {
+    if (!it.foto) return
+    const i = _cmdkResultados.indexOf(it)
+    const url = await _urlAssinada(it.foto)
+    const el = document.getElementById('cmdk-av-' + i)
+    if (url && el) el.innerHTML = `<img src="${url}" alt="">`
+  }))
+}
+
+let _cmdkResultados = []
+let _cmdkSelIdx = -1
+function _buscaAbrir(idx) {
+  const it = _cmdkResultados[idx]
+  if (!it) return
+  _salvarBuscaRecente(document.getElementById('busca-input').value.trim())
+  fecharModal('modal-busca')
+  ;(new Function(it.onClick))()
+}
+function _buscaTeclado(e) {
+  if (!_cmdkResultados.length) return
+  if (e.key === 'ArrowDown') { e.preventDefault(); _cmdkSelIdx = Math.min(_cmdkSelIdx + 1, _cmdkResultados.length - 1); _buscaAtualizarSelecao() }
+  else if (e.key === 'ArrowUp') { e.preventDefault(); _cmdkSelIdx = Math.max(_cmdkSelIdx - 1, 0); _buscaAtualizarSelecao() }
+  else if (e.key === 'Enter' && _cmdkSelIdx >= 0) { e.preventDefault(); _buscaAbrir(_cmdkSelIdx) }
+}
+function _buscaAtualizarSelecao() {
+  document.querySelectorAll('.cmdk-item[data-idx]').forEach(el => el.classList.toggle('sel', Number(el.dataset.idx) === _cmdkSelIdx))
+  document.querySelector('.cmdk-item.sel')?.scrollIntoView({ block: 'nearest' })
 }
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); _abrirBuscaGlobal() }
@@ -1723,18 +1941,50 @@ async function abrirModalPerfil() {
   document.getElementById('perfil-nome').value = meuPerfil?.nome || ''
   document.getElementById('perfil-nova-senha').value = ''
   document.getElementById('perfil-conf-senha').value = ''
+  document.getElementById('perfil-modal-titulo').textContent = `${meuPerfil?.nome || 'Meu perfil'} • ${ROLE_LABEL[meuPerfil?.role] || 'Usuário'}`
 
   const avatarEl = document.getElementById('perfil-avatar-preview')
   avatarEl.innerHTML = `<span class="letra-fallback">${(meuPerfil?.nome || '?').trim().charAt(0).toUpperCase()}</span><div class="trocar" onclick="document.getElementById('perfil-foto-input').click()">Trocar foto</div><input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">`
   const capaEl = document.getElementById('perfil-capa-preview')
-  capaEl.innerHTML = `<div class="trocar" onclick="document.getElementById('perfil-capa-input').click()">Trocar capa</div><input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">`
-
-  if (meuPerfil?.foto_url) { const url = await _urlAssinada(meuPerfil.foto_url); if (url) { avatarEl.querySelector('.letra-fallback')?.remove(); avatarEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) } }
-  if (meuPerfil?.capa_url) { const url = await _urlAssinada(meuPerfil.capa_url); if (url) capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML }
-  _posAplicar('perfil-avatar-preview', meuPerfil?.foto_pos)
-  _posAplicar('perfil-capa-preview', meuPerfil?.capa_pos)
+  capaEl.innerHTML = `<div class="skeleton-capa" id="perfil-capa-skeleton"></div><div class="cam-btn" title="Trocar capa" onclick="document.getElementById('perfil-capa-input').click()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg></div><input type="file" id="perfil-capa-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'capa')">`
 
   abrirModal('modal-perfil')
+
+  // cache de _urlAssinada já deixa reaberturas instantâneas (sem round
+  // trip de rede) — o skeleton só aparece de fato na primeira vez, num
+  // cache miss, não em toda reabertura do modal.
+  if (meuPerfil?.capa_url) document.getElementById('perfil-capa-skeleton')?.classList.add('on')
+  const [urlFoto, urlCapa] = await Promise.all([
+    meuPerfil?.foto_url ? _urlAssinada(meuPerfil.foto_url) : null,
+    meuPerfil?.capa_url ? _urlAssinada(meuPerfil.capa_url) : null,
+  ])
+  if (urlFoto) { avatarEl.querySelector('.letra-fallback')?.remove(); avatarEl.insertAdjacentHTML('afterbegin', `<img src="${urlFoto}" alt="">`) }
+  if (urlCapa) capaEl.insertAdjacentHTML('afterbegin', `<img src="${urlCapa}" alt="">`)
+  document.getElementById('perfil-capa-skeleton')?.classList.remove('on')
+  _posAplicar('perfil-avatar-preview', meuPerfil?.foto_pos)
+  _posAplicar('perfil-capa-preview', meuPerfil?.capa_pos)
+}
+
+// resize (sem cortar) pra aliviar o arquivo antes de subir — mantém a
+// imagem inteira porque o object-position escolhido no arrastar (drag
+// de reposicionar) depende do enquadramento completo continuar
+// existindo; um corte quadrado fixo aqui quebraria esse recurso.
+function _comprimirParaWebp(file, maxLado) {
+  return new Promise(resolve => {
+    const img = new Image()
+    const objUrl = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl)
+      const escala = Math.min(1, maxLado / Math.max(img.width, img.height))
+      const w = Math.round(img.width * escala), h = Math.round(img.height * escala)
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(blob => resolve(blob || file), 'image/webp', 0.85)
+    }
+    img.onerror = () => resolve(file)
+    img.src = objUrl
+  })
 }
 
 function _perfilArquivoSelecionado(inputEl, tipo) {
@@ -1743,10 +1993,9 @@ function _perfilArquivoSelecionado(inputEl, tipo) {
   _perfilArquivos[tipo] = file
   const preview = URL.createObjectURL(file)
   const wrap = tipo === 'foto' ? document.getElementById('perfil-avatar-preview') : document.getElementById('perfil-capa-preview')
-  const trocar = wrap.querySelector('.trocar')
-  wrap.innerHTML = `<img src="${preview}" alt="">`
-  if (trocar) wrap.appendChild(trocar)
-  wrap.appendChild(inputEl)
+  wrap.querySelector('.letra-fallback')?.remove()
+  wrap.querySelector('img')?.remove()
+  wrap.insertAdjacentHTML('afterbegin', `<img src="${preview}" alt="">`)
   _posAplicar(wrap.id, null)
   _abrirAjusteFoto(wrap.id)
 }
@@ -1766,9 +2015,9 @@ async function salvarPerfil() {
 
   for (const [tipo, file] of Object.entries(_perfilArquivos)) {
     if (!file) continue
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `perfis/${currentUser.id}/${tipo}.${ext}`
-    const { error } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+    const leve = await _comprimirParaWebp(file, tipo === 'foto' ? 400 : 1600)
+    const path = `perfis/${currentUser.id}/${tipo}.webp`
+    const { error } = await db.storage.from(BUCKET).upload(path, leve, { contentType: 'image/webp', upsert: true })
     if (error) { toast(`Erro ao enviar ${tipo === 'foto' ? 'a foto' : 'a capa'}: ` + error.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
     if (tipo === 'foto') fotoPath = path; else capaPath = path
   }
@@ -3652,10 +3901,21 @@ let _feedContexto = null
 let _feedContainerAtual = null
 let _feedPosts = []
 let _feedReacoes = {}
+let _feedMidias = {}
 let _feedComentCount = {}
 let _feedComentariosCache = {}
 let _comunidadeAdminEscolaAtual = null
-let _composerImagem = null
+let _composerMidias = []
+const REACOES = { curtir: '👍', amei: '❤️', parabens: '🎉', ciente: '✅' }
+
+// autor pode ser admin (não está em store.professores/responsaveis) —
+// cai pro próprio meuPerfil quando é o usuário logado, senão tenta achar
+// nas listas já carregadas; se não achar em nenhuma, usa só a inicial.
+function _perfilPorUserId(userId) {
+  if (!userId) return null
+  if (userId === currentUser?.id) return meuPerfil
+  return store.professores.find(p => p.user_id === userId) || store.responsaveis.find(r => r.user_id === userId) || null
+}
 
 // mesma regra de posso_postar() no SQL — mantém sincronizado se aquela
 // função mudar.
@@ -3693,56 +3953,119 @@ async function carregarFeed(contexto) {
   _feedPosts = posts
 
   const postIds = _feedPosts.map(p => p.id)
-  const [{ data: reacoes }, { data: comentarios }] = await Promise.all([
-    postIds.length ? db.from('post_reacoes').select('post_id,user_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+  const [{ data: reacoes }, { data: comentarios }, { data: midias }] = await Promise.all([
+    postIds.length ? db.from('post_reacoes').select('post_id,user_id,tipo').in('post_id', postIds) : Promise.resolve({ data: [] }),
     postIds.length ? db.from('post_comentarios').select('post_id').in('post_id', postIds) : Promise.resolve({ data: [] }),
+    postIds.length ? db.from('post_midias').select('*').in('post_id', postIds).order('ordem') : Promise.resolve({ data: [] }),
   ])
   _feedReacoes = {}
-  postIds.forEach(id => { _feedReacoes[id] = { count: 0, minha: false } })
+  postIds.forEach(id => { _feedReacoes[id] = { porTipo: {}, minhaTipo: null } })
   ;(reacoes || []).forEach(r => {
-    if (!_feedReacoes[r.post_id]) _feedReacoes[r.post_id] = { count: 0, minha: false }
-    _feedReacoes[r.post_id].count++
-    if (r.user_id === currentUser.id) _feedReacoes[r.post_id].minha = true
+    if (!_feedReacoes[r.post_id]) _feedReacoes[r.post_id] = { porTipo: {}, minhaTipo: null }
+    _feedReacoes[r.post_id].porTipo[r.tipo] = (_feedReacoes[r.post_id].porTipo[r.tipo] || 0) + 1
+    if (r.user_id === currentUser.id) _feedReacoes[r.post_id].minhaTipo = r.tipo
   })
   _feedComentCount = {}
   ;(comentarios || []).forEach(c => { _feedComentCount[c.post_id] = (_feedComentCount[c.post_id] || 0) + 1 })
+  _feedMidias = {}
+  ;(midias || []).forEach(m => { (_feedMidias[m.post_id] || (_feedMidias[m.post_id] = [])).push(m) })
 }
 
 function renderFeedAtual() { if (_feedContainerAtual) renderFeed(_feedContainerAtual) }
 
-function renderFeed(containerId) {
-  const wrap = document.getElementById(containerId)
-  if (!wrap) return
-  if (!_feedPosts.length) { wrap.innerHTML = '<div class="empty">Nada publicado por aqui ainda.</div>'; return }
-  wrap.innerHTML = _feedPosts.map(p => _postCardHTML(p)).join('')
-  _feedPosts.forEach(async p => {
-    if (!p.imagem_url) return
-    const img = document.getElementById('post-img-' + p.id)
-    const url = await _urlAssinada(p.imagem_url)
-    if (url && img) img.src = url
+let _feedFiltroTexto = '', _feedFiltroDe = '', _feedFiltroAte = ''
+function _feedAplicarFiltro() {
+  _feedFiltroTexto = document.getElementById('feed-filtro-texto')?.value.trim().toLowerCase() || ''
+  _feedFiltroDe = document.getElementById('feed-filtro-de')?.value || ''
+  _feedFiltroAte = document.getElementById('feed-filtro-ate')?.value || ''
+  renderFeedAtual()
+}
+function _feedFiltrar(posts) {
+  return posts.filter(p => {
+    if (_feedFiltroTexto && !(p.texto || '').toLowerCase().includes(_feedFiltroTexto)) return false
+    const dia = (p.criado_em || '').slice(0, 10)
+    if (_feedFiltroDe && dia < _feedFiltroDe) return false
+    if (_feedFiltroAte && dia > _feedFiltroAte) return false
+    return true
   })
 }
 
+function renderFeed(containerId) {
+  const wrap = document.getElementById(containerId)
+  if (!wrap) return
+  const filtrando = _feedFiltroTexto || _feedFiltroDe || _feedFiltroAte
+  const avisos = _feedPosts.filter(p => p.destaque)
+  const normais = _feedFiltrar(_feedPosts.filter(p => !p.destaque))
+  const barraFiltro = `
+    <div class="feed-filtro-row">
+      <input type="text" id="feed-filtro-texto" placeholder="Buscar no feed…" value="${esc(_feedFiltroTexto)}" oninput="_feedAplicarFiltro()">
+      <input type="date" id="feed-filtro-de" title="De" value="${_feedFiltroDe}" onchange="_feedAplicarFiltro()">
+      <input type="date" id="feed-filtro-ate" title="Até" value="${_feedFiltroAte}" onchange="_feedAplicarFiltro()">
+    </div>`
+  const blocoAvisos = (avisos.length && !filtrando) ? `
+    <div class="feed-avisos">
+      <div class="feed-avisos-titulo">📌 Avisos em destaque</div>
+      ${avisos.map(p => _postCardHTML(p)).join('')}
+    </div>` : ''
+  const listaHTML = normais.length ? normais.map(p => _postCardHTML(p)).join('') : `<div class="empty">${filtrando ? 'Nada encontrado com esse filtro.' : 'Nada publicado por aqui ainda.'}</div>`
+  wrap.innerHTML = barraFiltro + blocoAvisos + listaHTML
+  const visiveis = filtrando ? normais : [...avisos, ...normais]
+  visiveis.forEach(p => {
+    const autor = _perfilPorUserId(p.autor_user_id)
+    if (autor?.foto_url) {
+      _urlAssinada(autor.foto_url).then(url => {
+        const av = document.getElementById('post-avatar-' + p.id)
+        if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${autor.foto_pos || POS_PADRAO};">`
+      })
+    }
+    ;(_feedMidias[p.id] || []).forEach(async m => {
+      const el = document.getElementById('post-midia-' + m.id)
+      const url = await _urlAssinada(m.storage_path)
+      if (!url || !el) return
+      if (el.tagName === 'IMG') { el.src = url } else { el.querySelector('source').src = url; el.load() }
+    })
+    if (p.imagem_url && !(_feedMidias[p.id] || []).length) {
+      const img = document.getElementById('post-img-' + p.id)
+      _urlAssinada(p.imagem_url).then(url => { if (url && img) img.src = url })
+    }
+  })
+}
+
+function _postMidiaHTML(m) {
+  if (m.tipo === 'video') {
+    return `<video id="post-midia-${m.id}" controls preload="none" style="grid-column:1/-1;"><source src="" type="video/mp4"></video>`
+  }
+  return `<img id="post-midia-${m.id}" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
+}
+
 function _postCardHTML(p) {
-  const r = _feedReacoes[p.id] || { count: 0, minha: false }
+  const r = _feedReacoes[p.id] || { porTipo: {}, minhaTipo: null }
   const nComent = _feedComentCount[p.id] || 0
   const podeApagar = p.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)
   const escolaLabel = p.global ? 'Todas as escolas' : (nomeEscola(p.escola_id) || '')
+  const autor = _perfilPorUserId(p.autor_user_id)
+  const cargo = autor?.role ? (ROLE_LABEL[autor.role] || autor.role) : (p.autor_user_id ? 'Admin' : 'Grand Focus')
+  const midias = _feedMidias[p.id] || []
+  const totalReacoes = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
   return `
     <div class="post-card${p.destaque ? ' destaque' : ''}">
       <div class="post-head">
-        <span class="list-avatar">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
-        <div style="flex:1;">
-          <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}</div>
+        <span class="list-avatar" id="post-avatar-${p.id}">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
+        <div style="flex:1;min-width:0;">
+          <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}<span class="post-cargo">${esc(cargo)}</span></div>
           <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${fmtDataHora(p.criado_em)}</div>
         </div>
         ${p.destaque ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
       </div>
       ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
-      ${p.imagem_url ? `<img class="post-imagem" id="post-img-${p.id}" onclick="abrirLightboxPost('${p.id}')" alt="">` : ''}
+      ${midias.length ? `<div class="post-midia-grid">${midias.map(m => _postMidiaHTML(m)).join('')}</div>` : ''}
+      ${(!midias.length && p.imagem_url) ? `<img class="post-imagem" id="post-img-${p.id}" onclick="abrirLightboxPost('${p.id}')" alt="">` : ''}
       <div class="post-actions">
-        <button class="post-reagir${r.minha ? ' on' : ''}" id="post-reagirbtn-${p.id}" onclick="toggleReacaoPost('${p.id}')">♥ ${r.count || ''}</button>
+        <div class="post-reacoes-row">
+          ${Object.entries(REACOES).map(([tipo, emoji]) => `<button class="post-reagir-opt${r.minhaTipo === tipo ? ' on' : ''}" title="${tipo}" onclick="reagirPost('${p.id}','${tipo}')">${emoji}</button>`).join('')}
+          ${totalReacoes ? `<span class="post-reacoes-contagem" id="post-reacoes-contagem-${p.id}">${totalReacoes}</span>` : `<span id="post-reacoes-contagem-${p.id}"></span>`}
+        </div>
         <button class="post-comentar-btn" id="post-comentbtn-${p.id}" onclick="toggleComentarios('${p.id}')">💬 Comentar${nComent ? ' · ' + nComent : ''}</button>
       </div>
       <div class="post-comentarios" id="post-coment-wrap-${p.id}" style="display:none;">
@@ -3756,20 +4079,31 @@ function _postCardHTML(p) {
   `
 }
 
-async function toggleReacaoPost(postId) {
-  const r = _feedReacoes[postId] || (_feedReacoes[postId] = { count: 0, minha: false })
-  const btn = document.getElementById('post-reagirbtn-' + postId)
-  if (btn) btn.disabled = true
-  if (r.minha) {
+async function reagirPost(postId, tipo) {
+  const r = _feedReacoes[postId] || (_feedReacoes[postId] = { porTipo: {}, minhaTipo: null })
+  const anterior = r.minhaTipo
+  if (anterior === tipo) {
     const { error } = await db.from('post_reacoes').delete().eq('post_id', postId).eq('user_id', currentUser.id)
-    if (error) { toast('Erro ao remover reação: ' + error.message); if (btn) btn.disabled = false; return }
-    r.minha = false; r.count = Math.max(0, r.count - 1)
+    if (error) { toast('Erro: ' + error.message); return }
+    r.porTipo[tipo] = Math.max(0, (r.porTipo[tipo] || 1) - 1)
+    r.minhaTipo = null
+  } else if (anterior) {
+    const { error } = await db.from('post_reacoes').update({ tipo }).eq('post_id', postId).eq('user_id', currentUser.id)
+    if (error) { toast('Erro: ' + error.message); return }
+    r.porTipo[anterior] = Math.max(0, (r.porTipo[anterior] || 1) - 1)
+    r.porTipo[tipo] = (r.porTipo[tipo] || 0) + 1
+    r.minhaTipo = tipo
   } else {
-    const { error } = await db.from('post_reacoes').insert({ post_id: postId, user_id: currentUser.id })
-    if (error) { toast('Erro ao reagir: ' + error.message); if (btn) btn.disabled = false; return }
-    r.minha = true; r.count++
+    const { error } = await db.from('post_reacoes').insert({ post_id: postId, user_id: currentUser.id, tipo })
+    if (error) { toast('Erro: ' + error.message); return }
+    r.porTipo[tipo] = (r.porTipo[tipo] || 0) + 1
+    r.minhaTipo = tipo
   }
-  if (btn) { btn.disabled = false; btn.classList.toggle('on', r.minha); btn.textContent = `♥ ${r.count || ''}` }
+  const card = document.getElementById('post-reacoes-contagem-' + postId)?.closest('.post-card')
+  card?.querySelectorAll('.post-reagir-opt').forEach(b => b.classList.toggle('on', b.title === r.minhaTipo))
+  const total = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
+  const contagemEl = document.getElementById('post-reacoes-contagem-' + postId)
+  if (contagemEl) contagemEl.textContent = total || ''
 }
 
 async function toggleComentarios(postId) {
@@ -3789,25 +4123,44 @@ async function carregarComentarios(postId) {
   renderComentarios(postId)
 }
 
+function _comentItemHTML(c, postId, resposta) {
+  const podeApagar = c.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)
+  return `
+    <div class="post-coment-item${resposta ? ' resposta' : ''}">
+      <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
+      ${!resposta ? `<button class="post-coment-responder" onclick="_mostrarRespostaInput('${c.id}','${postId}')" title="Responder">Responder</button>` : ''}
+      ${podeApagar ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
+    </div>`
+}
+
 function renderComentarios(postId) {
   const lista = document.getElementById('post-coment-lista-' + postId)
   if (!lista) return
   const comentarios = _feedComentariosCache[postId] || []
   if (!comentarios.length) { lista.innerHTML = '<div class="empty" style="padding:6px 0;">Nenhum comentário ainda.</div>'; return }
-  lista.innerHTML = comentarios.map(c => `
-    <div class="post-coment-item">
-      <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
-      ${(c.autor_user_id === currentUser.id || ['admin', 'super_admin'].includes(meuPerfil.role)) ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
+  const raiz = comentarios.filter(c => !c.parent_id)
+  const respostasDe = pid => comentarios.filter(c => c.parent_id === pid)
+  lista.innerHTML = raiz.map(c => `
+    ${_comentItemHTML(c, postId, false)}
+    <div id="post-coment-respostas-${c.id}">${respostasDe(c.id).map(r => _comentItemHTML(r, postId, true)).join('')}</div>
+    <div class="post-coment-item resposta" id="post-coment-resp-input-${c.id}" style="display:none;">
+      <input type="text" id="post-coment-resp-txt-${c.id}" placeholder="Responder ${esc(c.autor_nome || '')}…" style="flex:1;" onkeydown="if(event.key==='Enter'){enviarComentario('${postId}','${c.id}')}">
+      <button class="btn btn-sm" onclick="enviarComentario('${postId}','${c.id}')">Enviar</button>
     </div>
   `).join('')
 }
 
-async function enviarComentario(postId) {
-  const input = document.getElementById('post-coment-input-' + postId)
+function _mostrarRespostaInput(comentId, postId) {
+  const el = document.getElementById('post-coment-resp-input-' + comentId)
+  if (el) { el.style.display = 'flex'; document.getElementById('post-coment-resp-txt-' + comentId)?.focus() }
+}
+
+async function enviarComentario(postId, parentId) {
+  const input = parentId ? document.getElementById('post-coment-resp-txt-' + parentId) : document.getElementById('post-coment-input-' + postId)
   const texto = input.value.trim()
   if (!texto) return
   input.disabled = true
-  const { error } = await db.from('post_comentarios').insert({ post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto })
+  const { error } = await db.from('post_comentarios').insert({ post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto, parent_id: parentId || null })
   input.disabled = false
   if (error) { toast('Erro ao comentar: ' + error.message); return }
   input.value = ''
@@ -3834,17 +4187,25 @@ async function apagarPost(postId) {
   const post = _feedPosts.find(p => p.id === postId)
   const { error } = await db.from('posts').delete().eq('id', postId)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
-  if (post?.imagem_url) { try { await db.storage.from(BUCKET).remove([post.imagem_url]) } catch (e) { /* best-effort */ } }
+  const paths = [post?.imagem_url, ...(_feedMidias[postId] || []).map(m => m.storage_path)].filter(Boolean)
+  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
   _feedPosts = _feedPosts.filter(p => p.id !== postId)
-  delete _feedReacoes[postId]; delete _feedComentCount[postId]; delete _feedComentariosCache[postId]
+  delete _feedReacoes[postId]; delete _feedComentCount[postId]; delete _feedComentariosCache[postId]; delete _feedMidias[postId]
   registrarAuditoria('apagou uma publicação da comunidade', 'posts', postId, post?.texto ? post.texto.slice(0, 80) : null)
   renderFeedAtual()
   toast('Publicação apagada')
 }
 
-function abrirLightboxPost(postId) {
+function abrirLightboxPost(postId, midiaId) {
   const p = _feedPosts.find(x => x.id === postId)
-  if (!p || !p.imagem_url) return
+  if (!p) return
+  const fotosDoPost = (_feedMidias[postId] || []).filter(m => m.tipo === 'foto')
+  if (fotosDoPost.length) {
+    _lightboxFotos = fotosDoPost.map(m => ({ id: 'post-' + m.id, storage_path: m.storage_path, evento_id: null }))
+    abrirLightbox(midiaId ? 'post-' + midiaId : _lightboxFotos[0].id)
+    return
+  }
+  if (!p.imagem_url) return
   _lightboxFotos = [{ id: 'post-' + p.id, storage_path: p.imagem_url, evento_id: null }]
   abrirLightbox('post-' + p.id)
 }
@@ -3863,10 +4224,11 @@ function _composerHTML(contexto) {
         </div>
       </div>` : ''}
       <textarea id="feed-composer-texto" rows="3" placeholder="Escreva um recado pra comunidade..."></textarea>
-      <div id="feed-composer-preview"></div>
+      <div id="feed-composer-preview" class="post-midia-grid"></div>
       <div class="composer-actions">
-        <label class="btn btn-sm composer-anexo">📷 Foto<input type="file" accept="image/*" style="display:none;" onchange="_composerImagemSelecionada(this)"></label>
-        ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Destacar</label>` : ''}
+        <label class="btn btn-sm composer-anexo">📷 Fotos<input type="file" accept="image/*" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'foto')"></label>
+        <label class="btn btn-sm composer-anexo">🎬 Vídeo<input type="file" accept="video/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'video')"></label>
+        ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Aviso Importante / Fixar no Topo</label>` : ''}
         <button class="btn btn-primary btn-sm" onclick="publicarPost()">Publicar</button>
       </div>
     </div>
@@ -3885,18 +4247,34 @@ function _toggleDestinoPost(el) {
   }
 }
 
-function _composerImagemSelecionada(inputEl) {
-  const file = inputEl.files?.[0]
-  if (!file) return
-  _composerImagem = file
-  const preview = URL.createObjectURL(file)
-  document.getElementById('feed-composer-preview').innerHTML = `<img src="${preview}" alt="">`
+function _composerRenderPreview() {
+  const wrap = document.getElementById('feed-composer-preview')
+  wrap.innerHTML = _composerMidias.map((m, i) => `
+    <div style="position:relative;">
+      ${m.tipo === 'video' ? `<video src="${URL.createObjectURL(m.file)}" controls style="width:100%;border-radius:8px;"></video>` : `<img src="${URL.createObjectURL(m.file)}" alt="">`}
+      <button class="foto-expand" style="opacity:1;top:4px;right:4px;" onclick="_composerRemoverMidia(${i})">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+    </div>
+  `).join('')
+}
+function _composerMidiaSelecionada(inputEl, tipo) {
+  const files = [...(inputEl.files || [])]
+  if (!files.length) return
+  if (tipo === 'video') _composerMidias = _composerMidias.filter(m => m.tipo !== 'video')
+  files.forEach(file => _composerMidias.push({ tipo, file }))
+  inputEl.value = ''
+  _composerRenderPreview()
+}
+function _composerRemoverMidia(idx) {
+  _composerMidias.splice(idx, 1)
+  _composerRenderPreview()
 }
 
 async function publicarPost() {
   const textoEl = document.getElementById('feed-composer-texto')
   const texto = textoEl.value.trim()
-  if (!texto && !_composerImagem) { toast('Escreva algo ou anexe uma foto'); return }
+  if (!texto && !_composerMidias.length) { toast('Escreva algo ou anexe uma mídia'); return }
 
   let escolaId = null, global = false, destinosExtras = []
   if (_feedContexto.tipo === 'admin') {
@@ -3926,12 +4304,13 @@ async function publicarPost() {
 
   if (error) { toast('Erro ao publicar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }; return }
 
-  if (_composerImagem) {
-    const ext = (_composerImagem.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const imagemPath = `posts/${post.id}/img.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(imagemPath, _composerImagem, { contentType: _composerImagem.type, upsert: true })
-    if (upErr) toast('Publicação criada, mas a foto falhou: ' + upErr.message)
-    else await db.from('posts').update({ imagem_url: imagemPath }).eq('id', post.id)
+  for (let i = 0; i < _composerMidias.length; i++) {
+    const { tipo, file } = _composerMidias[i]
+    const ext = (file.name.split('.').pop() || (tipo === 'video' ? 'mp4' : 'jpg')).toLowerCase().replace(/[^a-z0-9]/g, '')
+    const path = `posts/${post.id}/midia-${i}.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+    if (upErr) { toast(`Publicação criada, mas uma mídia falhou: ${upErr.message}`); continue }
+    await db.from('post_midias').insert({ post_id: post.id, tipo, storage_path: path, ordem: i })
   }
 
   if (destinosExtras.length) await db.from('post_escolas').insert(destinosExtras.map(id => ({ post_id: post.id, escola_id: id })))
@@ -3939,7 +4318,7 @@ async function publicarPost() {
   registrarAuditoria('publicou na comunidade', 'posts', post.id, global ? 'todas as escolas' : null)
 
   textoEl.value = ''
-  _composerImagem = null
+  _composerMidias = []
   const previewEl = document.getElementById('feed-composer-preview')
   if (previewEl) previewEl.innerHTML = ''
   if (destaqueEl) destaqueEl.checked = false
@@ -4003,24 +4382,60 @@ async function iniciarAuditoriaAdmin() {
   await carregarMaisAuditoria()
 }
 
+// período (de/até) é filtro de verdade no banco — reseta a paginação e
+// busca de novo, porque a data pode estar bem além do que já carregamos.
+function _auditoriaRecarregar() {
+  _auditoriaEntries = []; _auditoriaPagina = 0; _auditoriaFimDosDados = false
+  carregarMaisAuditoria()
+}
+
 async function carregarMaisAuditoria() {
   const btn = document.getElementById('auditoria-carregar-mais')
   if (btn) { btn.disabled = true; btn.textContent = 'Carregando…' }
   const from = _auditoriaPagina * AUDITORIA_PAGE_SIZE
   const to = from + AUDITORIA_PAGE_SIZE - 1
-  const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).range(from, to)
+  let q = db.from('auditoria').select('*').order('criado_em', { ascending: false })
+  const de = document.getElementById('auditoria-de')?.value
+  const ate = document.getElementById('auditoria-ate')?.value
+  if (de) q = q.gte('criado_em', de + 'T00:00:00')
+  if (ate) q = q.lte('criado_em', ate + 'T23:59:59')
+  const { data, error } = await q.range(from, to)
   if (btn) { btn.disabled = false; btn.textContent = 'Carregar mais' }
   if (error) { toast('Erro ao carregar auditoria: ' + error.message); return }
   _auditoriaEntries.push(...(data || []))
   _auditoriaPagina++
   if (!data || data.length < AUDITORIA_PAGE_SIZE) _auditoriaFimDosDados = true
+  _auditoriaPopularFiltroUsuarios()
   renderAuditoria()
 }
+
+function _auditoriaPopularFiltroUsuarios() {
+  const sel = document.getElementById('auditoria-usuario')
+  if (!sel) return
+  const atual = sel.value
+  const nomes = [...new Set(_auditoriaEntries.map(e => e.user_nome).filter(Boolean))].sort()
+  sel.innerHTML = '<option value="">Todos os usuários</option>' + nomes.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('')
+  sel.value = nomes.includes(atual) ? atual : ''
+}
+
+// classifica pelo texto da própria ação (todas as chamadas registrarAuditoria(...)
+// já usam verbos consistentes em português) — sem precisar de coluna nova.
+function _auditoriaClasse(acao) {
+  const a = (acao || '').toLowerCase()
+  if (/apag|exclu|remov|desvincul/.test(a)) return 'exclusao'
+  if (/senha|permiss|vinculou cônjuge|link privado/.test(a)) return 'seguranca'
+  if (/criou|cadastrou|publicou|gerou|vinculou/.test(a)) return 'criacao'
+  if (/editou|atualizou|redefiniu/.test(a)) return 'edicao'
+  return 'outro'
+}
+const AUDITORIA_TIPO_LABEL = { criacao: 'Criação', edicao: 'Edição', exclusao: 'Exclusão', seguranca: 'Segurança', outro: 'Outro' }
 
 function renderAuditoria() {
   const wrap = document.getElementById('lista-auditoria')
   if (!wrap) return
   const termo = (document.getElementById('auditoria-busca')?.value || '').toLowerCase().trim()
+  const usuario = document.getElementById('auditoria-usuario')?.value || ''
+  const tipo = document.getElementById('auditoria-tipo')?.value || ''
   let entries = _auditoriaEntries
   if (termo) {
     entries = entries.filter(e =>
@@ -4030,15 +4445,32 @@ function renderAuditoria() {
       (e.tabela || '').toLowerCase().includes(termo)
     )
   }
-  if (!entries.length) { wrap.innerHTML = '<div class="empty">Nada por aqui ainda.</div>'; atualizarBotaoCarregarMaisAuditoria(); return }
-  wrap.innerHTML = entries.map(e => `
-    <div class="list-item" style="cursor:default;">
-      <div>
-        <div class="nome" style="font-size:14.5px;">${esc(e.acao)}</div>
-        <div class="meta">${esc(e.user_nome || '—')} · ${fmtDataHora(e.criado_em)}${e.detalhe ? ' · ' + esc(e.detalhe) : ''}</div>
-      </div>
-    </div>
-  `).join('')
+  if (usuario) entries = entries.filter(e => e.user_nome === usuario)
+  if (tipo) entries = entries.filter(e => _auditoriaClasse(e.acao) === tipo)
+  if (!entries.length) { wrap.innerHTML = '<tr><td class="empty">Nada por aqui ainda.</td></tr>'; atualizarBotaoCarregarMaisAuditoria(); return }
+  wrap.innerHTML = entries.map(e => {
+    const classe = _auditoriaClasse(e.acao)
+    const foto = e.tabela === 'fotos' ? store.fotos.find(f => f.id === e.registro_id) : null
+    return `
+    <tr>
+      <td><span class="aud-badge ${classe}">${AUDITORIA_TIPO_LABEL[classe]}</span></td>
+      <td>${foto ? `<img class="aud-thumb" id="aud-thumb-${e.id}" alt="">` : ''}</td>
+      <td>
+        <div class="nome" style="font-size:14px;">${esc(e.acao)}</div>
+        ${e.detalhe ? `<div class="meta">${esc(e.detalhe)}</div>` : ''}
+      </td>
+      <td class="meta">${esc(e.user_nome || '—')}</td>
+      <td class="meta" style="white-space:nowrap;">${fmtDataHora(e.criado_em)}</td>
+    </tr>`
+  }).join('')
+  entries.forEach(async e => {
+    if (e.tabela !== 'fotos') return
+    const foto = store.fotos.find(f => f.id === e.registro_id)
+    if (!foto) return
+    const url = await _urlAssinada(foto.thumb_path || foto.storage_path)
+    const img = document.getElementById('aud-thumb-' + e.id)
+    if (url && img) img.src = url
+  })
   atualizarBotaoCarregarMaisAuditoria()
 }
 
@@ -4046,6 +4478,21 @@ function atualizarBotaoCarregarMaisAuditoria() {
   const btn = document.getElementById('auditoria-carregar-mais')
   if (!btn) return
   btn.style.display = _auditoriaFimDosDados ? 'none' : 'inline-flex'
+}
+
+function exportarAuditoriaCSV() {
+  if (!_auditoriaEntries.length) { toast('Nada pra exportar ainda'); return }
+  const linhas = [['Ação', 'Usuário', 'Detalhe', 'Data/Hora'].join(';')]
+  _auditoriaEntries.forEach(e => {
+    const campo = s => `"${String(s ?? '').replace(/"/g, '""')}"`
+    linhas.push([campo(e.acao), campo(e.user_nome), campo(e.detalhe), campo(fmtDataHora(e.criado_em))].join(';'))
+  })
+  const blob = new Blob(['﻿' + linhas.join('\n')], { type: 'text/csv;charset=utf-8;' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `auditoria-grandfocus-${hojeISO()}.csv`
+  document.body.appendChild(a); a.click(); a.remove()
+  registrarAuditoria('exportou relatório de auditoria (CSV)', 'auditoria', null, `${_auditoriaEntries.length} registro(s)`)
 }
 
 function _fotoItemHTML(f, alunosDisponiveis) {
