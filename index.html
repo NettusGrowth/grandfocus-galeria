@@ -370,7 +370,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   border:2px solid var(--tinta);color:var(--ouro-luz);font-family:var(--serif);font-weight:700;font-size:18px;
   display:grid;place-items:center;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.4);
 }
-.escola-logo img{width:100%;height:100%;object-fit:cover;}
+.escola-logo img{width:100%;height:100%;object-fit:contain;background:var(--palco);}
 .escola-card-body .nome{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
 .escola-card-body .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
@@ -1474,10 +1474,28 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div class="modal" style="max-width:560px;">
     <h3>Conferir antes de enviar</h3>
     <div class="hint" id="preview-upload-hint"></div>
+    <div class="field" id="preview-upload-subpasta-wrap" style="display:none;">
+      <label>Enviar para</label>
+      <select id="preview-upload-subpasta">
+        <option value="">Sem pasta (solto no evento)</option>
+      </select>
+    </div>
     <div class="foto-grid" id="preview-upload-grid" style="max-height:340px;overflow-y:auto;margin-bottom:6px;"></div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="_cancelarPreviewUpload()">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="_confirmarPreviewUpload()">Enviar fotos</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: nova pasta/Ato (admin, dentro de um evento) -->
+<div class="modal-overlay" id="modal-nova-pasta">
+  <div class="modal" style="max-width:400px;">
+    <h3 style="margin-bottom:14px;">Nova pasta / Ato</h3>
+    <div class="field"><label>Nome</label><input type="text" id="nova-pasta-nome" placeholder="Ex: Ato 1, Camarim, Backstage" onkeydown="if(event.key==='Enter')_criarSubpastaEvento()"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-nova-pasta')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_criarSubpastaEvento()">Criar pasta</button>
     </div>
   </div>
 </div>
@@ -2562,7 +2580,14 @@ function renderEscolas() {
     const cover = document.getElementById(`esc-cover-${e.id}`)
     if (cover) { cover.style.backgroundImage = `url('${url}')`; cover.style.backgroundPosition = e.capa_pos || POS_PADRAO }
     const av = document.getElementById(`esc-av-${e.id}`)
-    if (av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${e.capa_pos || POS_PADRAO};">`
+    // o selo pequeno (quadrado) reaproveita a MESMA imagem da capa larga
+    // (a escola não tem um campo de logo separado), mas NÃO pode usar o
+    // capa_pos calibrado pra faixa larga — aplicar aquele enquadramento
+    // recortado num quadradinho espremia a imagem de um jeito ilegível.
+    // object-fit:contain + centro fixo garante que o selo sempre mostra
+    // a imagem inteira, sem recorte esquisito, mesmo que não fique
+    // perfeitamente centralizado no "miolo" do logo.
+    if (av) av.innerHTML = `<img src="${url}" alt="" style="object-position:50% 50%;">`
   })
 }
 
@@ -3845,6 +3870,7 @@ async function excluirEvento(id, aposApagar) {
 // ── detalhe do evento (admin): upload + marcação de alunos ───────
 let _eventoAtual = null
 let _eventoFotoSelecao = new Set()
+let _eventoSubpastasConhecidas = new Set()
 let _eventoVoltarContexto = null
 function _eventoVoltar() {
   if (_eventoVoltarContexto) { const fn = _eventoVoltarContexto.onClick; _eventoVoltarContexto = null; fn(); return }
@@ -3887,6 +3913,9 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
         <button class="icon-btn" title="Editar evento" onclick="abrirModalEvento('${_eventoAtual.id}')">${ICON_LAPIS}</button>
       </div>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button class="btn btn-sm" onclick="_abrirNovaPastaEvento()">📁 Nova Pasta / Ato</button>
+    </div>
     <div class="upload-drop" id="evt-dropzone" onclick="document.getElementById('evt-upload-input').click()">
       📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEvento(this.files)">
@@ -3910,6 +3939,8 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
   const { data: fa } = await db.from('foto_aluno').select('*').in('foto_id', (data || []).map(f => f.id).length ? (data || []).map(f => f.id) : ['00000000-0000-0000-0000-000000000000'])
   store.fotoAluno = store.fotoAluno.filter(x => !(data || []).some(f => f.id === x.foto_id)).concat(fa || [])
+  const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', eventoId)
+  _eventoSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
   renderFotosEventoAdmin()
 }
 function fecharEventoAdmin() {
@@ -3929,6 +3960,11 @@ function _prepararUploadEvento(files) {
   _previewUploadFiles = [...files]
   _previewUploadDestino = 'evento'
   document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_eventoAtual?.nome || ''}" — confira antes de enviar.`
+  const subpastas = _todasSubpastasConhecidas()
+  const wrap = document.getElementById('preview-upload-subpasta-wrap')
+  wrap.style.display = subpastas.length ? 'block' : 'none'
+  document.getElementById('preview-upload-subpasta').innerHTML = '<option value="">Sem pasta (solto no evento)</option>' +
+    subpastas.map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('')
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
@@ -3937,6 +3973,7 @@ function _prepararUploadEnsaio(files) {
   _previewUploadFiles = [...files]
   _previewUploadDestino = 'ensaio'
   document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_ensaioAtual?.nome || ''}" — confira antes de enviar.`
+  document.getElementById('preview-upload-subpasta-wrap').style.display = 'none'
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
@@ -3965,9 +4002,10 @@ function _cancelarPreviewUpload() {
 async function _confirmarPreviewUpload() {
   const files = _previewUploadFiles
   const destino = _previewUploadDestino
+  const subpasta = document.getElementById('preview-upload-subpasta')?.value || null
   fecharModal('modal-preview-upload')
   _previewUploadFiles = null; _previewUploadDestino = null
-  if (destino === 'evento') await uploadFotosEvento(files)
+  if (destino === 'evento') await uploadFotosEvento(files, subpasta)
   else if (destino === 'ensaio') await uploadFotosEnsaio(files)
 }
 
@@ -3997,7 +4035,7 @@ function _renderFilaUpload(prefixo, files, estados) {
   `
 }
 
-async function uploadFotosEvento(files) {
+async function uploadFotosEvento(files, subpasta) {
   if (!files?.length || !_eventoAtual) return
   // captura o evento/roster no início — o upload continua rodando em
   // segundo plano se o admin trocar de evento (ou sair da aba) no meio
@@ -4017,7 +4055,7 @@ async function uploadFotosEvento(files) {
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -5141,18 +5179,22 @@ function _fotoItemEventoAdminHTML(f, alunosDisponiveis) {
 async function renderFotosEventoAdmin() {
   const wrap = document.getElementById('evt-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
-  if (!fotos.length) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
   const alunosDisponiveis = _eventoAtual.escola_id
     ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
     : store.alunos.filter(a => !a.escola_id)
   _lightboxFotos = fotos
   const grupos = new Map()
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
+  // pastas criadas pelo "+ Nova Pasta" mas que ainda não têm foto
+  // nenhuma — aparecem vazias mesmo assim, é a confirmação visual de
+  // que a pasta existe e já pode ser escolhida no próximo upload.
+  _eventoSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
+  if (!fotos.length && !_eventoSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
   wrap.innerHTML = ordemGrupos.map(nome => `
     <div class="subpasta-grupo">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, alunosDisponiveis)).join('')}</div>
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, alunosDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta.</div>' : '')}</div>
     </div>
   `).join('')
   fotos.forEach(async f => {
@@ -5203,9 +5245,42 @@ async function _eventoAplicarSubpasta() {
   const { error } = await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
   if (error) { toast('Erro: ' + error.message); return }
   store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
+  _eventoSubpastasConhecidas.add(nome)
   _eventoFotoSelecao = new Set()
   toast(`${fotoIds.length} foto(s) movidas pra "${nome}" ✓`)
   renderFotosEventoAdmin()
+}
+
+// "+ Nova Pasta" (admin) — cria o Ato/subpasta ANTES de qualquer foto
+// existir nela, pra já poder escolher o destino na hora do upload em
+// vez de subir tudo solto e organizar depois. Só admin (RLS já trava
+// isso em evento_subpastas_admin, 028_evento_subpastas.sql).
+function _abrirNovaPastaEvento() {
+  if (!_eventoAtual) return
+  document.getElementById('nova-pasta-nome').value = ''
+  abrirModal('modal-nova-pasta')
+  setTimeout(() => document.getElementById('nova-pasta-nome')?.focus(), 50)
+}
+async function _criarSubpastaEvento() {
+  const nome = document.getElementById('nova-pasta-nome').value.trim()
+  if (!nome) { toast('Digite o nome da pasta'); return }
+  if (_eventoSubpastasConhecidas.has(nome)) { toast('Já existe uma pasta com esse nome'); return }
+  const { error } = await db.from('evento_subpastas').insert({ evento_id: _eventoAtual.id, nome })
+  if (error) { toast('Erro ao criar pasta: ' + error.message); return }
+  _eventoSubpastasConhecidas.add(nome)
+  fecharModal('modal-nova-pasta')
+  toast(`Pasta "${nome}" criada ✓ — já pode escolher ela no próximo upload`)
+  registrarAuditoria('criou pasta/Ato no evento', 'eventos', _eventoAtual.id, nome)
+  renderFotosEventoAdmin()
+}
+// lista pra popular o seletor "Enviar para" no upload: pastas já
+// criadas (mesmo vazias) + as que só existem porque alguma foto já
+// foi movida pra lá via _eventoAplicarSubpasta (nunca passaram por
+// evento_subpastas). Um Set já garante sem duplicata.
+function _todasSubpastasConhecidas() {
+  const nomes = new Set(_eventoSubpastasConhecidas)
+  store.fotos.filter(f => f.evento_id === _eventoAtual?.id && f.subpasta).forEach(f => nomes.add(f.subpasta))
+  return [...nomes].sort()
 }
 
 async function _eventoApagarSelecionadas() {
