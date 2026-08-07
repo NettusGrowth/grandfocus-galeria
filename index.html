@@ -4823,7 +4823,14 @@ async function publicarPost() {
     global, destaque, texto: texto || null, turma,
   }).select().single()
 
-  if (error) { toast('Erro ao publicar: ' + error.message); if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }; return }
+  if (error) {
+    // mensagem crua da RLS não diz QUAL valor foi rejeitado — inclui os
+    // valores enviados no toast pra não precisar reproduzir de novo só
+    // pra descobrir o que estava errado.
+    toast(`Erro ao publicar: ${error.message} [escola_id=${escolaId ?? 'null'} global=${global} destaque=${destaque}]`)
+    if (btn) { btn.disabled = false; btn.textContent = 'Publicar' }
+    return
+  }
 
   for (let i = 0; i < _composerMidias.length; i++) {
     const { tipo, file } = _composerMidias[i]
