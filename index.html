@@ -46,7 +46,8 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 }
 .btn:hover{background:rgba(200,175,127,.12);}
 .btn-primary{background:var(--ouro);color:var(--tinta);border-color:var(--ouro);font-weight:600;}
-.btn-primary:hover{background:var(--ouro-luz);}
+.btn-primary:hover{background:var(--ouro-luz);color:var(--tinta);}
+.btn-primary:active,.btn-primary:focus,.btn-primary:focus-visible{background:var(--ouro);color:var(--tinta);outline:2px solid var(--ouro-luz);outline-offset:1px;}
 .btn-sm{padding:.4em 1em;font-size:12px;}
 .btn-danger{border-color:var(--vermelho);color:var(--vermelho);}
 .btn-danger:hover{background:rgba(224,85,112,.12);}
@@ -134,12 +135,28 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
   cursor:pointer;z-index:2;
 }
 .perfil-capa:hover .trocar{opacity:1;}
+.capa-premium{height:220px;border-radius:16px;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin-bottom:16px;cursor:default;}
+.capa-premium img{width:100%;height:100%;object-fit:cover;}
+.capa-premium .cam-btn{
+  position:absolute;right:14px;bottom:14px;width:38px;height:38px;border-radius:50%;background:rgba(16,9,16,.65);
+  border:1px solid rgba(200,175,127,.4);color:var(--ouro-luz);display:grid;place-items:center;cursor:pointer;
+  backdrop-filter:blur(4px);transition:background .15s;z-index:2;
+}
+.capa-premium .cam-btn:hover{background:rgba(16,9,16,.9);}
+.capa-premium .cam-btn svg{width:17px;height:17px;}
+.atalhos-escola{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 4px;}
 .perfil-capa .arraste-dica{
   position:absolute;left:8px;bottom:8px;font-size:9.5px;color:var(--ouro-fundo);background:rgba(26,10,14,.6);
   padding:.3em .7em;border-radius:99px;opacity:0;transition:opacity .2s;pointer-events:none;
 }
 .perfil-capa.tem-foto:hover .arraste-dica{opacity:1;}
 .perfil-avatar-wrap{display:flex;justify-content:center;margin-top:-38px;margin-bottom:14px;position:relative;}
+.cam-badge{
+  position:absolute;left:50%;bottom:8px;transform:translateX(20px);width:26px;height:26px;border-radius:50%;
+  background:var(--ouro);color:var(--tinta);display:grid;place-items:center;cursor:pointer;z-index:3;
+  border:2px solid var(--tinta);box-shadow:0 2px 8px rgba(0,0,0,.4);
+}
+.cam-badge svg{width:13px;height:13px;}
 .perfil-avatar-edit{width:76px;height:76px;border-radius:50%;border:3px solid var(--tinta);background:var(--ouro);color:var(--tinta);font-weight:700;font-size:26px;display:grid;place-items:center;cursor:pointer;overflow:hidden;position:relative;}
 .perfil-avatar-edit img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;user-select:none;-webkit-user-drag:none;pointer-events:none;}
 #ajustar-preview-wrap.arrastando{cursor:grabbing;}
@@ -286,13 +303,26 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modulo-card .mv{font-family:var(--sans-num);font-weight:700;font-size:22px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
 .modulo-card .ms{font-size:11px;color:#C9AF87;margin-left:6px;}
 
+/* ── barra de busca/filtro (Escolas, Alunos, Pais) ── */
+.filtro-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.filtro-row input[type="text"]{max-width:280px;}
+.filtro-row select{max-width:200px;width:auto;}
+
 /* ── escolas: grid de cards ── */
 .escolas-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
 .escola-card{padding:0;overflow:hidden;cursor:pointer;transition:border-color .15s;}
 .escola-card:hover{border-color:rgba(200,175,127,.4);}
 .escola-cover{height:92px;background:linear-gradient(135deg,var(--vinho-alto),var(--palco));background-size:cover;background-position:center;position:relative;}
-.escola-card-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;}
+.escola-cover::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,9,16,0) 40%,rgba(16,9,16,.75) 100%);}
+.escola-card-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px;opacity:0;transition:opacity .2s;z-index:2;}
 .escola-card:hover .escola-card-actions{opacity:1;}
+.escola-menu-wrap{position:absolute;top:8px;right:8px;z-index:3;}
+.escola-menu-btn{
+  width:28px;height:28px;border-radius:8px;background:rgba(16,9,16,.55);border:1px solid rgba(200,175,127,.3);
+  color:var(--ouro-luz);display:grid;place-items:center;cursor:pointer;backdrop-filter:blur(4px);
+}
+.escola-menu-btn:hover{background:rgba(16,9,16,.8);}
+.escola-menu-drop{top:calc(100% + 6px);right:0;left:auto;}
 .escola-card-body{padding:30px 16px 16px;position:relative;}
 .escola-logo{
   position:absolute;left:16px;top:-22px;width:48px;height:48px;border-radius:12px;background:var(--tinta);
@@ -304,6 +334,24 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .escola-card-body .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .badges{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;}
 .badge{font-size:11px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;padding:.3em .8em;border-radius:99px;}
+.badge.clicavel{cursor:pointer;transition:background .15s,border-color .15s;}
+.badge.clicavel:hover{background:rgba(212,175,55,.15);border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
+
+/* ── mini-avatares empilhados (pais vinculados, etc.) ── */
+.mini-avatares{display:flex;align-items:center;}
+.mini-avatar{
+  width:22px;height:22px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-size:9.5px;font-weight:700;
+  display:grid;place-items:center;overflow:hidden;border:2px solid var(--palco);margin-left:-7px;flex-shrink:0;
+}
+.mini-avatar:first-child{margin-left:0;}
+.mini-avatar img{width:100%;height:100%;object-fit:cover;}
+.mini-avatar.mais{background:rgba(75,4,22,.7);color:#DBC9A8;font-size:9px;}
+
+/* ── seção com botão de ação no cabeçalho (usado nos detalhes) ── */
+.subsecao-h{display:flex;align-items:center;justify-content:space-between;margin:24px 0 10px;gap:10px;}
+.subsecao-h h2{font-size:16px;}
+.vinculo-item-avatar{width:36px;height:36px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:14px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
+.vinculo-item-avatar img{width:100%;height:100%;object-fit:cover;}
 
 .modal-overlay{
   display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;
@@ -581,7 +629,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-escolas" style="display:none;">
         <div id="escolas-lista-wrap">
           <div class="section-h"><h2>Escolas de dança</h2><div style="display:flex;gap:8px;"><button class="btn btn-sm" onclick="abrirModal('modal-acesso');atualizarAcessoAlvo()">Criar acesso</button><button class="btn btn-primary btn-sm" onclick="abrirModalEscola()">+ Nova escola</button></div></div>
-          <div class="hint">1º passo — cadastre a escola. Depois vá em <b>Alunos</b> pra cadastrar os bailarinos dela (ou avulsos, sem escola).</div>
+          <div class="filtro-row">
+            <input type="text" id="esc-busca" placeholder="Buscar escola pelo nome…" oninput="renderEscolas()">
+            <select id="esc-filtro-cidade" onchange="renderEscolas()"><option value="">Todas as cidades</option></select>
+          </div>
           <div class="list" id="lista-escolas"></div>
         </div>
         <div id="escola-detalhe-wrap" style="display:none;"></div>
@@ -597,19 +648,23 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             <button class="btn btn-primary btn-sm" onclick="abrirModalAluno()">+ Novo aluno</button>
           </div>
         </div>
-        <div class="hint">2º passo — cadastre os alunos (um a um ou importando uma planilha). Depois vá em <b>Eventos &amp; Fotos</b> pra criar o evento e subir as fotos deles.</div>
+        <div class="filtro-row">
+          <input type="text" id="alu-busca" placeholder="Buscar aluno pelo nome…" oninput="renderAlunos()">
+          <select id="alu-filtro-escola" onchange="renderAlunos()"><option value="">Todas as escolas</option></select>
+        </div>
         <div class="list" id="lista-alunos"></div>
       </div>
 
       <div class="admin-tab" id="admintab-professores" style="display:none;">
         <div class="section-h"><h2>Professores &amp; Diretores</h2><button class="btn btn-primary btn-sm" onclick="abrirModalProfessor()">+ Novo professor/diretor</button></div>
-        <div class="hint">Sempre têm login próprio. Proprietário e diretor enxergam tudo da escola; professor também, por padrão.</div>
         <div class="list" id="lista-professores"></div>
       </div>
 
       <div class="admin-tab" id="admintab-pais" style="display:none;">
-        <div class="section-h"><h2>Pais e responsáveis</h2><button class="btn btn-primary btn-sm" onclick="document.getElementById('acesso-tipo').value='responsavel';abrirModal('modal-acesso');atualizarAcessoAlvo()">+ Criar acesso</button></div>
-        <div class="hint">Responsáveis são criados no botão <b>Criar acesso</b> acima (precisa vincular a pelo menos um filho na hora). Aqui você gerencia quem já existe.</div>
+        <div class="section-h"><h2>Pais e responsáveis</h2><button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button></div>
+        <div class="filtro-row">
+          <input type="text" id="pai-busca" placeholder="Buscar por nome, e-mail, telefone ou filho…" oninput="renderPais()" style="max-width:360px;">
+        </div>
         <div class="list" id="lista-pais"></div>
       </div>
 
@@ -755,6 +810,28 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: vincular aluno/professor/pai direto na tela da escola -->
+<div class="modal-overlay" id="modal-vincular-escola">
+  <div class="modal" style="max-width:420px;">
+    <input type="hidden" id="vinc-esc-id">
+    <input type="hidden" id="vinc-esc-modo">
+    <h3 id="vinc-esc-titulo">Vincular</h3>
+    <div class="field">
+      <label id="vinc-esc-label-pessoa">Pessoa</label>
+      <input type="text" id="vinc-esc-busca" placeholder="Buscar pelo nome…" oninput="_renderVincEscolaLista()">
+      <div class="tag-picker" id="vinc-esc-lista" style="max-height:220px;overflow-y:auto;margin-top:8px;"></div>
+    </div>
+    <div class="field" id="vinc-esc-campo-aluno-extra" style="display:none;">
+      <label>Filho (qual aluno dessa escola?)</label>
+      <select id="vinc-esc-aluno-extra"></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-vincular-escola')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmarVincularEscola()">Vincular</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal: novo/editar aluno -->
 <div class="modal-overlay" id="modal-aluno">
   <div class="modal">
@@ -765,6 +842,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="trocar" onclick="document.getElementById('alu-foto-input').click()">Trocar foto</div>
         <input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">
       </div>
+      <div class="cam-badge" title="Trocar foto" onclick="document.getElementById('alu-foto-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.2"/></svg>
+      </div>
     </div>
     <h3 id="alu-modal-titulo" style="text-align:center;">Novo aluno</h3>
     <div class="field"><label>Nome</label><input type="text" id="alu-nome" placeholder="Nome do bailarino"></div>
@@ -772,7 +852,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <label>Escola</label>
       <select id="alu-escola"><option value="">— Avulso (sem escola) —</option></select>
     </div>
+    <div class="field"><label>Turma/Nível (opcional)</label><input type="text" id="alu-turma" placeholder="Ex: Ballet Infantil II"></div>
     <div class="field"><label>Data de nascimento (opcional)</label><input type="date" id="alu-nascimento"></div>
+    <div class="field">
+      <label>Responsáveis (pais/mães)</label>
+      <input type="text" id="alu-pais-busca" placeholder="Buscar responsável…" oninput="_renderAlunoPaisLista()">
+      <div class="tag-picker" id="alu-pais-lista" style="max-height:140px;overflow-y:auto;margin-top:6px;"></div>
+    </div>
+    <div class="field"><label>Observações (opcional)</label><textarea id="alu-observacoes" placeholder="Alergias, restrições, avisos gerais…" style="min-height:50px;"></textarea></div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
@@ -930,9 +1017,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <!-- modal: novo/editar professor/diretor -->
 <div class="modal-overlay" id="modal-professor">
-  <div class="modal">
+  <div class="modal" style="max-width:440px;">
     <input type="hidden" id="prof-id">
-    <h3 id="prof-modal-titulo">Novo professor/diretor</h3>
+    <div class="perfil-capa" id="prof-capa-preview">
+      <div class="trocar" onclick="document.getElementById('prof-capa-input').click()">Trocar capa</div>
+      <input type="file" id="prof-capa-input" accept="image/*" style="display:none;" onchange="_profCapaSelecionada(this)">
+    </div>
+    <div class="perfil-avatar-wrap">
+      <div class="perfil-avatar-edit" id="prof-foto-preview">
+        ?
+        <div class="trocar" onclick="document.getElementById('prof-foto-input').click()">Trocar foto</div>
+        <input type="file" id="prof-foto-input" accept="image/*" style="display:none;" onchange="_profFotoSelecionada(this)">
+      </div>
+    </div>
+    <h3 id="prof-modal-titulo" style="text-align:center;">Novo professor/diretor</h3>
     <div class="field">
       <label>Cargo</label>
       <select id="prof-cargo">
@@ -942,11 +1040,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </select>
     </div>
     <div class="field"><label>Nome completo</label><input type="text" id="prof-nome" placeholder="Nome"></div>
-    <div class="field"><label>Escola</label><select id="prof-escola"></select></div>
+    <div class="field"><label>Escola principal</label><select id="prof-escola"></select></div>
+    <div class="field">
+      <label>Também dá aula em <span style="text-transform:none;font-weight:400;color:#B39F86;">(opcional)</span></label>
+      <div class="tag-picker" id="prof-escolas-extra-lista" style="max-height:110px;overflow-y:auto;"></div>
+    </div>
     <div id="prof-acesso-campos">
       <div class="field"><label>Usuário de acesso</label><input type="text" id="prof-usuario" placeholder="joao.professor" autocapitalize="off"></div>
       <div class="field"><label>E-mail de contato (opcional)</label><input type="email" id="prof-email" placeholder="email@exemplo.com"></div>
     </div>
+    <button class="btn btn-sm" id="prof-redefinir-senha-btn" type="button" style="display:none;width:100%;margin-bottom:6px;" onclick="resetarSenhaUsuario(document.getElementById('prof-id').value,'professor')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13 19 4M15 8l2 2M18 5l2 2"/></svg> Redefinir senha
+    </button>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-professor')">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="prof-salvar-btn" onclick="salvarProfessor()">Salvar</button>
@@ -955,12 +1060,46 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: novo/editar pai/responsável -->
+<div class="modal-overlay" id="modal-pai">
+  <div class="modal" style="max-width:440px;">
+    <input type="hidden" id="pai-id">
+    <div class="perfil-avatar-wrap" style="margin-top:0;">
+      <div class="perfil-avatar-edit" id="pai-foto-preview">
+        ?
+        <div class="trocar" onclick="document.getElementById('pai-foto-input').click()">Trocar foto</div>
+        <input type="file" id="pai-foto-input" accept="image/*" style="display:none;" onchange="_paiFotoSelecionada(this)">
+      </div>
+    </div>
+    <h3 id="pai-modal-titulo" style="text-align:center;">Novo Pai / Responsável</h3>
+    <div class="field"><label>Nome completo</label><input type="text" id="pai-nome" placeholder="Nome"></div>
+    <div class="field"><label>E-mail (opcional)</label><input type="email" id="pai-email" placeholder="email@exemplo.com"></div>
+    <div class="field"><label>Telefone/WhatsApp (opcional)</label><input type="text" id="pai-telefone" placeholder="(00) 00000-0000"></div>
+    <div class="field">
+      <label>Alunos vinculados (filhos)</label>
+      <input type="text" id="pai-filhos-busca" placeholder="Buscar aluno…" oninput="_renderPaiFilhosLista()">
+      <div class="tag-picker" id="pai-filhos-lista" style="max-height:140px;overflow-y:auto;margin-top:6px;"></div>
+    </div>
+    <div id="pai-acesso-campos">
+      <div class="field"><label>Usuário de acesso</label><input type="text" id="pai-usuario" placeholder="maria.silva" autocapitalize="off"></div>
+    </div>
+    <button class="btn btn-sm" id="pai-redefinir-senha-btn" type="button" style="display:none;width:100%;margin-bottom:6px;" onclick="resetarSenhaUsuario(document.getElementById('pai-id').value,'responsavel')">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13 19 4M15 8l2 2M18 5l2 2"/></svg> Redefinir senha
+    </button>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-pai')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="pai-salvar-btn" onclick="salvarPai()">Salvar</button>
+    </div>
+    <div class="credencial-box" id="pai-resultado"></div>
+  </div>
+</div>
+
 <!-- modal: vincular cônjuge (responsável) -->
 <div class="modal-overlay" id="modal-conjuge">
   <div class="modal" style="max-width:420px;">
     <input type="hidden" id="conj-origem-id">
     <h3>Vincular cônjuge</h3>
-    <div class="hint" style="margin-bottom:14px;">O cônjuge passa a ver exatamente os mesmos filhos vinculados a esta conta.</div>
+    <div class="hint" style="margin-bottom:14px;">Os dois passam a compartilhar os mesmos filhos — inclusive os que forem matriculados depois, automaticamente.</div>
     <div class="field">
       <label>Responsável já cadastrado</label>
       <select id="conj-destino"></select>
@@ -1085,7 +1224,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [] }
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -1383,6 +1522,9 @@ const POS_TARGET_MAP = {
   'alu-foto-preview': 'aluno-foto',
   'evt-capa-preview': 'evento-capa',
   'ens-capa-preview': 'ensaio-capa',
+  'prof-foto-preview': 'prof-foto',
+  'prof-capa-preview': 'prof-capa',
+  'pai-foto-preview': 'pai-foto',
 }
 const POS_PADRAO = '50% 25%'
 let _posicoesPendentes = {}
@@ -1564,7 +1706,7 @@ async function salvarPerfil() {
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewAdmin() {
-  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis()])
+  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis(), carregarProfessorEscolas()])
   renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais()
   atualizarAcessoAlvo()
   popularVinculoSelects()
@@ -1660,6 +1802,12 @@ async function carregarVinculosResponsaveis() {
   store.vinculosResponsaveis = data || []
 }
 
+async function carregarProfessorEscolas() {
+  const { data, error } = await db.from('professor_escolas').select('user_id, escola_id')
+  if (error) { toast('Erro ao carregar vínculos de escolas dos professores: ' + error.message); return }
+  store.professorEscolas = data || []
+}
+
 async function carregarResponsaveis() {
   const { data, error } = await db.from('perfis').select('*').eq('role', 'responsavel').order('nome')
   if (error) { toast('Erro ao carregar responsáveis: ' + error.message); return }
@@ -1704,18 +1852,77 @@ async function carregarEventos() {
 
 function nomeEscola(id) { return store.escolas.find(e => e.id === id)?.nome || '' }
 
+function _paisDoAluno(alunoId) {
+  return store.vinculosResponsaveis.filter(v => v.aluno_id === alunoId).map(v => store.responsaveis.find(r => r.user_id === v.user_id)).filter(Boolean)
+}
+
+function _miniAvataresHTML(pessoas, max = 3) {
+  if (!pessoas.length) return ''
+  const visiveis = pessoas.slice(0, max)
+  const resto = pessoas.length - visiveis.length
+  return `<div class="mini-avatares">` +
+    visiveis.map(p => `<span class="mini-avatar" title="${esc(p.nome || '')}">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</span>`).join('') +
+    (resto > 0 ? `<span class="mini-avatar mais">+${resto}</span>` : '') +
+    `</div>`
+}
+
+function _popularFiltroCidades() {
+  const sel = document.getElementById('esc-filtro-cidade')
+  if (!sel) return
+  const atual = sel.value
+  const cidades = [...new Set(store.escolas.map(e => (e.cidade || '').trim()).filter(Boolean))].sort()
+  sel.innerHTML = '<option value="">Todas as cidades</option>' + cidades.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
+  sel.value = cidades.includes(atual) ? atual : ''
+}
+
+function _toggleEscolaMenu(id) {
+  const drop = document.getElementById(`esc-menu-${id}`)
+  const abrindo = !drop.classList.contains('open')
+  _fecharEscolaMenus()
+  if (abrindo) drop.classList.add('open')
+}
+function _fecharEscolaMenus() { document.querySelectorAll('.escola-menu-drop.open').forEach(d => d.classList.remove('open')) }
+document.addEventListener('click', e => { if (!e.target.closest('.escola-menu-wrap')) _fecharEscolaMenus() })
+
+function verGaleriaDaEscola(escolaId) {
+  setAdminTab('galeria')
+  iniciarGaleriaAdmin().then(() => { _galEscolaId = escolaId; renderGaleriaAdmin() })
+}
+function verComunidadeDaEscola(escolaId) {
+  setAdminTab('comunidade')
+  _comunidadeAdminEscolaAtual = escolaId
+  iniciarComunidadeAdmin()
+}
+
 function renderEscolas() {
   const el = document.getElementById('lista-escolas')
   if (!store.escolas.length) { el.innerHTML = '<div class="empty">Nenhuma escola cadastrada ainda.</div>'; return }
-  el.innerHTML = '<div class="escolas-grid">' + store.escolas.map(e => {
+  _popularFiltroCidades()
+  const busca = (document.getElementById('esc-busca')?.value || '').trim().toLowerCase()
+  const cidadeFiltro = document.getElementById('esc-filtro-cidade')?.value || ''
+  const escolas = store.escolas.filter(e =>
+    (!busca || (e.nome || '').toLowerCase().includes(busca)) &&
+    (!cidadeFiltro || (e.cidade || '') === cidadeFiltro)
+  )
+  if (!escolas.length) { el.innerHTML = '<div class="empty">Nenhuma escola encontrada com esse filtro.</div>'; return }
+  el.innerHTML = '<div class="escolas-grid">' + escolas.map(e => {
     const nAlunos = store.alunos.filter(a => a.escola_id === e.id).length
-    const nProf = store.professores.filter(p => p.escola_id === e.id).length
+    const nProf = store.professores.filter(p => p.escola_id === e.id || store.professorEscolas?.some(pe => pe.user_id === p.user_id && pe.escola_id === e.id)).length
+    const idsAlunosEscola = store.alunos.filter(a => a.escola_id === e.id).map(a => a.id)
+    const nPais = new Set(store.vinculosResponsaveis.filter(v => idsAlunosEscola.includes(v.aluno_id)).map(v => v.user_id)).size
     return `
     <div class="escola-card card" onclick="abrirDetalheEscola('${e.id}')">
       <div class="escola-cover" id="esc-cover-${e.id}">
-        <div class="escola-card-actions">
-          <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalEscola('${e.id}')">${ICON_LAPIS}</div>
-          <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirEscola('${e.id}')">${ICON_LIXEIRA}</div>
+        <div class="escola-menu-wrap">
+          <div class="escola-menu-btn" title="Ações" onclick="event.stopPropagation();_toggleEscolaMenu('${e.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="12" cy="19" r="2"/></svg>
+          </div>
+          <div class="perfil-menu-drop escola-menu-drop" id="esc-menu-${e.id}">
+            <button onclick="event.stopPropagation();_fecharEscolaMenus();abrirModalEscola('${e.id}')">${ICON_LAPIS} Editar</button>
+            <button onclick="event.stopPropagation();_fecharEscolaMenus();verGaleriaDaEscola('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/></svg> Ver Galeria</button>
+            <button onclick="event.stopPropagation();_fecharEscolaMenus();verComunidadeDaEscola('${e.id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg> Ver Comunidade</button>
+            <button class="danger" onclick="event.stopPropagation();_fecharEscolaMenus();excluirEscola('${e.id}')">${ICON_LIXEIRA} Excluir</button>
+          </div>
         </div>
       </div>
       <div class="escola-card-body">
@@ -1723,13 +1930,14 @@ function renderEscolas() {
         <div class="nome">${esc(e.nome)}</div>
         <div class="meta">${esc(e.cidade || 'Sem cidade cadastrada')}</div>
         <div class="badges">
-          <span class="badge">${nAlunos} aluno(s)</span>
-          <span class="badge">${nProf} professor(es)/diretor(es)</span>
+          <span class="badge clicavel" onclick="event.stopPropagation();abrirDetalheEscola('${e.id}','alunos')">${nAlunos} aluno(s)</span>
+          <span class="badge clicavel" onclick="event.stopPropagation();abrirDetalheEscola('${e.id}','professores')">${nProf} professor(es)</span>
+          <span class="badge clicavel" onclick="event.stopPropagation();abrirDetalheEscola('${e.id}','pais')">${nPais} pai(s)</span>
         </div>
       </div>
     </div>`
   }).join('') + '</div>'
-  store.escolas.forEach(async e => {
+  escolas.forEach(async e => {
     if (!e.capa_url) return
     const url = await _urlAssinada(e.capa_url)
     if (!url) return
@@ -1740,22 +1948,46 @@ function renderEscolas() {
   })
 }
 
+function _popularFiltroEscolas(selectId) {
+  const sel = document.getElementById(selectId)
+  if (!sel) return
+  const atual = sel.value
+  if (sel.options.length - 1 !== store.escolas.length) {
+    sel.innerHTML = '<option value="">Todas as escolas</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') + '<option value="avulso">Avulsos</option>'
+    sel.value = atual
+  }
+}
+
 function renderAlunos() {
   const el = document.getElementById('lista-alunos')
   if (!store.alunos.length) { el.innerHTML = '<div class="empty">Nenhum aluno cadastrado ainda.</div>'; return }
-  el.innerHTML = store.alunos.map(a => `
+  _popularFiltroEscolas('alu-filtro-escola')
+  const busca = (document.getElementById('alu-busca')?.value || '').trim().toLowerCase()
+  const filtroEscola = document.getElementById('alu-filtro-escola')?.value || ''
+  const alunos = store.alunos.filter(a =>
+    (!busca || (a.nome || '').toLowerCase().includes(busca)) &&
+    (!filtroEscola || (filtroEscola === 'avulso' ? !a.escola_id : a.escola_id === filtroEscola))
+  )
+  if (!alunos.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado com esse filtro.</div>'; return }
+  el.innerHTML = alunos.map(a => {
+    const pais = _paisDoAluno(a.id)
+    return `
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar" id="alu-av-${a.id}">${esc((a.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'}${a.data_nascimento ? ' · ' + fmtData(a.data_nascimento) : ''}</div></div>
+        <div>
+          <div class="nome">${esc(a.nome)}</div>
+          <div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'}${a.turma ? ' · ' + esc(a.turma) : ''}${a.data_nascimento ? ' · ' + fmtData(a.data_nascimento) : ''}</div>
+        </div>
       </div>
       <div class="actions">
+        ${_miniAvataresHTML(pais)}
         <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalAluno('${a.id}')">${ICON_LAPIS}</div>
         <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirAluno('${a.id}')">${ICON_LIXEIRA}</div>
       </div>
-    </div>
-  `).join('')
-  store.alunos.forEach(async a => {
+    </div>`
+  }).join('')
+  alunos.forEach(async a => {
     if (!a.foto_url) return
     const url = await _urlAssinada(a.foto_url)
     const el2 = document.getElementById(`alu-av-${a.id}`)
@@ -1882,44 +2114,213 @@ async function excluirEscola(id) {
   store.escolas = store.escolas.filter(x => x.id !== id)
   store.alunos.forEach(a => { if (a.escola_id === id) a.escola_id = null })
   store.professores.forEach(p => { if (p.escola_id === id) p.escola_id = null })
+  store.professorEscolas = store.professorEscolas.filter(pe => pe.escola_id !== id)
   renderEscolas(); renderAlunos(); if (typeof renderProfessores === 'function') renderProfessores()
   toast('Escola apagada ✓')
   registrarAuditoria('apagou escola', 'escolas', id, e.nome)
 }
 
 // ── detalhe da escola (visão geral + quem está vinculado) ──────────
-async function abrirDetalheEscola(escolaId) {
+let _escolaDetalheAtual = null
+
+function _vinculoItemHTML(id, nome, tag, onclickDesvincular) {
+  return `
+  <div class="list-item" style="cursor:default;">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+      <div class="vinculo-item-avatar" id="vinc-av-${id}">${esc((nome || '?').trim().charAt(0).toUpperCase())}</div>
+      <div><div class="nome">${esc(nome || '(sem nome)')}</div>${tag ? `<div class="meta">${esc(tag)}</div>` : ''}</div>
+    </div>
+    <div class="actions"><div class="icon-btn danger" title="Desvincular" onclick="${onclickDesvincular}">${ICON_LIXEIRA}</div></div>
+  </div>`
+}
+
+async function abrirDetalheEscola(escolaId, focarSecao) {
   const e = store.escolas.find(x => x.id === escolaId)
   if (!e) return
+  _escolaDetalheAtual = escolaId
   document.getElementById('escolas-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('escola-detalhe-wrap')
   wrap.style.display = 'block'
 
   const alunosDaEscola = store.alunos.filter(a => a.escola_id === escolaId)
-  const staffDaEscola = store.professores.filter(p => p.escola_id === escolaId)
-  const { data: vinc } = await db.from('responsavel_alunos').select('user_id').in('aluno_id', alunosDaEscola.map(a => a.id).length ? alunosDaEscola.map(a => a.id) : ['00000000-0000-0000-0000-000000000000'])
-  const paisIds = [...new Set((vinc || []).map(v => v.user_id))]
+  const staffDaEscola = store.professores.filter(p => p.escola_id === escolaId || store.professorEscolas.some(pe => pe.user_id === p.user_id && pe.escola_id === escolaId))
+  const idsAlunos = alunosDaEscola.map(a => a.id)
+  const vincDaEscola = store.vinculosResponsaveis.filter(v => idsAlunos.includes(v.aluno_id))
+  const paisIds = [...new Set(vincDaEscola.map(v => v.user_id))]
   const paisDaEscola = store.responsaveis.filter(r => paisIds.includes(r.user_id))
   const proprietario = staffDaEscola.find(p => p.user_id === e.proprietario_user_id)
 
   wrap.innerHTML = `
     <button class="evento-back" onclick="fecharDetalheEscola()">← Voltar às escolas</button>
-    <div class="perfil-capa" id="esc-det-capa" style="cursor:default;margin:0 0 16px;height:140px;"></div>
+    <div class="capa-premium" id="esc-det-capa">
+      <div class="cam-btn" title="Trocar capa" onclick="document.getElementById('esc-det-capa-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l2-2.5h6L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/></svg>
+      </div>
+      <input type="file" id="esc-det-capa-input" accept="image/*" style="display:none;" onchange="_escolaDetalheCapaSelecionada(this)">
+    </div>
     <div class="section-h"><h2>${esc(e.nome)}</h2><div class="icon-btn" title="Editar" onclick="abrirModalEscola('${e.id}')">${ICON_LAPIS}</div></div>
     <div class="meta" style="margin-bottom:4px;">${esc(e.cidade || '')}${proprietario ? ' · Proprietário: ' + esc(proprietario.nome || '') : ''}</div>
+    <div class="atalhos-escola">
+      <button class="btn btn-sm" onclick="verGaleriaDaEscola('${e.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:4px;"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/></svg> Galeria da Escola</button>
+      <button class="btn btn-sm" onclick="verComunidadeDaEscola('${e.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-right:4px;"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg> Comunidade Privada</button>
+    </div>
     ${e.descricao ? `<div style="color:#DBC9A8;font-size:13.5px;margin:10px 0 20px;">${esc(e.descricao)}</div>` : ''}
-    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Alunos (${alunosDaEscola.length})</h2></div>
-    <div class="list">${alunosDaEscola.length ? alunosDaEscola.map(a => `<div class="list-item"><div class="nome">${esc(a.nome)}</div></div>`).join('') : '<div class="empty">Nenhum aluno vinculado ainda.</div>'}</div>
-    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Professores &amp; Diretores (${staffDaEscola.length})</h2></div>
-    <div class="list">${staffDaEscola.length ? staffDaEscola.map(p => `<div class="list-item"><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)}</div></div>`).join('') : '<div class="empty">Nenhum professor/diretor vinculado ainda.</div>'}</div>
-    <div class="section-h" style="margin-top:24px;"><h2 style="font-size:16px;">Pais vinculados (${paisDaEscola.length})</h2></div>
-    <div class="list">${paisDaEscola.length ? paisDaEscola.map(r => `<div class="list-item"><div class="nome">${esc(r.nome || '(sem nome)')}</div></div>`).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'}</div>
+
+    <div class="subsecao-h" id="esc-det-sec-alunos"><h2>Alunos (${alunosDaEscola.length})</h2><button class="btn btn-sm" onclick="abrirVincularNaEscola('${e.id}','aluno')">+ Vincular Aluno</button></div>
+    <div class="list">${alunosDaEscola.length ? alunosDaEscola.map(a => _vinculoItemHTML(a.id, a.nome, a.turma || '', `desvincularAlunoDaEscola('${a.id}')`)).join('') : '<div class="empty">Nenhum aluno vinculado ainda.</div>'}</div>
+
+    <div class="subsecao-h" id="esc-det-sec-professores"><h2>Professores &amp; Diretores (${staffDaEscola.length})</h2><button class="btn btn-sm" onclick="abrirVincularNaEscola('${e.id}','professor')">+ Vincular Professor</button></div>
+    <div class="list">${staffDaEscola.length ? staffDaEscola.map(p => _vinculoItemHTML(p.user_id, p.nome, ROLE_LABEL[p.role] || p.role, `desvincularProfessorDaEscola('${p.user_id}','${e.id}')`)).join('') : '<div class="empty">Nenhum professor/diretor vinculado ainda.</div>'}</div>
+
+    <div class="subsecao-h" id="esc-det-sec-pais"><h2>Pais (${paisDaEscola.length})</h2><button class="btn btn-sm" onclick="abrirVincularNaEscola('${e.id}','pai')">+ Vincular Pai</button></div>
+    <div class="list">${paisDaEscola.length ? paisDaEscola.map(r => {
+      const filhos = vincDaEscola.filter(v => v.user_id === r.user_id).map(v => store.alunos.find(a => a.id === v.aluno_id)?.nome).filter(Boolean)
+      return _vinculoItemHTML(r.user_id, r.nome, filhos.join(', '), `desvincularPaiDaEscola('${r.user_id}','${e.id}')`)
+    }).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'}</div>
   `
-  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;object-position:${e.capa_pos || POS_PADRAO};">` }
+  ;[...staffDaEscola, ...paisDaEscola].forEach(async p => {
+    if (!p.foto_url) return
+    const url = await _urlAssinada(p.foto_url)
+    const el2 = document.getElementById(`vinc-av-${p.user_id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || POS_PADRAO};">`
+  })
+  alunosDaEscola.forEach(async a => {
+    if (!a.foto_url) return
+    const url = await _urlAssinada(a.foto_url)
+    const el2 = document.getElementById(`vinc-av-${a.id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
+  })
+  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').insertAdjacentHTML('afterbegin', `<img src="${url}" alt="" style="object-position:${e.capa_pos || POS_PADRAO};">`) }
+  if (focarSecao) document.getElementById(`esc-det-sec-${focarSecao}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 function fecharDetalheEscola() {
+  _escolaDetalheAtual = null
   document.getElementById('escolas-lista-wrap').style.display = 'block'
   document.getElementById('escola-detalhe-wrap').style.display = 'none'
+}
+
+async function _escolaDetalheCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file || !_escolaDetalheAtual) return
+  const escolaId = _escolaDetalheAtual
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+  const path = `escolas/${escolaId}/capa.${ext}`
+  const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+  if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
+  const { data, error } = await db.from('escolas').update({ capa_url: path }).eq('id', escolaId).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  const idx = store.escolas.findIndex(x => x.id === escolaId)
+  if (idx >= 0) store.escolas[idx] = data
+  toast('Capa atualizada ✓')
+  abrirDetalheEscola(escolaId)
+  renderEscolas()
+}
+
+// ── vincular aluno/professor/pai direto na tela da escola ─────────
+let _vincEscolaSelecionado = null
+function abrirVincularNaEscola(escolaId, modo) {
+  document.getElementById('vinc-esc-id').value = escolaId
+  document.getElementById('vinc-esc-modo').value = modo
+  document.getElementById('vinc-esc-busca').value = ''
+  _vincEscolaSelecionado = null
+  const titulos = { aluno: 'Vincular aluno à escola', professor: 'Vincular professor/diretor', pai: 'Vincular pai/responsável' }
+  const labels = { aluno: 'Aluno', professor: 'Professor/diretor', pai: 'Responsável' }
+  document.getElementById('vinc-esc-titulo').textContent = titulos[modo]
+  document.getElementById('vinc-esc-label-pessoa').textContent = labels[modo]
+  document.getElementById('vinc-esc-campo-aluno-extra').style.display = modo === 'pai' ? 'block' : 'none'
+  if (modo === 'pai') {
+    const sel = document.getElementById('vinc-esc-aluno-extra')
+    const alunosDaEscola = store.alunos.filter(a => a.escola_id === escolaId)
+    sel.innerHTML = alunosDaEscola.map(a => `<option value="${a.id}">${esc(a.nome)}</option>`).join('') || '<option value="">Cadastre um aluno nessa escola primeiro</option>'
+  }
+  _renderVincEscolaLista()
+  abrirModal('modal-vincular-escola')
+}
+function _renderVincEscolaLista() {
+  const modo = document.getElementById('vinc-esc-modo').value
+  const escolaId = document.getElementById('vinc-esc-id').value
+  const busca = document.getElementById('vinc-esc-busca').value.trim().toLowerCase()
+  let itens = []
+  if (modo === 'aluno') itens = store.alunos.filter(a => a.escola_id !== escolaId).map(a => ({ id: a.id, nome: a.nome, sub: a.escola_id ? nomeEscola(a.escola_id) : 'avulso' }))
+  else if (modo === 'professor') itens = store.professores.filter(p => p.escola_id !== escolaId && !store.professorEscolas.some(pe => pe.user_id === p.user_id && pe.escola_id === escolaId)).map(p => ({ id: p.user_id, nome: p.nome, sub: ROLE_LABEL[p.role] || p.role }))
+  else itens = store.responsaveis.map(r => ({ id: r.user_id, nome: r.nome, sub: '' }))
+  if (busca) itens = itens.filter(x => (x.nome || '').toLowerCase().includes(busca))
+  const el = document.getElementById('vinc-esc-lista')
+  if (!itens.length) { el.innerHTML = '<div class="empty" style="padding:12px 0;">Nada encontrado.</div>'; return }
+  el.innerHTML = itens.map(x => `<span class="tag-opt${_vincEscolaSelecionado === x.id ? ' on' : ''}" onclick="_vincEscolaSelecionado='${x.id}';_renderVincEscolaLista()">${esc(x.nome || '(sem nome)')}${x.sub ? ' · ' + esc(x.sub) : ''}</span>`).join('')
+}
+async function confirmarVincularEscola() {
+  const modo = document.getElementById('vinc-esc-modo').value
+  const escolaId = document.getElementById('vinc-esc-id').value
+  if (!_vincEscolaSelecionado) { toast('Selecione alguém primeiro'); return }
+  if (modo === 'aluno') {
+    const { error } = await db.from('alunos').update({ escola_id: escolaId }).eq('id', _vincEscolaSelecionado)
+    if (error) { toast('Erro: ' + error.message); return }
+    const a = store.alunos.find(x => x.id === _vincEscolaSelecionado); if (a) a.escola_id = escolaId
+    registrarAuditoria('vinculou aluno à escola', 'alunos', _vincEscolaSelecionado, nomeEscola(escolaId))
+  } else if (modo === 'professor') {
+    const p = store.professores.find(x => x.user_id === _vincEscolaSelecionado)
+    if (p && !p.escola_id) {
+      const { error } = await db.from('perfis').update({ escola_id: escolaId }).eq('user_id', _vincEscolaSelecionado)
+      if (error) { toast('Erro: ' + error.message); return }
+      p.escola_id = escolaId
+    } else {
+      const { error } = await db.from('professor_escolas').insert({ user_id: _vincEscolaSelecionado, escola_id: escolaId })
+      if (error) { toast('Erro: ' + error.message); return }
+      store.professorEscolas.push({ user_id: _vincEscolaSelecionado, escola_id: escolaId })
+    }
+    registrarAuditoria('vinculou professor/diretor à escola', 'perfis', _vincEscolaSelecionado, nomeEscola(escolaId))
+  } else {
+    const alunoId = document.getElementById('vinc-esc-aluno-extra').value
+    if (!alunoId) { toast('Selecione o aluno'); return }
+    const { error } = await db.from('responsavel_alunos').insert({ user_id: _vincEscolaSelecionado, aluno_id: alunoId })
+    if (error) { toast('Erro: ' + error.message); return }
+    store.vinculosResponsaveis.push({ user_id: _vincEscolaSelecionado, aluno_id: alunoId })
+    registrarAuditoria('vinculou responsável a aluno', 'responsavel_alunos', _vincEscolaSelecionado, nomeEscola(escolaId))
+  }
+  fecharModal('modal-vincular-escola')
+  toast('Vinculado ✓')
+  renderEscolas(); if (typeof renderAlunos === 'function') renderAlunos(); if (typeof renderProfessores === 'function') renderProfessores(); if (typeof renderPais === 'function') renderPais()
+  abrirDetalheEscola(escolaId)
+}
+
+async function desvincularAlunoDaEscola(alunoId) {
+  const ok = await confirmModal('Desvincular esse aluno dessa escola? Ele vira avulso (não apaga o cadastro).', { titulo: 'Desvincular aluno', okLabel: 'Desvincular', danger: true })
+  if (!ok) return
+  const { error } = await db.from('alunos').update({ escola_id: null }).eq('id', alunoId)
+  if (error) { toast('Erro: ' + error.message); return }
+  const a = store.alunos.find(x => x.id === alunoId); if (a) a.escola_id = null
+  toast('Desvinculado ✓')
+  renderEscolas(); if (typeof renderAlunos === 'function') renderAlunos()
+  if (_escolaDetalheAtual) abrirDetalheEscola(_escolaDetalheAtual)
+}
+async function desvincularProfessorDaEscola(userId, escolaId) {
+  const ok = await confirmModal('Desvincular essa pessoa dessa escola?', { titulo: 'Desvincular professor/diretor', okLabel: 'Desvincular', danger: true })
+  if (!ok) return
+  const p = store.professores.find(x => x.user_id === userId)
+  if (p?.escola_id === escolaId) {
+    const { error } = await db.from('perfis').update({ escola_id: null }).eq('user_id', userId)
+    if (error) { toast('Erro: ' + error.message); return }
+    p.escola_id = null
+  } else {
+    const { error } = await db.from('professor_escolas').delete().eq('user_id', userId).eq('escola_id', escolaId)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.professorEscolas = store.professorEscolas.filter(pe => !(pe.user_id === userId && pe.escola_id === escolaId))
+  }
+  toast('Desvinculado ✓')
+  renderEscolas(); if (typeof renderProfessores === 'function') renderProfessores()
+  if (_escolaDetalheAtual) abrirDetalheEscola(_escolaDetalheAtual)
+}
+async function desvincularPaiDaEscola(userId, escolaId) {
+  const ok = await confirmModal('Desvincular esse responsável dos filhos dele nessa escola?', { titulo: 'Desvincular responsável', okLabel: 'Desvincular', danger: true })
+  if (!ok) return
+  const idsAlunos = store.alunos.filter(a => a.escola_id === escolaId).map(a => a.id)
+  const { error } = await db.from('responsavel_alunos').delete().eq('user_id', userId).in('aluno_id', idsAlunos)
+  if (error) { toast('Erro: ' + error.message); return }
+  store.vinculosResponsaveis = store.vinculosResponsaveis.filter(v => !(v.user_id === userId && idsAlunos.includes(v.aluno_id)))
+  toast('Desvinculado ✓')
+  if (typeof renderPais === 'function') renderPais()
+  if (_escolaDetalheAtual) abrirDetalheEscola(_escolaDetalheAtual)
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -1956,8 +2357,11 @@ function renderProfessores() {
   })
 }
 
+let _profFotoArquivo = null, _profCapaArquivo = null, _profEscolasExtra = new Set()
+
 function abrirModalProfessor(userId) {
   const p = userId ? store.professores.find(x => x.user_id === userId) : null
+  _profFotoArquivo = null; _profCapaArquivo = null
 
   document.getElementById('prof-id').value = p?.user_id || ''
   document.getElementById('prof-modal-titulo').textContent = p ? 'Editar professor/diretor' : 'Novo professor/diretor'
@@ -1965,15 +2369,68 @@ function abrirModalProfessor(userId) {
   document.getElementById('prof-nome').value = p?.nome || ''
 
   const selEsc = document.getElementById('prof-escola')
-  selEsc.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('') || '<option value="">Cadastre uma escola primeiro</option>'
+  selEsc.innerHTML = '<option value="">— nenhuma —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
   selEsc.value = p?.escola_id || ''
 
+  _profEscolasExtra = new Set(p ? store.professorEscolas.filter(pe => pe.user_id === p.user_id).map(pe => pe.escola_id) : [])
+  _renderProfEscolasExtra()
+
   document.getElementById('prof-acesso-campos').style.display = p ? 'none' : 'block'
+  document.getElementById('prof-redefinir-senha-btn').style.display = p ? 'block' : 'none'
   document.getElementById('prof-resultado').style.display = 'none'
   document.getElementById('prof-usuario').value = ''
   document.getElementById('prof-email').value = ''
 
+  const capaEl = document.getElementById('prof-capa-preview')
+  capaEl.innerHTML = `<div class="trocar" onclick="document.getElementById('prof-capa-input').click()">Trocar capa</div><input type="file" id="prof-capa-input" accept="image/*" style="display:none;" onchange="_profCapaSelecionada(this)">`
+  if (p?.capa_url) _urlAssinada(p.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('prof-capa-preview', p.capa_pos) } })
+  else _posAplicar('prof-capa-preview', null)
+
+  const fotoEl = document.getElementById('prof-foto-preview')
+  fotoEl.innerHTML = `<span class="letra-fallback">${esc((p?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('prof-foto-input').click()">Trocar foto</div><input type="file" id="prof-foto-input" accept="image/*" style="display:none;" onchange="_profFotoSelecionada(this)">`
+  if (p?.foto_url) _urlAssinada(p.foto_url).then(url => { if (url) { fotoEl.querySelector('.letra-fallback')?.remove(); fotoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('prof-foto-preview', p.foto_pos) } })
+  else _posAplicar('prof-foto-preview', null)
+
   abrirModal('modal-professor')
+}
+
+function _renderProfEscolasExtra() {
+  const escolaAtual = document.getElementById('prof-escola').value
+  const el = document.getElementById('prof-escolas-extra-lista')
+  const opcoes = store.escolas.filter(e => e.id !== escolaAtual)
+  if (!opcoes.length) { el.innerHTML = '<span style="opacity:.6;font-size:12px;">Cadastre outra escola primeiro.</span>'; return }
+  el.innerHTML = opcoes.map(e => `<span class="tag-opt${_profEscolasExtra.has(e.id) ? ' on' : ''}" onclick="_toggleProfEscolaExtra('${e.id}')">${esc(e.nome)}</span>`).join('')
+}
+function _toggleProfEscolaExtra(escolaId) {
+  if (_profEscolasExtra.has(escolaId)) _profEscolasExtra.delete(escolaId)
+  else _profEscolasExtra.add(escolaId)
+  _renderProfEscolasExtra()
+}
+document.getElementById('prof-escola')?.addEventListener('change', _renderProfEscolasExtra)
+
+function _profFotoSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _profFotoArquivo = file
+  const wrap = document.getElementById('prof-foto-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
+  _abrirAjusteFoto(wrap.id)
+}
+function _profCapaSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _profCapaArquivo = file
+  const wrap = document.getElementById('prof-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
+  _abrirAjusteFoto(wrap.id)
 }
 
 // auth.signUp() troca a sessão ativa do client pro usuário recém-criado
@@ -1990,19 +2447,54 @@ async function _criarContaAuth(email, senha, fullName) {
   return resultado
 }
 
+async function _sincronizarEscolasExtra(userId) {
+  const atuais = new Set(store.professorEscolas.filter(pe => pe.user_id === userId).map(pe => pe.escola_id))
+  const adicionar = [..._profEscolasExtra].filter(id => !atuais.has(id))
+  const remover = [...atuais].filter(id => !_profEscolasExtra.has(id))
+  if (adicionar.length) {
+    const { error } = await db.from('professor_escolas').insert(adicionar.map(escola_id => ({ user_id: userId, escola_id })))
+    if (!error) store.professorEscolas.push(...adicionar.map(escola_id => ({ user_id: userId, escola_id })))
+  }
+  if (remover.length) {
+    const { error } = await db.from('professor_escolas').delete().eq('user_id', userId).in('escola_id', remover)
+    if (!error) store.professorEscolas = store.professorEscolas.filter(pe => !(pe.user_id === userId && remover.includes(pe.escola_id)))
+  }
+}
+
+async function _uploadFotoCapaProfessor(userId) {
+  let foto_url, capa_url
+  if (_profFotoArquivo) {
+    const ext = (_profFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `perfis/${userId}/foto.${ext}`
+    const { error } = await db.storage.from(BUCKET).upload(path, _profFotoArquivo, { contentType: _profFotoArquivo.type, upsert: true })
+    if (!error) foto_url = path
+  }
+  if (_profCapaArquivo) {
+    const ext = (_profCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `perfis/${userId}/capa.${ext}`
+    const { error } = await db.storage.from(BUCKET).upload(path, _profCapaArquivo, { contentType: _profCapaArquivo.type, upsert: true })
+    if (!error) capa_url = path
+  }
+  return { foto_url, capa_url }
+}
+
 async function salvarProfessor() {
   const id = document.getElementById('prof-id').value || null
   const cargo = document.getElementById('prof-cargo').value
   const nome = document.getElementById('prof-nome').value.trim()
-  const escola_id = document.getElementById('prof-escola').value
+  const escola_id = document.getElementById('prof-escola').value || null
   if (!nome) { toast('Informe o nome'); return }
-  if (!escola_id) { toast('Selecione a escola'); return }
 
   const btn = document.getElementById('prof-salvar-btn')
   btn.disabled = true; btn.textContent = 'Salvando…'
 
   if (id) {
-    const { data, error } = await db.from('perfis').update({ nome, role: cargo, escola_id }).eq('user_id', id).select().single()
+    const { foto_url, capa_url } = await _uploadFotoCapaProfessor(id)
+    const payload = { nome, role: cargo, escola_id }
+    if (foto_url) { payload.foto_url = foto_url; payload.foto_pos = _posValor('prof-foto-preview') }
+    if (capa_url) { payload.capa_url = capa_url; payload.capa_pos = _posValor('prof-capa-preview') }
+    const { data, error } = await db.from('perfis').update(payload).eq('user_id', id).select().single()
+    await _sincronizarEscolasExtra(id)
     btn.disabled = false; btn.textContent = 'Salvar'
     if (error) { toast('Erro: ' + error.message); return }
     const idx = store.professores.findIndex(x => x.user_id === id)
@@ -2025,7 +2517,12 @@ async function salvarProfessor() {
   const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
 
-  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert({ user_id: suData.user?.id, role: cargo, nome, escola_id, username }).select().single()
+  const { foto_url, capa_url } = await _uploadFotoCapaProfessor(suData.user?.id)
+  const perfilPayload = { user_id: suData.user?.id, role: cargo, nome, escola_id, username, email: emailContato || null }
+  if (foto_url) { perfilPayload.foto_url = foto_url; perfilPayload.foto_pos = _posValor('prof-foto-preview') }
+  if (capa_url) { perfilPayload.capa_url = capa_url; perfilPayload.capa_pos = _posValor('prof-capa-preview') }
+  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert(perfilPayload).select().single()
+  if (!perfilErr) await _sincronizarEscolasExtra(suData.user?.id)
   btn.disabled = false; btn.textContent = 'Salvar'
 
   if (perfilErr) {
@@ -2056,6 +2553,7 @@ async function excluirProfessor(userId) {
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   store.professores = store.professores.filter(x => x.user_id !== userId)
   store.escolas.forEach(e => { if (e.proprietario_user_id === userId) e.proprietario_user_id = null })
+  store.professorEscolas = store.professorEscolas.filter(pe => pe.user_id !== userId)
   renderProfessores()
   toast('Apagado ✓')
   registrarAuditoria('apagou professor/diretor', 'perfis', userId, p.nome || '')
@@ -2067,29 +2565,175 @@ async function excluirProfessor(userId) {
 function renderPais() {
   const el = document.getElementById('lista-pais')
   if (!el) return
-  if (!store.responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável cadastrado ainda — use o botão "Criar acesso" acima.</div>'; return }
-  el.innerHTML = store.responsaveis.map(r => {
+  if (!store.responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável cadastrado ainda.</div>'; return }
+  const busca = (document.getElementById('pai-busca')?.value || '').trim().toLowerCase()
+  const responsaveis = store.responsaveis.filter(r => {
+    if (!busca) return true
+    const filhosNomes = store.vinculosResponsaveis.filter(v => v.user_id === r.user_id).map(v => store.alunos.find(a => a.id === v.aluno_id)?.nome || '').join(' ')
+    return [r.nome, r.email, r.telefone, filhosNomes].some(v => (v || '').toLowerCase().includes(busca))
+  })
+  if (!responsaveis.length) { el.innerHTML = '<div class="empty">Nenhum responsável encontrado com esse filtro.</div>'; return }
+  el.innerHTML = responsaveis.map(r => {
     const filhosIds = store.vinculosResponsaveis.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
     const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
     return `
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar" id="resp-av-${r.user_id}">${esc((r.nome || '?').trim().charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'} · Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div></div>
+        <div>
+          <div class="nome">${esc(r.nome || '(sem nome)')}</div>
+          <div class="meta">${r.telefone ? esc(r.telefone) + ' · ' : ''}Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div>
+          ${nomesFilhos.length ? `<div class="badges" style="margin-top:6px;">${nomesFilhos.map(n => `<span class="badge">${esc(n)}</span>`).join('')}</div>` : '<div class="meta" style="margin-top:4px;opacity:.7;">sem filhos vinculados</div>'}
+        </div>
       </div>
       <div class="actions">
         <div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${r.user_id}','responsavel')">${ICON_CHAVE}</div>
         <div class="icon-btn" title="Vincular cônjuge" onclick="abrirVincularConjuge('${r.user_id}')">${ICON_VINCULO}</div>
+        <div class="icon-btn" title="Editar" onclick="abrirModalPai('${r.user_id}')">${ICON_LAPIS}</div>
         <div class="icon-btn danger" title="Apagar" onclick="excluirResponsavel('${r.user_id}')">${ICON_LIXEIRA}</div>
       </div>
     </div>`
   }).join('')
-  store.responsaveis.forEach(async r => {
+  responsaveis.forEach(async r => {
     if (!r.foto_url) return
     const url = await _urlAssinada(r.foto_url)
     const el2 = document.getElementById(`resp-av-${r.user_id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${r.foto_pos || POS_PADRAO};">`
   })
+}
+
+let _paiFotoArquivo = null, _paiFilhosSelecionados = new Set()
+
+function abrirModalPai(userId) {
+  const r = userId ? store.responsaveis.find(x => x.user_id === userId) : null
+  _paiFotoArquivo = null
+
+  document.getElementById('pai-id').value = r?.user_id || ''
+  document.getElementById('pai-modal-titulo').textContent = r ? 'Editar Pai / Responsável' : 'Novo Pai / Responsável'
+  document.getElementById('pai-nome').value = r?.nome || ''
+  document.getElementById('pai-email').value = r?.email || ''
+  document.getElementById('pai-telefone').value = r?.telefone || ''
+  document.getElementById('pai-acesso-campos').style.display = r ? 'none' : 'block'
+  document.getElementById('pai-redefinir-senha-btn').style.display = r ? 'block' : 'none'
+  document.getElementById('pai-resultado').style.display = 'none'
+  document.getElementById('pai-usuario').value = ''
+  document.getElementById('pai-filhos-busca').value = ''
+
+  _paiFilhosSelecionados = new Set(r ? store.vinculosResponsaveis.filter(v => v.user_id === userId).map(v => v.aluno_id) : [])
+  _renderPaiFilhosLista()
+
+  const fotoEl = document.getElementById('pai-foto-preview')
+  fotoEl.innerHTML = `<span class="letra-fallback">${esc((r?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('pai-foto-input').click()">Trocar foto</div><input type="file" id="pai-foto-input" accept="image/*" style="display:none;" onchange="_paiFotoSelecionada(this)">`
+  if (r?.foto_url) _urlAssinada(r.foto_url).then(url => { if (url) { fotoEl.querySelector('.letra-fallback')?.remove(); fotoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('pai-foto-preview', r.foto_pos) } })
+  else _posAplicar('pai-foto-preview', null)
+
+  abrirModal('modal-pai')
+}
+
+function _renderPaiFilhosLista() {
+  const busca = (document.getElementById('pai-filhos-busca')?.value || '').trim().toLowerCase()
+  const el = document.getElementById('pai-filhos-lista')
+  const itens = store.alunos.filter(a => !busca || (a.nome || '').toLowerCase().includes(busca))
+  if (!itens.length) { el.innerHTML = '<span style="opacity:.6;font-size:12px;">Nenhum aluno cadastrado ainda.</span>'; return }
+  el.innerHTML = itens.map(a => `
+    <span class="tag-opt${_paiFilhosSelecionados.has(a.id) ? ' on' : ''}" onclick="_togglePaiFilho('${a.id}')">${esc(a.nome)}${a.escola_id ? ' · ' + esc(nomeEscola(a.escola_id)) : ' · avulso'}</span>
+  `).join('')
+}
+function _togglePaiFilho(alunoId) {
+  if (_paiFilhosSelecionados.has(alunoId)) _paiFilhosSelecionados.delete(alunoId)
+  else _paiFilhosSelecionados.add(alunoId)
+  _renderPaiFilhosLista()
+}
+function _paiFotoSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _paiFotoArquivo = file
+  const wrap = document.getElementById('pai-foto-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
+  _abrirAjusteFoto(wrap.id)
+}
+
+async function _sincronizarFilhosPai(userId) {
+  const atuais = new Set(store.vinculosResponsaveis.filter(v => v.user_id === userId).map(v => v.aluno_id))
+  const adicionar = [..._paiFilhosSelecionados].filter(id => !atuais.has(id))
+  const remover = [...atuais].filter(id => !_paiFilhosSelecionados.has(id))
+  if (adicionar.length) {
+    const { error } = await db.from('responsavel_alunos').insert(adicionar.map(aluno_id => ({ user_id: userId, aluno_id })))
+    if (!error) store.vinculosResponsaveis.push(...adicionar.map(aluno_id => ({ user_id: userId, aluno_id })))
+  }
+  if (remover.length) {
+    const { error } = await db.from('responsavel_alunos').delete().eq('user_id', userId).in('aluno_id', remover)
+    if (!error) store.vinculosResponsaveis = store.vinculosResponsaveis.filter(v => !(v.user_id === userId && remover.includes(v.aluno_id)))
+  }
+}
+
+async function salvarPai() {
+  const id = document.getElementById('pai-id').value || null
+  const nome = document.getElementById('pai-nome').value.trim()
+  const email = document.getElementById('pai-email').value.trim() || null
+  const telefone = document.getElementById('pai-telefone').value.trim() || null
+  if (!nome) { toast('Informe o nome'); return }
+
+  const btn = document.getElementById('pai-salvar-btn')
+  btn.disabled = true; btn.textContent = 'Salvando…'
+
+  if (id) {
+    let foto_url, foto_pos
+    if (_paiFotoArquivo) {
+      const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+      const path = `perfis/${id}/foto.${ext}`
+      const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
+      if (!upErr) { foto_url = path; foto_pos = _posValor('pai-foto-preview') }
+    }
+    const payload = { nome, email, telefone }
+    if (foto_url) { payload.foto_url = foto_url; payload.foto_pos = foto_pos }
+    const { data, error } = await db.from('perfis').update(payload).eq('user_id', id).select().single()
+    await _sincronizarFilhosPai(id)
+    btn.disabled = false; btn.textContent = 'Salvar'
+    if (error) { toast('Erro: ' + error.message); return }
+    const idx = store.responsaveis.findIndex(x => x.user_id === id)
+    if (idx >= 0) store.responsaveis[idx] = data
+    store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    renderPais()
+    fecharModal('modal-pai')
+    toast('Atualizado ✓')
+    registrarAuditoria('editou responsável', 'perfis', id, nome)
+    return
+  }
+
+  const username = document.getElementById('pai-usuario').value.trim().toLowerCase()
+  if (!username) { toast('Informe o usuário de acesso'); btn.disabled = false; btn.textContent = 'Salvar'; return }
+  if (!/^[a-z0-9._-]{3,32}$/.test(username)) { toast('Usuário só pode ter letras minúsculas, números, ponto, traço ou "_" (3 a 32 caracteres)'); btn.disabled = false; btn.textContent = 'Salvar'; return }
+  if (!_paiFilhosSelecionados.size) { toast('Selecione ao menos um aluno vinculado'); btn.disabled = false; btn.textContent = 'Salvar'; return }
+
+  const senha = gerarSenha()
+  const emailAuth = email || `${username}@login.grandfocus.internal`
+  const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
+  if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
+
+  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert({ user_id: suData.user?.id, role: 'responsavel', nome, username, email }).select().single()
+  if (!perfilErr) await _sincronizarFilhosPai(suData.user?.id)
+  btn.disabled = false; btn.textContent = 'Salvar'
+
+  if (perfilErr) {
+    const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
+    toast(msg)
+    return
+  }
+
+  store.responsaveis.push(perfilData)
+  store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+  popularVinculoSelects()
+  renderPais()
+
+  document.getElementById('pai-resultado').style.display = 'block'
+  document.getElementById('pai-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nome}.`
+  registrarAuditoria('criou responsável', 'perfis', suData.user?.id, `usuário ${username} — ${nome}`)
+  toast('Responsável criado ✓')
 }
 
 async function excluirResponsavel(userId) {
@@ -2134,22 +2778,22 @@ function abrirVincularConjuge(userId) {
   abrirModal('modal-conjuge')
 }
 
+// vincular_conjuge() (SQL 018) faz tudo isso ATOMICAMENTE no banco: registra
+// o vínculo permanente na tabela conjuges (não é só uma cópia de agora) e
+// sincroniza os filhos já existentes nos dois sentidos. A partir daqui, um
+// filho matriculado DEPOIS pra qualquer um dos dois aparece pro outro
+// sozinho, via trigger — não precisa "vincular cônjuge" de novo.
 async function confirmarVincularConjuge() {
   const origemId = document.getElementById('conj-origem-id').value
   const destinoId = document.getElementById('conj-destino').value
   if (!destinoId) { toast('Escolha o outro responsável'); return }
-  const filhosOrigem = store.vinculosResponsaveis.filter(v => v.user_id === origemId).map(v => v.aluno_id)
-  const filhosDestinoAtual = new Set(store.vinculosResponsaveis.filter(v => v.user_id === destinoId).map(v => v.aluno_id))
-  const novosFilhos = filhosOrigem.filter(id => !filhosDestinoAtual.has(id))
-  if (!novosFilhos.length) { toast('Esse responsável já vê todos os mesmos filhos'); fecharModal('modal-conjuge'); return }
-  const rows = novosFilhos.map(aluno_id => ({ user_id: destinoId, aluno_id }))
-  const { error } = await db.from('responsavel_alunos').insert(rows)
+  const { error } = await db.rpc('vincular_conjuge', { user_a: origemId, user_b: destinoId })
   if (error) { toast('Erro ao vincular: ' + error.message); return }
-  store.vinculosResponsaveis.push(...rows)
+  await carregarVinculosResponsaveis()
   renderPais()
   fecharModal('modal-conjuge')
-  toast('Cônjuge vinculado aos mesmos filhos ✓')
-  registrarAuditoria('vinculou cônjuge', 'responsavel_alunos', destinoId, `${novosFilhos.length} filho(s) copiados de ${origemId}`)
+  toast('Cônjuges vinculados — filhos compartilhados automaticamente daqui pra frente ✓')
+  registrarAuditoria('vinculou cônjuge', 'conjuges', destinoId, `vinculado a ${origemId}`)
 }
 
 let _alunoFotoArquivo = null
@@ -2164,14 +2808,36 @@ function abrirModalAluno(alunoId) {
   document.getElementById('alu-modal-titulo').textContent = a ? 'Editar aluno' : 'Novo aluno'
   document.getElementById('alu-nome').value = a?.nome || ''
   document.getElementById('alu-escola').value = a?.escola_id || ''
+  document.getElementById('alu-turma').value = a?.turma || ''
   document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
+  document.getElementById('alu-observacoes').value = a?.observacoes || ''
 
   const fotoEl = document.getElementById('alu-foto-preview')
   fotoEl.innerHTML = `<span class="letra-fallback">${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('alu-foto-input').click()">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
   if (a?.foto_url) _urlAssinada(a.foto_url).then(url => { if (url) { fotoEl.querySelector('.letra-fallback')?.remove(); fotoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('alu-foto-preview', a.foto_pos) } })
   else _posAplicar('alu-foto-preview', null)
 
+  _alunoPaisSelecionados = new Set(a ? _paisDoAluno(a.id).map(p => p.user_id) : [])
+  document.getElementById('alu-pais-busca').value = ''
+  _renderAlunoPaisLista()
+
   abrirModal('modal-aluno')
+}
+
+let _alunoPaisSelecionados = new Set()
+function _renderAlunoPaisLista() {
+  const busca = (document.getElementById('alu-pais-busca')?.value || '').trim().toLowerCase()
+  const el = document.getElementById('alu-pais-lista')
+  const itens = store.responsaveis.filter(r => !busca || (r.nome || '').toLowerCase().includes(busca))
+  if (!itens.length) { el.innerHTML = '<span style="opacity:.6;font-size:12px;">Nenhum responsável cadastrado ainda.</span>'; return }
+  el.innerHTML = itens.map(r => `
+    <span class="tag-opt${_alunoPaisSelecionados.has(r.user_id) ? ' on' : ''}" onclick="_toggleAlunoPai('${r.user_id}')">${esc(r.nome || '(sem nome)')}</span>
+  `).join('')
+}
+function _toggleAlunoPai(userId) {
+  if (_alunoPaisSelecionados.has(userId)) _alunoPaisSelecionados.delete(userId)
+  else _alunoPaisSelecionados.add(userId)
+  _renderAlunoPaisLista()
 }
 
 function _alunoFotoSelecionada(inputEl) {
@@ -2192,7 +2858,9 @@ async function salvarAluno() {
   const nome = document.getElementById('alu-nome').value.trim()
   if (!nome) { toast('Informe o nome do aluno'); return }
   const escola_id = document.getElementById('alu-escola').value || null
+  const turma = document.getElementById('alu-turma').value.trim() || null
   const data_nascimento = document.getElementById('alu-nascimento').value || null
+  const observacoes = document.getElementById('alu-observacoes').value.trim() || null
   const alunoId = id || crypto.randomUUID()
 
   let foto_url = id ? (store.alunos.find(a => a.id === id)?.foto_url || null) : null
@@ -2204,7 +2872,7 @@ async function salvarAluno() {
     foto_url = path
   }
 
-  const payload = { id: alunoId, nome, escola_id, data_nascimento, foto_url, foto_pos: _posValor('alu-foto-preview') }
+  const payload = { id: alunoId, nome, escola_id, turma, data_nascimento, observacoes, foto_url, foto_pos: _posValor('alu-foto-preview') }
   let data, error
   if (id) {
     ({ data, error } = await db.from('alunos').update(payload).eq('id', id).select().single())
@@ -2216,7 +2884,24 @@ async function salvarAluno() {
   const idx = store.alunos.findIndex(a => a.id === data.id)
   if (idx >= 0) store.alunos[idx] = data; else store.alunos.push(data)
   store.alunos.sort((a, b) => a.nome.localeCompare(b.nome))
-  renderAlunos(); renderEscolas()
+
+  // sincroniza os responsáveis marcados no modal com responsavel_alunos
+  // (o trigger de cônjuge cuida sozinho de replicar pro parceiro vinculado)
+  const paisAtuais = new Set(_paisDoAluno(alunoId).map(p => p.user_id))
+  const paisAdicionar = [..._alunoPaisSelecionados].filter(uid => !paisAtuais.has(uid))
+  const paisRemover = [...paisAtuais].filter(uid => !_alunoPaisSelecionados.has(uid))
+  if (paisAdicionar.length) {
+    const { error: eAdd } = await db.from('responsavel_alunos').insert(paisAdicionar.map(user_id => ({ user_id, aluno_id: alunoId })))
+    if (eAdd) toast('Aluno salvo, mas houve erro ao vincular responsável: ' + eAdd.message)
+    else store.vinculosResponsaveis.push(...paisAdicionar.map(user_id => ({ user_id, aluno_id: alunoId })))
+  }
+  if (paisRemover.length) {
+    const { error: eDel } = await db.from('responsavel_alunos').delete().eq('aluno_id', alunoId).in('user_id', paisRemover)
+    if (eDel) toast('Aluno salvo, mas houve erro ao desvincular responsável: ' + eDel.message)
+    else store.vinculosResponsaveis = store.vinculosResponsaveis.filter(v => !(v.aluno_id === alunoId && paisRemover.includes(v.user_id)))
+  }
+
+  renderAlunos(); renderEscolas(); if (typeof renderPais === 'function') renderPais()
   fecharModal('modal-aluno')
   toast(id ? 'Aluno atualizado ✓' : 'Aluno criado ✓')
   registrarAuditoria(id ? 'editou aluno' : 'criou aluno', 'alunos', data.id, nome)
