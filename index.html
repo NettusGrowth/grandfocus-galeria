@@ -118,6 +118,11 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .sino-titulo{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ouro-fundo);padding:6px 8px 8px;}
 .sino-drop .dash-activity{max-height:280px;overflow-y:auto;padding:0 4px 4px;}
 .sino-drop .dash-activity li{padding:9px 6px;font-size:12.5px;}
+/* imagem de perfil/capa: fade suave em vez de aparecer seca (evita a
+   "piscada" quando o container troca da letra/fundo pra foto real) */
+@keyframes fotoFadeIn{from{opacity:0}to{opacity:1}}
+.who-avatar img, .list-avatar img, .perfil-capa img, .perfil-avatar-edit img,
+.escola-cover img, .escola-logo img{animation:fotoFadeIn .3s ease;}
 .who-avatar{width:26px;height:26px;border-radius:50%;background:var(--ouro);color:var(--tinta);font-weight:700;font-size:11.5px;display:grid;place-items:center;overflow:hidden;flex-shrink:0;}
 .who-avatar img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;}
 .perfil-capa{height:110px;border-radius:8px 8px 0 0;background:linear-gradient(155deg,#5C0A1E,#2B0210);position:relative;overflow:hidden;margin:-26px -26px 0;cursor:pointer;}
@@ -1217,7 +1222,7 @@ const ROLE_LABEL = {
 function mostrarBoasVindas(nome) {
   return new Promise(resolve => {
     const el = document.getElementById('welcome-overlay')
-    document.getElementById('welcome-nome').textContent = `Bem-vindo, ${nome}!`
+    document.getElementById('welcome-nome').textContent = `Seja bem-vindo(a), ${nome}!`
     el.classList.add('show')
     requestAnimationFrame(() => el.classList.add('in'))
     let fechado = false
@@ -1933,7 +1938,7 @@ function renderProfessores() {
   el.innerHTML = store.professores.map(p => `
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="list-avatar" id="prof-av-${p.user_id}">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</div>
         <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · ${p.escola_id ? esc(nomeEscola(p.escola_id)) : '—'} · Acesso: ${fmtUltimoAcesso(p.ultimo_acesso)}</div></div>
       </div>
       <div class="actions">
@@ -1943,6 +1948,12 @@ function renderProfessores() {
       </div>
     </div>
   `).join('')
+  store.professores.forEach(async p => {
+    if (!p.foto_url) return
+    const url = await _urlAssinada(p.foto_url)
+    const el2 = document.getElementById(`prof-av-${p.user_id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || POS_PADRAO};">`
+  })
 }
 
 function abrirModalProfessor(userId) {
@@ -1963,6 +1974,20 @@ function abrirModalProfessor(userId) {
   document.getElementById('prof-email').value = ''
 
   abrirModal('modal-professor')
+}
+
+// auth.signUp() troca a sessão ativa do client pro usuário recém-criado
+// (é assim que o Supabase Auth funciona no SDK client-side) — sem isso,
+// criar um professor/acesso deslogava o admin no meio da tela. Guarda o
+// token da sessão de quem está criando ANTES de chamar signUp e restaura
+// logo em seguida, sem precisar de Service Role Key nem Edge Function.
+async function _criarContaAuth(email, senha, fullName) {
+  const { data: { session: sessaoAtual } } = await db.auth.getSession()
+  const resultado = await db.auth.signUp({ email, password: senha, options: { data: { full_name: fullName } } })
+  if (sessaoAtual) {
+    await db.auth.setSession({ access_token: sessaoAtual.access_token, refresh_token: sessaoAtual.refresh_token })
+  }
+  return resultado
 }
 
 async function salvarProfessor() {
@@ -1996,15 +2021,11 @@ async function salvarProfessor() {
   if (!/^[a-z0-9._-]{3,32}$/.test(username)) { toast('Usuário só pode ter letras minúsculas, números, ponto, traço ou "_" (3 a 32 caracteres)'); btn.disabled = false; btn.textContent = 'Salvar'; return }
 
   const senha = gerarSenha()
-  const adminId = currentUser.id
   const emailAuth = emailContato || `${username}@login.grandfocus.internal`
-  const { data: suData, error: suErr } = await db.auth.signUp({ email: emailAuth, password: senha, options: { data: { full_name: nome } } })
+  const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
 
   const { data: perfilData, error: perfilErr } = await db.from('perfis').insert({ user_id: suData.user?.id, role: cargo, nome, escola_id, username }).select().single()
-
-  const { data: { session } } = await db.auth.getSession()
-  const sessaoTrocou = session?.user?.id && session.user.id !== adminId
   btn.disabled = false; btn.textContent = 'Salvar'
 
   if (perfilErr) {
@@ -2020,13 +2041,7 @@ async function salvarProfessor() {
   document.getElementById('prof-resultado').style.display = 'block'
   document.getElementById('prof-resultado').textContent = `Usuário: ${username}\nSenha:   ${senha}\n\nEnvie essas credenciais para ${nome}.`
   registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
-
-  if (sessaoTrocou) {
-    toast('Acesso criado. Sua sessão de admin foi encerrada por segurança — entre de novo.')
-    await db.auth.signOut()
-  } else {
-    toast('Professor/diretor criado ✓')
-  }
+  toast('Professor/diretor criado ✓')
 }
 
 async function excluirProfessor(userId) {
@@ -2059,7 +2074,7 @@ function renderPais() {
     return `
     <div class="list-item">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar">${esc((r.nome || '?').trim().charAt(0).toUpperCase())}</div>
+        <div class="list-avatar" id="resp-av-${r.user_id}">${esc((r.nome || '?').trim().charAt(0).toUpperCase())}</div>
         <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'} · Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div></div>
       </div>
       <div class="actions">
@@ -2069,6 +2084,12 @@ function renderPais() {
       </div>
     </div>`
   }).join('')
+  store.responsaveis.forEach(async r => {
+    if (!r.foto_url) return
+    const url = await _urlAssinada(r.foto_url)
+    const el2 = document.getElementById(`resp-av-${r.user_id}`)
+    if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${r.foto_pos || POS_PADRAO};">`
+  })
 }
 
 async function excluirResponsavel(userId) {
@@ -2551,10 +2572,19 @@ async function uploadFotosEvento(files) {
   renderFotosEventoAdmin()
 }
 
+// signed URL dura 300s no servidor — cachear evita gerar uma nova (round
+// trip de rede) toda vez que o mesmo avatar/capa re-renderiza (trocar de
+// aba, reabrir modal etc.), que era a causa do atraso/flash antes da
+// foto aparecer. Margem de 30s pra nunca servir uma URL prestes a expirar.
+const _cacheUrlAssinada = new Map()
 async function _urlAssinada(path) {
+  const cache = _cacheUrlAssinada.get(path)
+  if (cache && cache.expira > Date.now()) return cache.url
   const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 300)
   if (error) { console.error(error); return null }
-  return data?.signedUrl || null
+  const url = data?.signedUrl || null
+  if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+  return url
 }
 
 // prévia (com marca d'água) quando existir; fotos de antes do Estágio E
@@ -3683,7 +3713,6 @@ async function criarAcesso() {
   }
 
   const senha = gerarSenha()
-  const adminId = currentUser.id
   const btn = document.getElementById('acesso-btn')
   btn.disabled = true; btn.textContent = 'Gerando…'
 
@@ -3691,7 +3720,7 @@ async function criarAcesso() {
   // "e-mail"; usa o de contato se foi informado, senão sintetiza um
   // interno que nunca é mostrado nem usado pra login de verdade.
   const emailAuth = emailContato || `${username}@login.grandfocus.internal`
-  const { data: suData, error: suErr } = await db.auth.signUp({ email: emailAuth, password: senha, options: { data: { full_name: nomeAlvo } } })
+  const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nomeAlvo)
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
 
   const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo, username }
@@ -3709,13 +3738,6 @@ async function criarAcesso() {
     const { error } = await db.from('permissoes_extra').insert(rows)
     vinculoErr = error
   }
-
-  // signUp pode ter trocado a sessão ativa pro usuário novo (se a
-  // confirmação de e-mail estiver desligada no projeto) — nesse caso,
-  // desloga e pede pro admin entrar de novo, em vez de continuar
-  // "disfarçado" de outra conta.
-  const { data: { session } } = await db.auth.getSession()
-  const sessaoTrocou = session?.user?.id && session.user.id !== adminId
 
   btn.disabled = false; btn.textContent = 'Gerar acesso'
   if (perfilErr) {
@@ -3744,13 +3766,7 @@ async function criarAcesso() {
     store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
     popularVinculoSelects()
   }
-
-  if (sessaoTrocou) {
-    toast('Acesso criado. Sua sessão de admin foi encerrada por segurança — entre de novo.')
-    await db.auth.signOut()
-  } else {
-    toast('Acesso criado ✓')
-  }
+  toast('Acesso criado ✓')
 }
 
 // ── vincular filho a um responsável que já tem conta ──────────────
