@@ -71,6 +71,32 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .publica-senha-card{max-width:360px;margin:60px auto;text-align:center;}
 .publica-capa{width:100%;height:220px;border-radius:14px;object-fit:cover;margin-bottom:18px;}
 
+/* ── seleção de fotos & extras (Bloco 8) — tela do cliente ── */
+#view-selecao{min-height:100vh;background:var(--palco);}
+.selpub-sticky{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 24px;background:rgba(16,9,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(200,175,127,.18);}
+.selpub-contador{display:flex;gap:20px;flex-wrap:wrap;}
+.selpub-item{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;}
+.selpub-item .n{font-family:var(--serif);font-size:19px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
+.selpub-item .l{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#B39F86;}
+.selpub-item.extra .n{color:var(--vermelho);}
+.selpub-item.valor .n{color:var(--verde);}
+.selpub-filtros{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap;}
+.selpub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+.selpub-card{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#0c0509;}
+.selpub-card img{width:100%;height:100%;object-fit:cover;transition:transform .2s;}
+.selpub-card:hover img{transform:scale(1.04);}
+.selpub-card .check{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(16,9,16,.55);border:1.5px solid rgba(246,240,230,.7);display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.selpub-zoom{position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;background:rgba(16,9,16,.55);border:0;display:flex;align-items:center;justify-content:center;color:#F6F0E6;cursor:pointer;}
+.selpub-zoom svg{width:14px;height:14px;}
+.selpub-card.on .check{background:var(--ouro);border-color:var(--ouro);}
+.selpub-card.on .check svg{opacity:1;}
+.selpub-card .check svg{width:14px;height:14px;opacity:0;stroke:var(--tinta);stroke-width:3;}
+.selpub-card.on{outline:2px solid var(--ouro);outline-offset:-2px;}
+.selpub-banner{background:rgba(200,175,127,.12);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13.5px;color:var(--ouro-luz);}
+.selpub-pix-box{background:rgba(61,207,142,.1);border:1px solid rgba(61,207,142,.3);border-radius:10px;padding:12px 14px;font-size:13px;}
+.selpub-pix-box .chave{font-family:monospace;font-size:13.5px;color:var(--verde);word-break:break-all;}
+.selpub-download-list{display:flex;flex-direction:column;gap:8px;}
+
 /* ── login ── */
 #login-screen{
   min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
@@ -376,6 +402,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .evento-card .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .status-badge.concluido{background:rgba(75,4,22,.6);color:#C9B9A4;}
 .status-badge.ativo{background:rgba(61,207,142,.25);color:var(--verde);border-color:rgba(61,207,142,.4);}
+.status-badge.enviada{background:rgba(200,175,127,.25);color:var(--ouro-luz);border-color:rgba(200,175,127,.4);}
+.status-badge.expirada{background:rgba(224,85,112,.2);color:var(--vermelho);border-color:rgba(224,85,112,.35);}
 .evento-card-acoes{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
 .evento-card-acoes .btn{flex:1;white-space:nowrap;}
 
@@ -407,7 +435,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 }
 @keyframes gf-shine{to{background-position:-200% 0;}}
 @media(prefers-reduced-motion:reduce){.foto-item img:not([src]),.foto-item img[src=""]{animation:none;}}
-.foto-item img,.lightbox-img-wrap img,.post-imagem{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
+.foto-item img,.lightbox-img-wrap img,.post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
 .foto-item .ck{
   position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:5px;background:rgba(26,10,14,.7);
   border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
@@ -671,6 +699,24 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div id="publica-conteudo" class="publica-conteudo"></div>
 </div>
 
+<!-- seleção de fotos & extras (Bloco 8) — só aparece com ?sel=TOKEN na URL -->
+<div id="view-selecao" style="display:none;">
+  <div class="publica-topo">
+    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <span>Grand Focus</span>
+  </div>
+  <div class="selpub-sticky" id="selpub-sticky" style="display:none;">
+    <div class="selpub-contador">
+      <div class="selpub-item"><span class="n" id="selpub-n-pacote">0</span><span class="l">no pacote</span></div>
+      <div class="selpub-item"><span class="n" id="selpub-n-selecionadas">0</span><span class="l">selecionadas</span></div>
+      <div class="selpub-item extra"><span class="n" id="selpub-n-extras">0</span><span class="l">extras</span></div>
+      <div class="selpub-item valor"><span class="n" id="selpub-n-total">R$ 0,00</span><span class="l">total extra</span></div>
+    </div>
+    <button class="btn btn-primary btn-sm" id="selpub-btn-finalizar" onclick="_selPubAbrirConfirmar()">Finalizar Seleção ➔</button>
+  </div>
+  <div id="selecao-pub-conteudo" class="publica-conteudo"></div>
+</div>
+
 <div id="login-screen">
   <div class="login-card">
     <img src="assets/logo-icone.png" alt="Grand Focus">
@@ -747,6 +793,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="eventos" data-tip="Eventos &amp; Fotos" onclick="setAdminTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos &amp; Fotos</span></div>
         <div class="tab" data-tab="ensaios" data-tip="Ensaios Avulsos" onclick="setAdminTab('ensaios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg><span>Ensaios Avulsos</span></div>
         <div class="tab" data-tab="galeria" data-tip="Galeria" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
+        <div class="tab" data-tab="selecao" data-tip="Seleção de Fotos" onclick="setAdminTab('selecao');iniciarSelecaoAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8l2.4 5.1 5.6.6-4.1 3.9 1.1 5.6-4.9-2.8-4.9 2.8 1.1-5.6-4.1-3.9 5.6-.6Z"/></svg><span>Seleção de Fotos</span></div>
         <div class="navgroup-label">Social</div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="navgroup-label">Sistema</div>
@@ -878,6 +925,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
       <div class="admin-tab" id="admintab-galeria" style="display:none;">
         <div id="galeria-admin-wrap"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-selecao" style="display:none;">
+        <div id="selecao-lista-wrap">
+          <div class="section-h">
+            <h2>Seleção de Fotos &amp; Extras</h2>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" onclick="_abrirConfigPix()">Chave PIX do estúdio</button>
+              <button class="btn btn-primary btn-sm" onclick="abrirModalSelecaoGaleria()">+ Nova Galeria</button>
+            </div>
+          </div>
+          <div class="eventos-grid" id="selecao-lista"></div>
+        </div>
+        <div id="selecao-detalhe-wrap" style="display:none;"></div>
       </div>
 
       <div class="admin-tab" id="admintab-comunidade" style="display:none;">
@@ -1478,6 +1539,71 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: nova/editar galeria de seleção -->
+<div class="modal-overlay" id="modal-selecao-galeria">
+  <div class="modal" style="max-width:480px;">
+    <input type="hidden" id="sel-id">
+    <h3 style="margin-bottom:16px;" id="sel-modal-titulo">Nova Galeria de Seleção</h3>
+    <div class="field"><label>Título do ensaio</label><input type="text" id="sel-titulo" placeholder="Ex: Ensaio Solo — Ana Clara"></div>
+    <div class="field">
+      <label>Destinatário</label>
+      <select id="sel-dest-tipo" onchange="_selecaoTipoMudou()">
+        <option value="avulso">Pessoa avulsa (sem cadastro)</option>
+        <option value="aluno">Aluno</option>
+        <option value="pai">Pai / Responsável</option>
+        <option value="professor">Professor</option>
+      </select>
+    </div>
+    <div class="field" id="sel-dest-pessoa-wrap" style="display:none;">
+      <label>Selecione</label>
+      <select id="sel-dest-id" onchange="_selecaoPessoaMudou()"></select>
+    </div>
+    <div class="field"><label>Nome do cliente</label><input type="text" id="sel-cliente-nome"></div>
+    <div class="field"><label>WhatsApp</label><input type="text" id="sel-cliente-whatsapp" placeholder="(11) 91234-5678"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label>Fotos incluídas no pacote</label><input type="number" id="sel-qtd-incluida" min="0" value="10"></div>
+      <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div class="field"><label>Expira em</label><input type="date" id="sel-expira"></div>
+      <div class="field"><label>Senha (opcional)</label><input type="text" id="sel-senha" placeholder="Deixe em branco pra não usar"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-selecao-galeria')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="sel-salvar-btn" onclick="salvarSelecaoGaleria()">Salvar e continuar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: chave PIX do estúdio (config única, usada em toda seleção) -->
+<div class="modal-overlay" id="modal-selecao-pix">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-bottom:16px;">Chave PIX do estúdio</h3>
+    <div class="meta" style="margin-bottom:14px;">Aparece pro cliente na tela de seleção, na hora de pagar os extras.</div>
+    <div class="field"><label>Chave PIX</label><input type="text" id="pix-chave" placeholder="CPF, e-mail, telefone ou chave aleatória"></div>
+    <div class="field"><label>Nome do favorecido</label><input type="text" id="pix-nome" placeholder="Ex: Grand Focus Fotografia"></div>
+    <div class="field"><label>URL do QR Code (opcional)</label><input type="text" id="pix-qrcode-url" placeholder="Link de uma imagem de QR Code, se tiver"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-selecao-pix')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_salvarConfigPix()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: confirmação da seleção (cliente público) -->
+<div class="modal-overlay" id="modal-selecao-confirmar">
+  <div class="modal" style="max-width:440px;">
+    <h3 style="margin-bottom:14px;">Confirmar sua seleção</h3>
+    <div class="meta" id="selpub-confirmar-resumo" style="margin-bottom:14px;line-height:1.7;"></div>
+    <div id="selpub-confirmar-pix" style="margin-bottom:14px;"></div>
+    <div class="field"><label>Observações (opcional)</label><textarea id="selpub-observacoes" rows="3" placeholder="Ex: gostaria de tratamento especial na foto 04"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-selecao-confirmar')">Voltar</button>
+      <button class="btn btn-primary btn-sm" id="selpub-btn-enviar" onclick="_selPubEnviarPedido()">Enviar Seleção para o Estúdio</button>
+    </div>
+  </div>
+</div>
+
 <!-- visualizador de foto ampliada -->
 <div class="lightbox" id="lightbox" onclick="if(event.target===this)fecharLightbox()">
   <button class="lightbox-close" onclick="fecharLightbox()" aria-label="Fechar">×</button>
@@ -1488,6 +1614,21 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <img src="assets/logo-icone.png" alt="">
     <span id="lightbox-caption"></span>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
+  </div>
+</div>
+
+<!-- lightbox dedicado da seleção pública (independente do #lightbox
+     acima) — deixa marcar/desmarcar a foto direto da visualização
+     ampliada, e nunca expõe botão de baixar (a foto aqui é sempre a
+     versão leve com marca d'água; a original só sai depois de liberado) -->
+<div class="lightbox" id="selpub-lightbox" onclick="if(event.target===this)_selPubFecharLightbox()">
+  <button class="lightbox-close" onclick="_selPubFecharLightbox()" aria-label="Fechar">×</button>
+  <button class="lightbox-nav prev" onclick="_selPubLightboxNav(-1)" aria-label="Anterior">‹</button>
+  <button class="lightbox-nav next" onclick="_selPubLightboxNav(1)" aria-label="Próxima">›</button>
+  <div class="lightbox-img-wrap" id="selpub-lightbox-img-wrap"><img id="selpub-lightbox-img" src="" alt="" onclick="event.stopPropagation();document.getElementById('selpub-lightbox-img-wrap').classList.toggle('zoomed')"></div>
+  <div class="lightbox-foot">
+    <span id="selpub-lightbox-caption"></span>
+    <button class="btn btn-sm btn-primary" id="selpub-lightbox-btn" onclick="_selPubLightboxToggleAtual()">Marcar</button>
   </div>
 </div>
 
@@ -1513,7 +1654,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [] }
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -4050,7 +4191,7 @@ document.addEventListener('keydown', e => {
 // proteção de verdade é a RLS: sem vínculo, a foto nem chega a ser
 // pedida ao servidor.
 document.addEventListener('contextmenu', e => {
-  if (e.target.closest('.foto-item, .lightbox-img-wrap, .post-imagem')) e.preventDefault()
+  if (e.target.closest('.foto-item, .lightbox-img-wrap, .post-imagem, .selpub-card')) e.preventDefault()
 })
 
 // ══════════════════════════════════════════════════════════════
@@ -6276,8 +6417,636 @@ function _iniciarModoPublico(token) {
   _carregarGaleriaPublica(token, null)
 }
 
+// ══════════════════════════════════════════════════════════════
+// SELEÇÃO DE FOTOS & EXTRAS (Bloco 8) — venda de fotos excedentes.
+// Mesma arquitetura do link privado (Bloco 4): o cliente público
+// NUNCA lê selecao_galerias/fotos/pedidos via REST — só através da
+// Edge Function selecao-publica (service role), que é a única capaz
+// de gerar signed URL da foto em ALTA, e só depois de conferir no
+// banco que o pedido está 'liberado'. Painel admin (aqui embaixo) usa
+// o client autenticado normal, como o resto do app.
+// ══════════════════════════════════════════════════════════════
+let _selecaoDetalheAtual = null
+
+function _selecaoStatusInfo(status) {
+  return {
+    ativa: { label: 'Ativa', cls: 'ativo' },
+    enviada: { label: 'Aguardando Aprovação', cls: 'enviada' },
+    concluida: { label: 'Pago / Liberado', cls: 'concluido' },
+    expirada: { label: 'Expirada', cls: 'expirada' },
+  }[status] || { label: status, cls: '' }
+}
+
+async function iniciarSelecaoAdmin() {
+  const { data, error } = await db.from('selecao_galerias')
+    .select('*, selecao_pedidos(status, valor_total, qtd_extra, liberado_em)')
+    .order('criado_em', { ascending: false })
+  if (error) { toast('Erro ao carregar seleções: ' + error.message); return }
+  store.selecaoGalerias = data || []
+  renderSelecaoLista()
+}
+
+function renderSelecaoLista() {
+  const el = document.getElementById('selecao-lista')
+  if (!el) return
+  if (!store.selecaoGalerias.length) { el.innerHTML = '<div class="empty">Nenhuma galeria de seleção criada ainda.</div>'; return }
+  el.innerHTML = store.selecaoGalerias.map(g => {
+    const pedido = g.selecao_pedidos?.[0]
+    const info = _selecaoStatusInfo(g.status)
+    return `
+    <div class="card evento-card" onclick="abrirSelecaoDetalhe('${g.id}')">
+      <div class="capa"><span class="data-badge status-badge ${info.cls}">${info.label}</span></div>
+      <div class="body">
+        <div class="nome">${esc(g.titulo)}</div>
+        <div class="meta">${esc(g.cliente_nome)} · ${g.qtd_incluida} incluída(s) · R$ ${Number(g.preco_extra).toFixed(2)}/extra</div>
+        ${pedido ? `<div class="meta">${pedido.qtd_extra} extra(s) selecionado(s) · R$ ${Number(pedido.valor_total).toFixed(2)}</div>` : ''}
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function abrirModalSelecaoGaleria(id) {
+  document.getElementById('sel-id').value = id || ''
+  document.getElementById('sel-modal-titulo').textContent = id ? 'Editar Galeria' : 'Nova Galeria de Seleção'
+  const g = id ? store.selecaoGalerias.find(x => x.id === id) : null
+  document.getElementById('sel-titulo').value = g?.titulo || ''
+  document.getElementById('sel-dest-tipo').value = g?.destinatario_tipo || 'avulso'
+  document.getElementById('sel-cliente-nome').value = g?.cliente_nome || ''
+  document.getElementById('sel-cliente-whatsapp').value = g?.cliente_whatsapp || ''
+  document.getElementById('sel-qtd-incluida').value = g?.qtd_incluida ?? 10
+  document.getElementById('sel-preco-extra').value = g?.preco_extra ?? 15
+  document.getElementById('sel-expira').value = g?.expira_em ? g.expira_em.slice(0, 10) : ''
+  document.getElementById('sel-senha').value = ''
+  await _selecaoTipoMudou(g?.destinatario_id)
+  abrirModal('modal-selecao-galeria')
+}
+
+async function _selecaoTipoMudou(preselectId) {
+  const tipo = document.getElementById('sel-dest-tipo').value
+  const wrap = document.getElementById('sel-dest-pessoa-wrap')
+  if (tipo === 'avulso') { wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+  const sel = document.getElementById('sel-dest-id')
+  let opcoes = []
+  if (tipo === 'aluno') {
+    if (!store.alunos.length) await carregarAlunos()
+    opcoes = store.alunos.map(a => ({ id: a.id, label: a.nome }))
+  } else if (tipo === 'professor') {
+    if (!store.professores.length) await carregarProfessores()
+    opcoes = store.professores.map(p => ({ id: p.user_id, label: p.nome || '(sem nome)' }))
+  } else if (tipo === 'pai') {
+    if (!store.responsaveis.length) await carregarResponsaveis()
+    opcoes = store.responsaveis.map(r => ({ id: r.user_id, label: r.nome || '(sem nome)' }))
+  }
+  sel.innerHTML = '<option value="">— selecione —</option>' + opcoes.map(o => `<option value="${o.id}">${esc(o.label)}</option>`).join('')
+  if (preselectId) sel.value = preselectId
+  _selecaoPessoaMudou()
+}
+
+function _selecaoPessoaMudou() {
+  const tipo = document.getElementById('sel-dest-tipo').value
+  const id = document.getElementById('sel-dest-id').value
+  if (!id) return
+  let pessoa = null
+  if (tipo === 'aluno') pessoa = store.alunos.find(a => a.id === id)
+  else if (tipo === 'professor') pessoa = store.professores.find(p => p.user_id === id)
+  else if (tipo === 'pai') pessoa = store.responsaveis.find(r => r.user_id === id)
+  if (!pessoa) return
+  document.getElementById('sel-cliente-nome').value = pessoa.nome || ''
+  if (pessoa.telefone) document.getElementById('sel-cliente-whatsapp').value = pessoa.telefone
+}
+
+async function salvarSelecaoGaleria() {
+  const id = document.getElementById('sel-id').value || null
+  const titulo = document.getElementById('sel-titulo').value.trim()
+  if (!titulo) { toast('Informe o título'); return }
+  const destinatario_tipo = document.getElementById('sel-dest-tipo').value
+  const destinatario_id = destinatario_tipo === 'avulso' ? null : (document.getElementById('sel-dest-id').value || null)
+  const cliente_nome = document.getElementById('sel-cliente-nome').value.trim()
+  if (!cliente_nome) { toast('Informe o nome do cliente'); return }
+  const cliente_whatsapp = document.getElementById('sel-cliente-whatsapp').value.trim() || null
+  const qtd_incluida = parseInt(document.getElementById('sel-qtd-incluida').value, 10) || 0
+  const preco_extra = parseFloat(document.getElementById('sel-preco-extra').value) || 0
+  const expiraInput = document.getElementById('sel-expira').value
+  const expira_em = expiraInput ? new Date(expiraInput + 'T23:59:59').toISOString() : null
+  const senha = document.getElementById('sel-senha').value.trim()
+
+  const btn = document.getElementById('sel-salvar-btn')
+  btn.disabled = true; btn.textContent = 'Salvando…'
+
+  let galeriaId = id
+  if (id) {
+    const { error } = await db.from('selecao_galerias').update({ titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, expira_em }).eq('id', id)
+    if (error) { toast('Erro ao salvar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
+    registrarAuditoria('editou galeria de seleção', 'selecao_galerias', id, titulo)
+  } else {
+    const token = crypto.randomUUID().replace(/-/g, '')
+    const { data, error } = await db.from('selecao_galerias').insert({
+      titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp,
+      qtd_incluida, preco_extra, expira_em, token, criado_por: currentUser.id,
+    }).select().single()
+    if (error) { toast('Erro ao criar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
+    galeriaId = data.id
+    registrarAuditoria('criou galeria de seleção', 'selecao_galerias', galeriaId, titulo)
+  }
+  if (senha) {
+    const { error: eSenha } = await db.rpc('definir_senha_selecao', { p_galeria_id: galeriaId, p_senha: senha })
+    if (eSenha) toast('Galeria salva, mas a senha falhou: ' + eSenha.message)
+  }
+  btn.disabled = false; btn.textContent = 'Salvar e continuar'
+  fecharModal('modal-selecao-galeria')
+  await iniciarSelecaoAdmin()
+  abrirSelecaoDetalhe(galeriaId)
+}
+
+async function abrirSelecaoDetalhe(id) {
+  const { data: g, error } = await db.from('selecao_galerias').select('*').eq('id', id).single()
+  if (error) { toast('Erro ao abrir galeria: ' + error.message); return }
+  const { data: fotos } = await db.from('selecao_fotos').select('*').eq('galeria_id', id).order('ordem')
+  const { data: pedido } = await db.from('selecao_pedidos').select('*').eq('galeria_id', id).maybeSingle()
+  _selecaoDetalheAtual = { ...g, fotos: fotos || [], pedido: pedido || null }
+  document.getElementById('selecao-lista-wrap').style.display = 'none'
+  document.getElementById('selecao-detalhe-wrap').style.display = 'block'
+  renderSelecaoDetalhe()
+}
+
+function _selecaoVoltarLista() {
+  _selecaoDetalheAtual = null
+  document.getElementById('selecao-detalhe-wrap').style.display = 'none'
+  document.getElementById('selecao-lista-wrap').style.display = 'block'
+}
+
+function _selecaoPedidoHubHTML(pedido) {
+  const podeLiberar = ['enviado', 'pago'].includes(pedido.status)
+  return `
+    <div class="card" style="margin-bottom:16px;">
+      <h3 style="font-size:15px;margin-bottom:10px;">Pedido do cliente</h3>
+      <div class="meta" style="margin-bottom:10px;">${pedido.qtd_selecionada} foto(s) escolhida(s) (${pedido.qtd_extra} extra(s)) = <b style="color:var(--ouro-luz);">R$ ${Number(pedido.valor_total).toFixed(2)}</b></div>
+      ${pedido.observacoes ? `<div class="meta" style="margin-bottom:10px;">Observações do cliente: "${esc(pedido.observacoes)}"</div>` : ''}
+      <div class="foto-grid" id="sel-pedido-fotos-grid" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        ${podeLiberar
+          ? `<button class="btn btn-primary btn-sm" onclick="_selecaoLiberarPagamento()">💰 Confirmar Pagamento &amp; Liberar Alta Resolução</button>`
+          : `<span class="meta">✓ Liberado em ${fmtDataHora(pedido.liberado_em)} — o cliente já pode baixar as fotos em alta pelo mesmo link.</span>`}
+      </div>
+    </div>`
+}
+
+function renderSelecaoDetalhe() {
+  const g = _selecaoDetalheAtual
+  const wrap = document.getElementById('selecao-detalhe-wrap')
+  if (!g || !wrap) return
+  const info = _selecaoStatusInfo(g.status)
+  wrap.innerHTML = `
+    <div class="section-h">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <button class="icon-btn" onclick="_selecaoVoltarLista()" title="Voltar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 6 9 12 15 18"/></svg></button>
+        <h2 style="display:inline-block;">${esc(g.titulo)}</h2>
+        <span class="status-badge ${info.cls}">${info.label}</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="_apagarSelecaoGaleria()">Apagar</button>
+        <button class="btn btn-sm" onclick="abrirModalSelecaoGaleria('${g.id}')">Editar</button>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:16px;">
+      <div class="meta" style="margin-bottom:10px;">${esc(g.cliente_nome)}${g.cliente_whatsapp ? ' · ' + esc(g.cliente_whatsapp) : ''} · ${g.qtd_incluida} incluída(s) · R$ ${Number(g.preco_extra).toFixed(2)}/extra${g.expira_em ? ' · expira ' + fmtData(g.expira_em) : ''}</div>
+      <button class="btn btn-sm" onclick="_copiarLinkSelecao()">📋 Copiar link da galeria</button>
+      <div class="meta" id="sel-link-resultado" style="margin-top:8px;white-space:pre-line;"></div>
+    </div>
+    ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
+    <div class="card">
+      <h3 style="font-size:15px;margin-bottom:10px;">Fotos da galeria (${g.fotos.length})</h3>
+      <div class="upload-drop" id="sel-dropzone" onclick="document.getElementById('sel-upload-input').click()">
+        📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
+        <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files])">
+      </div>
+      <div id="sel-upload-status"></div>
+      <div class="foto-grid" id="sel-fotos-grid" style="margin-top:12px;"></div>
+    </div>
+  `
+  _ligarDropzone('sel-dropzone', 'sel-upload-input', files => uploadFotosSelecao(files))
+  _renderSelecaoFotosGrid()
+  if (g.pedido) _renderSelecaoPedidoFotosGrid()
+}
+
+function _renderSelecaoFotosGrid() {
+  const g = _selecaoDetalheAtual
+  const grid = document.getElementById('sel-fotos-grid')
+  if (!g || !grid) return
+  if (!g.fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto enviada ainda.</div>'; return }
+  grid.innerHTML = g.fotos.map(f => `
+    <div class="foto-item" id="selfoto-${f.id}">
+      <img alt="">
+      <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+    </div>`).join('')
+  g.fotos.forEach(async f => {
+    const url = await _urlAssinada(f.storage_path)
+    const img = document.querySelector(`#selfoto-${f.id} img`)
+    if (url && img) img.src = url
+  })
+}
+
+function _renderSelecaoPedidoFotosGrid() {
+  const g = _selecaoDetalheAtual
+  const grid = document.getElementById('sel-pedido-fotos-grid')
+  if (!g?.pedido || !grid) return
+  const fotos = g.fotos.filter(f => (g.pedido.foto_ids || []).includes(f.id))
+  grid.innerHTML = fotos.map(f => `<div class="foto-item" id="selpedfoto-${f.id}"><img alt=""></div>`).join('')
+  fotos.forEach(async f => {
+    const url = await _urlAssinada(f.storage_path)
+    const img = document.querySelector(`#selpedfoto-${f.id} img`)
+    if (url && img) img.src = url
+  })
+}
+
+async function uploadFotosSelecao(files) {
+  if (!files?.length || !_selecaoDetalheAtual) return
+  const galeriaId = _selecaoDetalheAtual.id
+  const estados = files.map(() => 'aguardando')
+  _renderFilaUpload('sel', files, estados)
+  let ok = 0
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    estados[i] = 'enviando'; _renderFilaUpload('sel', files, estados)
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const sufixo = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+    const altaPath = `selecoes/${galeriaId}/alta-${sufixo}.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(altaPath, file, { contentType: file.type })
+    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
+    let levePath
+    try {
+      const blob = await _gerarThumbWatermark(file)
+      levePath = `selecoes/${galeriaId}/leve-${sufixo}.jpg`
+      const { error: upLeveErr } = await db.storage.from(BUCKET).upload(levePath, blob, { contentType: 'image/jpeg' })
+      if (upLeveErr) throw upLeveErr
+    } catch (e) {
+      estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
+    }
+    const { data: fotoRow, error: insErr } = await db.from('selecao_fotos').insert({
+      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length,
+    }).select().single()
+    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
+    _selecaoDetalheAtual.fotos.push(fotoRow)
+    estados[i] = 'ok'; _renderFilaUpload('sel', files, estados)
+    ok++
+  }
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso`)
+  const inputEl = document.getElementById('sel-upload-input')
+  if (inputEl) inputEl.value = ''
+  if (ok) registrarAuditoria('fez upload de fotos de seleção', 'selecao_galerias', galeriaId, `${ok} foto(s)`)
+  _renderSelecaoFotosGrid()
+}
+
+async function _apagarFotoSelecao(fotoId) {
+  const ok = await confirmModal('Apagar essa foto da galeria de seleção?', { titulo: 'Apagar foto', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const f = _selecaoDetalheAtual?.fotos.find(x => x.id === fotoId)
+  if (!f) return
+  await db.storage.from(BUCKET).remove([f.storage_path, f.storage_path_alta].filter(Boolean))
+  const { error } = await db.from('selecao_fotos').delete().eq('id', fotoId)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  _selecaoDetalheAtual.fotos = _selecaoDetalheAtual.fotos.filter(x => x.id !== fotoId)
+  _renderSelecaoFotosGrid()
+  toast('Foto removida')
+}
+
+async function _apagarSelecaoGaleria() {
+  const g = _selecaoDetalheAtual
+  if (!g) return
+  const ok = await confirmModal('Apagar essa galeria de seleção inteira? Isso remove as fotos e o pedido associado, se houver. Não pode ser desfeito.', { titulo: 'Apagar galeria', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const paths = g.fotos.flatMap(f => [f.storage_path, f.storage_path_alta].filter(Boolean))
+  if (paths.length) await db.storage.from(BUCKET).remove(paths)
+  const { error } = await db.from('selecao_galerias').delete().eq('id', g.id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  registrarAuditoria('apagou galeria de seleção', 'selecao_galerias', g.id, g.titulo)
+  toast('Galeria apagada')
+  store.selecaoGalerias = store.selecaoGalerias.filter(x => x.id !== g.id)
+  _selecaoVoltarLista()
+  renderSelecaoLista()
+}
+
+function _selecaoUrlPublica(token, nome) {
+  const slug = (nome || '').toLowerCase().normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+  return `${location.origin}${location.pathname}?sel=${token}${slug ? `&e=${slug}` : ''}`
+}
+
+async function _copiarLinkSelecao() {
+  const g = _selecaoDetalheAtual
+  if (!g) return
+  const url = _selecaoUrlPublica(g.token, g.titulo)
+  try { await navigator.clipboard.writeText(url) } catch (e) { /* clipboard indisponível, ainda mostra na tela */ }
+  const resEl = document.getElementById('sel-link-resultado')
+  if (resEl) resEl.textContent = url
+  toast('Link copiado ✓')
+}
+
+async function _selecaoLiberarPagamento() {
+  const g = _selecaoDetalheAtual
+  if (!g) return
+  const ok = await confirmModal('Confirmar que o pagamento dos extras foi recebido e liberar as fotos em alta resolução pro cliente?', { titulo: 'Liberar alta resolução', okLabel: 'Confirmar e liberar' })
+  if (!ok) return
+  const { error } = await db.rpc('selecao_liberar_pedido', { p_galeria_id: g.id })
+  if (error) { toast('Erro ao liberar: ' + error.message); return }
+  registrarAuditoria('liberou alta resolução da seleção', 'selecao_galerias', g.id, g.titulo)
+  toast('Liberado ✓ — o cliente já pode baixar as fotos em alta pelo mesmo link')
+  await iniciarSelecaoAdmin()
+  await abrirSelecaoDetalhe(g.id)
+}
+
+async function _abrirConfigPix() {
+  const { data, error } = await db.from('selecao_config').select('*').eq('id', true).maybeSingle()
+  if (error) { toast('Erro ao carregar config: ' + error.message); return }
+  document.getElementById('pix-chave').value = data?.pix_chave || ''
+  document.getElementById('pix-nome').value = data?.pix_nome || ''
+  document.getElementById('pix-qrcode-url').value = data?.pix_qrcode_url || ''
+  abrirModal('modal-selecao-pix')
+}
+
+async function _salvarConfigPix() {
+  const pix_chave = document.getElementById('pix-chave').value.trim() || null
+  const pix_nome = document.getElementById('pix-nome').value.trim() || null
+  const pix_qrcode_url = document.getElementById('pix-qrcode-url').value.trim() || null
+  const { error } = await db.from('selecao_config').update({ pix_chave, pix_nome, pix_qrcode_url }).eq('id', true)
+  if (error) { toast('Erro ao salvar: ' + error.message); return }
+  toast('Chave PIX salva ✓')
+  fecharModal('modal-selecao-pix')
+}
+
+// ── seleção pública (tela do cliente, sem login, ?sel=TOKEN) ───────
+// Mesmo padrão de auth da galeria-publica: anon key como Bearer só
+// pra passar pelo gateway, quem trava de verdade token/senha (e nunca
+// devolve a foto em alta antes do pedido virar 'liberado') é a Edge
+// Function, rodando com service role.
+let _selPub = { token: null, senha: null, dados: null, selecionados: new Set() }
+let _selPubFiltro = 'todas'
+let _selPubLightboxIdx = -1
+let _selPubFotosLiberadas = []
+
+function _iniciarModoSelecao(token) {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('app').style.display = 'none'
+  document.getElementById('view-selecao').style.display = 'block'
+  _selPub.token = token
+  _carregarSelecaoPublica(token, null)
+}
+
+async function _selecaoPublicaFetch(action, token, senha, extra) {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/selecao-publica`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+      body: JSON.stringify({ action, token, senha: senha || null, ...(extra || {}) }),
+    })
+    const data = await resp.json().catch(() => ({}))
+    if (!resp.ok || data.error) return { error: data.error || 'Não foi possível completar a operação.' }
+    return { data }
+  } catch (e) {
+    return { error: 'Não foi possível conectar. Confira sua internet e tente de novo.' }
+  }
+}
+
+async function _carregarSelecaoPublica(token, senha) {
+  const conteudo = document.getElementById('selecao-pub-conteudo')
+  conteudo.innerHTML = '<div class="empty">Carregando…</div>'
+  document.getElementById('selpub-sticky').style.display = 'none'
+  const { data, error } = await _selecaoPublicaFetch('dados', token, senha)
+  if (error) {
+    if (/senha/i.test(error)) { _renderSelPubSenhaCard(token, !!senha); return }
+    conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`
+    return
+  }
+  _selPub.token = token
+  _selPub.senha = senha
+  _selPub.dados = data
+  // crash recovery: sem pedido enviado ainda, o único lugar onde o
+  // rascunho existe é o localStorage DESSE navegador (nunca foi pro
+  // banco). Com pedido já existente, o banco é a fonte de verdade —
+  // é o que sincroniza entre celular e computador (requisito #4).
+  if (data.pedido) {
+    _selPub.selecionados = new Set(data.pedido.foto_ids || [])
+  } else {
+    let salvos = []
+    try { salvos = JSON.parse(localStorage.getItem('gf_sel_' + token) || '[]') } catch (e) {}
+    _selPub.selecionados = new Set(salvos)
+  }
+  _renderSelPub()
+}
+
+function _renderSelPubSenhaCard(token, senhaErrada) {
+  document.getElementById('selecao-pub-conteudo').innerHTML = `
+    <div class="card publica-senha-card">
+      <h3 style="margin-bottom:6px;">Esta seleção tem senha</h3>
+      <div class="meta" style="margin-bottom:16px;">${senhaErrada ? 'Senha incorreta — tente de novo.' : 'Digite a senha que você recebeu pra ver suas fotos.'}</div>
+      <div class="field"><input type="password" id="selpub-senha-input" placeholder="Senha" onkeydown="if(event.key==='Enter')_carregarSelecaoPublica('${token}',document.getElementById('selpub-senha-input').value)"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="_carregarSelecaoPublica('${token}',document.getElementById('selpub-senha-input').value)">Entrar</button>
+    </div>
+  `
+}
+
+function _renderSelPub() {
+  const d = _selPub.dados
+  const sticky = document.getElementById('selpub-sticky')
+  const conteudo = document.getElementById('selecao-pub-conteudo')
+
+  if (d.pedido?.status === 'liberado') { sticky.style.display = 'none'; _renderSelPubLiberado(); return }
+
+  sticky.style.display = 'flex'
+  const banner = d.pedido
+    ? `<div class="selpub-banner">✓ Você já enviou uma seleção — pode ajustar e enviar de novo quando quiser, antes da confirmação do estúdio.</div>`
+    : ''
+  conteudo.innerHTML = `
+    <h2>${esc(d.galeria.titulo)}</h2>
+    <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
+    ${banner}
+    <div class="selpub-filtros">
+      <span class="chip${_selPubFiltro === 'todas' ? ' on' : ''}" onclick="_selPubFiltrar('todas')">Todas</span>
+      <span class="chip${_selPubFiltro === 'selecionadas' ? ' on' : ''}" onclick="_selPubFiltrar('selecionadas')">Selecionadas (${_selPub.selecionados.size})</span>
+      <span class="chip${_selPubFiltro === 'pendentes' ? ' on' : ''}" onclick="_selPubFiltrar('pendentes')">Pendentes</span>
+    </div>
+    <div class="selpub-grid" id="selpub-grid"></div>
+  `
+  _selPubRenderGrid()
+  _selPubAtualizarContador()
+}
+
+function _fotosFiltradasAtual() {
+  const d = _selPub.dados
+  if (!d) return []
+  if (_selPubFiltro === 'selecionadas') return d.fotos.filter(f => _selPub.selecionados.has(f.id))
+  if (_selPubFiltro === 'pendentes') return d.fotos.filter(f => !_selPub.selecionados.has(f.id))
+  return d.fotos
+}
+
+function _selPubRenderGrid() {
+  const d = _selPub.dados
+  const grid = document.getElementById('selpub-grid')
+  if (!d || !grid) return
+  const fotos = _fotosFiltradasAtual()
+  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
+  grid.innerHTML = fotos.map(f => {
+    const idxGlobal = d.fotos.findIndex(x => x.id === f.id)
+    return `
+    <div class="selpub-card${_selPub.selecionados.has(f.id) ? ' on' : ''}" id="selpub-card-${f.id}" onclick="_selPubToggle('${f.id}')">
+      <img src="${f.url}" alt="">
+      <button class="selpub-zoom" onclick="event.stopPropagation();_selPubAbrirLightbox(${idxGlobal})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
+    </div>`
+  }).join('')
+}
+
+function _selPubFiltrar(f) { _selPubFiltro = f; _renderSelPub() }
+
+function _selPubToggle(fotoId) {
+  if (_selPub.selecionados.has(fotoId)) _selPub.selecionados.delete(fotoId)
+  else _selPub.selecionados.add(fotoId)
+  _selPubRenderGrid()
+  _selPubAtualizarContador()
+  _selPubSalvarLocal()
+}
+
+function _selPubSalvarLocal() {
+  try { localStorage.setItem('gf_sel_' + _selPub.token, JSON.stringify([..._selPub.selecionados])) } catch (e) { /* localStorage indisponível — sem crash recovery nesse navegador, mas não impede o uso */ }
+}
+
+function _selPubAtualizarContador() {
+  const g = _selPub.dados.galeria
+  const n = _selPub.selecionados.size
+  const extras = Math.max(0, n - g.qtd_incluida)
+  const total = extras * g.preco_extra
+  document.getElementById('selpub-n-pacote').textContent = g.qtd_incluida
+  document.getElementById('selpub-n-selecionadas').textContent = n
+  document.getElementById('selpub-n-extras').textContent = extras
+  document.getElementById('selpub-n-total').textContent = 'R$ ' + total.toFixed(2).replace('.', ',')
+  document.getElementById('selpub-btn-finalizar').textContent = `Finalizar Seleção (${n}) ➔`
+}
+
+function _selPubAbrirLightbox(idx) {
+  _selPubLightboxIdx = idx
+  _renderSelPubLightboxAtual()
+  document.getElementById('selpub-lightbox').classList.add('show')
+}
+function _selPubFecharLightbox() {
+  const lb = document.getElementById('selpub-lightbox')
+  lb.classList.remove('show')
+  document.getElementById('selpub-lightbox-img').src = ''
+  document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
+}
+function _selPubLightboxNav(delta) {
+  const d = _selPub.dados
+  if (!d?.fotos.length) return
+  _selPubLightboxIdx = (_selPubLightboxIdx + delta + d.fotos.length) % d.fotos.length
+  document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
+  _renderSelPubLightboxAtual()
+}
+function _renderSelPubLightboxAtual() {
+  const d = _selPub.dados
+  const f = d?.fotos[_selPubLightboxIdx]
+  if (!f) return
+  document.getElementById('selpub-lightbox-img').src = f.url
+  document.getElementById('selpub-lightbox-caption').textContent = `${_selPubLightboxIdx + 1} de ${d.fotos.length}`
+  const marcada = _selPub.selecionados.has(f.id)
+  const btn = document.getElementById('selpub-lightbox-btn')
+  btn.textContent = marcada ? '✓ Marcada — clique pra desmarcar' : 'Marcar essa foto'
+  btn.className = 'btn btn-sm ' + (marcada ? '' : 'btn-primary')
+}
+function _selPubLightboxToggleAtual() {
+  const f = _selPub.dados?.fotos[_selPubLightboxIdx]
+  if (!f) return
+  _selPubToggle(f.id)
+  _renderSelPubLightboxAtual()
+}
+
+function _selPubAbrirConfirmar() {
+  const g = _selPub.dados.galeria
+  const n = _selPub.selecionados.size
+  const extras = Math.max(0, n - g.qtd_incluida)
+  const total = extras * g.preco_extra
+  document.getElementById('selpub-confirmar-resumo').innerHTML = `
+    <b>${n}</b> foto(s) selecionada(s)<br>
+    ${Math.min(n, g.qtd_incluida)} incluída(s) no pacote + <b>${extras}</b> extra(s)<br>
+    Total a pagar: <b style="color:var(--verde);">R$ ${total.toFixed(2).replace('.', ',')}</b>
+  `
+  const pix = _selPub.dados.pix
+  const pixBox = document.getElementById('selpub-confirmar-pix')
+  if (total > 0 && pix?.chave) {
+    pixBox.innerHTML = `
+      <div class="selpub-pix-box">
+        <div style="margin-bottom:6px;">Pague os extras via PIX:</div>
+        <div class="chave">${esc(pix.chave)}</div>
+        ${pix.nome ? `<div class="meta" style="margin-top:4px;">${esc(pix.nome)}</div>` : ''}
+        ${pix.qrcode_url ? `<img src="${esc(pix.qrcode_url)}" alt="QR Code PIX" style="width:140px;margin-top:8px;border-radius:8px;">` : ''}
+      </div>`
+  } else if (total > 0) {
+    pixBox.innerHTML = `<div class="meta">O estúdio vai combinar com você o pagamento dos extras.</div>`
+  } else {
+    pixBox.innerHTML = `<div class="meta">Sua seleção está dentro do pacote incluído — sem valor extra a pagar 🎉</div>`
+  }
+  document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
+  abrirModal('modal-selecao-confirmar')
+}
+
+async function _selPubEnviarPedido() {
+  const btn = document.getElementById('selpub-btn-enviar')
+  btn.disabled = true; btn.textContent = 'Enviando…'
+  const observacoes = document.getElementById('selpub-observacoes').value.trim() || null
+  const { data, error } = await _selecaoPublicaFetch('enviar', _selPub.token, _selPub.senha, {
+    foto_ids: [..._selPub.selecionados], observacoes,
+  })
+  btn.disabled = false; btn.textContent = 'Enviar Seleção para o Estúdio'
+  if (error) { toast(error); return }
+  _selPub.dados.pedido = { foto_ids: [..._selPub.selecionados], status: 'enviado', valor_total: data.valor_total, qtd_extra: data.qtd_extra, observacoes }
+  try { localStorage.removeItem('gf_sel_' + _selPub.token) } catch (e) {}
+  fecharModal('modal-selecao-confirmar')
+  toast('Seleção enviada ✓ — o estúdio vai confirmar o pagamento e liberar suas fotos em alta.')
+  _renderSelPub()
+}
+
+async function _renderSelPubLiberado() {
+  const conteudo = document.getElementById('selecao-pub-conteudo')
+  conteudo.innerHTML = '<div class="empty">Preparando seus downloads em alta resolução…</div>'
+  const { data, error } = await _selecaoPublicaFetch('download', _selPub.token, _selPub.senha)
+  if (error) { conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`; return }
+  _selPubFotosLiberadas = data.fotos || []
+  conteudo.innerHTML = `
+    <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
+    <div class="selpub-banner">🎉 Pagamento confirmado! Suas fotos em alta resolução estão liberadas — clique numa foto pra baixar, ou baixe todas de uma vez.</div>
+    ${_selPubFotosLiberadas.length ? `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${_selPubFotosLiberadas.length})</button>` : ''}
+    <div class="selpub-grid" id="selpub-liberado-grid"></div>
+  `
+  const grid = document.getElementById('selpub-liberado-grid')
+  grid.innerHTML = _selPubFotosLiberadas.map((f, i) => `
+    <a class="selpub-card" style="cursor:pointer;" href="${f.url}" download="foto-${i + 1}.jpg">
+      <img src="${f.url}" alt="">
+    </a>`).join('')
+}
+
+async function _selPubBaixarTodas() {
+  const fotos = _selPubFotosLiberadas
+  if (!fotos.length) return
+  toast(`Preparando ${fotos.length} foto(s)…`)
+  const zip = new JSZip()
+  for (let i = 0; i < fotos.length; i++) {
+    try {
+      const resp = await fetch(fotos[i].url)
+      const blob = await resp.blob()
+      zip.file(`foto-${i + 1}.jpg`, blob)
+    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+  }
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  a.download = `${nomeBase}.zip`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+}
+
 // ── boot ────────────────────────────────────────────────────────
 const _tokenPublico = new URLSearchParams(location.search).get('g')
+const _tokenSelecao = new URLSearchParams(location.search).get('sel')
 if (_configPendente) {
   const errEl = document.getElementById('login-error')
   errEl.textContent = '⚠ Configure SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script> (Project Settings → API do seu projeto) antes de usar.'
@@ -6285,6 +7054,8 @@ if (_configPendente) {
   document.getElementById('login-btn').disabled = true
 } else if (_tokenPublico) {
   _iniciarModoPublico(_tokenPublico)
+} else if (_tokenSelecao) {
+  _iniciarModoSelecao(_tokenSelecao)
 } else {
   iniciarAuth()
 }
