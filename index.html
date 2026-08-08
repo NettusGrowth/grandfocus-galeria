@@ -5864,10 +5864,13 @@ function renderGaleriaAdmin() {
 
 function renderGaleriaRaiz(wrap) {
   const nEnsaios = store.eventos.filter(e => e.tipo === 'ensaio').length
+  const icoEscolas = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg>'
+  const icoAvulsos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg>'
+  const icoAlunos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg>'
   wrap.innerHTML += `<div class="list">
-    <div class="list-item" onclick="_galRaiz='escolas';renderGaleriaAdmin()"><div class="nome">🏫 Escolas</div><div class="meta">${store.escolas.length} escola(s)</div></div>
-    <div class="list-item" onclick="_galRaiz='avulsos';renderGaleriaAdmin()"><div class="nome">🎭 Avulsos</div><div class="meta">${nEnsaios} ensaio(s) avulso(s)</div></div>
-    <div class="list-item" onclick="_galRaiz='alunos';renderGaleriaAdmin()"><div class="nome">🎓 Alunos</div><div class="meta">${store.alunos.length} aluno(s)</div></div>
+    <div class="list-item" onclick="_galRaiz='escolas';renderGaleriaAdmin()"><div class="nome">${icoEscolas}Escolas</div><div class="meta">${store.escolas.length} escola(s)</div></div>
+    <div class="list-item" onclick="_galRaiz='avulsos';renderGaleriaAdmin()"><div class="nome">${icoAvulsos}Avulsos</div><div class="meta">${nEnsaios} ensaio(s) avulso(s)</div></div>
+    <div class="list-item" onclick="_galRaiz='alunos';renderGaleriaAdmin()"><div class="nome">${icoAlunos}Alunos</div><div class="meta">${store.alunos.length} aluno(s)</div></div>
   </div>`
 }
 
