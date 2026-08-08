@@ -532,10 +532,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .upload-progresso-global .label{font-size:12px;color:#DBC9A8;margin-bottom:6px;display:flex;justify-content:space-between;}
 
 /* ── subpastas dentro de um evento ── */
-.subpasta-grupo{margin-bottom:22px;}
+.subpasta-grupo{margin-bottom:22px;border-radius:10px;transition:background .15s,box-shadow .15s;}
+.subpasta-grupo.dragover{background:rgba(200,175,127,.08);box-shadow:0 0 0 2px var(--ouro-luz) inset;}
 .subpasta-titulo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(200,175,127,.14);}
 .subpasta-titulo h3{font-size:14px;color:var(--ouro-luz);font-family:var(--serif);}
 .subpasta-titulo .meta{font-size:11.5px;color:#8A7461;}
+.subpasta-titulo .icon-btn{width:26px;height:26px;}
 
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
@@ -1495,10 +1497,24 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <div class="modal-overlay" id="modal-nova-pasta">
   <div class="modal" style="max-width:400px;">
     <h3 style="margin-bottom:14px;">Nova pasta / Ato</h3>
-    <div class="field"><label>Nome</label><input type="text" id="nova-pasta-nome" placeholder="Ex: Ato 1, Camarim, Backstage" onkeydown="if(event.key==='Enter')_criarSubpastaEvento()"></div>
+    <div class="field"><label>Nome</label><input type="text" id="nova-pasta-nome" placeholder="Ex: Ato 1, Camarim, Backstage" onkeydown="if(event.key==='Enter')_criarSubpasta()"></div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-nova-pasta')">Cancelar</button>
-      <button class="btn btn-primary btn-sm" onclick="_criarSubpastaEvento()">Criar pasta</button>
+      <button class="btn btn-primary btn-sm" onclick="_criarSubpasta()">Criar pasta</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: apagar pasta/Ato — 3 saídas (mover fotos pra fora / apagar
+     tudo / cancelar), não cabe no confirmModal genérico de 2 botões -->
+<div class="modal-overlay" id="modal-apagar-pasta">
+  <div class="modal" style="max-width:440px;">
+    <h3 style="margin-bottom:10px;">Apagar pasta</h3>
+    <div id="apagar-pasta-mensagem" style="color:#DBC9A8;font-size:14px;line-height:1.6;margin-bottom:16px;"></div>
+    <div class="modal-actions" style="flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="_resolverApagarPasta(null)">Cancelar</button>
+      <button class="btn btn-sm" onclick="_resolverApagarPasta('mover')">Só apagar a pasta (mover fotos pra fora)</button>
+      <button class="btn btn-sm btn-danger" onclick="_resolverApagarPasta('apagar')">Apagar tudo</button>
     </div>
   </div>
 </div>
@@ -1728,6 +1744,23 @@ function confirmModal(mensagem, opts = {}) {
   })
 }
 
+// mesma ideia do confirmModal, mas com 3 saídas em vez de 2 — usado só
+// por "apagar pasta" (mover fotos pra fora / apagar tudo / cancelar).
+let _resolverApagarPastaFn = null
+function _confirmarApagarPasta(mensagem) {
+  return new Promise(resolve => {
+    document.getElementById('apagar-pasta-mensagem').textContent = mensagem
+    _resolverApagarPastaFn = resolve
+    abrirModal('modal-apagar-pasta')
+  })
+}
+function _resolverApagarPasta(resultado) {
+  fecharModal('modal-apagar-pasta')
+  const fn = _resolverApagarPastaFn
+  _resolverApagarPastaFn = null
+  if (fn) fn(resultado)
+}
+
 function gerarSenha() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
   let s = ''
@@ -1799,6 +1832,15 @@ const _onRealtimeFotos = _debounce(async () => {
   if (_ensaioAtual) await _recarregarFotosEnsaio(_ensaioAtual.id)
   if (_eventoEscolaAtual) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
   if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel()
+  // o contador "N foto(s)" das listas vem do embed fotos(count) em
+  // store.eventos, que não muda sozinho quando a tabela fotos muda —
+  // sem isso o card ficava com número desatualizado até um evento
+  // mudar de verdade (o que dispara _onRealtimeEventos).
+  if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
+    await carregarEventos()
+    if (_visivel('eventos-lista-wrap')) renderEventos()
+    if (_visivel('ensaios-lista-wrap')) renderEnsaios()
+  }
 }, 600)
 
 const _onRealtimeEventos = _debounce(async () => {
@@ -2548,7 +2590,10 @@ async function carregarAlunos() {
   store.alunos = data || []
 }
 async function carregarEventos() {
-  const { data, error } = await db.from('eventos').select('*').order('data', { ascending: false })
+  // embed de count (fotos(count)) — sem isso a lista do admin mostrava
+  // sempre "0 foto(s)" até o evento ser aberto pelo menos uma vez na
+  // sessão, porque store.fotos só é populado por evento_id sob demanda.
+  const { data, error } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
   if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
   store.eventos = data || []
 }
@@ -2744,7 +2789,7 @@ function renderEventos() {
       <div class="body">
         <div class="nome">${esc(ev.nome)}</div>
         <div class="meta">${ev.escola_id ? esc(nomeEscola(ev.escola_id)) : 'Avulso/geral'}${ev.categoria ? ' · ' + esc(ev.categoria) : ''}</div>
-        <div class="meta" style="margin-top:4px;">${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
+        <div class="meta" style="margin-top:4px;">${ev.fotos?.[0]?.count ?? 0} foto(s)</div>
       </div>
     </div>
   `).join('') + '</div>'
@@ -3908,7 +3953,10 @@ async function salvarEvento() {
   if (error) { toast('Erro: ' + error.message); return }
 
   const idx = store.eventos.findIndex(e => e.id === data.id)
-  if (idx >= 0) store.eventos[idx] = data; else store.eventos.unshift(data)
+  // o update()/insert() acima não traz o embed fotos(count) de volta —
+  // sem preservar o que já tinha, o card voltaria a mostrar "0 foto(s)"
+  // até o próximo carregarEventos().
+  if (idx >= 0) store.eventos[idx] = { ...data, fotos: store.eventos[idx].fotos }; else store.eventos.unshift({ ...data, fotos: [{ count: 0 }] })
   renderEventos()
   fecharModal('modal-evento')
   toast(id ? 'Evento atualizado ✓' : 'Evento criado ✓')
@@ -3959,6 +4007,25 @@ function _ligarDropzone(elId, inputId, onFiles) {
   })
 }
 
+// arrastar foto(s) pra dentro de uma pasta — mesma mecânica pro Evento
+// e pro Ensaio, só troca quem resolve o drop (_eventoDropNaPasta /
+// _ensaioDropNaPasta). Se a foto arrastada já estava selecionada, move
+// a seleção inteira junto; senão, move só ela.
+let _dragFotoIds = null
+function _fotoDragStart(e, fotoId, selecaoSet) {
+  _dragFotoIds = selecaoSet.has(fotoId) ? [...selecaoSet] : [fotoId]
+  e.dataTransfer.effectAllowed = 'move'
+}
+
+// download direto de 1 foto (ícone na grade) sem passar pelo lightbox
+// — sempre o storage_path original, sem marca d'água, igual todo
+// download nessa galeria.
+async function _baixarFotoRapido(storagePath) {
+  const url = await _urlAssinada(storagePath)
+  if (!url) { toast('Erro ao gerar link de download'); return }
+  await _baixarUrl(url, storagePath.split('/').pop() || 'foto.jpg')
+}
+
 async function abrirEventoAdmin(eventoId, voltarContexto) {
   _eventoAtual = store.eventos.find(e => e.id === eventoId)
   if (!_eventoAtual) return
@@ -3980,7 +4047,11 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
         <button class="icon-btn" title="Editar evento" onclick="abrirModalEvento('${_eventoAtual.id}')">${ICON_LAPIS}</button>
       </div>
     </div>
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="_eventoSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_eventoLimparSelecao()">Nenhuma</button>
+      </div>
       <button class="btn btn-sm" onclick="_abrirNovaPastaEvento()">📁 Nova Pasta / Ato</button>
     </div>
     <div class="upload-drop" id="evt-dropzone" onclick="document.getElementById('evt-upload-input').click()">
@@ -3991,8 +4062,8 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
     <div class="foto-toolbar" id="evt-toolbar" style="display:none;">
       <div class="chip-row" id="evt-toolbar-tags"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <input type="text" id="evt-subpasta-nome" placeholder="Nome do Ato/subpasta" style="max-width:160px;">
-        <button class="btn btn-sm" onclick="_eventoAplicarSubpasta()">Mover pra subpasta</button>
+        <select id="evt-subpasta-mover"></select>
+        <button class="btn btn-sm" onclick="_eventoAplicarSubpasta()">Mover</button>
         <button class="btn btn-sm btn-danger" onclick="_eventoApagarSelecionadas()">Apagar selecionadas</button>
       </div>
     </div>
@@ -4052,7 +4123,11 @@ function _prepararUploadEnsaio(files) {
   _previewUploadFiles = [...files]
   _previewUploadDestino = 'ensaio'
   document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_ensaioAtual?.nome || ''}" — confira antes de enviar.`
-  document.getElementById('preview-upload-subpasta-wrap').style.display = 'none'
+  const subpastas = _todasSubpastasConhecidasEnsaio()
+  const wrap = document.getElementById('preview-upload-subpasta-wrap')
+  wrap.style.display = subpastas.length ? 'block' : 'none'
+  document.getElementById('preview-upload-subpasta').innerHTML = '<option value="">Sem pasta (solto no ensaio)</option>' +
+    subpastas.map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('')
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
@@ -4085,7 +4160,7 @@ async function _confirmarPreviewUpload() {
   fecharModal('modal-preview-upload')
   _previewUploadFiles = null; _previewUploadDestino = null
   if (destino === 'evento') await uploadFotosEvento(files, subpasta)
-  else if (destino === 'ensaio') await uploadFotosEnsaio(files)
+  else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta)
 }
 
 // fila de upload com progresso por arquivo (estado discreto: aguardando
@@ -5295,9 +5370,12 @@ function exportarAuditoriaPDF() {
 function _fotoItemEventoAdminHTML(f, alunosDisponiveis) {
   const sel = _eventoFotoSelecao.has(f.id)
   return `
-    <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" onclick="_eventoToggleSelecaoFoto('${f.id}')">
+    <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
       <img data-path="${esc(f.storage_path)}" alt="">
       <span class="ck">${sel ? '✓' : ''}</span>
+      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      </button>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -5326,9 +5404,9 @@ async function renderFotosEventoAdmin() {
   if (!fotos.length && !_eventoSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
   wrap.innerHTML = ordemGrupos.map(nome => `
-    <div class="subpasta-grupo">
-      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, alunosDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta.</div>' : '')}</div>
+    <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
+      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, alunosDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
   fotos.forEach(async f => {
@@ -5347,6 +5425,16 @@ function _eventoToggleSelecaoFoto(fotoId) {
   _atualizarToolbarEvento()
 }
 
+function _eventoSelecionarTodas() {
+  if (!_eventoAtual) return
+  store.fotos.filter(f => f.evento_id === _eventoAtual.id).forEach(f => _eventoFotoSelecao.add(f.id))
+  renderFotosEventoAdmin()
+}
+function _eventoLimparSelecao() {
+  _eventoFotoSelecao = new Set()
+  renderFotosEventoAdmin()
+}
+
 function _atualizarToolbarEvento() {
   const toolbar = document.getElementById('evt-toolbar')
   if (!toolbar) return
@@ -5358,6 +5446,12 @@ function _atualizarToolbarEvento() {
   const tagsEl = document.getElementById('evt-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar aluno em todas:</span>` +
     alunosDisponiveis.map(a => `<span class="chip" onclick="_eventoMarcarAlunoEmMassa('${a.id}')">${esc(a.nome)}</span>`).join('')
+  const moverEl = document.getElementById('evt-subpasta-mover')
+  if (moverEl) {
+    moverEl.innerHTML = '<option value="">Sem pasta (solto no evento)</option>' +
+      _todasSubpastasConhecidas().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
+      '<option value="__nova__">+ Criar nova pasta…</option>'
+  }
 }
 
 async function _eventoMarcarAlunoEmMassa(alunoId) {
@@ -5372,30 +5466,58 @@ async function _eventoMarcarAlunoEmMassa(alunoId) {
   renderFotosEventoAdmin()
 }
 
+// move as fotos selecionadas via db+store — reaproveitado pelo clique
+// no botão "Mover" e pelo soltar-arrastar em cima de uma pasta.
+async function _moverFotosParaSubpasta(fotoIds, nome) {
+  const destino = nome || null
+  const { error } = await db.from('fotos').update({ subpasta: destino }).in('id', fotoIds)
+  if (error) { toast('Erro: ' + error.message); return false }
+  store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = destino })
+  if (destino) _eventoSubpastasConhecidas.add(destino)
+  toast(`${fotoIds.length} foto(s) movida(s) ✓`)
+  return true
+}
+
 async function _eventoAplicarSubpasta() {
-  const nome = document.getElementById('evt-subpasta-nome').value.trim()
-  if (!nome) { toast('Digite o nome da subpasta/Ato'); return }
+  const sel = document.getElementById('evt-subpasta-mover').value
+  if (sel === '__nova__') { _abrirNovaPastaEvento(true); return }
   const fotoIds = [..._eventoFotoSelecao]
-  const { error } = await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
-  if (error) { toast('Erro: ' + error.message); return }
-  store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
-  _eventoSubpastasConhecidas.add(nome)
+  if (!await _moverFotosParaSubpasta(fotoIds, sel || null)) return
   _eventoFotoSelecao = new Set()
-  toast(`${fotoIds.length} foto(s) movidas pra "${nome}" ✓`)
+  renderFotosEventoAdmin()
+}
+
+async function _eventoDropNaPasta(e, nome, el) {
+  e.preventDefault()
+  el.classList.remove('dragover')
+  if (!_dragFotoIds?.length) return
+  const fotoIds = _dragFotoIds
+  _dragFotoIds = null
+  if (!await _moverFotosParaSubpasta(fotoIds, nome || null)) return
+  _eventoFotoSelecao = new Set()
   renderFotosEventoAdmin()
 }
 
 // "+ Nova Pasta" (admin) — cria o Ato/subpasta ANTES de qualquer foto
 // existir nela, pra já poder escolher o destino na hora do upload em
 // vez de subir tudo solto e organizar depois. Só admin (RLS já trava
-// isso em evento_subpastas_admin, 028_evento_subpastas.sql).
-function _abrirNovaPastaEvento() {
+// isso em evento_subpastas_admin, 028_evento_subpastas.sql). O mesmo
+// modal serve o Evento e o Ensaio — _novaPastaContexto diz qual dos
+// dois _criarSubpasta() deve atualizar; moverSelecaoDepois (vindo do
+// "+ Criar nova pasta…" do seletor "Mover") já move a seleção atual
+// pra dentro assim que a pasta é criada.
+let _novaPastaContexto = 'evento'
+let _novaPastaMoverSelecao = false
+function _abrirNovaPastaEvento(moverSelecaoDepois) {
   if (!_eventoAtual) return
+  _novaPastaContexto = 'evento'
+  _novaPastaMoverSelecao = !!moverSelecaoDepois
   document.getElementById('nova-pasta-nome').value = ''
   abrirModal('modal-nova-pasta')
   setTimeout(() => document.getElementById('nova-pasta-nome')?.focus(), 50)
 }
-async function _criarSubpastaEvento() {
+async function _criarSubpasta() {
+  if (_novaPastaContexto === 'ensaio') { await _criarSubpastaEnsaio(); return }
   const nome = document.getElementById('nova-pasta-nome').value.trim()
   if (!nome) { toast('Digite o nome da pasta'); return }
   if (_eventoSubpastasConhecidas.has(nome)) { toast('Já existe uma pasta com esse nome'); return }
@@ -5403,8 +5525,33 @@ async function _criarSubpastaEvento() {
   if (error) { toast('Erro ao criar pasta: ' + error.message); return }
   _eventoSubpastasConhecidas.add(nome)
   fecharModal('modal-nova-pasta')
-  toast(`Pasta "${nome}" criada ✓ — já pode escolher ela no próximo upload`)
   registrarAuditoria('criou pasta/Ato no evento', 'eventos', _eventoAtual.id, nome)
+  if (_novaPastaMoverSelecao && _eventoFotoSelecao.size) {
+    const fotoIds = [..._eventoFotoSelecao]
+    await _moverFotosParaSubpasta(fotoIds, nome)
+    _eventoFotoSelecao = new Set()
+  } else {
+    toast(`Pasta "${nome}" criada ✓ — já pode escolher ela no próximo upload`)
+  }
+  _novaPastaMoverSelecao = false
+  renderFotosEventoAdmin()
+}
+// modal de confirmação em 3 saídas (mover fotos pra fora / apagar tudo
+// / cancelar) — sua escolha, "deixar eu decidir na hora".
+async function _eventoApagarPasta(nome) {
+  const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id && f.subpasta === nome)
+  const resultado = await _confirmarApagarPasta(`A pasta "${nome}" tem ${fotos.length} foto(s). O que você quer fazer?`)
+  if (!resultado) return
+  if (resultado === 'mover') {
+    if (fotos.length) await _moverFotosParaSubpasta(fotos.map(f => f.id), null)
+  } else {
+    if (fotos.length) await _apagarFotosSemConfirmar(fotos.map(f => f.id))
+  }
+  const { error } = await db.from('evento_subpastas').delete().eq('evento_id', _eventoAtual.id).eq('nome', nome)
+  if (error) { toast('Erro ao apagar pasta: ' + error.message); return }
+  _eventoSubpastasConhecidas.delete(nome)
+  registrarAuditoria('apagou pasta/Ato do evento', 'eventos', _eventoAtual.id, nome)
+  toast(`Pasta "${nome}" apagada ✓`)
   renderFotosEventoAdmin()
 }
 // lista pra popular o seletor "Enviar para" no upload: pastas já
@@ -5452,19 +5599,29 @@ async function excluirFoto(fotoId, aposApagar) {
   if (typeof aposApagar === 'function') aposApagar()
 }
 
+// separado do confirmModal pra quem já confirmou por outro caminho
+// (ex.: _eventoApagarPasta/_ensaioApagarPasta já usam seu próprio
+// modal de 3 saídas — pedir de novo aqui seria confirmação dupla).
+async function _apagarFotosSemConfirmar(fotoIds) {
+  if (!fotoIds.length) return true
+  const alvo = fotoIds.map(id => store.fotos.find(f => f.id === id)).filter(Boolean)
+  const paths = alvo.flatMap(f => [f.storage_path, f.thumb_path].filter(Boolean))
+  const { error: dbErr } = await db.from('fotos').delete().in('id', fotoIds)
+  if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return false }
+  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  store.fotos = store.fotos.filter(f => !fotoIds.includes(f.id))
+  store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id))
+  store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id))
+  toast(`${fotoIds.length} foto(s) apagada(s) ✓`)
+  registrarAuditoria('apagou fotos em massa', 'fotos', null, `${fotoIds.length} foto(s)`)
+  return true
+}
+
 async function excluirFotosEmMassa(fotoIds, aposApagar) {
   if (!fotoIds.length) return
   const ok = await confirmModal(`Apagar ${fotoIds.length} foto(s) permanentemente? Não dá pra desfazer.`, { titulo: 'Apagar fotos selecionadas', okLabel: 'Apagar', danger: true })
   if (!ok) return
-  const alvo = fotoIds.map(id => store.fotos.find(f => f.id === id)).filter(Boolean)
-  const paths = alvo.flatMap(f => [f.storage_path, f.thumb_path].filter(Boolean))
-  const { error: dbErr } = await db.from('fotos').delete().in('id', fotoIds)
-  if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return }
-  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
-  store.fotos = store.fotos.filter(f => !fotoIds.includes(f.id))
-  store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id))
-  toast(`${fotoIds.length} foto(s) apagada(s) ✓`)
-  registrarAuditoria('apagou fotos em massa', 'fotos', null, `${fotoIds.length} foto(s)`)
+  if (!await _apagarFotosSemConfirmar(fotoIds)) return
   if (typeof aposApagar === 'function') aposApagar()
 }
 
@@ -5726,7 +5883,7 @@ function renderEnsaios() {
       </div>
       <div class="body">
         <div class="nome">${esc(ev.nome)}</div>
-        <div class="meta">${ev.categoria ? esc(ev.categoria) + ' · ' : ''}${store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
+        <div class="meta">${ev.categoria ? esc(ev.categoria) + ' · ' : ''}${ev.fotos?.[0]?.count ?? 0} foto(s)</div>
         ${clientes.length ? `<div class="badges" style="margin-top:8px;">${clientes.slice(0, 3).map(n => `<span class="badge">${esc(n)}</span>`).join('')}${clientes.length > 3 ? `<span class="badge">+${clientes.length - 3}</span>` : ''}</div>` : ''}
       </div>
     </div>`
@@ -5875,7 +6032,7 @@ async function salvarEnsaio() {
   if (error) { toast('Erro: ' + error.message); return }
 
   const idx = store.eventos.findIndex(e => e.id === data.id)
-  if (idx >= 0) store.eventos[idx] = data; else store.eventos.unshift(data)
+  if (idx >= 0) store.eventos[idx] = { ...data, fotos: store.eventos[idx].fotos }; else store.eventos.unshift({ ...data, fotos: [{ count: 0 }] })
   renderEnsaios()
   fecharModal('modal-ensaio')
   toast(id ? 'Ensaio atualizado ✓' : 'Ensaio criado ✓')
@@ -5883,9 +6040,12 @@ async function salvarEnsaio() {
 }
 
 let _ensaioAtual = null
+let _ensaioFotoSelecao = new Set()
+let _ensaioSubpastasConhecidas = new Set()
 async function abrirEnsaioAdmin(ensaioId) {
   _ensaioAtual = store.eventos.find(e => e.id === ensaioId)
   if (!_ensaioAtual) return
+  _ensaioFotoSelecao = new Set()
   document.getElementById('ensaios-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('ensaio-detalhe-wrap')
   wrap.style.display = 'block'
@@ -5902,12 +6062,27 @@ async function abrirEnsaioAdmin(ensaioId) {
         <button class="icon-btn" title="Editar ensaio" onclick="abrirModalEnsaio('${_ensaioAtual.id}')">${ICON_LAPIS}</button>
       </div>
     </div>
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="_ensaioSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_ensaioLimparSelecao()">Nenhuma</button>
+      </div>
+      <button class="btn btn-sm" onclick="_abrirNovaPastaEnsaio()">📁 Nova Pasta / Ato</button>
+    </div>
     <div class="upload-drop" id="ens-dropzone" onclick="document.getElementById('ens-upload-input').click()">
       Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEnsaio(this.files)">
     </div>
     <div id="ens-upload-status"></div>
-    <div class="foto-grid" id="ens-fotos-grid"></div>
+    <div class="foto-toolbar" id="ens-toolbar" style="display:none;">
+      <div class="chip-row" id="ens-toolbar-tags"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <select id="ens-subpasta-mover"></select>
+        <button class="btn btn-sm" onclick="_ensaioAplicarSubpasta()">Mover</button>
+        <button class="btn btn-sm btn-danger" onclick="_ensaioApagarSelecionadas()">Apagar selecionadas</button>
+      </div>
+    </div>
+    <div id="ens-fotos-por-subpasta"></div>
   `
   if (_ensaioAtual.capa_url) { const url = await _urlAssinada(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
   _ligarDropzone('ens-dropzone', 'ens-upload-input', files => _prepararUploadEnsaio(files))
@@ -5923,6 +6098,8 @@ async function abrirEnsaioAdmin(ensaioId) {
     store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
     store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
   }
+  const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', ensaioId)
+  _ensaioSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
   renderFotosEnsaioAdmin()
 }
 function fecharEnsaioAdmin() {
@@ -5949,7 +6126,7 @@ async function _recarregarFotosEnsaio(ensaioId) {
   renderFotosEnsaioAdmin()
 }
 
-async function uploadFotosEnsaio(files) {
+async function uploadFotosEnsaio(files, subpasta) {
   if (!files?.length || !_ensaioAtual) return
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
   // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
@@ -5969,7 +6146,7 @@ async function uploadFotosEnsaio(files) {
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     if (rosterAlunos.length) {
@@ -5993,17 +6170,15 @@ async function uploadFotosEnsaio(files) {
   if (ok) registrarAuditoria('fez upload de fotos', 'eventos', ensaioId, `${ok} de ${files.length} foto(s) — ${ensaioNome}`)
 }
 
-async function renderFotosEnsaioAdmin() {
-  const grid = document.getElementById('ens-fotos-grid')
-  const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
-  if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; return }
-  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
-    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
-  )
-  _lightboxFotos = fotos
-  grid.innerHTML = fotos.map(f => `
-    <div class="foto-item" id="efitem-${f.id}">
+function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis) {
+  const sel = _ensaioFotoSelecao.has(f.id)
+  return `
+    <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" onclick="_ensaioToggleSelecaoFoto('${f.id}')">
       <img data-path="${esc(f.storage_path)}" alt="">
+      <span class="ck">${sel ? '✓' : ''}</span>
+      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      </button>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
@@ -6018,13 +6193,181 @@ async function renderFotosEnsaioAdmin() {
           }).join('') || '<span style="opacity:.6">ninguém selecionado na criação do ensaio</span>'}
         </div>
       </div>
+    </div>`
+}
+
+async function renderFotosEnsaioAdmin() {
+  const wrap = document.getElementById('ens-fotos-por-subpasta')
+  const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
+  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
+    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
+  )
+  _lightboxFotos = fotos
+  const grupos = new Map()
+  fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
+  _ensaioSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
+  if (!fotos.length && !_ensaioSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEnsaio(); return }
+  const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
+  wrap.innerHTML = ordemGrupos.map(nome => `
+    <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
+      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
   fotos.forEach(async f => {
-    const img = grid.querySelector(`#efitem-${f.id} img`)
+    const img = wrap.querySelector(`#efitem-${f.id} img`)
     const url = await _urlPreview(f)
     if (url && img) img.src = url
   })
+  _atualizarToolbarEnsaio()
+}
+
+function _ensaioToggleSelecaoFoto(fotoId) {
+  if (_ensaioFotoSelecao.has(fotoId)) _ensaioFotoSelecao.delete(fotoId)
+  else _ensaioFotoSelecao.add(fotoId)
+  const item = document.getElementById(`efitem-${fotoId}`)
+  if (item) { item.classList.toggle('sel', _ensaioFotoSelecao.has(fotoId)); item.querySelector('.ck').textContent = _ensaioFotoSelecao.has(fotoId) ? '✓' : '' }
+  _atualizarToolbarEnsaio()
+}
+function _ensaioSelecionarTodas() {
+  if (!_ensaioAtual) return
+  store.fotos.filter(f => f.evento_id === _ensaioAtual.id).forEach(f => _ensaioFotoSelecao.add(f.id))
+  renderFotosEnsaioAdmin()
+}
+function _ensaioLimparSelecao() {
+  _ensaioFotoSelecao = new Set()
+  renderFotosEnsaioAdmin()
+}
+
+function _atualizarToolbarEnsaio() {
+  const toolbar = document.getElementById('ens-toolbar')
+  if (!toolbar) return
+  if (!_ensaioFotoSelecao.size) { toolbar.style.display = 'none'; return }
+  toolbar.style.display = 'flex'
+  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
+    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
+  )
+  const tagsEl = document.getElementById('ens-toolbar-tags')
+  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+    pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
+  const moverEl = document.getElementById('ens-subpasta-mover')
+  if (moverEl) {
+    moverEl.innerHTML = '<option value="">Sem pasta (solto no ensaio)</option>' +
+      _todasSubpastasConhecidasEnsaio().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
+      '<option value="__nova__">+ Criar nova pasta…</option>'
+  }
+}
+
+// marca aluno OU pessoa (professor/diretor/responsável) em massa nas
+// fotos selecionadas — o mesmo botão de bulk-tag que o Evento já tinha
+// só pra aluno, agora cobre os dois tipos que o Ensaio pode receber.
+async function _ensaioMarcarEmMassa(tipo, id) {
+  const fotoIds = [..._ensaioFotoSelecao]
+  if (tipo === 'aluno') {
+    const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
+    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
+    const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
+    const { error } = await db.from('foto_aluno').insert(rows)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoAluno.push(...rows)
+    toast(`Marcado em ${novos.length} foto(s) ✓`)
+  } else {
+    const novos = fotoIds.filter(fid => !store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
+    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
+    const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
+    const { error } = await db.from('foto_pessoa').insert(rows)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoPessoa.push(...rows)
+    toast(`Marcado em ${novos.length} foto(s) ✓`)
+  }
+  renderFotosEnsaioAdmin()
+}
+
+async function _ensaioAplicarSubpasta() {
+  const sel = document.getElementById('ens-subpasta-mover').value
+  if (sel === '__nova__') { _abrirNovaPastaEnsaio(true); return }
+  const fotoIds = [..._ensaioFotoSelecao]
+  const destino = sel || null
+  const { error } = await db.from('fotos').update({ subpasta: destino }).in('id', fotoIds)
+  if (error) { toast('Erro: ' + error.message); return }
+  store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = destino })
+  if (destino) _ensaioSubpastasConhecidas.add(destino)
+  _ensaioFotoSelecao = new Set()
+  toast(`${fotoIds.length} foto(s) movida(s) ✓`)
+  renderFotosEnsaioAdmin()
+}
+
+async function _ensaioDropNaPasta(e, nome, el) {
+  e.preventDefault()
+  el.classList.remove('dragover')
+  if (!_dragFotoIds?.length) return
+  const fotoIds = _dragFotoIds
+  _dragFotoIds = null
+  const destino = nome || null
+  const { error } = await db.from('fotos').update({ subpasta: destino }).in('id', fotoIds)
+  if (error) { toast('Erro: ' + error.message); return }
+  store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = destino })
+  if (destino) _ensaioSubpastasConhecidas.add(destino)
+  _ensaioFotoSelecao = new Set()
+  toast(`${fotoIds.length} foto(s) movida(s) ✓`)
+  renderFotosEnsaioAdmin()
+}
+
+function _abrirNovaPastaEnsaio(moverSelecaoDepois) {
+  if (!_ensaioAtual) return
+  _novaPastaContexto = 'ensaio'
+  _novaPastaMoverSelecao = !!moverSelecaoDepois
+  document.getElementById('nova-pasta-nome').value = ''
+  abrirModal('modal-nova-pasta')
+  setTimeout(() => document.getElementById('nova-pasta-nome')?.focus(), 50)
+}
+async function _criarSubpastaEnsaio() {
+  const nome = document.getElementById('nova-pasta-nome').value.trim()
+  if (!nome) { toast('Digite o nome da pasta'); return }
+  if (_ensaioSubpastasConhecidas.has(nome)) { toast('Já existe uma pasta com esse nome'); return }
+  const { error } = await db.from('evento_subpastas').insert({ evento_id: _ensaioAtual.id, nome })
+  if (error) { toast('Erro ao criar pasta: ' + error.message); return }
+  _ensaioSubpastasConhecidas.add(nome)
+  fecharModal('modal-nova-pasta')
+  registrarAuditoria('criou pasta/Ato no ensaio', 'eventos', _ensaioAtual.id, nome)
+  if (_novaPastaMoverSelecao && _ensaioFotoSelecao.size) {
+    const fotoIds = [..._ensaioFotoSelecao]
+    await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
+    store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
+    _ensaioFotoSelecao = new Set()
+  } else {
+    toast(`Pasta "${nome}" criada ✓ — já pode escolher ela no próximo upload`)
+  }
+  _novaPastaMoverSelecao = false
+  renderFotosEnsaioAdmin()
+}
+async function _ensaioApagarPasta(nome) {
+  const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id && f.subpasta === nome)
+  const resultado = await _confirmarApagarPasta(`A pasta "${nome}" tem ${fotos.length} foto(s). O que você quer fazer?`)
+  if (!resultado) return
+  if (resultado === 'mover') {
+    if (fotos.length) {
+      const fotoIds = fotos.map(f => f.id)
+      await db.from('fotos').update({ subpasta: null }).in('id', fotoIds)
+      store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = null })
+    }
+  } else {
+    if (fotos.length) await _apagarFotosSemConfirmar(fotos.map(f => f.id))
+  }
+  const { error } = await db.from('evento_subpastas').delete().eq('evento_id', _ensaioAtual.id).eq('nome', nome)
+  if (error) { toast('Erro ao apagar pasta: ' + error.message); return }
+  _ensaioSubpastasConhecidas.delete(nome)
+  registrarAuditoria('apagou pasta/Ato do ensaio', 'eventos', _ensaioAtual.id, nome)
+  toast(`Pasta "${nome}" apagada ✓`)
+  renderFotosEnsaioAdmin()
+}
+function _todasSubpastasConhecidasEnsaio() {
+  const nomes = new Set(_ensaioSubpastasConhecidas)
+  store.fotos.filter(f => f.evento_id === _ensaioAtual?.id && f.subpasta).forEach(f => nomes.add(f.subpasta))
+  return [...nomes].sort()
+}
+async function _ensaioApagarSelecionadas() {
+  await excluirFotosEmMassa([..._ensaioFotoSelecao], () => { _ensaioFotoSelecao = new Set(); renderFotosEnsaioAdmin() })
 }
 
 async function toggleTagPessoa(fotoId, userId, chipEl) {
@@ -6278,7 +6621,7 @@ function renderEventosEscola(listElId, chipsElId) {
   if (!store.eventos.length) { el.innerHTML = '<div class="empty">Nenhum evento publicado pra sua escola ainda.</div>'; return }
   const eventos = _escolaFiltroStatus === 'todos' ? store.eventos : store.eventos.filter(ev => _statusEvento(ev) === _escolaFiltroStatus)
   if (!eventos.length) { el.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
-  el.innerHTML = '<div class="eventos-grid">' + eventos.map(ev => {
+  const cardHTML = ev => {
     const status = _statusEvento(ev)
     const totalMidias = ev.fotos?.[0]?.count ?? 0
     return `
@@ -6294,7 +6637,14 @@ function renderEventosEscola(listElId, chipsElId) {
         </div>
       </div>
     </div>`
-  }).join('') + '</div>'
+  }
+  // separado visualmente de Eventos & Ensaios Avulsos — antes vinha
+  // tudo misturado numa lista só, sem indicar o que era o quê.
+  const soEventos = eventos.filter(ev => ev.tipo !== 'ensaio')
+  const soEnsaios = eventos.filter(ev => ev.tipo === 'ensaio')
+  el.innerHTML =
+    (soEventos.length ? `<div class="section-h" style="margin-top:0;"><h3>Eventos</h3></div><div class="eventos-grid">${soEventos.map(cardHTML).join('')}</div>` : '') +
+    (soEnsaios.length ? `<div class="section-h"><h3>Ensaios Avulsos</h3></div><div class="eventos-grid">${soEnsaios.map(cardHTML).join('')}</div>` : '')
   eventos.forEach(async ev => {
     if (!ev.capa_url) return
     const url = await _urlAssinada(ev.capa_url)
@@ -6482,17 +6832,22 @@ async function iniciarViewResponsavel() {
 
   const wrap = document.getElementById('responsavel-galeria')
   const alunoIds = meusFilhos.map(a => a.id)
-  if (!alunoIds.length) {
-    wrap.innerHTML = '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'
+
+  // o responsável também pode ter sido marcado direto (foto_pessoa) num
+  // ensaio avulso próprio, sem passar por nenhum filho — antes só
+  // foto_aluno era consultado, então essas fotos nunca apareciam pra ele.
+  const [{ data: fa }, { data: fp }] = await Promise.all([
+    alunoIds.length ? db.from('foto_aluno').select('*').in('aluno_id', alunoIds) : Promise.resolve({ data: [] }),
+    db.from('foto_pessoa').select('*').eq('user_id', currentUser.id),
+  ])
+  store.fotoAluno = fa || []
+  store.fotoPessoa = fp || []
+  const fotoIds = [...new Set([...(fa || []).map(x => x.foto_id), ...(fp || []).map(x => x.foto_id)])]
+  if (!fotoIds.length) {
+    wrap.innerHTML = `<div class="empty">${alunoIds.length ? 'Nenhuma foto aqui ainda.' : 'Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.'}</div>`
     return
   }
-
-  const { data: fa } = await db.from('foto_aluno').select('*').in('aluno_id', alunoIds)
-  store.fotoAluno = fa || []
-  const fotoIds = [...new Set((fa || []).map(x => x.foto_id))]
-  const { data: fotos } = fotoIds.length
-    ? await db.from('fotos').select('*').in('id', fotoIds)
-    : { data: [] }
+  const { data: fotos } = await db.from('fotos').select('*').in('id', fotoIds)
   store.fotos = fotos || []
   const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
   const { data: eventos } = eventoIds.length
