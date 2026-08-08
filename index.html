@@ -4382,6 +4382,13 @@ async function podePostarComunidade() {
   return false
 }
 
+// um post marcado como destaque some sozinho do topo quando expira —
+// sem precisar apagar. destaque_expira_em nulo = fixado até alguém
+// tirar manualmente (removerDestaque).
+function _destaqueAtivo(p) {
+  return !!p.destaque && (!p.destaque_expira_em || new Date(p.destaque_expira_em) > new Date())
+}
+
 async function carregarFeed(contexto) {
   _feedContexto = contexto
   let posts = []
@@ -4403,7 +4410,7 @@ async function carregarFeed(contexto) {
     if (error) { toast('Erro ao carregar comunidade: ' + error.message); return }
     posts = data || []
   }
-  posts.sort((a, b) => (b.destaque - a.destaque) || (new Date(b.criado_em) - new Date(a.criado_em)))
+  posts.sort((a, b) => (_destaqueAtivo(b) - _destaqueAtivo(a)) || (new Date(b.criado_em) - new Date(a.criado_em)))
   _feedPosts = posts
 
   const postIds = _feedPosts.map(p => p.id)
@@ -4441,7 +4448,7 @@ function _feedFiltrarCategoria(cat) {
 function _feedPassaCategoria(p) {
   if (!_feedFiltroCategoria) return true
   const midias = _feedMidias[p.id] || []
-  if (_feedFiltroCategoria === 'avisos') return p.destaque
+  if (_feedFiltroCategoria === 'avisos') return _destaqueAtivo(p)
   if (_feedFiltroCategoria === 'midias') return midias.some(m => m.tipo === 'foto' || m.tipo === 'video' || m.tipo === 'audio') || !!p.imagem_url
   if (_feedFiltroCategoria === 'docs') return midias.some(m => m.tipo === 'documento')
   return true
@@ -4462,11 +4469,11 @@ function renderFeed(containerId) {
   const wrap = document.getElementById(containerId)
   if (!wrap) return
   const filtrando = _feedFiltroTexto || _feedFiltroDe || _feedFiltroAte || _feedFiltroCategoria
-  const avisos = _feedPosts.filter(p => p.destaque)
+  const avisos = _feedPosts.filter(p => _destaqueAtivo(p))
   // com filtro ativo, busca em TODOS os posts (inclusive destaque) —
   // senão "Avisos" nunca acharia nada, já que eles ficam de fora da
   // lista normal (moram só no bloco fixo do topo, escondido ao filtrar).
-  const normais = _feedFiltrar(filtrando ? _feedPosts : _feedPosts.filter(p => !p.destaque))
+  const normais = _feedFiltrar(filtrando ? _feedPosts : _feedPosts.filter(p => !_destaqueAtivo(p)))
   const barraFiltro = `
     <div class="feed-filtro-row">
       <input type="text" id="feed-filtro-texto" placeholder="Buscar no feed…" value="${esc(_feedFiltroTexto)}" oninput="_feedAplicarFiltro()">
@@ -4595,15 +4602,17 @@ function _postCardHTML(p) {
   const midiasVisuais = midias.filter(m => m.tipo !== 'documento')
   const midiasDocs = midias.filter(m => m.tipo === 'documento')
   const totalReacoes = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
+  const destaqueAtivo = _destaqueAtivo(p)
   return `
-    <div class="post-card${p.destaque ? ' destaque' : ''}">
+    <div class="post-card${destaqueAtivo ? ' destaque' : ''}">
       <div class="post-head">
         <span class="list-avatar" id="post-avatar-${p.id}">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
         <div style="flex:1;min-width:0;">
           <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}<span class="post-cargo">${esc(cargo)}</span></div>
           <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${p.turma ? `Turma ${esc(p.turma)} · ` : ''}${fmtDataHora(p.criado_em)}</div>
         </div>
-        ${p.destaque ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
+        ${destaqueAtivo ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
+        ${(p.destaque && podeApagar) ? `<button class="icon-btn" onclick="removerDestaque('${p.id}')" title="Remover destaque">✕ Destaque</button>` : ''}
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
       </div>
       ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
@@ -4759,6 +4768,18 @@ async function apagarPost(postId) {
   toast('Publicação apagada')
 }
 
+// tira o pin sem apagar o post — RLS/grant de coluna (posts_update, 033)
+// só deixa autor ou admin mexer nesses dois campos.
+async function removerDestaque(postId) {
+  const { error } = await db.from('posts').update({ destaque: false, destaque_expira_em: null }).eq('id', postId)
+  if (error) { toast('Erro: ' + error.message); return }
+  const post = _feedPosts.find(p => p.id === postId)
+  if (post) { post.destaque = false; post.destaque_expira_em = null }
+  registrarAuditoria('removeu destaque de uma publicação', 'posts', postId, null)
+  renderFeedAtual()
+  toast('Destaque removido')
+}
+
 function abrirLightboxPost(postId, midiaId) {
   const p = _feedPosts.find(x => x.id === postId)
   if (!p) return
@@ -4814,7 +4835,15 @@ function _composerHTML(contexto) {
           <label class="composer-anexo">🎬 Vídeo<input type="file" accept="video/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'video')"></label>
           <label class="composer-anexo">📄 Documento<input type="file" accept=".pdf,.doc,.docx" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'documento')"></label>
           <label class="composer-anexo">🎤 Áudio<input type="file" accept="audio/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'audio')"></label>
-          ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Aviso Importante / Fixar no Topo</label>` : ''}
+          ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque" onchange="document.getElementById('feed-composer-destaque-dias-wrap').style.display=this.checked?'inline-flex':'none'"> Aviso Importante / Fixar no Topo</label>
+          <span id="feed-composer-destaque-dias-wrap" style="display:none;align-items:center;gap:6px;">por
+            <select id="feed-composer-destaque-dias">
+              <option value="3">3 dias</option>
+              <option value="7" selected>7 dias</option>
+              <option value="15">15 dias</option>
+              <option value="30">30 dias</option>
+            </select>
+          </span>` : ''}
         </div>
         <button class="btn btn-primary btn-sm" onclick="publicarPost()">Publicar</button>
       </div>
@@ -4908,6 +4937,8 @@ async function publicarPost() {
 
   const destaqueEl = document.getElementById('feed-composer-destaque')
   const destaque = !!destaqueEl?.checked
+  const diasEl = document.getElementById('feed-composer-destaque-dias')
+  const destaqueExpiraEm = destaque ? new Date(Date.now() + Number(diasEl?.value || 7) * 86400000).toISOString() : null
   const turmaEl = document.getElementById('feed-composer-turma')
   const turma = turmaEl?.value || null
 
@@ -4916,7 +4947,7 @@ async function publicarPost() {
 
   const { data: post, error } = await db.from('posts').insert({
     autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, escola_id: escolaId,
-    global, destaque, texto: texto || null, turma,
+    global, destaque, destaque_expira_em: destaqueExpiraEm, texto: texto || null, turma,
   }).select().single()
 
   if (error) {
