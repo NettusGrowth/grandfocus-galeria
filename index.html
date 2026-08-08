@@ -4334,8 +4334,11 @@ async function uploadFotosEvento(files, subpasta, marcar) {
     const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
+    // marca d'água só faz sentido na Seleção de Fotos (onde protege
+    // contra baixar antes de pagar) — na Galeria/Álbuns quem vê já tem
+    // vínculo/acesso liberado por RLS, então mostra o arquivo original
+    // direto (thumb_path fica null, _urlPreview já cai pro storage_path).
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -4430,19 +4433,6 @@ function _gerarThumbWatermark(file) {
     img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Falha ao ler a imagem')) }
     img.src = objUrl
   })
-}
-
-// best-effort: se a prévia falhar por algum motivo (foto corrompida,
-// navegador antigo sem toBlob etc.) a foto ainda sobe normal, só sem
-// marca d'água — nunca trava o upload por causa disso.
-async function _enviarThumb(file, originalPath) {
-  try {
-    const blob = await _gerarThumbWatermark(file)
-    const thumbPath = originalPath.replace(/\.[a-z0-9]+$/i, '_thumb.jpg')
-    const { error } = await db.storage.from(BUCKET).upload(thumbPath, blob, { contentType: 'image/jpeg' })
-    if (error) return null
-    return thumbPath
-  } catch (e) { return null }
 }
 
 // ── visualizador de foto ampliada (identidade Grand Focus, não o
@@ -6556,8 +6546,9 @@ async function uploadFotosEnsaio(files, subpasta) {
     const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    const thumbPath = await _enviarThumb(file, path)
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
+    // mesmo motivo do uploadFotosEvento: marca d'água só existe na
+    // Seleção de Fotos, aqui mostra o arquivo original direto.
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     if (rosterAlunos.length) {
