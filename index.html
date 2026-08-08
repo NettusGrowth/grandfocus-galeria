@@ -1006,8 +1006,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <section class="view" id="view-escola">
     <div class="view-shell">
       <div class="tabs">
+        <div class="tab on" data-tab="eventos" data-tip="Galeria" onclick="setEscolaTab('eventos');_galInit(meuPerfil.role)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
         <div class="tab" data-tab="dashboard-prof" data-tip="Dashboard" id="tab-dashboard-prof" style="display:none;" onclick="setEscolaTab('dashboard-prof')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg><span>Dashboard</span></div>
-        <div class="tab on" data-tab="eventos" data-tip="Eventos" onclick="setEscolaTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Eventos</span></div>
         <div class="tab" data-tab="turmas" data-tip="Minhas Turmas" id="tab-turmas" style="display:none;" onclick="setEscolaTab('turmas');renderTurmasProfessor()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19c.5-2.3 2.3-3.7 4.5-3.7S12.5 16.7 13 19"/><circle cx="8.5" cy="10" r="2.6"/><path d="M14.5 15.8c1.7.4 2.9 1.6 3.3 3.2"/><circle cx="16" cy="9" r="2.1"/></svg><span>Minhas Turmas</span></div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setEscolaTab('comunidade');iniciarComunidadeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="tab" data-tab="equipe" data-tip="Equipe" onclick="setEscolaTab('equipe');iniciarEquipeEscola()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Equipe</span></div>
@@ -1031,7 +1031,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div id="prof-turmas-lista"></div>
       </div>
       <div class="escola-tab on" id="escolatab-eventos">
-        <div id="escola-eventos-wrap">
+        <div id="galeria-escola-wrap"></div>
+        <div id="escola-eventos-wrap" style="display:none;">
           <div class="section-h"><h2>Seus eventos</h2></div>
           <div class="feed-cat-chips" id="escola-eventos-status-chips"></div>
           <div id="escola-lista-eventos"></div>
@@ -1061,7 +1062,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <section class="view" id="view-responsavel">
     <div class="view-shell">
       <div class="tabs">
-        <div class="tab on" data-tab="fotos" data-tip="Fotos" onclick="setRespTab('fotos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Fotos</span></div>
+        <div class="tab on" data-tab="fotos" data-tip="Galeria" onclick="setRespTab('fotos');_galInit('responsavel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="sidebar-footer">
           <span class="who-avatar" id="sb-avatar-resp">?</span>
@@ -1072,8 +1073,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
       <div class="view-content">
       <div class="resp-tab on" id="resptab-fotos">
-        <div class="section-h"><h2>Fotos dos seus filhos</h2></div>
-        <div id="responsavel-galeria"></div>
+        <div id="galeria-resp-wrap"></div>
       </div>
       <div class="resp-tab" id="resptab-comunidade" style="display:none;">
         <div id="comunidade-responsavel-header"></div>
@@ -1901,6 +1901,13 @@ const _onRealtimeFotos = _debounce(async () => {
     if (_visivel('eventos-lista-wrap')) renderEventos()
     if (_visivel('ensaios-lista-wrap')) renderEnsaios()
   }
+  // mesma lógica pras telas novas da árvore de Galeria — sem isso, o
+  // "0 fotos" intermitente que já foi corrigido nas listas de admin
+  // continuaria acontecendo aqui. _galAtualizarDados() só recarrega o
+  // dado (não reseta _galEscolaId/_galAno/_galAlbumId), senão cada
+  // evento de tempo real chutaria quem estava navegando de volta pra
+  // raiz da árvore.
+  if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
 }, 600)
 
 const _onRealtimeEventos = _debounce(async () => {
@@ -1909,11 +1916,26 @@ const _onRealtimeEventos = _debounce(async () => {
     if (_visivel('eventos-lista-wrap')) renderEventos()
     if (_visivel('ensaios-lista-wrap')) renderEnsaios()
   }
-  if (_visivel('escola-eventos-wrap')) {
-    const { data } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
-    if (data) { store.eventos = data; renderEventosEscola() }
-  }
+  if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
 }, 600)
+
+// recarrega só os dados que a árvore de Galeria consome, sem tocar no
+// estado de navegação (_galEscolaId/_galAno/_galAlbumId/...) — chamado
+// pelo tempo real, que não pode chutar quem está no meio de uma pasta
+// de volta pra raiz a cada foto nova que entra.
+async function _galAtualizarDados() {
+  const [{ data: eventos }, { data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
+    db.from('eventos').select('*, fotos(count)').order('data', { ascending: false }),
+    db.from('fotos').select('*'),
+    db.from('foto_aluno').select('*'),
+    db.from('foto_pessoa').select('*'),
+  ])
+  if (eventos) store.eventos = eventos
+  if (fotos) store.fotos = fotos
+  if (fa) store.fotoAluno = fa
+  if (fp) store.fotoPessoa = fp
+  renderGaleriaAdmin()
+}
 
 // ── auth ────────────────────────────────────────────────────────
 function iniciarAuth() {
@@ -5853,6 +5875,7 @@ async function compartilharFoto(fotoId) {
 //   avulsos → lista de ensaios avulsos (busca) → Fotos (sem filtro)
 //   alunos  → lista de TODOS os alunos (busca + filtro por escola) →
 //     Aluno → Ano → Fotos (já agrupadas por evento/ensaio dele)
+let _galRole = 'admin'
 let _galRaiz = null
 let _galEscolaId = undefined
 let _galAlunoId = null
@@ -5867,6 +5890,7 @@ let _galFiltroPessoaAlbum = null
 let _galSelecao = new Set()
 
 async function iniciarGaleriaAdmin() {
+  _galRole = 'admin'
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
   _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
   _galFiltroEscolaAlunos = ''; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
@@ -5885,11 +5909,24 @@ async function iniciarGaleriaAdmin() {
   renderGaleriaAdmin()
 }
 
-function _galIrRaiz() { _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null; _galAlbumId = null; _galAvulsoId = null; renderGaleriaAdmin() }
+function _galIrRaiz() {
+  // admin tem tela de raiz de verdade (3 pastas); os outros perfis
+  // pousam direto no ponto certo pra eles (_galInit cuida disso), então
+  // "voltar pra Galeria" pra eles é só recomeçar o fluxo de novo.
+  if (_galRole && _galRole !== 'admin') { _galInit(_galRole); return }
+  _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null; _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; renderGaleriaAdmin()
+}
 
 function _galBreadcrumb() {
   const partes = [`<span onclick="_galIrRaiz()" style="cursor:pointer;">Galeria</span>`]
-  if (_galRaiz === 'escolas') {
+  if (_galRaiz === 'filhos') {
+    partes.push(`<span onclick="_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">Filhos</span>`)
+    if (_galAlunoId) {
+      const a = store.alunos.find(x => x.id === _galAlunoId)
+      partes.push(`<span onclick="_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(a?.nome || '')}</span>`)
+    }
+    if (_galAno) partes.push(`<span>${_galAno}</span>`)
+  } else if (_galRaiz === 'escolas') {
     partes.push(`<span onclick="_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">Escolas</span>`)
     if (_galEscolaId !== undefined) partes.push(`<span onclick="_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(nomeEscola(_galEscolaId))}</span>`)
     if (_galAno) partes.push(`<span onclick="_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${_galAno}</span>`)
@@ -5910,13 +5947,28 @@ function _galBreadcrumb() {
   return partes.join(' <span style="opacity:.4;">/</span> ')
 }
 
+// mesmo motor de árvore serve pra todo mundo — só o elemento onde
+// pintar muda por perfil, porque admin/escola/responsável são 3
+// `<section class="view">` diferentes, todas presentes no DOM ao mesmo
+// tempo (só uma visível por vez), então não dá pra repetir o mesmo id.
+function _galWrapId() {
+  if (_galRole === 'responsavel') return 'galeria-resp-wrap'
+  if (_galRole && _galRole !== 'admin') return 'galeria-escola-wrap'
+  return 'galeria-admin-wrap'
+}
+
 function renderGaleriaAdmin() {
-  const wrap = document.getElementById('galeria-admin-wrap')
+  const wrap = document.getElementById(_galWrapId())
   if (!wrap) return
   const crumb = `<div class="meta" style="margin-bottom:16px;font-size:13px;">${_galBreadcrumb()}</div>`
   wrap.innerHTML = crumb
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
+  if (_galRaiz === 'filhos') {
+    if (_galAlunoId && _galAno) { renderGaleriaFotosDoAno(wrap); return }
+    if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
+    renderGaleriaListaFilhos(wrap); return
+  }
   if (_galRaiz === 'avulsos') {
     if (_galAvulsoId) {
       if (_galSubpasta === null && _galSubpastasDisponiveis(_galAvulsoId).length) { renderGaleriaSubpastasDoAvulso(wrap); return }
@@ -5989,12 +6041,30 @@ function renderGaleriaAnosDaEscola(wrap) {
     </div>`).join('') : '<div class="empty">Nenhum álbum/evento dessa escola ainda.</div>'}</div>`
 }
 
+// ensaios avulsos onde algum aluno DESSA escola está marcado — é assim
+// que diretor/proprietário/professor enxergam avulso, dentro do ano da
+// própria escola, sem uma pasta "Avulsos" geral (essa fica só pro
+// admin). Um ensaio avulso não tem escola_id, então a única forma de
+// ligá-lo a uma escola é via os alunos marcados nas fotos dele.
+function _galEventosAvulsosDeAlunosDaEscola(escolaId) {
+  const alunosDaEscolaIds = new Set(store.alunos.filter(a => a.escola_id === escolaId).map(a => a.id))
+  const fotoIdsDeAlunos = new Set(store.fotoAluno.filter(x => alunosDaEscolaIds.has(x.aluno_id)).map(x => x.foto_id))
+  const eventoIds = new Set(store.fotos.filter(f => fotoIdsDeAlunos.has(f.id)).map(f => f.evento_id))
+  return store.eventos.filter(e => eventoIds.has(e.id) && e.tipo === 'ensaio')
+}
+
 function renderGaleriaAlbunsDaEscola(wrap) {
   const eventos = _eventosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
-  wrap.innerHTML += `<div class="list">${eventos.length ? eventos.map(ev => `
+  const itemHTML = ev => `
     <div class="list-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
-      <div class="nome">📁 ${esc(ev.nome)}</div><div class="meta">${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
-    </div>`).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>`
+      <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
+    </div>`
+  let extra = ''
+  if (_galRole !== 'admin') {
+    const avulsos = _galEventosAvulsosDeAlunosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
+    if (avulsos.length) extra = `<div class="section-h"><h3>Ensaios avulsos dos alunos</h3></div><div class="list">${avulsos.map(itemHTML).join('')}</div>`
+  }
+  wrap.innerHTML += `<div class="list">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
 }
 
 // ── nível de subpasta (Álbum → Subpasta → Fotos) — pula sozinho quando
@@ -6050,7 +6120,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        <button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     <div class="foto-grid">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
@@ -6087,7 +6157,7 @@ function renderGaleriaFotosAvulso(wrap) {
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        <button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     <div class="foto-grid">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
@@ -6145,7 +6215,9 @@ function renderGaleriaAnosDoAluno(wrap) {
     anos.set(ano, (anos.get(ano) || 0) + 1)
   })
   const anosOrdenados = [...anos.keys()].sort().reverse()
-  wrap.innerHTML += `<div class="section-h"><button class="btn btn-sm" onclick="abrirUploadRapidoAluno()">📤 Fazer upload pra este aluno</button></div>
+  // upload é admin-only — os outros perfis só navegam/consomem, sobem
+  // fotos apenas em Álbuns & Eventos / Ensaios Avulsos.
+  wrap.innerHTML += `${_galRole === 'admin' ? `<div class="section-h"><button class="btn btn-sm" onclick="abrirUploadRapidoAluno()">📤 Fazer upload pra este aluno</button></div>` : ''}
     <div class="list">${anosOrdenados.length ? anosOrdenados.map(ano => `
       <div class="list-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
         <div class="nome">${ano}</div><div class="meta">${anos.get(ano)} foto(s)</div>
@@ -6169,7 +6241,7 @@ function renderGaleriaFotosDoAno(wrap) {
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        <button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     ${[...porEvento.entries()].map(([eventoId, lista]) => {
@@ -6199,7 +6271,7 @@ function _galFotoItemHTML(f) {
       <button class="foto-expand" style="right:34px;" title="Compartilhar" onclick="event.stopPropagation();compartilharFoto('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg>
       </button>
-      <button class="foto-expand" style="right:62px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>
+      ${_galRole === 'admin' ? `<button class="foto-expand" style="right:62px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>` : ''}
     </div>`
 }
 
@@ -7016,13 +7088,35 @@ async function iniciarViewEscola() {
   store.eventos = eventos || []
   const { data: alunos } = await db.from('alunos').select('*').eq('escola_id', meuPerfil.escola_id).order('nome')
   store.alunos = alunos || []
-  renderEventosEscola()
+  // resto do que a árvore da Galeria precisa — RLS já escopa cada uma
+  // dessas queries pro que esse login pode ver (a própria escola).
+  if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
+  if (!store.fotos.length) { const { data } = await db.from('fotos').select('*'); store.fotos = data || [] }
+  if (!store.fotoAluno.length) { const { data } = await db.from('foto_aluno').select('*'); store.fotoAluno = data || [] }
+  if (!store.fotoPessoa.length) { const { data } = await db.from('foto_pessoa').select('*'); store.fotoPessoa = data || [] }
+  _galRole = meuPerfil.role
+  _galRaiz = 'escolas'; _galEscolaId = meuPerfil.escola_id; _galAno = null; _galAlbumId = null
+  _galAvulsoId = null; _galAlunoId = null; _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  renderGaleriaAdmin()
   if (meuPerfil.role === 'professor') {
     document.getElementById('tab-dashboard-prof').style.display = 'flex'
     document.getElementById('tab-turmas').style.display = 'flex'
     _iniciarDashboardProfessor()
     setEscolaTab('dashboard-prof')
   }
+}
+
+// ponto de entrada único da Galeria pra qualquer perfil — cada aba
+// "Galeria"/"Fotos" chama isso; admin já tem seu próprio fluxo
+// (iniciarGaleriaAdmin, com o menu de 3 pastas Escolas/Avulsos/Alunos),
+// os outros perfis reaproveitam iniciarViewEscola/iniciarViewResponsavel
+// (que já sabem exatamente que dado buscar pra cada um) e a árvore
+// pousa direto no ponto certo pra cada papel (sem tela de raiz).
+function _galInit(role) {
+  _galRole = role
+  if (role === 'admin') { iniciarGaleriaAdmin(); return }
+  if (role === 'responsavel') { iniciarViewResponsavel(); return }
+  iniciarViewEscola()
 }
 
 // aba Equipe (só proprietário/diretor) — a RLS de perfis (014) já
@@ -7217,8 +7311,11 @@ async function abrirEventoEscola(eventoId) {
 
 function fecharEventoEscola() {
   _eventoEscolaAtual = null
-  document.getElementById('escola-eventos-wrap').style.display = 'block'
   document.getElementById('escola-evento-detalhe').style.display = 'none'
+  // a lista plana antiga (escola-eventos-wrap) não é mais a aba principal
+  // (virou a árvore da Galeria) — só o Dashboard do professor ainda abre
+  // abrirEventoEscola(), então "voltar" some o detalhe e deixa a árvore
+  // da Galeria (por baixo, na mesma aba) visível de novo.
 }
 
 // mesma ideia de _recarregarFotosEvento, pra tela de fotos da escola/professor.
@@ -7315,8 +7412,6 @@ async function iniciarViewResponsavel() {
   if (error) { toast('Erro ao carregar seus filhos: ' + error.message); return }
   const meusFilhos = (vinc || []).map(v => v.alunos).filter(Boolean)
   store.alunos = meusFilhos
-
-  const wrap = document.getElementById('responsavel-galeria')
   const alunoIds = meusFilhos.map(a => a.id)
 
   // o responsável também pode ter sido marcado direto (foto_pessoa) num
@@ -7329,11 +7424,7 @@ async function iniciarViewResponsavel() {
   store.fotoAluno = fa || []
   store.fotoPessoa = fp || []
   const fotoIds = [...new Set([...(fa || []).map(x => x.foto_id), ...(fp || []).map(x => x.foto_id)])]
-  if (!fotoIds.length) {
-    wrap.innerHTML = `<div class="empty">${alunoIds.length ? 'Nenhuma foto aqui ainda.' : 'Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.'}</div>`
-    return
-  }
-  const { data: fotos } = await db.from('fotos').select('*').in('id', fotoIds)
+  const { data: fotos } = fotoIds.length ? await db.from('fotos').select('*').in('id', fotoIds) : { data: [] }
   store.fotos = fotos || []
   const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
   const { data: eventos } = eventoIds.length
@@ -7341,61 +7432,32 @@ async function iniciarViewResponsavel() {
     : { data: [] }
   store.eventos = eventos || []
 
-  wrap.innerHTML = `
-    <div class="foto-toolbar">
-      <div class="chip-row" id="resp-chip-filhos"></div>
-      <button class="btn btn-primary btn-sm" id="responsavel-btn-baixar" disabled onclick="baixarSelecionadas()">Baixar selecionadas (0)</button>
-    </div>
-    <div id="resp-galeria-agrupada"></div>
-  `
-  if (meusFilhos.length > 1) {
-    document.getElementById('resp-chip-filhos').innerHTML =
-      `<span class="chip on" onclick="filtrarFilhoResponsavel('',this)">Todos</span>` +
-      meusFilhos.map(a => `<span class="chip" onclick="filtrarFilhoResponsavel('${a.id}',this)">${esc(a.nome)}</span>`).join('')
-  }
-  renderGaleriaAgrupada()
+  // a partir daqui é a mesma árvore de navegação da Galeria, só que
+  // pousando direto em "Filhos" (sem escola aparecendo, como pedido) —
+  // nada de parede única agrupada por evento, isso ficava impossível de
+  // navegar com muitos eventos acumulados.
+  _galRole = 'responsavel'
+  _galRaiz = 'filhos'; _galAlunoId = null; _galAno = null; _galAlbumId = null
+  _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  renderGaleriaAdmin()
 }
 
-function filtrarFilhoResponsavel(alunoId, chipEl) {
-  _respFiltroFilho = alunoId || null
-  chipEl.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('on'))
-  chipEl.classList.add('on')
-  renderGaleriaAgrupada()
-}
-
-// galeria do responsável — agrupada por evento (anos acumulam eventos,
-// uma parede única de fotos ficaria impossível de navegar)
-function renderGaleriaAgrupada() {
-  const wrap = document.getElementById('resp-galeria-agrupada')
-  if (!wrap) return
-  let fotos = store.fotos
-  if (_respFiltroFilho) {
-    const idsComAluno = new Set(store.fotoAluno.filter(x => x.aluno_id === _respFiltroFilho).map(x => x.foto_id))
-    fotos = fotos.filter(f => idsComAluno.has(f.id))
-  }
-  if (!fotos.length) { wrap.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
-  _lightboxFotos = fotos
-
-  const porEvento = new Map()
-  fotos.forEach(f => {
-    if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, [])
-    porEvento.get(f.evento_id).push(f)
+// ── caminho Filhos (responsável): lista dos próprios filhos, sem
+// escola aparecendo → reaproveita Ano/Fotos do caminho Alunos ────────
+function renderGaleriaListaFilhos(wrap) {
+  wrap.innerHTML += `<div class="list">${store.alunos.length ? store.alunos.map(a => `
+    <div class="list-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="gal-filho-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
+      </div>
+    </div>`).join('') : '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
+  store.alunos.forEach(async a => {
+    if (!a.foto_url) return
+    const url = await _urlAssinada(a.foto_url)
+    const el = document.getElementById(`gal-filho-${a.id}`)
+    if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
-  const eventosComFoto = store.eventos.filter(ev => porEvento.has(ev.id))
-
-  wrap.innerHTML = eventosComFoto.map(ev => `
-    <div class="galeria-secao">
-      <h3 class="galeria-secao-titulo">${esc(ev.nome)}${ev.data ? ' · ' + fmtData(ev.data) : ''}</h3>
-      <div class="foto-grid">${porEvento.get(ev.id).map(f => _fotoItemHTML(f)).join('')}</div>
-    </div>
-  `).join('')
-
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#fg-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
-  atualizarBotaoBaixar()
 }
 
 // ── galeria pública (link privado, sem login) ─────────────────────
