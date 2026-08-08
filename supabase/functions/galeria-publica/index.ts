@@ -39,8 +39,18 @@ Deno.serve(async (req) => {
   )
 
   const { data: linhas, error } = await admin.rpc('galeria_publica_dados', { p_token: token, p_senha: senha })
-  if (error) return json({ error: error.message.includes('Senha') ? 'Senha incorreta.' : 'Link inválido ou expirado.' }, 401)
-  if (!linhas?.length) return json({ error: 'Link inválido ou expirado.' }, 401)
+  if (error) {
+    // detalhe só no log do projeto (Edge Functions → Logs) — pro
+    // visitante sempre é a mensagem genérica, mas isso é o que permite
+    // diferenciar "token nunca existiu" de "expirou de verdade" na hora
+    // de investigar uma reclamação de link quebrado.
+    console.error('galeria-publica: RPC falhou', { token, message: error.message })
+    return json({ error: error.message.includes('Senha') ? 'Senha incorreta.' : 'Link inválido ou expirado.' }, 401)
+  }
+  if (!linhas?.length) {
+    console.error('galeria-publica: token não bateu com nenhum evento', { token })
+    return json({ error: 'Link inválido ou expirado.' }, 401)
+  }
 
   // left join no SQL: evento sem foto nenhuma ainda vem como 1 linha com
   // foto_id null — não é erro, só significa "álbum vazio por enquanto".

@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
 
 async function acaoDados(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_publica_dados', { p_token: token, p_senha: senha })
-  if (error) return json({ error: mapErro(error.message) }, 401)
+  if (error) { console.error('selecao-publica[dados]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
   const fotos = await Promise.all((data.fotos || []).map(async (f: any) => {
     const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(f.storage_path, 3600)
@@ -61,13 +61,13 @@ async function acaoEnviar(admin: any, token: string, senha: string | null, fotoI
   const { data, error } = await admin.rpc('selecao_registrar_pedido', {
     p_token: token, p_senha: senha, p_foto_ids: fotoIds, p_observacoes: observacoes,
   })
-  if (error) return json({ error: mapErro(error.message) }, 401)
+  if (error) { console.error('selecao-publica[enviar]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
   return json({ pedido: data })
 }
 
 async function acaoDownload(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_download_liberado', { p_token: token, p_senha: senha })
-  if (error) return json({ error: mapErro(error.message) }, 401)
+  if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
   const fotos = await Promise.all((data.fotos || []).map(async (f: any) => {
     const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(f.storage_path_alta, 3600)

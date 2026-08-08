@@ -1195,16 +1195,6 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
       <div class="tag-picker" id="evt-alunos-lista" style="max-height:180px;overflow-y:auto;"></div>
     </div>
-    <div class="field" id="evt-link-wrap" style="display:none;">
-      <label>Link privado (sem precisar de login)</label>
-      <div class="hint" style="margin-bottom:8px;">Ideal pra mandar por WhatsApp. Senha é opcional.</div>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
-        <input type="text" id="evt-link-senha" placeholder="Senha (opcional)">
-        <button class="btn btn-sm" type="button" onclick="_gerarLinkPublicoEvento()">Gerar/Atualizar link</button>
-        <button class="btn btn-sm" type="button" title="Copiar link" onclick="_copiarLinkPrivado(document.getElementById('evt-id').value)">📋</button>
-      </div>
-      <div class="credencial-box" id="evt-link-resultado" style="display:none;"></div>
-    </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-evento')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarEvento()">Salvar</button>
@@ -3943,12 +3933,6 @@ function abrirModalEvento(eventoId) {
   if (ev?.capa_url) _urlAssinada(ev.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('evt-capa-preview', ev.capa_pos) } })
   else _posAplicar('evt-capa-preview', null)
 
-  document.getElementById('evt-link-wrap').style.display = ev ? 'block' : 'none'
-  document.getElementById('evt-link-senha').value = ''
-  const resEl = document.getElementById('evt-link-resultado')
-  resEl.style.display = 'none'
-  if (ev?.link_token) { resEl.style.display = 'block'; resEl.textContent = _urlLinkPublico(ev.link_token, ev.nome) }
-
   _renderEventoSeletorAlunos()
   abrirModal('modal-evento')
 }
@@ -3960,29 +3944,6 @@ function abrirModalEvento(eventoId) {
 function _urlLinkPublico(token, nome) {
   const slug = (nome || '').toLowerCase().normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
   return `${location.origin}${location.pathname}?g=${token}${slug ? `&e=${slug}` : ''}`
-}
-
-async function _gerarLinkPublicoEvento() {
-  const id = document.getElementById('evt-id').value
-  if (!id) { toast('Salve o evento primeiro'); return }
-  const senha = document.getElementById('evt-link-senha').value.trim()
-  const ev = store.eventos.find(x => x.id === id)
-  let token = ev?.link_token
-  if (!token) {
-    token = crypto.randomUUID().replace(/-/g, '')
-    const { error } = await db.from('eventos').update({ link_token: token }).eq('id', id)
-    if (error) { toast('Erro ao gerar link: ' + error.message); return }
-    if (ev) ev.link_token = token
-  }
-  if (senha) {
-    const { error: eSenha } = await db.rpc('definir_senha_link', { p_evento_id: id, p_senha: senha })
-    if (eSenha) { toast('Link gerado, mas a senha falhou: ' + eSenha.message); return }
-  }
-  const resEl = document.getElementById('evt-link-resultado')
-  resEl.style.display = 'block'
-  resEl.textContent = _urlLinkPublico(token, ev?.nome) + (senha ? `\nSenha: ${senha}` : '')
-  registrarAuditoria('gerou link privado', 'eventos', id, ev?.nome || '')
-  _copiarLinkPrivado(id) // já copia pra área de transferência e avisa por toast
 }
 
 function _eventoCapaSelecionada(inputEl) {
@@ -6337,10 +6298,18 @@ async function salvarEnsaio() {
     capa_url = path
   }
 
+  const clienteAvulsoId = document.getElementById('ens-cliente-avulso').value || null
+  // link_token é o único jeito de um cliente avulso (sem login) acessar
+  // as fotos dele — gera sozinho assim que alguém vincula um cliente,
+  // sem depender de lembrar de clicar em "Gerar link" à parte. Nunca
+  // sobrescreve um token que já existia.
+  let link_token = id ? (store.eventos.find(e => e.id === id)?.link_token || null) : null
+  if (clienteAvulsoId && !link_token) link_token = crypto.randomUUID().replace(/-/g, '')
+
   const payload = {
     id: ensaioId, nome, data: data_, categoria, capa_url, capa_pos: _posValor('ens-capa-preview'), tipo: 'ensaio', escola_id: null,
     alunos_selecionados: [..._ensaioAlunosSel], pessoas_selecionadas: [..._ensaioPessoasSel],
-    cliente_avulso_id: document.getElementById('ens-cliente-avulso').value || null,
+    cliente_avulso_id: clienteAvulsoId, link_token,
   }
   let data, error
   if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
@@ -6351,8 +6320,13 @@ async function salvarEnsaio() {
   if (idx >= 0) store.eventos[idx] = { ...data, fotos: store.eventos[idx].fotos }; else store.eventos.unshift({ ...data, fotos: [{ count: 0 }] })
   renderEnsaios()
   fecharModal('modal-ensaio')
-  toast(id ? 'Ensaio atualizado ✓' : 'Ensaio criado ✓')
   registrarAuditoria(id ? 'editou ensaio avulso' : 'criou ensaio avulso', 'eventos', data.id, nome)
+  if (clienteAvulsoId) {
+    _copiarLinkPrivado(data.id) // já copia o link do cliente pra área de transferência
+    toast('Ensaio salvo ✓ — link do cliente copiado, é só colar e mandar')
+  } else {
+    toast(id ? 'Ensaio atualizado ✓' : 'Ensaio criado ✓')
+  }
 }
 
 // ── Clientes Avulsos: cadastro leve (sem login), vinculável num
