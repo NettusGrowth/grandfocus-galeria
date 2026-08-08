@@ -1176,10 +1176,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <select id="evt-escola" onchange="_renderEventoSeletorAlunos()"><option value="">— Avulso / geral —</option></select>
     </div>
     <div class="field" id="evt-alunos-wrap" style="display:none;">
-      <label>Quem participa deste evento? <span style="text-transform:none;font-weight:400;color:#B39F86;">(marca automaticamente essas fotos pra eles)</span></label>
+      <label>Quem participa deste evento? <span style="text-transform:none;font-weight:400;color:#B39F86;">(alunos, professores, diretores… marca automaticamente essas fotos pra eles)</span></label>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <input type="text" id="evt-alunos-busca" placeholder="Buscar aluno…" style="max-width:220px;" oninput="_renderEventoSeletorAlunos()">
-        <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos</button>
+        <input type="text" id="evt-alunos-busca" placeholder="Buscar…" style="max-width:220px;" oninput="_renderEventoSeletorAlunos()">
+        <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos os alunos</button>
       </div>
       <div class="tag-picker" id="evt-alunos-lista" style="max-height:180px;overflow-y:auto;"></div>
     </div>
@@ -1484,6 +1484,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <select id="preview-upload-subpasta">
         <option value="">Sem pasta (solto no evento)</option>
       </select>
+    </div>
+    <div class="field" id="preview-upload-marcar-wrap" style="display:none;">
+      <label>Marcação automática</label>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#DBC9A8;">
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;"><input type="radio" name="preview-upload-marcar" value="todos" checked> Marcar todo mundo selecionado</label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;"><input type="radio" name="preview-upload-marcar" value="nenhum"> Não marcar ninguém agora</label>
+      </div>
     </div>
     <div class="foto-grid" id="preview-upload-grid" style="max-height:340px;overflow-y:auto;margin-bottom:6px;"></div>
     <div class="modal-actions">
@@ -3821,11 +3828,23 @@ async function confirmarImportacaoAlunos() {
 
 let _eventoCapaArquivo = null
 let _eventoAlunosSelecionados = new Set()
+let _eventoPessoasSelecionadas = new Set()
+
+// staff (professor/diretor/proprietário) vinculado a uma escola —
+// mesmo filtro já usado em outros lugares do admin pra achar quem
+// pertence a uma escola (vínculo primário OU via professor_escolas).
+function _pessoasDaEscola(escolaId) {
+  if (!escolaId) return []
+  return store.professores
+    .filter(p => p.escola_id === escolaId || store.professorEscolas.some(pe => pe.user_id === p.user_id && pe.escola_id === escolaId))
+    .map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: ROLE_LABEL[p.role] || p.role }))
+}
 
 function abrirModalEvento(eventoId) {
   const ev = eventoId ? store.eventos.find(x => x.id === eventoId) : null
   _eventoCapaArquivo = null
   _eventoAlunosSelecionados = new Set(ev?.alunos_selecionados || [])
+  _eventoPessoasSelecionadas = new Set(ev?.pessoas_selecionadas || [])
 
   document.getElementById('evt-id').value = ev?.id || ''
   document.getElementById('evt-modal-titulo').textContent = ev ? 'Editar evento' : 'Novo evento'
@@ -3905,18 +3924,20 @@ function _renderEventoSeletorAlunos() {
   const escolaId = document.getElementById('evt-escola').value
   const wrap = document.getElementById('evt-alunos-wrap')
   wrap.style.display = escolaId ? 'block' : 'none'
-  if (!escolaId) { _eventoAlunosSelecionados = new Set(); return }
+  if (!escolaId) { _eventoAlunosSelecionados = new Set(); _eventoPessoasSelecionadas = new Set(); return }
   const busca = document.getElementById('evt-alunos-busca').value.toLowerCase()
   const alunos = store.alunos.filter(a => a.escola_id === escolaId && a.nome.toLowerCase().includes(busca))
+  const pessoas = _pessoasDaEscola(escolaId).filter(p => p.nome.toLowerCase().includes(busca))
   const el = document.getElementById('evt-alunos-lista')
-  el.innerHTML = alunos.length ? alunos.map(a => `
-    <span class="tag-opt${_eventoAlunosSelecionados.has(a.id) ? ' on' : ''}" onclick="_eventoToggleAluno('${a.id}',this)">${esc(a.nome)}</span>
-  `).join('') : '<span style="opacity:.6;font-size:12px;">Nenhum aluno dessa escola ainda</span>'
+  el.innerHTML = (alunos.length || pessoas.length) ? (
+    alunos.map(a => `<span class="tag-opt${_eventoAlunosSelecionados.has(a.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('aluno','${a.id}',this)">${esc(a.nome)}</span>`).join('') +
+    pessoas.map(p => `<span class="tag-opt${_eventoPessoasSelecionadas.has(p.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('pessoa','${p.id}',this)">${esc(p.nome)} · ${esc(p.sub)}</span>`).join('')
+  ) : '<span style="opacity:.6;font-size:12px;">Nenhum aluno/pessoa dessa escola ainda</span>'
 }
 
-function _eventoToggleAluno(alunoId, el) {
-  if (_eventoAlunosSelecionados.has(alunoId)) _eventoAlunosSelecionados.delete(alunoId)
-  else _eventoAlunosSelecionados.add(alunoId)
+function _eventoTogglePessoa(tipo, id, el) {
+  const set = tipo === 'aluno' ? _eventoAlunosSelecionados : _eventoPessoasSelecionadas
+  if (set.has(id)) set.delete(id); else set.add(id)
   el.classList.toggle('on')
 }
 
@@ -3946,7 +3967,7 @@ async function salvarEvento() {
     capa_url = path
   }
 
-  const payload = { id: eventoId, nome, data: data_, escola_id, categoria, capa_url, capa_pos: _posValor('evt-capa-preview'), alunos_selecionados: [..._eventoAlunosSelecionados] }
+  const payload = { id: eventoId, nome, data: data_, escola_id, categoria, capa_url, capa_pos: _posValor('evt-capa-preview'), alunos_selecionados: [..._eventoAlunosSelecionados], pessoas_selecionadas: [..._eventoPessoasSelecionadas] }
   let data, error
   if (id) ({ data, error } = await db.from('eventos').update(payload).eq('id', id).select().single())
   else ({ data, error } = await db.from('eventos').insert(payload).select().single())
@@ -4074,8 +4095,15 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
   if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
   store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
-  const { data: fa } = await db.from('foto_aluno').select('*').in('foto_id', (data || []).map(f => f.id).length ? (data || []).map(f => f.id) : ['00000000-0000-0000-0000-000000000000'])
-  store.fotoAluno = store.fotoAluno.filter(x => !(data || []).some(f => f.id === x.foto_id)).concat(fa || [])
+  const fotoIds = (data || []).map(f => f.id)
+  if (fotoIds.length) {
+    const [{ data: fa }, { data: fp }] = await Promise.all([
+      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
+      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+    ])
+    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  }
   const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', eventoId)
   _eventoSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
   renderFotosEventoAdmin()
@@ -4095,8 +4123,14 @@ async function _recarregarFotosEvento(eventoId) {
   if (error) return
   store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
   const fotoIds = (data || []).map(f => f.id)
-  const { data: fa } = fotoIds.length ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds) : { data: [] }
-  store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+  if (fotoIds.length) {
+    const [{ data: fa }, { data: fp }] = await Promise.all([
+      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
+      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+    ])
+    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  }
   renderFotosEventoAdmin()
 }
 
@@ -4105,6 +4139,16 @@ async function _recarregarFotosEvento(eventoId) {
 // escolhidas, com opção de tirar alguma antes de confirmar.
 let _previewUploadFiles = null
 let _previewUploadDestino = null
+// mostra o radio "marcar automaticamente" só quando existe alguém no
+// roster do evento/ensaio pra marcar — sem isso a pergunta não faz
+// sentido nenhum (não tem ninguém selecionado ainda).
+function _atualizarPreviewUploadMarcarWrap(temRoster) {
+  const wrap = document.getElementById('preview-upload-marcar-wrap')
+  wrap.style.display = temRoster ? 'block' : 'none'
+  const radioTodos = wrap.querySelector('input[value="todos"]')
+  if (radioTodos) radioTodos.checked = true
+}
+
 function _prepararUploadEvento(files) {
   if (!files?.length) return
   _previewUploadFiles = [...files]
@@ -4115,6 +4159,7 @@ function _prepararUploadEvento(files) {
   wrap.style.display = subpastas.length ? 'block' : 'none'
   document.getElementById('preview-upload-subpasta').innerHTML = '<option value="">Sem pasta (solto no evento)</option>' +
     subpastas.map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('')
+  _atualizarPreviewUploadMarcarWrap(!!((_eventoAtual?.alunos_selecionados?.length) || (_eventoAtual?.pessoas_selecionadas?.length)))
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
@@ -4128,6 +4173,7 @@ function _prepararUploadEnsaio(files) {
   wrap.style.display = subpastas.length ? 'block' : 'none'
   document.getElementById('preview-upload-subpasta').innerHTML = '<option value="">Sem pasta (solto no ensaio)</option>' +
     subpastas.map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('')
+  _atualizarPreviewUploadMarcarWrap(!!((_ensaioAtual?.alunos_selecionados?.length) || (_ensaioAtual?.pessoas_selecionadas?.length)))
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
@@ -4157,10 +4203,11 @@ async function _confirmarPreviewUpload() {
   const files = _previewUploadFiles
   const destino = _previewUploadDestino
   const subpasta = document.getElementById('preview-upload-subpasta')?.value || null
+  const marcar = document.querySelector('input[name="preview-upload-marcar"]:checked')?.value !== 'nenhum'
   fecharModal('modal-preview-upload')
   _previewUploadFiles = null; _previewUploadDestino = null
-  if (destino === 'evento') await uploadFotosEvento(files, subpasta)
-  else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta)
+  if (destino === 'evento') await uploadFotosEvento(files, subpasta, marcar)
+  else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta, marcar)
 }
 
 // fila de upload com progresso por arquivo (estado discreto: aguardando
@@ -4189,7 +4236,7 @@ function _renderFilaUpload(prefixo, files, estados) {
   `
 }
 
-async function uploadFotosEvento(files, subpasta) {
+async function uploadFotosEvento(files, subpasta, marcar) {
   if (!files?.length || !_eventoAtual) return
   // captura o evento/roster no início — o upload continua rodando em
   // segundo plano se o admin trocar de evento (ou sair da aba) no meio
@@ -4197,7 +4244,8 @@ async function uploadFotosEvento(files, subpasta) {
   // arquivos ia parar registrado no evento errado.
   const eventoId = _eventoAtual.id
   const eventoNome = _eventoAtual.nome || ''
-  const roster = _eventoAtual.alunos_selecionados || []
+  const rosterAlunos = marcar === false ? [] : (_eventoAtual.alunos_selecionados || [])
+  const rosterPessoas = marcar === false ? [] : (_eventoAtual.pessoas_selecionadas || [])
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('evt', files, estados)
   let ok = 0
@@ -4213,16 +4261,23 @@ async function uploadFotosEvento(files, subpasta) {
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
-    // pra ajustar foto a foto depois (desmarcar quem não aparece nela)
-    if (roster.length) {
-      const tags = roster.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
+    // pra ajustar foto a foto depois (desmarcar quem não aparece nela).
+    // "Não marcar ninguém agora" (marcar===false) pula isso de propósito.
+    if (rosterAlunos.length) {
+      const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
       if (!tagErr) store.fotoAluno.push(...tags)
+    }
+    if (rosterPessoas.length) {
+      const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
+      const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
+      if (!tagErr) store.fotoPessoa.push(...tags)
     }
     estados[i] = 'ok'; _renderFilaUpload('evt', files, estados)
     ok++
   }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${roster.length ? ` — marcadas pra ${roster.length} aluno(s) automaticamente` : ''}`)
+  const total = rosterAlunos.length + rosterPessoas.length
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`)
   const inputEl = document.getElementById('evt-upload-input')
   if (inputEl) inputEl.value = ''
   if (_eventoAtual?.id === eventoId) renderFotosEventoAdmin()
@@ -5367,7 +5422,18 @@ function exportarAuditoriaPDF() {
 // `#fitem-ID img` e nunca achava nada (o DOM tinha `#fg-ID`), então a
 // foto ficava pra sempre sem `src` — "carregando" que nunca termina — e
 // a barra de marcar aluno/criar subpasta nunca aparecia.
-function _fotoItemEventoAdminHTML(f, alunosDisponiveis) {
+// alunos + pessoas (professor/diretor/proprietário) da escola do
+// evento, num só picker — antes só dava pra marcar aluno.
+function _eventoQuemPodeSerMarcado() {
+  if (!_eventoAtual) return []
+  const alunos = _eventoAtual.escola_id
+    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
+    : store.alunos.filter(a => !a.escola_id)
+  const pessoas = _pessoasDaEscola(_eventoAtual.escola_id)
+  return [...alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome })), ...pessoas]
+}
+
+function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
   const sel = _eventoFotoSelecao.has(f.id)
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
@@ -5382,7 +5448,12 @@ function _fotoItemEventoAdminHTML(f, alunosDisponiveis) {
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEventoAdmin)">${ICON_LIXEIRA}</button>
       <div class="tagbar">
         <div class="tag-picker">
-          ${alunosDisponiveis.map(a => `<span class="tag-opt${(store.fotoAluno.find(x => x.foto_id === f.id && x.aluno_id === a.id)) ? ' on' : ''}" onclick="event.stopPropagation();toggleTagAluno('${f.id}','${a.id}',this)">${esc(a.nome)}</span>`).join('') || '<span style="opacity:.6">nenhum aluno cadastrado pra essa escola ainda</span>'}
+          ${quemPodeSerMarcado.map(p => {
+            const marcado = p.tipo === 'aluno'
+              ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === p.id)
+              : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === p.id)
+            return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="event.stopPropagation();${p.tipo === 'aluno' ? `toggleTagAluno('${f.id}','${p.id}',this)` : `toggleTagPessoa('${f.id}','${p.id}',this)`}">${esc(p.nome)}</span>`
+          }).join('') || '<span style="opacity:.6">ninguém cadastrado pra essa escola ainda</span>'}
         </div>
       </div>
     </div>`
@@ -5391,9 +5462,7 @@ function _fotoItemEventoAdminHTML(f, alunosDisponiveis) {
 async function renderFotosEventoAdmin() {
   const wrap = document.getElementById('evt-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
-  const alunosDisponiveis = _eventoAtual.escola_id
-    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
-    : store.alunos.filter(a => !a.escola_id)
+  const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
   _lightboxFotos = fotos
   const grupos = new Map()
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
@@ -5406,7 +5475,7 @@ async function renderFotosEventoAdmin() {
   wrap.innerHTML = ordemGrupos.map(nome => `
     <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, alunosDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
   fotos.forEach(async f => {
@@ -5440,12 +5509,10 @@ function _atualizarToolbarEvento() {
   if (!toolbar) return
   if (!_eventoFotoSelecao.size) { toolbar.style.display = 'none'; return }
   toolbar.style.display = 'flex'
-  const alunosDisponiveis = _eventoAtual.escola_id
-    ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
-    : store.alunos.filter(a => !a.escola_id)
+  const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
   const tagsEl = document.getElementById('evt-toolbar-tags')
-  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar aluno em todas:</span>` +
-    alunosDisponiveis.map(a => `<span class="chip" onclick="_eventoMarcarAlunoEmMassa('${a.id}')">${esc(a.nome)}</span>`).join('')
+  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+    quemPodeSerMarcado.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('evt-subpasta-mover')
   if (moverEl) {
     moverEl.innerHTML = '<option value="">Sem pasta (solto no evento)</option>' +
@@ -5454,15 +5521,27 @@ function _atualizarToolbarEvento() {
   }
 }
 
-async function _eventoMarcarAlunoEmMassa(alunoId) {
+// marca aluno OU pessoa (professor/diretor/proprietário) em massa nas
+// fotos selecionadas — antes só existia pra aluno.
+async function _eventoMarcarEmMassa(tipo, id) {
   const fotoIds = [..._eventoFotoSelecao]
-  const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === alunoId))
-  if (!novos.length) { toast('Todas as selecionadas já têm esse aluno marcado'); return }
-  const rows = novos.map(foto_id => ({ foto_id, aluno_id: alunoId }))
-  const { error } = await db.from('foto_aluno').insert(rows)
-  if (error) { toast('Erro: ' + error.message); return }
-  store.fotoAluno.push(...rows)
-  toast(`Aluno marcado em ${novos.length} foto(s) ✓`)
+  if (tipo === 'aluno') {
+    const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
+    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
+    const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
+    const { error } = await db.from('foto_aluno').insert(rows)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoAluno.push(...rows)
+    toast(`Marcado em ${novos.length} foto(s) ✓`)
+  } else {
+    const novos = fotoIds.filter(fid => !store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
+    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
+    const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
+    const { error } = await db.from('foto_pessoa').insert(rows)
+    if (error) { toast('Erro: ' + error.message); return }
+    store.fotoPessoa.push(...rows)
+    toast(`Marcado em ${novos.length} foto(s) ✓`)
+  }
   renderFotosEventoAdmin()
 }
 
