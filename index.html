@@ -1086,6 +1086,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="trocar" onclick="document.getElementById('esc-capa-input').click()">Trocar capa</div>
       <input type="file" id="esc-capa-input" accept="image/*" style="display:none;" onchange="_escolaCapaSelecionada(this)">
     </div>
+    <div class="perfil-avatar-wrap">
+      <div class="perfil-avatar-edit" id="esc-logo-preview">
+        ?
+        <div class="trocar" onclick="document.getElementById('esc-logo-input').click()">Trocar logo</div>
+        <input type="file" id="esc-logo-input" accept="image/*" style="display:none;" onchange="_escolaLogoSelecionada(this)">
+      </div>
+    </div>
     <h3 id="esc-modal-titulo" style="margin-top:16px;">Nova escola de dança</h3>
     <div class="field"><label>Nome</label><input type="text" id="esc-nome" placeholder="Ex: Studio Arabesque"></div>
     <div class="field"><label>Cidade</label><input type="text" id="esc-cidade" placeholder="Ex: Uberlândia"></div>
@@ -2169,7 +2176,7 @@ function _renderBuscaGlobal() {
   }
 
   const secoes = [
-    { titulo: 'Escolas', itens: store.escolas.filter(e => (e.nome || '').toLowerCase().includes(termo)).map(e => ({ id: e.id, nome: e.nome, sub: e.cidade || '', letra: (e.nome || '?').charAt(0), foto: e.capa_url, onClick: `setAdminTab('escolas');abrirDetalheEscola('${e.id}')` })) },
+    { titulo: 'Escolas', itens: store.escolas.filter(e => (e.nome || '').toLowerCase().includes(termo)).map(e => ({ id: e.id, nome: e.nome, sub: e.cidade || '', letra: (e.nome || '?').charAt(0), foto: e.logo_url, onClick: `setAdminTab('escolas');abrirDetalheEscola('${e.id}')` })) },
     { titulo: 'Alunos', itens: store.alunos.filter(a => (a.nome || '').toLowerCase().includes(termo)).map(a => ({ id: a.id, nome: a.nome, sub: a.escola_id ? nomeEscola(a.escola_id) : 'avulso', letra: (a.nome || '?').charAt(0), foto: a.foto_url, onClick: `setAdminTab('alunos');abrirModalAluno('${a.id}')` })) },
     { titulo: 'Professores & Diretores', itens: store.professores.filter(p => (p.nome || '').toLowerCase().includes(termo)).map(p => ({ id: p.user_id, nome: p.nome, sub: ROLE_LABEL[p.role] || p.role, letra: (p.nome || '?').charAt(0), foto: p.foto_url, onClick: `setAdminTab('professores');abrirModalProfessor('${p.user_id}')` })) },
     { titulo: 'Responsáveis', itens: store.responsaveis.filter(r => (r.nome || '').toLowerCase().includes(termo)).map(r => ({ id: r.user_id, nome: r.nome, sub: 'Responsável', letra: (r.nome || '?').charAt(0), foto: r.foto_url, onClick: `setAdminTab('pais');abrirModalPai('${r.user_id}')` })) },
@@ -2239,6 +2246,7 @@ const POS_TARGET_MAP = {
   'perfil-avatar-preview': 'perfil-foto',
   'perfil-capa-preview': 'perfil-capa',
   'esc-capa-preview': 'escola-capa',
+  'esc-logo-preview': 'escola-logo',
   'alu-foto-preview': 'aluno-foto',
   'evt-capa-preview': 'evento-capa',
   'ens-capa-preview': 'ensaio-capa',
@@ -2693,20 +2701,19 @@ function renderEscolas() {
     </div>`
   }).join('') + '</div>'
   escolas.forEach(async e => {
-    if (!e.capa_url) return
-    const url = await _urlAssinada(e.capa_url)
-    if (!url) return
-    const cover = document.getElementById(`esc-cover-${e.id}`)
-    if (cover) { cover.style.backgroundImage = `url('${url}')`; cover.style.backgroundPosition = e.capa_pos || POS_PADRAO }
-    const av = document.getElementById(`esc-av-${e.id}`)
-    // o selo pequeno (quadrado) reaproveita a MESMA imagem da capa larga
-    // (a escola não tem um campo de logo separado), mas NÃO pode usar o
-    // capa_pos calibrado pra faixa larga — aplicar aquele enquadramento
-    // recortado num quadradinho espremia a imagem de um jeito ilegível.
-    // object-fit:contain + centro fixo garante que o selo sempre mostra
-    // a imagem inteira, sem recorte esquisito, mesmo que não fique
-    // perfeitamente centralizado no "miolo" do logo.
-    if (av) av.innerHTML = `<img src="${url}" alt="" style="object-position:50% 50%;">`
+    if (e.capa_url) {
+      const url = await _urlAssinada(e.capa_url)
+      const cover = document.getElementById(`esc-cover-${e.id}`)
+      if (url && cover) { cover.style.backgroundImage = `url('${url}')`; cover.style.backgroundPosition = e.capa_pos || POS_PADRAO }
+    }
+    // logo é campo separado (antes reaproveitava a capa larga espremida
+    // num quadradinho, ficava ilegível) — sem logo próprio, mantém a
+    // letra-fallback em vez de forçar a capa errada no selo.
+    if (e.logo_url) {
+      const url = await _urlAssinada(e.logo_url)
+      const av = document.getElementById(`esc-av-${e.id}`)
+      if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${e.logo_pos || '50% 50%'};">`
+    }
   })
 }
 
@@ -2815,9 +2822,11 @@ function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;
 
 // ── modais: escola / aluno / evento ──────────────────────────────
 let _escolaCapaArquivo = null
+let _escolaLogoArquivo = null
 
 function abrirModalEscola(escolaId) {
   _escolaCapaArquivo = null
+  _escolaLogoArquivo = null
   const e = escolaId ? store.escolas.find(x => x.id === escolaId) : null
 
   document.getElementById('esc-id').value = e?.id || ''
@@ -2836,6 +2845,14 @@ function abrirModalEscola(escolaId) {
   if (e?.capa_url) _urlAssinada(e.capa_url).then(url => { if (url) { capaEl.innerHTML = `<img src="${url}" alt="">` + capaEl.innerHTML; _posAplicar('esc-capa-preview', e.capa_pos) } })
   else _posAplicar('esc-capa-preview', null)
 
+  // logo é um campo separado de verdade agora (antes reaproveitava a
+  // mesma imagem da capa larga espremida num quadradinho, ficava
+  // ilegível) — mesmo padrão de foto+capa do professor.
+  const logoEl = document.getElementById('esc-logo-preview')
+  logoEl.innerHTML = `?<div class="trocar" onclick="document.getElementById('esc-logo-input').click()">Trocar logo</div><input type="file" id="esc-logo-input" accept="image/*" style="display:none;" onchange="_escolaLogoSelecionada(this)">`
+  if (e?.logo_url) _urlAssinada(e.logo_url).then(url => { if (url) { logoEl.querySelector('.letra-fallback')?.remove(); logoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('esc-logo-preview', e.logo_pos) } })
+  else _posAplicar('esc-logo-preview', null)
+
   abrirModal('modal-escola')
 }
 
@@ -2844,6 +2861,19 @@ function _escolaCapaSelecionada(inputEl) {
   if (!file) return
   _escolaCapaArquivo = file
   const wrap = document.getElementById('esc-capa-preview')
+  const trocar = wrap.querySelector('.trocar')
+  wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
+  if (trocar) wrap.appendChild(trocar)
+  wrap.appendChild(inputEl)
+  _posAplicar(wrap.id, null)
+  _abrirAjusteFoto(wrap.id)
+}
+
+function _escolaLogoSelecionada(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _escolaLogoArquivo = file
+  const wrap = document.getElementById('esc-logo-preview')
   const trocar = wrap.querySelector('.trocar')
   wrap.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="">`
   if (trocar) wrap.appendChild(trocar)
@@ -2871,7 +2901,17 @@ async function salvarEscola() {
     capa_url = path
   }
 
-  const payload = { id: escolaId, nome, cidade, descricao, proprietario_user_id, capa_url, capa_pos: _posValor('esc-capa-preview') }
+  let logo_url = id ? (store.escolas.find(e => e.id === id)?.logo_url || null) : null
+  if (_escolaLogoArquivo) {
+    const ext = (_escolaLogoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `escolas/${escolaId}/logo.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _escolaLogoArquivo, { contentType: _escolaLogoArquivo.type, upsert: true })
+    if (upErr) { toast('Erro ao enviar o logo: ' + upErr.message); return }
+    _invalidarUrlCache(path)
+    logo_url = path
+  }
+
+  const payload = { id: escolaId, nome, cidade, descricao, proprietario_user_id, capa_url, capa_pos: _posValor('esc-capa-preview'), logo_url, logo_pos: _posValor('esc-logo-preview') }
   let data, error
   if (id) ({ data, error } = await db.from('escolas').update(payload).eq('id', id).select().single())
   else ({ data, error } = await db.from('escolas').insert(payload).select().single())
@@ -5793,7 +5833,7 @@ function renderGaleriaAdmin() {
 }
 
 function renderGaleriaEscolas(wrap) {
-  const cards = [...store.escolas.map(e => ({ id: e.id, nome: e.nome, capa: e.capa_url, sub: `${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)` }))]
+  const cards = [...store.escolas.map(e => ({ id: e.id, nome: e.nome, capa: e.logo_url, sub: `${store.alunos.filter(a => a.escola_id === e.id).length} aluno(s)` }))]
   cards.push({ id: 'avulsos', nome: 'Avulsos', capa: null, sub: `${store.alunos.filter(a => !a.escola_id).length} aluno(s)` })
   wrap.innerHTML += `<div class="list">${cards.map(c => `
     <div class="list-item" onclick="_galEscolaId='${c.id}';renderGaleriaAdmin()">
@@ -5806,7 +5846,7 @@ function renderGaleriaEscolas(wrap) {
     if (!c.capa) return
     const url = await _urlAssinada(c.capa)
     const el = document.getElementById(`gal-esc-${c.id}`)
-    if (url && el) el.innerHTML = `<img src="${url}" alt="">`
+    if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-fit:contain;">`
   })
 }
 
