@@ -601,6 +601,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-cargo{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ouro-fundo);background:rgba(200,175,127,.12);padding:.15em .55em;border-radius:99px;margin-left:6px;}
 .post-midia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:10px;}
 .post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
+.audio-player{grid-column:1/-1;display:flex;align-items:center;gap:10px;background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.18);border-radius:99px;padding:6px 14px 6px 6px;}
+.audio-icone{width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ouro);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.audio-player audio{flex:1;height:32px;min-width:0;}
 .video-player{grid-column:1/-1;position:relative;border-radius:10px;overflow:hidden;background:#000;}
 .video-player video{width:100%;display:block;max-height:420px;background:#000;cursor:pointer;}
 .vp-overlay-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(16,9,16,.22);cursor:pointer;transition:background .15s;}
@@ -4363,7 +4366,7 @@ function _feedPassaCategoria(p) {
   if (!_feedFiltroCategoria) return true
   const midias = _feedMidias[p.id] || []
   if (_feedFiltroCategoria === 'avisos') return p.destaque
-  if (_feedFiltroCategoria === 'midias') return midias.some(m => m.tipo === 'foto' || m.tipo === 'video') || !!p.imagem_url
+  if (_feedFiltroCategoria === 'midias') return midias.some(m => m.tipo === 'foto' || m.tipo === 'video' || m.tipo === 'audio') || !!p.imagem_url
   if (_feedFiltroCategoria === 'docs') return midias.some(m => m.tipo === 'documento')
   return true
 }
@@ -4441,6 +4444,12 @@ function _postMidiaHTML(m) {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3"/></svg>
         </button>
       </div>
+    </div>`
+  }
+  if (m.tipo === 'audio') {
+    return `<div class="audio-player">
+      <span class="audio-icone">🎤</span>
+      <audio id="post-midia-${m.id}" controls preload="none"><source src="" type="audio/mpeg"></audio>
     </div>`
   }
   return `<img id="post-midia-${m.id}" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
@@ -4728,6 +4737,7 @@ function _composerHTML(contexto) {
           <label class="composer-anexo">📷 Fotos<input type="file" accept="image/*" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'foto')"></label>
           <label class="composer-anexo">🎬 Vídeo<input type="file" accept="video/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'video')"></label>
           <label class="composer-anexo">📄 Documento<input type="file" accept=".pdf,.doc,.docx" multiple style="display:none;" onchange="_composerMidiaSelecionada(this,'documento')"></label>
+          <label class="composer-anexo">🎤 Áudio<input type="file" accept="audio/*" style="display:none;" onchange="_composerMidiaSelecionada(this,'audio')"></label>
           ${podeDestacar ? `<label class="composer-destaque-opt"><input type="checkbox" id="feed-composer-destaque"> Aviso Importante / Fixar no Topo</label>` : ''}
         </div>
         <button class="btn btn-primary btn-sm" onclick="publicarPost()">Publicar</button>
@@ -4767,6 +4777,15 @@ function _composerRenderPreview() {
         </button>
       </div>`
     }
+    if (m.tipo === 'audio') {
+      return `<div class="audio-player" style="position:relative;grid-column:auto;">
+        <span class="audio-icone">🎤</span>
+        <audio src="${URL.createObjectURL(m.file)}" controls></audio>
+        <button class="foto-expand" style="opacity:1;position:absolute;top:-8px;right:-8px;" onclick="_composerRemoverMidia(${i})">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>`
+    }
     return `
     <div style="position:relative;">
       ${m.tipo === 'video' ? `<video src="${URL.createObjectURL(m.file)}" controls style="width:100%;border-radius:8px;"></video>` : `<img src="${URL.createObjectURL(m.file)}" alt="">`}
@@ -4781,6 +4800,7 @@ function _composerMidiaSelecionada(inputEl, tipo) {
   const files = [...(inputEl.files || [])]
   if (!files.length) return
   if (tipo === 'video') _composerMidias = _composerMidias.filter(m => m.tipo !== 'video')
+  if (tipo === 'audio') _composerMidias = _composerMidias.filter(m => m.tipo !== 'audio')
   files.forEach(file => _composerMidias.push({ tipo, file }))
   inputEl.value = ''
   _composerRenderPreview()
@@ -4834,7 +4854,7 @@ async function publicarPost() {
 
   for (let i = 0; i < _composerMidias.length; i++) {
     const { tipo, file } = _composerMidias[i]
-    const extPadrao = tipo === 'video' ? 'mp4' : (tipo === 'documento' ? 'pdf' : 'jpg')
+    const extPadrao = tipo === 'video' ? 'mp4' : tipo === 'audio' ? 'mp3' : (tipo === 'documento' ? 'pdf' : 'jpg')
     const ext = (file.name.split('.').pop() || extPadrao).toLowerCase().replace(/[^a-z0-9]/g, '')
     const path = `posts/${post.id}/midia-${i}.${ext}`
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
