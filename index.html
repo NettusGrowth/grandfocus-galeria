@@ -6504,15 +6504,15 @@ async function _recarregarFotosEnsaio(ensaioId) {
   renderFotosEnsaioAdmin()
 }
 
-async function uploadFotosEnsaio(files, subpasta) {
+async function uploadFotosEnsaio(files, subpasta, marcar) {
   if (!files?.length || !_ensaioAtual) return
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
   // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
   // o envio ainda está rolando em segundo plano.
   const ensaioId = _ensaioAtual.id
   const ensaioNome = _ensaioAtual.nome || ''
-  const rosterAlunos = _ensaioAtual.alunos_selecionados || []
-  const rosterPessoas = _ensaioAtual.pessoas_selecionadas || []
+  const rosterAlunos = marcar === false ? [] : (_ensaioAtual.alunos_selecionados || [])
+  const rosterPessoas = marcar === false ? [] : (_ensaioAtual.pessoas_selecionadas || [])
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('ens', files, estados)
   let ok = 0
@@ -7567,7 +7567,7 @@ function renderSelecaoDetalhe() {
     <div class="card">
       <h3 style="font-size:15px;margin-bottom:10px;">Fotos da galeria (${g.fotos.length})</h3>
       <div class="upload-drop" id="sel-dropzone" onclick="document.getElementById('sel-upload-input').click()">
-        📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
+        Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
         <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files])">
       </div>
       <div id="sel-upload-status"></div>
