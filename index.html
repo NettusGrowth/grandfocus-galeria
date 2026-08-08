@@ -5883,6 +5883,7 @@ let _galAno = null
 let _galAlbumId = null
 let _galAvulsoId = null
 let _galSubpasta = null
+let _galEscolaModo = null // null = "Eventos & Álbuns" | 'alunos' — só usado por diretor/proprietário/professor no nível Ano
 let _galFiltroTexto = ''
 let _galFiltroAvulso = ''
 let _galFiltroEscolaAlunos = ''
@@ -5982,7 +5983,10 @@ function renderGaleriaAdmin() {
       if (_galSubpasta === null && _galSubpastasDisponiveis(_galAlbumId).length) { renderGaleriaSubpastasDoAlbum(wrap); return }
       renderGaleriaFotosDoAlbum(wrap); return
     }
-    if (_galAno) { renderGaleriaAlbunsDaEscola(wrap); return }
+    if (_galAno) {
+      if (_galRole !== 'admin' && _galEscolaModo === 'alunos') { renderGaleriaAlunosDaEscola(wrap); return }
+      renderGaleriaAlbunsDaEscola(wrap); return
+    }
     if (_galEscolaId !== undefined) { renderGaleriaAnosDaEscola(wrap); return }
     renderGaleriaEscolas(wrap); return
   }
@@ -6036,7 +6040,7 @@ function renderGaleriaAnosDaEscola(wrap) {
   })
   const anosOrdenados = [...anos.keys()].sort().reverse()
   wrap.innerHTML += `<div class="list">${anosOrdenados.length ? anosOrdenados.map(ano => `
-    <div class="list-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
+    <div class="list-item" onclick="_galAno='${ano}';_galEscolaModo=null;renderGaleriaAdmin()">
       <div class="nome">${ano}</div><div class="meta">${anos.get(ano)} foto(s)</div>
     </div>`).join('') : '<div class="empty">Nenhum álbum/evento dessa escola ainda.</div>'}</div>`
 }
@@ -6053,6 +6057,17 @@ function _galEventosAvulsosDeAlunosDaEscola(escolaId) {
   return store.eventos.filter(e => eventoIds.has(e.id) && e.tipo === 'ensaio')
 }
 
+// diretor/proprietário/professor ganham um atalho "Alunos" ao lado de
+// "Eventos & Álbuns" nesse nível — admin já tem sua própria pasta raiz
+// "Alunos" (caminho 3), não precisa dessas chips.
+function _galChipsEventosAlunos() {
+  if (_galRole === 'admin') return ''
+  return `<div class="chip-row" style="margin-bottom:14px;">
+    <span class="chip${_galEscolaModo !== 'alunos' ? ' on' : ''}" onclick="_galEscolaModo=null;renderGaleriaAdmin()">Eventos &amp; Álbuns</span>
+    <span class="chip${_galEscolaModo === 'alunos' ? ' on' : ''}" onclick="_galEscolaModo='alunos';renderGaleriaAdmin()">Alunos</span>
+  </div>`
+}
+
 function renderGaleriaAlbunsDaEscola(wrap) {
   const eventos = _eventosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
   const itemHTML = ev => `
@@ -6064,7 +6079,27 @@ function renderGaleriaAlbunsDaEscola(wrap) {
     const avulsos = _galEventosAvulsosDeAlunosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
     if (avulsos.length) extra = `<div class="section-h"><h3>Ensaios avulsos dos alunos</h3></div><div class="list">${avulsos.map(itemHTML).join('')}</div>`
   }
-  wrap.innerHTML += `<div class="list">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
+  wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="list">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
+}
+
+// aba "Alunos" (diretor/proprietário/professor) — lista só os alunos
+// DESSA escola; ao escolher um, entra no mesmo caminho Aluno→Ano→Fotos
+// que o admin já usa na sua pasta raiz "Alunos".
+function renderGaleriaAlunosDaEscola(wrap) {
+  const alunos = store.alunos.filter(a => a.escola_id === _galEscolaId)
+  wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="list">${alunos.length ? alunos.map(a => `
+    <div class="list-item" onclick="_galRaiz='alunos';_galAlunoId='${a.id}';_galAno=null;renderGaleriaAdmin()">
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <div class="list-avatar" id="gal-esc-alu-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
+        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
+      </div>
+    </div>`).join('') : '<div class="empty">Nenhum aluno cadastrado nessa escola ainda.</div>'}</div>`
+  alunos.forEach(async a => {
+    if (!a.foto_url) return
+    const url = await _urlAssinada(a.foto_url)
+    const el = document.getElementById(`gal-esc-alu-${a.id}`)
+    if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
+  })
 }
 
 // ── nível de subpasta (Álbum → Subpasta → Fotos) — pula sozinho quando
