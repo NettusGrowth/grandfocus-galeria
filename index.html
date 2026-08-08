@@ -5859,6 +5859,7 @@ let _galAlunoId = null
 let _galAno = null
 let _galAlbumId = null
 let _galAvulsoId = null
+let _galSubpasta = null
 let _galFiltroTexto = ''
 let _galFiltroAvulso = ''
 let _galFiltroEscolaAlunos = ''
@@ -5867,7 +5868,7 @@ let _galSelecao = new Set()
 
 async function iniciarGaleriaAdmin() {
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
-  _galAlbumId = null; _galAvulsoId = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
+  _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
   _galFiltroEscolaAlunos = ''; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
   if (!store.fotos.length) {
     const { data } = await db.from('fotos').select('*')
@@ -5889,13 +5890,15 @@ function _galIrRaiz() { _galRaiz = null; _galEscolaId = undefined; _galAlunoId =
 function _galBreadcrumb() {
   const partes = [`<span onclick="_galIrRaiz()" style="cursor:pointer;">Galeria</span>`]
   if (_galRaiz === 'escolas') {
-    partes.push(`<span onclick="_galEscolaId=undefined;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()" style="cursor:pointer;">Escolas</span>`)
-    if (_galEscolaId !== undefined) partes.push(`<span onclick="_galAno=null;_galAlbumId=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(nomeEscola(_galEscolaId))}</span>`)
-    if (_galAno) partes.push(`<span onclick="_galAlbumId=null;renderGaleriaAdmin()" style="cursor:pointer;">${_galAno}</span>`)
-    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push(`<span>📁 ${esc(ev?.nome || '')}</span>`) }
+    partes.push(`<span onclick="_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">Escolas</span>`)
+    if (_galEscolaId !== undefined) partes.push(`<span onclick="_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(nomeEscola(_galEscolaId))}</span>`)
+    if (_galAno) partes.push(`<span onclick="_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${_galAno}</span>`)
+    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push(`<span onclick="_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">📁 ${esc(ev?.nome || '')}</span>`) }
+    if (_galSubpasta) partes.push(`<span>${esc(_galSubpasta)}</span>`)
   } else if (_galRaiz === 'avulsos') {
-    partes.push(`<span onclick="_galAvulsoId=null;renderGaleriaAdmin()" style="cursor:pointer;">Avulsos</span>`)
-    if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push(`<span>${esc(ev?.nome || '')}</span>`) }
+    partes.push(`<span onclick="_galAvulsoId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">Avulsos</span>`)
+    if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push(`<span onclick="_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(ev?.nome || '')}</span>`) }
+    if (_galSubpasta) partes.push(`<span>${esc(_galSubpasta)}</span>`)
   } else if (_galRaiz === 'alunos') {
     partes.push(`<span onclick="_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">Alunos</span>`)
     if (_galAlunoId) {
@@ -5915,11 +5918,18 @@ function renderGaleriaAdmin() {
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
   if (_galRaiz === 'avulsos') {
-    if (_galAvulsoId) renderGaleriaFotosAvulso(wrap); else renderGaleriaListaAvulsos(wrap)
+    if (_galAvulsoId) {
+      if (_galSubpasta === null && _galSubpastasDisponiveis(_galAvulsoId).length) { renderGaleriaSubpastasDoAvulso(wrap); return }
+      renderGaleriaFotosAvulso(wrap); return
+    }
+    renderGaleriaListaAvulsos(wrap)
     return
   }
   if (_galRaiz === 'escolas') {
-    if (_galAlbumId) { renderGaleriaFotosDoAlbum(wrap); return }
+    if (_galAlbumId) {
+      if (_galSubpasta === null && _galSubpastasDisponiveis(_galAlbumId).length) { renderGaleriaSubpastasDoAlbum(wrap); return }
+      renderGaleriaFotosDoAlbum(wrap); return
+    }
     if (_galAno) { renderGaleriaAlbunsDaEscola(wrap); return }
     if (_galEscolaId !== undefined) { renderGaleriaAnosDaEscola(wrap); return }
     renderGaleriaEscolas(wrap); return
@@ -5982,14 +5992,40 @@ function renderGaleriaAnosDaEscola(wrap) {
 function renderGaleriaAlbunsDaEscola(wrap) {
   const eventos = _eventosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
   wrap.innerHTML += `<div class="list">${eventos.length ? eventos.map(ev => `
-    <div class="list-item" onclick="_galAlbumId='${ev.id}';renderGaleriaAdmin()">
+    <div class="list-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
       <div class="nome">📁 ${esc(ev.nome)}</div><div class="meta">${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
     </div>`).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>`
 }
 
+// ── nível de subpasta (Álbum → Subpasta → Fotos) — pula sozinho quando
+// o álbum não tem nenhuma subpasta criada (caso mais comum), pra não
+// forçar um clique extra à toa. Reaproveitado por Escolas e Avulsos,
+// os dois caminhos que passam por um evento/ensaio de verdade.
+function _galSubpastasDisponiveis(eventoId) {
+  return [...new Set(store.fotos.filter(f => f.evento_id === eventoId && f.subpasta).map(f => f.subpasta))].sort()
+}
+function _galSubpastasListHTML(eventoId) {
+  const subs = _galSubpastasDisponiveis(eventoId)
+  const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
+  const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
+  return `<div class="list">
+    ${subs.map(s => `<div class="list-item" onclick="_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()"><div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+    <div class="list-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()"><div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
+  </div>`
+}
+function renderGaleriaSubpastasDoAlbum(wrap) {
+  const ev = store.eventos.find(e => e.id === _galAlbumId)
+  wrap.innerHTML += `<div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>` + _galSubpastasListHTML(_galAlbumId)
+}
+function renderGaleriaSubpastasDoAvulso(wrap) {
+  const ev = store.eventos.find(e => e.id === _galAvulsoId)
+  wrap.innerHTML += `<div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>` + _galSubpastasListHTML(_galAvulsoId)
+}
+
 function renderGaleriaFotosDoAlbum(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
-  const todasFotos = store.fotos.filter(f => f.evento_id === _galAlbumId)
+  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__todas__' ? _galSubpasta : null
+  const todasFotos = store.fotos.filter(f => f.evento_id === _galAlbumId && (subpastaAtiva ? f.subpasta === subpastaAtiva : true))
   // filtro por pessoa (aluno OU professor/diretor marcado nessas fotos) —
   // sempre escopado ao álbum aberto: nunca junta fotos de outro álbum.
   const pessoasNoAlbum = [
@@ -6005,7 +6041,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
-    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
     ${pessoasNoAlbum.length ? `<div class="chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
       ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
@@ -6034,18 +6070,19 @@ function renderGaleriaListaAvulsos(wrap) {
     <div class="list" id="gal-lista-avulsos"></div>`
   const el = document.getElementById('gal-lista-avulsos')
   el.innerHTML = ensaios.length ? ensaios.map(ev => `
-    <div class="list-item" onclick="_galAvulsoId='${ev.id}';renderGaleriaAdmin()">
+    <div class="list-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
       <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
     </div>`).join('') : '<div class="empty">Nenhum ensaio avulso encontrado.</div>'
 }
 
 function renderGaleriaFotosAvulso(wrap) {
   const ev = store.eventos.find(e => e.id === _galAvulsoId)
-  const fotos = store.fotos.filter(f => f.evento_id === _galAvulsoId)
+  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__todas__' ? _galSubpasta : null
+  const fotos = store.fotos.filter(f => f.evento_id === _galAvulsoId && (subpastaAtiva ? f.subpasta === subpastaAtiva : true))
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
-    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
