@@ -543,6 +543,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
 .tag-opt.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
 
+.btn-marcar-pessoas{position:absolute;left:6px;bottom:6px;display:flex;align-items:center;gap:5px;background:rgba(20,14,10,.72);color:#DBC9A8;border:1px solid rgba(200,175,127,.3);border-radius:99px;padding:.3em .7em;font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s;}
+.foto-item:hover .btn-marcar-pessoas,.foto-item.sel .btn-marcar-pessoas{opacity:1;}
+.btn-marcar-pessoas:hover{background:var(--ouro);color:var(--tinta);border-color:var(--ouro);}
+.marcar-pessoa-row{display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;cursor:pointer;}
+.marcar-pessoa-row:hover{background:rgba(200,175,127,.08);}
+.marcar-pessoa-row .nome-sub{flex:1;min-width:0;}
+.marcar-pessoa-row .nome-sub .nome{font-size:13.5px;color:#EFE3CE;}
+.marcar-pessoa-row .nome-sub .sub{font-size:11px;color:#9C8B76;}
+.marcar-pessoa-row .ck{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(200,175,127,.4);display:grid;place-items:center;flex-shrink:0;font-size:11px;color:var(--tinta);}
+.marcar-pessoa-row.on .ck{background:var(--ouro);border-color:var(--ouro);}
+
 .credencial-box{background:rgba(200,175,127,.1);border:1px solid var(--ouro);border-radius:8px;padding:16px;margin-top:16px;white-space:pre-line;font-family:monospace;font-size:13px;color:var(--ouro-luz);display:none;}
 
 .evento-back{background:none;border:none;color:var(--ouro-fundo);font-size:12.5px;cursor:pointer;margin-bottom:16px;display:inline-flex;align-items:center;gap:.4em;}
@@ -1551,6 +1562,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <button class="btn btn-sm" onclick="_resolverApagarPasta(null)">Cancelar</button>
       <button class="btn btn-sm" onclick="_resolverApagarPasta('mover')">Só apagar a pasta (mover fotos pra fora)</button>
       <button class="btn btn-sm btn-danger" onclick="_resolverApagarPasta('apagar')">Apagar tudo</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: marcar quem aparece numa foto (avatar + nome + busca, evita
+     empilhar 100 nomes crus embaixo de cada foto) -->
+<div class="modal-overlay" id="modal-marcar-pessoas" onclick="if(event.target===this)fecharModal('modal-marcar-pessoas')">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-bottom:10px;">Quem aparece nessa foto?</h3>
+    <input type="text" id="marcar-pessoas-busca" placeholder="Buscar por nome..." oninput="_renderMarcarPessoasLista()" style="margin-bottom:10px;">
+    <div id="marcar-pessoas-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-primary" onclick="fecharModal('modal-marcar-pessoas')">Pronto</button>
     </div>
   </div>
 </div>
@@ -3905,7 +3929,7 @@ function _pessoasDaEscola(escolaId) {
   if (!escolaId) return []
   return store.professores
     .filter(p => p.escola_id === escolaId || store.professorEscolas.some(pe => pe.user_id === p.user_id && pe.escola_id === escolaId))
-    .map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: ROLE_LABEL[p.role] || p.role }))
+    .map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: ROLE_LABEL[p.role] || p.role, foto_url: p.foto_url, foto_pos: p.foto_pos }))
 }
 
 function abrirModalEvento(eventoId) {
@@ -5459,7 +5483,58 @@ function _eventoQuemPodeSerMarcado() {
     ? store.alunos.filter(a => a.escola_id === _eventoAtual.escola_id)
     : store.alunos.filter(a => !a.escola_id)
   const pessoas = _pessoasDaEscola(_eventoAtual.escola_id)
-  return [...alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome })), ...pessoas]
+  return [...alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome, foto_url: a.foto_url, foto_pos: a.foto_pos })), ...pessoas]
+}
+
+// ── modal "quem aparece nessa foto" (avatar + nome + busca) — reusado
+// por Evento e Ensaio, evita empilhar dezenas/centenas de nomes crus
+// embaixo de cada miniatura (era o jeito antigo, o `.tag-picker` que
+// ainda existe mais acima só pra retrocompatibilidade de estilo).
+let _marcarPessoasFotoId = null
+let _marcarPessoasPool = []
+
+function _marcarPessoasContagem(fotoId) {
+  return store.fotoAluno.filter(x => x.foto_id === fotoId).length + store.fotoPessoa.filter(x => x.foto_id === fotoId).length
+}
+
+function _abrirMarcarPessoas(fotoId, pool) {
+  _marcarPessoasFotoId = fotoId
+  _marcarPessoasPool = pool
+  document.getElementById('marcar-pessoas-busca').value = ''
+  _renderMarcarPessoasLista()
+  abrirModal('modal-marcar-pessoas')
+}
+
+function _renderMarcarPessoasLista() {
+  const fotoId = _marcarPessoasFotoId
+  const busca = (document.getElementById('marcar-pessoas-busca').value || '').toLowerCase()
+  const pessoas = _marcarPessoasPool.filter(p => p.nome.toLowerCase().includes(busca))
+  const el = document.getElementById('marcar-pessoas-lista')
+  el.innerHTML = pessoas.length ? pessoas.map(p => {
+    const marcado = p.tipo === 'aluno'
+      ? store.fotoAluno.some(x => x.foto_id === fotoId && x.aluno_id === p.id)
+      : store.fotoPessoa.some(x => x.foto_id === fotoId && x.user_id === p.id)
+    return `<div class="marcar-pessoa-row${marcado ? ' on' : ''}" onclick="_marcarPessoaToggle('${p.tipo}','${p.id}')">
+      <span class="list-avatar" id="mp-av-${p.tipo}-${p.id}">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</span>
+      <span class="nome-sub"><span class="nome">${esc(p.nome)}</span>${p.sub ? `<br><span class="sub">${esc(p.sub)}</span>` : ''}</span>
+      <span class="ck">${marcado ? '✓' : ''}</span>
+    </div>`
+  }).join('') : '<div class="empty" style="padding:16px 0;">Ninguém encontrado.</div>'
+  pessoas.forEach(p => {
+    if (!p.foto_url) return
+    _urlAssinada(p.foto_url).then(url => {
+      const av = document.getElementById(`mp-av-${p.tipo}-${p.id}`)
+      if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || '50% 25%'};">`
+    })
+  })
+}
+
+async function _marcarPessoaToggle(tipo, id) {
+  const fotoId = _marcarPessoasFotoId
+  if (tipo === 'aluno') await toggleTagAluno(fotoId, id, null); else await toggleTagPessoa(fotoId, id, null)
+  _renderMarcarPessoasLista()
+  const badge = document.getElementById(`marcar-count-${fotoId}`)
+  if (badge) badge.textContent = _marcarPessoasContagem(fotoId)
 }
 
 function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
@@ -5475,16 +5550,10 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEventoAdmin)">${ICON_LIXEIRA}</button>
-      <div class="tagbar">
-        <div class="tag-picker">
-          ${quemPodeSerMarcado.map(p => {
-            const marcado = p.tipo === 'aluno'
-              ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === p.id)
-              : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === p.id)
-            return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="event.stopPropagation();${p.tipo === 'aluno' ? `toggleTagAluno('${f.id}','${p.id}',this)` : `toggleTagPessoa('${f.id}','${p.id}',this)`}">${esc(p.nome)}</span>`
-          }).join('') || '<span style="opacity:.6">ninguém cadastrado pra essa escola ainda</span>'}
-        </div>
-      </div>
+      <button class="btn-marcar-pessoas" onclick="event.stopPropagation();_abrirMarcarPessoas('${f.id}', _eventoQuemPodeSerMarcado())">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg>
+        <span id="marcar-count-${f.id}">${_marcarPessoasContagem(f.id)}</span>
+      </button>
     </div>`
 }
 
@@ -5682,12 +5751,12 @@ async function toggleTagAluno(fotoId, alunoId, chipEl) {
     const { error } = await db.from('foto_aluno').delete().eq('foto_id', fotoId).eq('aluno_id', alunoId)
     if (error) { toast('Erro: ' + error.message); return }
     store.fotoAluno = store.fotoAluno.filter(x => x !== existente)
-    chipEl.classList.remove('on')
+    chipEl?.classList.remove('on')
   } else {
     const { error } = await db.from('foto_aluno').insert({ foto_id: fotoId, aluno_id: alunoId })
     if (error) { toast('Erro: ' + error.message); return }
     store.fotoAluno.push({ foto_id: fotoId, aluno_id: alunoId })
-    chipEl.classList.add('on')
+    chipEl?.classList.add('on')
   }
 }
 
@@ -6181,10 +6250,21 @@ async function _copiarLinkPrivado(eventoId) {
 }
 
 function _todasPessoasSelecionaveis() {
-  const alunos = store.alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome, sub: a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso' }))
-  const staff = store.professores.map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: esc(ROLE_LABEL[p.role] || p.role) }))
-  const pais = store.responsaveis.map(r => ({ tipo: 'pessoa', id: r.user_id, nome: r.nome || '(sem nome)', sub: 'Responsável' }))
+  const alunos = store.alunos.map(a => ({ tipo: 'aluno', id: a.id, nome: a.nome, sub: a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso', foto_url: a.foto_url, foto_pos: a.foto_pos }))
+  const staff = store.professores.map(p => ({ tipo: 'pessoa', id: p.user_id, nome: p.nome || '(sem nome)', sub: esc(ROLE_LABEL[p.role] || p.role), foto_url: p.foto_url, foto_pos: p.foto_pos }))
+  const pais = store.responsaveis.map(r => ({ tipo: 'pessoa', id: r.user_id, nome: r.nome || '(sem nome)', sub: 'Responsável', foto_url: r.foto_url, foto_pos: r.foto_pos }))
   return [...alunos, ...staff, ...pais]
+}
+
+// mesmo espírito de _eventoQuemPodeSerMarcado, mas pro roster que foi
+// escolhido na criação do ensaio avulso (que pode incluir gente de fora
+// de qualquer escola — cliente avulso não entra aqui, esse é só quem
+// tem foto_pessoa/foto_aluno).
+function _ensaioQuemPodeSerMarcado() {
+  if (!_ensaioAtual) return []
+  return _todasPessoasSelecionaveis().filter(p =>
+    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
+  )
 }
 
 let _ensaioAlunosSel = new Set()
@@ -6562,25 +6642,17 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis) {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEnsaioAdmin)">${ICON_LIXEIRA}</button>
-      <div class="tagbar">
-        <div class="tag-picker">
-          ${pessoasDisponiveis.map(p => {
-            const marcado = p.tipo === 'aluno'
-              ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === p.id)
-              : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === p.id)
-            return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="event.stopPropagation();${p.tipo === 'aluno' ? `toggleTagAluno('${f.id}','${p.id}',this)` : `toggleTagPessoa('${f.id}','${p.id}',this)`}">${esc(p.nome)}</span>`
-          }).join('') || '<span style="opacity:.6">ninguém selecionado na criação do ensaio</span>'}
-        </div>
-      </div>
+      <button class="btn-marcar-pessoas" onclick="event.stopPropagation();_abrirMarcarPessoas('${f.id}', _ensaioQuemPodeSerMarcado())">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg>
+        <span id="marcar-count-${f.id}">${_marcarPessoasContagem(f.id)}</span>
+      </button>
     </div>`
 }
 
 async function renderFotosEnsaioAdmin() {
   const wrap = document.getElementById('ens-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
-  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
-    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
-  )
+  const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
   _lightboxFotos = fotos
   const grupos = new Map()
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
@@ -6623,9 +6695,7 @@ function _atualizarToolbarEnsaio() {
   if (!toolbar) return
   if (!_ensaioFotoSelecao.size) { toolbar.style.display = 'none'; return }
   toolbar.style.display = 'flex'
-  const pessoasDisponiveis = _todasPessoasSelecionaveis().filter(p =>
-    (p.tipo === 'aluno' ? _ensaioAtual.alunos_selecionados : _ensaioAtual.pessoas_selecionadas)?.includes(p.id)
-  )
+  const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
   const tagsEl = document.getElementById('ens-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
     pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
@@ -6755,12 +6825,12 @@ async function toggleTagPessoa(fotoId, userId, chipEl) {
     const { error } = await db.from('foto_pessoa').delete().eq('foto_id', fotoId).eq('user_id', userId)
     if (error) { toast('Erro: ' + error.message); return }
     store.fotoPessoa = store.fotoPessoa.filter(x => x !== existente)
-    chipEl.classList.remove('on')
+    chipEl?.classList.remove('on')
   } else {
     const { error } = await db.from('foto_pessoa').insert({ foto_id: fotoId, user_id: userId })
     if (error) { toast('Erro: ' + error.message); return }
     store.fotoPessoa.push({ foto_id: fotoId, user_id: userId })
-    chipEl.classList.add('on')
+    chipEl?.classList.add('on')
   }
 }
 
