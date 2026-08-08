@@ -5630,8 +5630,10 @@ function _atualizarToolbarEvento() {
   if (!_eventoFotoSelecao.size) { toolbar.style.display = 'none'; return }
   toolbar.style.display = 'flex'
   const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
+  const turmas = [...new Set(quemPodeSerMarcado.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
   const tagsEl = document.getElementById('evt-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+    turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_eventoMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
     quemPodeSerMarcado.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('evt-subpasta-mover')
   if (moverEl) {
@@ -5639,6 +5641,14 @@ function _atualizarToolbarEvento() {
       _todasSubpastasConhecidas().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
       '<option value="__nova__">+ Criar nova pasta…</option>'
   }
+}
+
+// "Toda a Turma" — marca de uma vez todo mundo daquela turma que
+// participa do evento, sem precisar clicar aluno por aluno (é isso que
+// evita 100 cliques num espetáculo grande).
+async function _eventoMarcarTurmaEmMassa(turma) {
+  const ids = store.alunos.filter(a => a.turma === turma && (_eventoQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id))).map(a => a.id)
+  for (const id of ids) await _eventoMarcarEmMassa('aluno', id)
 }
 
 // marca aluno OU pessoa (professor/diretor/proprietário) em massa nas
@@ -6306,7 +6316,10 @@ function _galFotoItemHTML(f) {
       <button class="foto-expand" style="right:34px;" title="Compartilhar" onclick="event.stopPropagation();compartilharFoto('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg>
       </button>
-      ${_galRole === 'admin' ? `<button class="foto-expand" style="right:62px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>` : ''}
+      <button class="foto-expand" style="right:62px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      </button>
+      ${_galRole === 'admin' ? `<button class="foto-expand" style="right:90px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>` : ''}
     </div>`
 }
 
@@ -6840,8 +6853,10 @@ function _atualizarToolbarEnsaio() {
   if (!_ensaioFotoSelecao.size) { toolbar.style.display = 'none'; return }
   toolbar.style.display = 'flex'
   const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
+  const turmas = [...new Set(pessoasDisponiveis.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
   const tagsEl = document.getElementById('ens-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+    turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_ensaioMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
     pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('ens-subpasta-mover')
   if (moverEl) {
@@ -6849,6 +6864,12 @@ function _atualizarToolbarEnsaio() {
       _todasSubpastasConhecidasEnsaio().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
       '<option value="__nova__">+ Criar nova pasta…</option>'
   }
+}
+
+// "Toda a Turma" — mesmo atalho do Evento, pro Ensaio Avulso.
+async function _ensaioMarcarTurmaEmMassa(turma) {
+  const ids = store.alunos.filter(a => a.turma === turma && _ensaioQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id)).map(a => a.id)
+  for (const id of ids) await _ensaioMarcarEmMassa('aluno', id)
 }
 
 // marca aluno OU pessoa (professor/diretor/responsável) em massa nas
@@ -7741,8 +7762,25 @@ function _selecaoPedidoHubHTML(pedido) {
         ${podeLiberar
           ? `<button class="btn btn-primary btn-sm" onclick="_selecaoLiberarPagamento()">💰 Confirmar Pagamento &amp; Liberar Alta Resolução</button>`
           : `<span class="meta">✓ Liberado em ${fmtDataHora(pedido.liberado_em)} — o cliente já pode baixar as fotos em alta pelo mesmo link.</span>`}
+        <button class="btn btn-sm" onclick="_copiarCodigosLightroom()">📋 Copiar códigos (Lightroom)</button>
       </div>
     </div>`
+}
+
+// copia os nomes originais dos arquivos escolhidos pelo cliente (ex.:
+// _DSC0012.jpg), um por linha — cola direto na busca do Lightroom/
+// Bridge e filtra exatamente as fotos que o cliente selecionou, sem
+// precisar catar uma por uma no meio de centenas.
+function _copiarCodigosLightroom() {
+  const g = _selecaoDetalheAtual
+  const pedido = g?.pedido
+  if (!pedido?.foto_ids?.length) { toast('Sem pedido enviado ainda'); return }
+  const nomes = pedido.foto_ids
+    .map(id => g.fotos.find(f => f.id === id)?.nome_original)
+    .filter(Boolean)
+  if (!nomes.length) { toast('Essas fotos não têm nome original salvo (upload antes dessa função existir)'); return }
+  navigator.clipboard.writeText(nomes.join('\n'))
+  toast(`${nomes.length} código(s) copiado(s) — cola na busca do Lightroom/Bridge`)
 }
 
 function renderSelecaoDetalhe() {
@@ -7837,7 +7875,7 @@ async function uploadFotosSelecao(files) {
       estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
     }
     const { data: fotoRow, error: insErr } = await db.from('selecao_fotos').insert({
-      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length,
+      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length, nome_original: file.name,
     }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     _selecaoDetalheAtual.fotos.push(fotoRow)
