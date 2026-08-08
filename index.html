@@ -1751,6 +1751,68 @@ function _credencialBoxHTML(username, senha, mensagemExtra, opts = {}) {
   </div>`
 }
 
+// ── tempo real ──────────────────────────────────────────────────
+// um canal só, ligado uma vez por login (mostrarApp já se protege
+// contra reprocessar o mesmo usuário em refresh de token, então isso
+// nunca duplica assinatura). RLS já filtra o payload por usuário nos
+// eventos de postgres_changes, então não precisa de filtro extra aqui
+// — cada handler só decide SE a tela aberta agora depende daquela
+// tabela, e se sim, recarrega só o que é preciso e re-renderiza.
+let _canalRealtime = null
+
+function _debounce(fn, ms) {
+  let t
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }
+}
+
+function _ligarRealtimeGlobal() {
+  if (_canalRealtime || !db) return
+  _canalRealtime = db.channel('gf-realtime')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reacoes' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comentarios' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_midias' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'fotos' }, _onRealtimeFotos)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_aluno' }, _onRealtimeFotos)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_pessoa' }, _onRealtimeFotos)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, _onRealtimeEventos)
+    .subscribe()
+}
+
+function _desligarRealtimeGlobal() {
+  if (_canalRealtime) { db.removeChannel(_canalRealtime); _canalRealtime = null }
+}
+
+const _onRealtimeComunidade = _debounce(async () => {
+  if (!_feedContexto) return
+  await carregarFeed(_feedContexto)
+  renderFeedAtual()
+}, 600)
+
+// offsetParent volta null se o elemento (ou algum ancestral, tipo a
+// aba admin/escola escondida) estiver com display:none — inline style
+// sozinho não pega isso, já que quem esconde a aba é o container pai.
+function _visivel(id) { return !!document.getElementById(id)?.offsetParent }
+
+const _onRealtimeFotos = _debounce(async () => {
+  if (_eventoAtual) await _recarregarFotosEvento(_eventoAtual.id)
+  if (_ensaioAtual) await _recarregarFotosEnsaio(_ensaioAtual.id)
+  if (_eventoEscolaAtual) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
+  if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel()
+}, 600)
+
+const _onRealtimeEventos = _debounce(async () => {
+  if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
+    await carregarEventos()
+    if (_visivel('eventos-lista-wrap')) renderEventos()
+    if (_visivel('ensaios-lista-wrap')) renderEnsaios()
+  }
+  if (_visivel('escola-eventos-wrap')) {
+    const { data } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
+    if (data) { store.eventos = data; renderEventosEscola() }
+  }
+}, 600)
+
 // ── auth ────────────────────────────────────────────────────────
 function iniciarAuth() {
   db.auth.onAuthStateChange((_event, session) => {
@@ -1765,6 +1827,7 @@ function iniciarAuth() {
 
 function mostrarLogin() {
   currentUser = null; meuPerfil = null
+  _desligarRealtimeGlobal()
   document.getElementById('login-screen').style.display = 'flex'
   document.getElementById('app').style.display = 'none'
 }
@@ -1779,6 +1842,7 @@ async function mostrarApp(user) {
     return
   }
   meuPerfil = data
+  _ligarRealtimeGlobal()
   marcarAcesso() // best-effort, não bloqueia
   registrarAuditoria('fez login', 'perfis', user.id, null)
   if (data.role === 'responsavel' && !data.lgpd_aceito_em) abrirModal('modal-lgpd')
@@ -3952,6 +4016,19 @@ function fecharEventoAdmin() {
   renderEventos()
 }
 
+// usado pelo tempo real (_onRealtimeFotos) pra atualizar a tela do
+// evento aberto sem perder o header/dropzone já montados — só refaz a
+// busca de fotos/marcação e redesenha a grade.
+async function _recarregarFotosEvento(eventoId) {
+  const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
+  if (error) return
+  store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
+  const fotoIds = (data || []).map(f => f.id)
+  const { data: fa } = fotoIds.length ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds) : { data: [] }
+  store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+  renderFotosEventoAdmin()
+}
+
 // tela de conferência antes de efetivamente subir — nada vai pro
 // Supabase aqui, é só preview local (URL.createObjectURL) das fotos
 // escolhidas, com opção de tirar alguma antes de confirmar.
@@ -5824,6 +5901,23 @@ function fecharEnsaioAdmin() {
   renderEnsaios()
 }
 
+// mesma ideia de _recarregarFotosEvento, pro ensaio avulso.
+async function _recarregarFotosEnsaio(ensaioId) {
+  const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
+  if (error) return
+  store.fotos = store.fotos.filter(f => f.evento_id !== ensaioId).concat(data || [])
+  const fotoIds = (data || []).map(f => f.id)
+  if (fotoIds.length) {
+    const [{ data: fa }, { data: fp }] = await Promise.all([
+      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
+      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+    ])
+    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
+    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  }
+  renderFotosEnsaioAdmin()
+}
+
 async function uploadFotosEnsaio(files) {
   if (!files?.length || !_ensaioAtual) return
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
@@ -6258,6 +6352,17 @@ function fecharEventoEscola() {
   _eventoEscolaAtual = null
   document.getElementById('escola-eventos-wrap').style.display = 'block'
   document.getElementById('escola-evento-detalhe').style.display = 'none'
+}
+
+// mesma ideia de _recarregarFotosEvento, pra tela de fotos da escola/professor.
+async function _recarregarFotosEventoEscola(eventoId) {
+  const { data: fotos, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
+  if (error) return
+  const fotoIds = (fotos || []).map(f => f.id)
+  const { data: fa } = fotoIds.length ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds) : { data: [] }
+  store.fotos = (fotos || [])
+  store.fotoAluno = (fa || [])
+  renderFotosGrid('escola-fotos-grid')
 }
 
 function filtrarFotosAluno(alunoId, chipEl) {
