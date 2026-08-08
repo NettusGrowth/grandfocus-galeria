@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Galeria — Grand Focus</title>
+<title>Galeria Grand Focus</title>
 <link rel="icon" href="assets/logo-icone.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -3171,9 +3171,9 @@ async function salvarProfessor() {
 
   if (id) {
     const { foto_url, capa_url } = await _uploadFotoCapaProfessor(id)
-    const payload = { nome, role: cargo, escola_id }
-    if (foto_url) { payload.foto_url = foto_url; payload.foto_pos = _posValor('prof-foto-preview') }
-    if (capa_url) { payload.capa_url = capa_url; payload.capa_pos = _posValor('prof-capa-preview') }
+    const payload = { nome, role: cargo, escola_id, foto_pos: _posValor('prof-foto-preview'), capa_pos: _posValor('prof-capa-preview') }
+    if (foto_url) payload.foto_url = foto_url
+    if (capa_url) payload.capa_url = capa_url
     const { data, error } = await db.from('perfis').update(payload).eq('user_id', id).select().single()
     await _sincronizarEscolasExtra(id)
     btn.disabled = false; btn.textContent = 'Salvar'
@@ -3364,15 +3364,15 @@ async function salvarPai() {
   btn.disabled = true; btn.textContent = 'Salvando…'
 
   if (id) {
-    let foto_url, foto_pos
+    let foto_url
     if (_paiFotoArquivo) {
       const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
       const path = `perfis/${id}/foto.${ext}`
       const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
-      if (!upErr) { foto_url = path; foto_pos = _posValor('pai-foto-preview'); _invalidarUrlCache(path) }
+      if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
     }
-    const payload = { nome, email, telefone }
-    if (foto_url) { payload.foto_url = foto_url; payload.foto_pos = foto_pos }
+    const payload = { nome, email, telefone, foto_pos: _posValor('pai-foto-preview') }
+    if (foto_url) payload.foto_url = foto_url
     const { data, error } = await db.from('perfis').update(payload).eq('user_id', id).select().single()
     await _sincronizarFilhosPai(id)
     btn.disabled = false; btn.textContent = 'Salvar'
@@ -3920,11 +3920,10 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
       <button class="btn btn-sm" onclick="_abrirNovaPastaEvento()">📁 Nova Pasta / Ato</button>
     </div>
     <div class="upload-drop" id="evt-dropzone" onclick="document.getElementById('evt-upload-input').click()">
-      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
+      Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="evt-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEvento(this.files)">
     </div>
     <div id="evt-upload-status"></div>
-    <div class="hint">Depois que a foto aparecer aqui embaixo, passe o mouse por cima e marque quais alunos aparecem nela — é assim que cada aluno/escola só vê as fotos dele. Selecione várias (clique no ✓) pra marcar todas de uma vez, criar um Ato/subpasta, ou apagar em massa.</div>
     <div class="foto-toolbar" id="evt-toolbar" style="display:none;">
       <div class="chip-row" id="evt-toolbar-tags"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -5796,11 +5795,10 @@ async function abrirEnsaioAdmin(ensaioId) {
       </div>
     </div>
     <div class="upload-drop" id="ens-dropzone" onclick="document.getElementById('ens-upload-input').click()">
-      📤 Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
+      Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
       <input type="file" id="ens-upload-input" accept="image/*" multiple style="display:none;" onchange="_prepararUploadEnsaio(this.files)">
     </div>
     <div id="ens-upload-status"></div>
-    <div class="hint">As fotos já sobem marcadas pra todo mundo escolhido na criação do ensaio — ajuste foto a foto se precisar.</div>
     <div class="foto-grid" id="ens-fotos-grid"></div>
   `
   if (_ensaioAtual.capa_url) { const url = await _urlAssinada(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
@@ -6167,7 +6165,7 @@ function renderEventosEscola(listElId, chipsElId) {
         <div class="nome">${esc(ev.nome)}</div>
         <div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${totalMidias} mídia(s)</div>
         <div class="evento-card-acoes">
-          <button class="btn btn-sm" type="button" style="flex:1;" onclick="event.stopPropagation();abrirEventoEscola('${ev.id}')">👁️ Ver Galeria</button>
+          <button class="btn btn-sm" type="button" style="flex:1;" onclick="event.stopPropagation();abrirEventoEscola('${ev.id}')">📁 Ver Galeria</button>
         </div>
       </div>
     </div>`
