@@ -102,12 +102,12 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 @media(min-width:600px){.selpub-grid{grid-template-columns:repeat(3,1fr);gap:10px;}}
 @media(min-width:900px){.selpub-grid{grid-template-columns:repeat(4,1fr);}}
 @media(min-width:1280px){.selpub-grid{grid-template-columns:repeat(6,1fr);}}
-.selpub-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s;}
+.selpub-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
 .selpub-card img{width:100%;height:100%;object-fit:cover;}
 .selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .selpub-zoom{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
 .selpub-zoom svg{width:14px;height:14px;}
-.selpub-card.on{border-color:var(--gf-verde-vivo);}
+.selpub-card.on{border-color:var(--gf-verde-vivo);box-shadow:0 10px 24px -8px rgba(16,185,129,.45);transform:translateY(-2px);}
 .selpub-card.on .check{background:var(--gf-verde-vivo);border-color:var(--gf-verde-vivo);}
 .selpub-card.on .check svg{opacity:1;}
 .selpub-card .check svg{width:15px;height:15px;opacity:0;stroke:#fff;stroke-width:3;}
@@ -1718,7 +1718,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>WhatsApp</label><input type="text" id="sel-cliente-whatsapp" placeholder="(11) 91234-5678"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="field"><label>Fotos incluídas no pacote</label><input type="number" id="sel-qtd-incluida" min="0" value="10"></div>
-      <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00"></div>
+      <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00" onchange="_selecaoPrecoBaseMudou()"></div>
     </div>
     <div class="field">
       <label>Desconto progressivo (opcional)</label>
@@ -7721,12 +7721,38 @@ function renderSelecaoLista() {
 // ── editor de faixas de desconto progressivo (admin, criar/editar
 // galeria de Seleção) — array de {ate, preco}; a última faixa nunca tem
 // "até" editável (representa "daqui em diante", ate=null no banco).
+//
+// Faixa 1 (índice 0) NUNCA tem preço editável aqui — o preço dela é
+// sempre o mesmo do campo "Valor por foto extra" acima (única fonte
+// de verdade pro preço base). Antes existiam dois lugares pra
+// configurar basicamente a mesma coisa e eles podiam ficar
+// dessincronizados (editava um, o outro continuava com valor antigo,
+// e era o preço da FAIXA que valia de verdade assim que existiam
+// faixas — o campo base virava enfeite sem o admin perceber). Faixas
+// 2+ só podem ter preço MENOR que o preço base — não faz sentido um
+// "desconto progressivo" cobrar mais caro conforme o cliente compra
+// mais.
 let _selecaoFaixasEdit = []
 
 function _selecaoFaixasEditInit(faixas) {
   _selecaoFaixasEdit = Array.isArray(faixas) && faixas.length
     ? faixas.map(f => ({ ate: f.ate === null || f.ate === undefined ? null : Number(f.ate), preco: Number(f.preco) || 0 }))
     : []
+  // se a galeria já tinha faixas salvas, o preço base exibido passa a
+  // refletir o preço real da faixa 1 (que é o que a RPC de fato usa),
+  // não o valor antigo e possivelmente divergente do campo separado.
+  if (_selecaoFaixasEdit.length) {
+    document.getElementById('sel-preco-extra').value = _selecaoFaixasEdit[0].preco.toFixed(2)
+  }
+  _renderSelecaoFaixas()
+}
+
+// disparado pelo onchange do campo "Valor por foto extra" — mantém a
+// faixa 1 sempre igual a ele, sem precisar reescrever nada no editor
+// de faixas.
+function _selecaoPrecoBaseMudou() {
+  if (!_selecaoFaixasEdit.length) return
+  _selecaoFaixasEdit[0].preco = parseFloat(document.getElementById('sel-preco-extra').value) || 0
   _renderSelecaoFaixas()
 }
 
@@ -7737,34 +7763,57 @@ function _renderSelecaoFaixas() {
   if (btnLimpar) btnLimpar.style.display = _selecaoFaixasEdit.length ? 'inline-flex' : 'none'
   wrap.innerHTML = _selecaoFaixasEdit.map((f, i) => {
     const ultima = i === _selecaoFaixasEdit.length - 1
+    const primeira = i === 0
     return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      ${primeira ? `<span class="meta" style="flex:1;">De 1 até</span>` : ''}
       ${ultima
-        ? `<span class="meta" style="flex:1;">Daí em diante</span>`
-        : `<span class="meta">Até</span><input type="number" min="1" value="${f.ate}" style="width:64px;" onchange="_selecaoFaixaEditar(${i},'ate',this.value)"><span class="meta">extras</span>`}
-      <span class="meta">R$</span><input type="number" min="0" step="0.01" value="${f.preco}" style="width:84px;" onchange="_selecaoFaixaEditar(${i},'preco',this.value)">
-      ${_selecaoFaixasEdit.length > 1 ? `<span class="icon-btn" title="Remover faixa" onclick="_selecaoFaixaRemover(${i})" style="cursor:pointer;">✕</span>` : ''}
+        ? `<span class="meta" style="flex:${primeira ? '0' : '1'};">${primeira ? '' : 'Daí em diante'}</span>`
+        : `${primeira ? '' : '<span class="meta">Até</span>'}<input type="number" min="1" value="${f.ate}" style="width:64px;" onchange="_selecaoFaixaEditar(${i},'ate',this.value)"><span class="meta">extras</span>`}
+      <span class="meta">R$</span>${primeira
+        ? `<input type="number" value="${f.preco.toFixed(2)}" style="width:84px;" disabled title="Sempre igual ao 'Valor por foto extra' acima">`
+        : `<input type="number" min="0" step="0.01" value="${f.preco}" style="width:84px;" onchange="_selecaoFaixaEditar(${i},'preco',this.value)">`}
+      ${_selecaoFaixasEdit.length > 1 && !primeira ? `<span class="icon-btn" title="Remover faixa" onclick="_selecaoFaixaRemover(${i})" style="cursor:pointer;">✕</span>` : ''}
     </div>`
   }).join('')
 }
 
 function _selecaoFaixaEditar(i, campo, valor) {
-  _selecaoFaixasEdit[i][campo] = campo === 'ate' ? (parseInt(valor, 10) || 1) : (parseFloat(valor) || 0)
+  if (campo === 'preco') {
+    if (i === 0) return // trava — faixa 1 só muda via _selecaoPrecoBaseMudou()
+    const basePreco = _selecaoFaixasEdit[0].preco
+    let novoPreco = parseFloat(valor) || 0
+    if (novoPreco >= basePreco) {
+      novoPreco = Math.max(0, basePreco - 0.01)
+      toast(`O preço dessa faixa precisa ser menor que o preço base (R$ ${basePreco.toFixed(2)}) — ajustado pra R$ ${novoPreco.toFixed(2)}`)
+      _selecaoFaixasEdit[i].preco = novoPreco
+      _renderSelecaoFaixas()
+      return
+    }
+    _selecaoFaixasEdit[i].preco = novoPreco
+    return
+  }
+  _selecaoFaixasEdit[i][campo] = parseInt(valor, 10) || 1
 }
 
 function _selecaoFaixaRemover(i) {
   _selecaoFaixasEdit.splice(i, 1)
+  // sobrou só a faixa 1 sozinha (virou "daí em diante" = preço único,
+  // igual ao campo base) — nesse ponto o editor de faixas não
+  // acrescenta mais nada, então limpa pra voltar ao modo simples.
+  if (_selecaoFaixasEdit.length <= 1) _selecaoFaixasEdit = []
   _renderSelecaoFaixas()
 }
 
 function _selecaoFaixaAdicionar() {
+  const basePreco = parseFloat(document.getElementById('sel-preco-extra').value) || 15
   if (!_selecaoFaixasEdit.length) {
-    const base = parseFloat(document.getElementById('sel-preco-extra').value) || 15
-    _selecaoFaixasEdit = [{ ate: 5, preco: base }, { ate: null, preco: base }]
+    _selecaoFaixasEdit = [{ ate: 5, preco: basePreco }, { ate: null, preco: Math.max(0, +(basePreco * 0.8).toFixed(2)) }]
   } else {
     const penultima = _selecaoFaixasEdit[_selecaoFaixasEdit.length - 2]
     const baseAte = penultima ? penultima.ate : 0
-    const basePreco = _selecaoFaixasEdit[_selecaoFaixasEdit.length - 1].preco
-    _selecaoFaixasEdit.splice(_selecaoFaixasEdit.length - 1, 0, { ate: baseAte + 5, preco: basePreco })
+    const precoAnterior = _selecaoFaixasEdit[_selecaoFaixasEdit.length - 1].preco
+    const novoPreco = precoAnterior < basePreco ? precoAnterior : Math.max(0, +(basePreco * 0.8).toFixed(2))
+    _selecaoFaixasEdit.splice(_selecaoFaixasEdit.length - 1, 0, { ate: baseAte + 5, preco: novoPreco })
   }
   _renderSelecaoFaixas()
 }
