@@ -648,10 +648,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-card.destaque{border-color:rgba(200,175,127,.4);background:rgba(200,175,127,.07);}
 .post-card.destaque::before{content:'';position:absolute;left:0;top:14px;bottom:14px;width:3px;border-radius:99px;background:var(--ouro);}
 .post-head{display:flex;align-items:center;gap:11px;margin-bottom:12px;}
-.post-autor{font-family:var(--serif);font-size:15.5px;color:var(--ouro-luz);}
+.post-autor{font-family:var(--serif);font-size:15.5px;color:var(--ouro-luz);overflow-wrap:break-word;word-break:break-word;}
 .post-meta{font-size:11.5px;color:#B39F86;margin-top:1px;}
 .post-destaque-tag{font-size:10.5px;letter-spacing:.05em;color:var(--ouro);border:1px solid var(--ouro);padding:.2em .6em;border-radius:99px;flex-shrink:0;}
-.post-texto{font-size:14px;line-height:1.5;color:#EADFCF;white-space:pre-wrap;margin-bottom:12px;}
+.post-texto{font-size:14px;line-height:1.5;color:#EADFCF;white-space:pre-wrap;overflow-wrap:break-word;word-break:break-word;margin-bottom:12px;}
 .post-imagem{width:100%;max-height:420px;object-fit:cover;border-radius:10px;cursor:pointer;margin-bottom:10px;}
 .post-actions{display:flex;align-items:center;gap:14px;border-top:1px solid rgba(200,175,127,.12);padding-top:10px;}
 .post-actions-divisor{width:1px;align-self:stretch;background:rgba(200,175,127,.14);}
@@ -661,7 +661,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-comentarios{margin-top:12px;padding-top:12px;border-top:1px solid rgba(200,175,127,.12);}
 .post-coment-item{font-size:13px;color:#DBC9A8;padding:8px 12px;margin-bottom:6px;display:flex;align-items:baseline;gap:6px;background:rgba(16,9,16,.3);border-radius:12px;}
 .post-coment-item b{color:var(--ouro-luz);flex-shrink:0;}
-.post-coment-item span{flex:1;}
+.post-coment-item span{flex:1;overflow-wrap:break-word;word-break:break-word;min-width:0;}
 .post-coment-apagar{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;flex-shrink:0;}
 .post-coment-apagar:hover{color:var(--vermelho);}
 .post-coment-novo{display:flex;gap:8px;margin-top:8px;}
@@ -674,8 +674,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-head .list-avatar{overflow:hidden;width:42px;height:42px;border:2px solid rgba(200,175,127,.3);}
 .post-head .list-avatar img{width:100%;height:100%;object-fit:cover;}
 .post-cargo{font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--ouro-fundo);background:rgba(200,175,127,.12);padding:.15em .55em;border-radius:99px;margin-left:6px;}
-.post-midia-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;margin-bottom:10px;}
-.post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;}
+/* colunas por quantidade de FOTO (não conta video/audio, que sempre
+   ocupam a linha inteira): 1 = protagonista, 2 = meio a meio, 3+ =
+   grade compacta com "+N" na última visível quando há mais do que
+   cabe (o post inteiro continua acessível pelo lightbox, que navega
+   por todas as mídias — o corte é só visual, no card). */
+.post-midia-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px;}
+.post-midia-grid[data-cols="1"]{grid-template-columns:1fr;}
+.post-midia-grid[data-cols="2"]{grid-template-columns:repeat(2,1fr);}
+.post-midia-grid img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:10px;cursor:pointer;display:block;}
+.post-midia-grid[data-cols="1"] img{aspect-ratio:4/3;}
+.post-midia-tile{position:relative;}
+.post-midia-tile img{height:100%;}
+.post-midia-mais{position:absolute;inset:0;background:rgba(16,9,16,.6);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:600;border-radius:10px;pointer-events:none;}
 .audio-player{grid-column:1/-1;display:flex;align-items:center;gap:10px;background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.18);border-radius:99px;padding:6px 14px 6px 6px;}
 .audio-icone{width:30px;height:30px;flex-shrink:0;border-radius:50%;background:var(--ouro);display:flex;align-items:center;justify-content:center;font-size:14px;}
 .audio-player audio{flex:1;height:32px;min-width:0;}
@@ -4905,6 +4916,14 @@ function _postCardHTML(p) {
   const midias = _feedMidias[p.id] || []
   const midiasVisuais = midias.filter(m => m.tipo !== 'documento')
   const midiasDocs = midias.filter(m => m.tipo === 'documento')
+  // grade por quantidade de FOTO (vídeo/áudio sempre pegam a linha
+  // inteira, não entram nessa conta nem no corte de "+N").
+  const MAX_FOTOS_GRID = 6
+  const fotos = midiasVisuais.filter(m => m.tipo !== 'video' && m.tipo !== 'audio')
+  const outrasMidias = midiasVisuais.filter(m => m.tipo === 'video' || m.tipo === 'audio')
+  const fotosVisiveis = fotos.slice(0, MAX_FOTOS_GRID)
+  const fotosExtras = fotos.length - fotosVisiveis.length
+  const colsGrid = fotos.length <= 1 ? 1 : fotos.length === 2 ? 2 : 3
   const totalReacoes = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
   const destaqueAtivo = _destaqueAtivo(p)
   return `
@@ -4920,7 +4939,11 @@ function _postCardHTML(p) {
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
       </div>
       ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
-      ${midiasVisuais.length ? `<div class="post-midia-grid">${midiasVisuais.map(m => _postMidiaHTML(m)).join('')}</div>` : ''}
+      ${midiasVisuais.length ? `<div class="post-midia-grid" data-cols="${colsGrid}">${outrasMidias.map(m => _postMidiaHTML(m)).join('')}${fotosVisiveis.map((m, i) => {
+        const html = _postMidiaHTML(m)
+        if (i === fotosVisiveis.length - 1 && fotosExtras > 0) return `<div class="post-midia-tile">${html}<span class="post-midia-mais">+${fotosExtras}</span></div>`
+        return html
+      }).join('')}</div>` : ''}
       ${midiasDocs.length ? midiasDocs.map(m => _postDocHTML(m)).join('') : ''}
       ${(!midias.length && p.imagem_url) ? `<img class="post-imagem" id="post-img-${p.id}" onclick="abrirLightboxPost('${p.id}')" alt="">` : ''}
       <div class="post-actions">
