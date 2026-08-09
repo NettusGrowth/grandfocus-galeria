@@ -120,6 +120,16 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-pix-box .chave{font-family:monospace;font-size:13.5px;color:#0d7a5f;word-break:break-all;}
 .selpub-download-list{display:flex;flex-direction:column;gap:8px;}
 
+/* régua de desconto progressivo */
+.selpub-regua{margin:6px 0 20px;padding:16px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;}
+.selpub-regua-track{position:relative;height:6px;background:#eee;border-radius:99px;margin:24px 4px 26px;}
+.selpub-regua-fill{position:absolute;top:0;left:0;height:100%;background:var(--gf-verde-vivo);border-radius:99px;transition:width .3s;}
+.selpub-regua-ponto{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #ccc;transition:all .2s;}
+.selpub-regua-ponto.on{background:var(--gf-verde-vivo);border-color:var(--gf-verde-vivo);}
+.selpub-regua-ponto .lbl{position:absolute;top:16px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;line-height:1.4;color:#8A8A8A;text-align:center;}
+.selpub-regua-ponto.on .lbl{color:#0d7a5f;font-weight:600;}
+.selpub-regua-nudge{font-size:13px;color:#0d7a5f;font-weight:600;text-align:center;}
+
 /* lightbox da seleção herda o mesmo canvas claro + botão pílula */
 #selpub-lightbox{background:rgba(249,249,249,.98);}
 #selpub-lightbox .lightbox-close,#selpub-lightbox .lightbox-nav{background:rgba(0,0,0,.55);color:#fff;}
@@ -1693,6 +1703,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="field"><label>Fotos incluídas no pacote</label><input type="number" id="sel-qtd-incluida" min="0" value="10"></div>
       <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00"></div>
+    </div>
+    <div class="field">
+      <label>Desconto progressivo (opcional)</label>
+      <div class="meta" style="margin-bottom:8px;">Se configurar faixas, elas substituem o valor único acima — cada faixa cobra só pelas fotos extras dela mesma (ex.: 1-5 a R$15, 6-10 a R$12 — 8 extras = 5×15 + 3×12).</div>
+      <div id="sel-faixas-lista"></div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button class="btn btn-sm" type="button" onclick="_selecaoFaixaAdicionar()">+ Faixa</button>
+        <button class="btn btn-sm" type="button" onclick="_selecaoFaixasLimpar()" id="sel-faixas-limpar" style="display:none;">Usar valor único</button>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
       <div class="field"><label>Expira em</label><input type="date" id="sel-expira"></div>
@@ -7672,6 +7691,62 @@ function renderSelecaoLista() {
   }).join('')
 }
 
+// ── editor de faixas de desconto progressivo (admin, criar/editar
+// galeria de Seleção) — array de {ate, preco}; a última faixa nunca tem
+// "até" editável (representa "daqui em diante", ate=null no banco).
+let _selecaoFaixasEdit = []
+
+function _selecaoFaixasEditInit(faixas) {
+  _selecaoFaixasEdit = Array.isArray(faixas) && faixas.length
+    ? faixas.map(f => ({ ate: f.ate === null || f.ate === undefined ? null : Number(f.ate), preco: Number(f.preco) || 0 }))
+    : []
+  _renderSelecaoFaixas()
+}
+
+function _renderSelecaoFaixas() {
+  const wrap = document.getElementById('sel-faixas-lista')
+  const btnLimpar = document.getElementById('sel-faixas-limpar')
+  if (!wrap) return
+  if (btnLimpar) btnLimpar.style.display = _selecaoFaixasEdit.length ? 'inline-flex' : 'none'
+  wrap.innerHTML = _selecaoFaixasEdit.map((f, i) => {
+    const ultima = i === _selecaoFaixasEdit.length - 1
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      ${ultima
+        ? `<span class="meta" style="flex:1;">Daí em diante</span>`
+        : `<span class="meta">Até</span><input type="number" min="1" value="${f.ate}" style="width:64px;" onchange="_selecaoFaixaEditar(${i},'ate',this.value)"><span class="meta">extras</span>`}
+      <span class="meta">R$</span><input type="number" min="0" step="0.01" value="${f.preco}" style="width:84px;" onchange="_selecaoFaixaEditar(${i},'preco',this.value)">
+      ${_selecaoFaixasEdit.length > 1 ? `<span class="icon-btn" title="Remover faixa" onclick="_selecaoFaixaRemover(${i})" style="cursor:pointer;">✕</span>` : ''}
+    </div>`
+  }).join('')
+}
+
+function _selecaoFaixaEditar(i, campo, valor) {
+  _selecaoFaixasEdit[i][campo] = campo === 'ate' ? (parseInt(valor, 10) || 1) : (parseFloat(valor) || 0)
+}
+
+function _selecaoFaixaRemover(i) {
+  _selecaoFaixasEdit.splice(i, 1)
+  _renderSelecaoFaixas()
+}
+
+function _selecaoFaixaAdicionar() {
+  if (!_selecaoFaixasEdit.length) {
+    const base = parseFloat(document.getElementById('sel-preco-extra').value) || 15
+    _selecaoFaixasEdit = [{ ate: 5, preco: base }, { ate: null, preco: base }]
+  } else {
+    const penultima = _selecaoFaixasEdit[_selecaoFaixasEdit.length - 2]
+    const baseAte = penultima ? penultima.ate : 0
+    const basePreco = _selecaoFaixasEdit[_selecaoFaixasEdit.length - 1].preco
+    _selecaoFaixasEdit.splice(_selecaoFaixasEdit.length - 1, 0, { ate: baseAte + 5, preco: basePreco })
+  }
+  _renderSelecaoFaixas()
+}
+
+function _selecaoFaixasLimpar() {
+  _selecaoFaixasEdit = []
+  _renderSelecaoFaixas()
+}
+
 async function abrirModalSelecaoGaleria(id) {
   document.getElementById('sel-id').value = id || ''
   document.getElementById('sel-modal-titulo').textContent = id ? 'Editar Galeria' : 'Nova Galeria de Seleção'
@@ -7682,6 +7757,7 @@ async function abrirModalSelecaoGaleria(id) {
   document.getElementById('sel-cliente-whatsapp').value = g?.cliente_whatsapp || ''
   document.getElementById('sel-qtd-incluida').value = g?.qtd_incluida ?? 10
   document.getElementById('sel-preco-extra').value = g?.preco_extra ?? 15
+  _selecaoFaixasEditInit(g?.faixas_preco)
   document.getElementById('sel-expira').value = g?.expira_em ? g.expira_em.slice(0, 10) : ''
   document.getElementById('sel-senha').value = ''
   await _selecaoTipoMudou(g?.destinatario_id)
@@ -7734,6 +7810,7 @@ async function salvarSelecaoGaleria() {
   const cliente_whatsapp = document.getElementById('sel-cliente-whatsapp').value.trim() || null
   const qtd_incluida = parseInt(document.getElementById('sel-qtd-incluida').value, 10) || 0
   const preco_extra = parseFloat(document.getElementById('sel-preco-extra').value) || 0
+  const faixas_preco = _selecaoFaixasEdit.length ? _selecaoFaixasEdit : null
   const expiraInput = document.getElementById('sel-expira').value
   const expira_em = expiraInput ? new Date(expiraInput + 'T23:59:59').toISOString() : null
   const senha = document.getElementById('sel-senha').value.trim()
@@ -7743,14 +7820,14 @@ async function salvarSelecaoGaleria() {
 
   let galeriaId = id
   if (id) {
-    const { error } = await db.from('selecao_galerias').update({ titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, expira_em }).eq('id', id)
+    const { error } = await db.from('selecao_galerias').update({ titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, faixas_preco, expira_em }).eq('id', id)
     if (error) { toast('Erro ao salvar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
     registrarAuditoria('editou galeria de seleção', 'selecao_galerias', id, titulo)
   } else {
     const token = crypto.randomUUID().replace(/-/g, '')
     const { data, error } = await db.from('selecao_galerias').insert({
       titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp,
-      qtd_incluida, preco_extra, expira_em, token, criado_por: currentUser.id,
+      qtd_incluida, preco_extra, faixas_preco, expira_em, token, criado_por: currentUser.id,
     }).select().single()
     if (error) { toast('Erro ao criar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
     galeriaId = data.id
@@ -8095,6 +8172,11 @@ function _renderSelPub() {
     <h2>${esc(d.galeria.titulo)}</h2>
     <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
     ${banner}
+    <div class="selpub-regua" id="selpub-regua" style="display:none;">
+      <span class="selpub-label" style="margin-bottom:0;">Desconto Progressivo</span>
+      <div class="selpub-regua-track"><div class="selpub-regua-fill" id="selpub-regua-fill"></div><div id="selpub-regua-pontos"></div></div>
+      <div class="selpub-regua-nudge" id="selpub-regua-nudge"></div>
+    </div>
     <span class="selpub-label">Suas Fotos</span>
     <div class="selpub-filtros">
       <span class="chip${_selPubFiltro === 'todas' ? ' on' : ''}" onclick="_selPubFiltrar('todas')">Todas</span>
@@ -8149,11 +8231,66 @@ function _selPubSalvarLocal() {
   try { localStorage.setItem('gf_sel_' + _selPub.token, JSON.stringify([..._selPub.selecionados])) } catch (e) { /* localStorage indisponível — sem crash recovery nesse navegador, mas não impede o uso */ }
 }
 
+// mesma lógica marginal-por-faixa da RPC selecao_registrar_pedido (SQL
+// 038) — aqui é só pra mostrar em tempo real, o valor que realmente
+// cobra é sempre recalculado no servidor na hora de enviar o pedido.
+function _selPubCalcularTotal(faixas, precoFlat, qtdExtra) {
+  if (qtdExtra <= 0) return 0
+  if (!Array.isArray(faixas) || !faixas.length) return qtdExtra * precoFlat
+  let restante = qtdExtra, anterior = 0, total = 0
+  for (const f of faixas) {
+    if (restante <= 0) break
+    const temTeto = f.ate !== null && f.ate !== undefined
+    const nesta = temTeto ? Math.max(0, Math.min(restante, f.ate - anterior)) : restante
+    total += nesta * f.preco
+    restante -= nesta
+    anterior = temTeto ? f.ate : anterior + nesta
+  }
+  return total
+}
+
+function _selPubRenderRegua(extras) {
+  const wrap = document.getElementById('selpub-regua')
+  const g = _selPub.dados.galeria
+  const faixas = g.faixas_preco
+  if (!wrap || !Array.isArray(faixas) || faixas.length < 2) { if (wrap) wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+  const precoBase = faixas[0].preco
+  // cada checkpoint = fronteira de uma faixa (todas menos a última, que
+  // não tem "até") pareada com o preço da PRÓXIMA faixa — é esse preço
+  // que passa a valer assim que esse número de extras for ultrapassado
+  // (não alcançado — na própria fronteira ainda vale o preço de antes).
+  const checkpoints = faixas.slice(0, -1).map((f, i) => ({ ate: f.ate, preco: faixas[i + 1].preco }))
+  const maxAte = checkpoints[checkpoints.length - 1].ate
+  const escala = Math.max(maxAte * 1.15, extras + 1)
+  const pctPos = v => Math.min(100, (v / escala) * 100)
+  document.getElementById('selpub-regua-fill').style.width = pctPos(extras) + '%'
+  document.getElementById('selpub-regua-pontos').innerHTML = checkpoints.map(c => {
+    const pctOff = Math.round((1 - c.preco / precoBase) * 100)
+    const atingiu = extras > c.ate
+    return `<div class="selpub-regua-ponto${atingiu ? ' on' : ''}" style="left:${pctPos(c.ate)}%;">
+      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : ('R$ ' + c.preco.toFixed(0))}<br>${c.ate + 1}+ fotos</span>
+    </div>`
+  }).join('')
+  const nudgeEl = document.getElementById('selpub-regua-nudge')
+  const proxima = checkpoints.find(c => extras <= c.ate)
+  if (proxima) {
+    const faltam = proxima.ate + 1 - extras
+    const pctOff = Math.round((1 - proxima.preco / precoBase) * 100)
+    nudgeEl.textContent = `Adicione mais ${faltam} foto${faltam > 1 ? 's' : ''} pra pagar R$ ${proxima.preco.toFixed(2).replace('.', ',')} em cada extra${pctOff > 0 ? ' (' + pctOff + '% OFF)' : ''}!`
+  } else if (extras > 0) {
+    nudgeEl.textContent = '🎉 Você já está no melhor preço por foto extra!'
+  } else {
+    nudgeEl.textContent = ''
+  }
+}
+
 function _selPubAtualizarContador() {
   const g = _selPub.dados.galeria
   const n = _selPub.selecionados.size
   const extras = Math.max(0, n - g.qtd_incluida)
-  const total = extras * g.preco_extra
+  const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
+  _selPubRenderRegua(extras)
   document.getElementById('selpub-n-pacote').textContent = g.qtd_incluida
   document.getElementById('selpub-n-selecionadas').textContent = n
   document.getElementById('selpub-n-extras').textContent = extras
@@ -8228,7 +8365,7 @@ function _selPubAbrirConfirmar() {
   const g = _selPub.dados.galeria
   const n = _selPub.selecionados.size
   const extras = Math.max(0, n - g.qtd_incluida)
-  const total = extras * g.preco_extra
+  const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
   document.getElementById('selpub-confirmar-resumo').innerHTML = `
     <b>${n}</b> foto(s) selecionada(s)<br>
     ${Math.min(n, g.qtd_incluida)} incluída(s) no pacote + <b>${extras}</b> extra(s)<br>
