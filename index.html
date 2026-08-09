@@ -8679,6 +8679,12 @@ function _selPubAbrirConfirmar() {
   } else {
     pixBox.innerHTML = `<div class="meta">Sua seleção está dentro do pacote incluído — sem valor extra a pagar 🎉</div>`
   }
+  // com pagamento automático disponível, "Pagar Agora" (acima) já cuida
+  // de enviar + cobrar num fluxo só — manter o botão estático de baixo
+  // visível ao mesmo tempo deixava as duas ações lado a lado, e clicar
+  // em "Enviar Seleção" pulava o pagamento direto pro status "enviado".
+  const btnEnviar = document.getElementById('selpub-btn-enviar')
+  if (btnEnviar) btnEnviar.style.display = podePagarAutomatico ? 'none' : ''
   document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
   abrirModal('modal-selecao-confirmar')
 }

@@ -93,7 +93,7 @@ async function acaoCriarPagamento(admin: any, token: string, senha: string | nul
   const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
   if (!resp.ok || !checkoutUrl) {
     console.error('selecao-publica[criar_pagamento]: InfinitePay /links falhou', { token, status: resp.status, linkData })
-    return json({ error: 'Não foi possível gerar o link de pagamento agora. Tente de novo em instantes, ou pague pelo PIX abaixo mesmo.' }, 502)
+    return json({ error: `Não foi possível gerar o link de pagamento agora (código ${resp.status}). Tente de novo em instantes, ou pague pelo PIX abaixo mesmo.` }, 502)
   }
   return json({ checkout_url: checkoutUrl })
 }
