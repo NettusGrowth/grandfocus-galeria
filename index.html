@@ -4585,9 +4585,29 @@ function _gerarThumbWatermark(file) {
       if (!ctx) { reject(new Error('Canvas indisponível')); return }
       ctx.drawImage(img, 0, 0, w, h)
 
+      // amostra o brilho médio da foto (canvas pequeno, barato) pra
+      // decidir a cor da marca d'água — a cor clara fixa de antes ficava
+      // quase invisível em fotos claras. Com contorno na cor oposta,
+      // fica legível em qualquer imagem.
+      let corMarca = '#FFFFFF', corContorno = 'rgba(0,0,0,.6)'
+      const AMOSTRA = 40
+      const amostraCanvas = document.createElement('canvas')
+      amostraCanvas.width = AMOSTRA; amostraCanvas.height = AMOSTRA
+      const actx = amostraCanvas.getContext('2d')
+      if (actx) {
+        actx.drawImage(canvas, 0, 0, AMOSTRA, AMOSTRA)
+        const { data } = actx.getImageData(0, 0, AMOSTRA, AMOSTRA)
+        let soma = 0
+        for (let i = 0; i < data.length; i += 4) soma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+        const brilhoMedio = soma / (data.length / 4)
+        if (brilhoMedio > 140) { corMarca = '#1A1A1A'; corContorno = 'rgba(255,255,255,.6)' }
+      }
+
       ctx.save()
-      ctx.globalAlpha = 0.14
-      ctx.fillStyle = '#F6F0E6'
+      ctx.globalAlpha = 0.22
+      ctx.fillStyle = corMarca
+      ctx.shadowColor = corContorno
+      ctx.shadowBlur = 3
       ctx.font = `${Math.max(16, Math.round(w / 20))}px Jost, sans-serif`
       ctx.textBaseline = 'middle'
       ctx.translate(w / 2, h / 2)
