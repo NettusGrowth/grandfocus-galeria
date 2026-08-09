@@ -632,6 +632,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .comunidade-composer textarea:focus{background:rgba(16,9,16,.5);box-shadow:0 0 0 1px rgba(200,175,127,.35) inset;}
 .composer-divisor{height:1px;background:rgba(200,175,127,.14);margin:14px 0 12px;}
 .composer-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+/* no celular, com o teclado virtual aberto e vários anexos empilhados
+   o botão Publicar podia sumir tela abaixo — fica grudado no rodapé do
+   próprio composer (sticky, não fixed: só gruda enquanto o composer
+   está na tela, sem virar uma barra permanente por cima do feed). */
+@media(max-width:640px){
+  .composer-actions{position:sticky;bottom:0;background:var(--vinho-alto,#3A0311);margin:0 -22px -22px;padding:10px 22px calc(10px + env(safe-area-inset-bottom));border-top:1px solid rgba(200,175,127,.14);border-radius:0 0 10px 10px;}
+}
 .composer-anexos{display:flex;align-items:center;gap:4px;flex-wrap:wrap;}
 .composer-anexo{cursor:pointer;background:none;border:none;color:#C9B9A4;font-size:12.5px;padding:6px 10px;border-radius:99px;display:inline-flex;align-items:center;gap:5px;transition:background .12s,color .12s;}
 .composer-anexo:hover{background:rgba(200,175,127,.12);color:var(--ouro-luz);}
@@ -669,6 +676,30 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-coment-item.resposta{margin-left:30px;background:rgba(16,9,16,.18);}
 .post-coment-responder{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;font-size:11px;flex-shrink:0;}
 .post-coment-responder:hover{color:var(--ouro-luz);}
+.post-coment-sheet-head{display:none;}
+
+/* no celular, comentários abrem como gaveta (bottom sheet) em vez de
+   empurrar o resto do post pra baixo — mais fácil de alcançar com o
+   polegar e não perde o lugar no feed. Só um sheet aberto por vez
+   (ver _comunidadeSheetAberto). */
+@media(max-width:640px){
+  #comunidade-sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:255;}
+  #comunidade-sheet-backdrop.show{display:block;}
+  .post-comentarios.sheet-aberto{
+    position:fixed;left:0;right:0;bottom:0;top:auto;z-index:260;
+    display:flex;flex-direction:column;max-height:75vh;
+    margin:0;border-top:1px solid rgba(200,175,127,.25);
+    background:rgba(26,10,14,.97);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border-radius:16px 16px 0 0;box-shadow:0 -20px 50px rgba(0,0,0,.5);
+    padding:10px 16px calc(12px + env(safe-area-inset-bottom));
+    animation:comunidade-sheet-up .22s ease;
+  }
+  .post-comentarios.sheet-aberto .post-coment-sheet-head{display:flex;align-items:center;justify-content:space-between;flex-shrink:0;margin-bottom:8px;}
+  .post-comentarios.sheet-aberto .post-coment-lista{flex:1;overflow-y:auto;}
+  .post-comentarios.sheet-aberto .post-coment-novo{flex-shrink:0;}
+}
+.post-coment-sheet-handle{width:36px;height:4px;border-radius:99px;background:rgba(200,175,127,.35);position:absolute;left:50%;top:6px;transform:translateX(-50%);}
+@keyframes comunidade-sheet-up{from{transform:translateY(100%);}to{transform:translateY(0);}}
 
 /* ── autor com foto real, mídia múltipla, reações com tipo ── */
 .post-head .list-avatar{overflow:hidden;width:42px;height:42px;border:2px solid rgba(200,175,127,.3);}
@@ -4955,6 +4986,11 @@ function _postCardHTML(p) {
         <button class="post-comentar-btn" id="post-comentbtn-${p.id}" onclick="toggleComentarios('${p.id}')">💬 Comentar${nComent ? ' · ' + nComent : ''}</button>
       </div>
       <div class="post-comentarios" id="post-coment-wrap-${p.id}" style="display:none;">
+        <div class="post-coment-sheet-head">
+          <span class="post-coment-sheet-handle"></span>
+          <b style="font-family:var(--serif);color:var(--ouro-luz);">Comentários</b>
+          <button class="icon-btn" onclick="toggleComentarios('${p.id}')" title="Fechar">✕</button>
+        </div>
         <div class="post-coment-lista" id="post-coment-lista-${p.id}"></div>
         <div class="post-coment-novo">
           <input type="text" id="post-coment-input-${p.id}" placeholder="Escreva um comentário…" onkeydown="if(event.key==='Enter'){enviarComentario('${p.id}')}">
@@ -4992,11 +5028,37 @@ async function reagirPost(postId, tipo) {
   if (contagemEl) contagemEl.textContent = total || ''
 }
 
+// no celular, os comentários abrem como gaveta (bottom sheet) por cima
+// do feed em vez de inline — só um sheet aberto por vez, ver
+// _comunidadeSheetAberto.
+let _comunidadeSheetAberto = null
+function _comunidadeSheetBackdrop() {
+  let el = document.getElementById('comunidade-sheet-backdrop')
+  if (!el) {
+    el = document.createElement('div')
+    el.id = 'comunidade-sheet-backdrop'
+    el.onclick = () => { if (_comunidadeSheetAberto) toggleComentarios(_comunidadeSheetAberto) }
+    document.body.appendChild(el)
+  }
+  return el
+}
 async function toggleComentarios(postId) {
   const wrap = document.getElementById('post-coment-wrap-' + postId)
   if (!wrap) return
+  const mobile = window.matchMedia('(max-width:640px)').matches
   const abrir = wrap.style.display === 'none'
-  wrap.style.display = abrir ? 'block' : 'none'
+  if (mobile && abrir && _comunidadeSheetAberto && _comunidadeSheetAberto !== postId) {
+    await toggleComentarios(_comunidadeSheetAberto) // fecha o sheet anterior primeiro
+  }
+  if (mobile) {
+    wrap.classList.toggle('sheet-aberto', abrir)
+    wrap.style.display = abrir ? 'block' : 'none'
+    _comunidadeSheetBackdrop().classList.toggle('show', abrir)
+    _comunidadeSheetAberto = abrir ? postId : null
+    if (abrir) _travarScrollFundo(); else _destravarScrollFundo()
+  } else {
+    wrap.style.display = abrir ? 'block' : 'none'
+  }
   if (abrir && !_feedComentariosCache[postId]) await carregarComentarios(postId)
 }
 
