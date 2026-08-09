@@ -87,6 +87,15 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 
 /* rodapé flutuante de conversão — fixo embaixo, nunca em cima do grid */
 .selpub-sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -8px 24px -8px rgba(0,0,0,.15);}
+
+/* ── rodapé de contato (WhatsApp/Instagram/Portfólio) — telas públicas ── */
+.publica-rodape-contato{display:flex;flex-wrap:wrap;justify-content:center;gap:18px;padding:20px 16px calc(20px + env(safe-area-inset-bottom));font-size:12.5px;}
+.publica-rodape-contato a{color:inherit;opacity:.65;text-decoration:none;transition:opacity .15s;}
+.publica-rodape-contato a:hover{opacity:1;}
+/* na Seleção o rodapé fixo de finalizar já ocupa a base da tela — dá
+   espaço extra pra esse rodapé de contato nunca ficar escondido atrás
+   dele quando ele estiver visível. */
+.selpub-rodape-contato{padding-bottom:100px;}
 .selpub-contador{display:flex;gap:18px;flex-wrap:wrap;}
 .selpub-item{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;}
 .selpub-item .n{font-family:var(--sans-num);font-weight:700;font-size:16px;color:#1A1A1A;font-variant-numeric:tabular-nums;}
@@ -822,6 +831,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span>Grand Focus</span>
   </div>
   <div id="publica-conteudo" class="publica-conteudo"></div>
+  <div class="publica-rodape-contato">
+    <a href="https://wa.me/5534992632922" target="_blank" rel="noopener">💬 Falar com o fotógrafo</a>
+    <a href="https://www.instagram.com/grandfocus_" target="_blank" rel="noopener">📷 Instagram</a>
+    <a href="https://grandfocuspf.myportfolio.com" target="_blank" rel="noopener">🖼 Portfólio</a>
+  </div>
 </div>
 
 <!-- seleção de fotos & extras (Bloco 8) — só aparece com ?sel=TOKEN na URL -->
@@ -843,6 +857,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <button class="btn btn-primary btn-sm" id="selpub-btn-finalizar" onclick="_selPubAbrirConfirmar()">Finalizar Seleção ➔</button>
   </div>
   <div id="selecao-pub-conteudo" class="publica-conteudo"></div>
+  <div class="publica-rodape-contato selpub-rodape-contato">
+    <a href="https://wa.me/5534992632922" target="_blank" rel="noopener">💬 Falar com o fotógrafo</a>
+    <a href="https://www.instagram.com/grandfocus_" target="_blank" rel="noopener">📷 Instagram</a>
+    <a href="https://grandfocuspf.myportfolio.com" target="_blank" rel="noopener">🖼 Portfólio</a>
+  </div>
 </div>
 
 <div id="login-screen">
