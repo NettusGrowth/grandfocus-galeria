@@ -45,16 +45,20 @@ Deno.serve(async (req) => {
 
   // order_nsu foi definido como selecao_pedidos.id na hora de criar o
   // link (ver acaoCriarPagamento em selecao-publica) — é assim que essa
-  // função sabe qual galeria/pedido liberar.
-  const { data: pedido, error: ePedido } = await admin
-    .from('selecao_pedidos').select('id, galeria_id, valor_total').eq('id', orderNsu).maybeSingle()
-  if (ePedido || !pedido) {
-    console.error('selecao-webhook: pedido não encontrado pro order_nsu', { orderNsu, error: ePedido?.message })
+  // função sabe qual galeria/pedido liberar. Lê tudo via RPC (nunca
+  // .from() direto) — um SELECT raso depende de GRANT explícito pro
+  // role que a Edge Function conseguiu autenticar em runtime, e é
+  // exatamente isso que já quebrou aqui uma vez ("permission denied
+  // for table selecao_pedidos" nos logs) mesmo com a service role key
+  // configurada certa. RPC SECURITY DEFINER não tem essa dependência —
+  // roda com o dono da função, sempre.
+  const { data: dados, error: eDados } = await admin.rpc('selecao_webhook_dados', { p_pedido_id: orderNsu })
+  if (eDados || !dados) {
+    console.error('selecao-webhook: pedido não encontrado pro order_nsu', { orderNsu, error: eDados?.message })
     return new Response('ok', { status: 200 })
   }
-
-  const { data: config } = await admin.from('selecao_config').select('infinitepay_handle').eq('id', true).single()
-  const handle = (config?.infinitepay_handle || '').replace(/^\$/, '').trim()
+  const pedido = { galeria_id: dados.galeria_id, valor_total: dados.valor_total }
+  const handle = (dados.infinitepay_handle || '').replace(/^\$/, '').trim()
   if (!handle) {
     console.error('selecao-webhook: sem infinitepay_handle configurado', { orderNsu })
     return new Response('ok', { status: 200 })
