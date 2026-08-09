@@ -1994,12 +1994,21 @@ function _debounce(fn, ms) {
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms) }
 }
 
+// debounce por chave (um timer por post) — o _debounce acima é global e
+// só guarda o ÚLTIMO agendamento; comentário em dois posts diferentes
+// dentro da mesma janela faria o primeiro nunca disparar.
+const _debounceTimersPorChave = {}
+function _debounceChave(chave, fn, ms) {
+  clearTimeout(_debounceTimersPorChave[chave])
+  _debounceTimersPorChave[chave] = setTimeout(fn, ms)
+}
+
 function _ligarRealtimeGlobal() {
   if (_canalRealtime || !db) return
   _canalRealtime = db.channel('gf-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, _onRealtimeComunidade)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reacoes' }, _onRealtimeComunidade)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comentarios' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comentarios' }, _onRealtimeComentario)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'post_midias' }, _onRealtimeComunidade)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fotos' }, _onRealtimeFotos)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_aluno' }, _onRealtimeFotos)
@@ -2017,6 +2026,25 @@ const _onRealtimeComunidade = _debounce(async () => {
   await carregarFeed(_feedContexto)
   renderFeedAtual()
 }, 600)
+
+// post_comentarios tem handler próprio (não cai no rebuild geral do
+// feed acima) — um comentário (inclusive o seu próprio, que já foi
+// atualizado na hora por enviarComentario) não pode derrubar o feed
+// inteiro: isso jogava o scroll pro topo e fechava a gaveta de
+// comentários no mobile. Aqui só re-renderiza a lista de comentários
+// do post afetado (se ela já foi aberta nessa sessão) e atualiza o
+// contador no botão — nunca renderFeedAtual().
+function _onRealtimeComentario(payload) {
+  const postId = payload.new?.post_id ?? payload.old?.post_id
+  if (!postId) return
+  _debounceChave('coment-' + postId, async () => {
+    if (_feedComentariosCache[postId]) await carregarComentarios(postId)
+    const { count } = await db.from('post_comentarios').select('id', { count: 'exact', head: true }).eq('post_id', postId)
+    _feedComentCount[postId] = count || 0
+    const btn = document.getElementById('post-comentbtn-' + postId)
+    if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
+  }, 600)
+}
 
 // offsetParent volta null se o elemento (ou algum ancestral, tipo a
 // aba admin/escola escondida) estiver com display:none — inline style
