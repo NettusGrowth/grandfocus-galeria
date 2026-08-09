@@ -1727,11 +1727,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <!-- modal: chave PIX do estúdio (config única, usada em toda seleção) -->
 <div class="modal-overlay" id="modal-selecao-pix">
   <div class="modal" style="max-width:420px;">
-    <h3 style="margin-bottom:16px;">Chave PIX do estúdio</h3>
-    <div class="meta" style="margin-bottom:14px;">Aparece pro cliente na tela de seleção, na hora de pagar os extras.</div>
+    <h3 style="margin-bottom:16px;">Pagamento dos extras</h3>
+    <div class="meta" style="margin-bottom:14px;">Como o cliente paga as fotos extras na tela de seleção.</div>
     <div class="field"><label>Chave PIX</label><input type="text" id="pix-chave" placeholder="CPF, e-mail, telefone ou chave aleatória"></div>
     <div class="field"><label>Nome do favorecido</label><input type="text" id="pix-nome" placeholder="Ex: Grand Focus Fotografia"></div>
     <div class="field"><label>URL do QR Code (opcional)</label><input type="text" id="pix-qrcode-url" placeholder="Link de uma imagem de QR Code, se tiver"></div>
+    <div class="field">
+      <label>Handle da InfinitePay (opcional)</label>
+      <input type="text" id="pix-infinitepay-handle" placeholder="Ex: grandfocus (sem o $)">
+      <div class="meta" style="margin-top:4px;">Preenchendo isso, o cliente ganha um botão "Pagar Agora" com checkout automático — sem ele, só o PIX manual acima aparece.</div>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-selecao-pix')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="_salvarConfigPix()">Salvar</button>
@@ -8078,6 +8083,7 @@ async function _abrirConfigPix() {
   document.getElementById('pix-chave').value = data?.pix_chave || ''
   document.getElementById('pix-nome').value = data?.pix_nome || ''
   document.getElementById('pix-qrcode-url').value = data?.pix_qrcode_url || ''
+  document.getElementById('pix-infinitepay-handle').value = data?.infinitepay_handle || ''
   abrirModal('modal-selecao-pix')
 }
 
@@ -8085,9 +8091,13 @@ async function _salvarConfigPix() {
   const pix_chave = document.getElementById('pix-chave').value.trim() || null
   const pix_nome = document.getElementById('pix-nome').value.trim() || null
   const pix_qrcode_url = document.getElementById('pix-qrcode-url').value.trim() || null
-  const { error } = await db.from('selecao_config').update({ pix_chave, pix_nome, pix_qrcode_url }).eq('id', true)
+  // aceita colar com ou sem o "$" na frente (é assim que o app da
+  // InfinitePay mostra a tag) — sempre guarda sem ele, igual a Edge
+  // Function já espera em selecao-publica/selecao-webhook.
+  const infinitepay_handle = document.getElementById('pix-infinitepay-handle').value.trim().replace(/^\$/, '') || null
+  const { error } = await db.from('selecao_config').update({ pix_chave, pix_nome, pix_qrcode_url, infinitepay_handle }).eq('id', true)
   if (error) { toast('Erro ao salvar: ' + error.message); return }
-  toast('Chave PIX salva ✓')
+  toast('Configuração de pagamento salva ✓')
   fecharModal('modal-selecao-pix')
 }
 
