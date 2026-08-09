@@ -7702,7 +7702,7 @@ function renderSelecaoLista() {
     const info = _selecaoStatusInfo(g.status)
     return `
     <div class="card evento-card" onclick="abrirSelecaoDetalhe('${g.id}')">
-      <div class="capa"><span class="data-badge status-badge ${info.cls}">${info.label}</span></div>
+      <div class="capa" id="sel-cover-${g.id}"><span class="data-badge status-badge ${info.cls}">${info.label}</span></div>
       <div class="body">
         <div class="nome">${esc(g.titulo)}</div>
         <div class="meta">${esc(g.cliente_nome)} · ${g.qtd_incluida} incluída(s) · R$ ${Number(g.preco_extra).toFixed(2)}/extra</div>
@@ -7710,6 +7710,12 @@ function renderSelecaoLista() {
       </div>
     </div>`
   }).join('')
+  store.selecaoGalerias.forEach(async g => {
+    if (!g.capa_url) return
+    const url = await _urlAssinada(g.capa_url)
+    const el2 = document.getElementById(`sel-cover-${g.id}`)
+    if (url && el2) el2.style.backgroundImage = `url('${url}')`
+  })
 }
 
 // ── editor de faixas de desconto progressivo (admin, criar/editar
@@ -7960,13 +7966,18 @@ function _renderSelecaoFotosGrid() {
   const grid = document.getElementById('sel-fotos-grid')
   if (!g || !grid) return
   if (!g.fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto enviada ainda.</div>'; return }
-  grid.innerHTML = g.fotos.map(f => `
+  grid.innerHTML = g.fotos.map(f => {
+    const ehCapa = g.capa_url && f.storage_path === g.capa_url
+    return `
     <div class="foto-item" id="selfoto-${f.id}">
       <img alt="">
       ${f.bonus ? '<span class="ck" style="left:6px;right:auto;background:var(--ouro);color:var(--tinta);opacity:1;">🎁</span>' : ''}
+      ${ehCapa ? '<span class="ck" style="left:6px;right:auto;top:30px;background:var(--verde);color:#fff;opacity:1;" title="Capa da galeria">⭐</span>' : ''}
+      <button class="foto-expand" style="opacity:1;right:62px;" onclick="event.stopPropagation();_definirCapaSelecao('${f.id}')" title="${ehCapa ? 'Essa é a capa da galeria' : 'Usar como capa da galeria'}" ${ehCapa ? 'disabled' : ''}>${ehCapa ? '★' : '☆'}</button>
       <button class="foto-expand" style="opacity:1;right:34px;" onclick="event.stopPropagation();_toggleBonusSelecao('${f.id}')" title="${f.bonus ? 'Tirar de Bastidores/Brinde' : 'Marcar como Bastidores/Brinde'}">${f.bonus ? '🎁' : '🎁'}</button>
       <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
-    </div>`).join('')
+    </div>`
+  }).join('')
   g.fotos.forEach(async f => {
     const url = await _urlAssinada(f.storage_path)
     const img = document.querySelector(`#selfoto-${f.id} img`)
@@ -7993,6 +8004,7 @@ async function uploadFotosSelecao(files, bonus) {
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('sel', files, estados)
   let ok = 0
+  let primeiraCapaCandidata = null
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     estados[i] = 'enviando'; _renderFilaUpload('sel', files, estados)
@@ -8015,6 +8027,7 @@ async function uploadFotosSelecao(files, bonus) {
     }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     _selecaoDetalheAtual.fotos.push(fotoRow)
+    if (!primeiraCapaCandidata) primeiraCapaCandidata = levePath
     estados[i] = 'ok'; _renderFilaUpload('sel', files, estados)
     ok++
   }
@@ -8022,7 +8035,25 @@ async function uploadFotosSelecao(files, bonus) {
   const inputEl = document.getElementById('sel-upload-input')
   if (inputEl) inputEl.value = ''
   if (ok) registrarAuditoria('fez upload de fotos de seleção', 'selecao_galerias', galeriaId, `${ok} foto(s)`)
+  // primeira leva de fotos da galeria vira capa automaticamente — só
+  // pra ter alguma prévia de cara; o admin pode trocar por qualquer
+  // outra foto a qualquer momento (botão "Usar como capa" no grid).
+  if (ok && !_selecaoDetalheAtual.capa_url && primeiraCapaCandidata) {
+    const { error: capaErr } = await db.from('selecao_galerias').update({ capa_url: primeiraCapaCandidata }).eq('id', galeriaId)
+    if (!capaErr) _selecaoDetalheAtual.capa_url = primeiraCapaCandidata
+  }
   _renderSelecaoFotosGrid()
+}
+
+async function _definirCapaSelecao(fotoId) {
+  const g = _selecaoDetalheAtual
+  const f = g?.fotos.find(x => x.id === fotoId)
+  if (!f) return
+  const { error } = await db.from('selecao_galerias').update({ capa_url: f.storage_path }).eq('id', g.id)
+  if (error) { toast('Erro: ' + error.message); return }
+  g.capa_url = f.storage_path
+  _renderSelecaoFotosGrid()
+  toast('Capa da galeria atualizada ✓')
 }
 
 async function _toggleBonusSelecao(fotoId) {
