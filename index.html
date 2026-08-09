@@ -76,7 +76,7 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
    nada do resto do painel (admin, login) é afetado — tudo escopado
    dentro de #view-selecao. */
 :root{ --gf-verde-vivo:#10B981; }
-#view-selecao{min-height:100vh;min-height:100dvh;background:var(--selpub-bg,#F9F9F9);color:var(--selpub-tinta,#1A1A1A);padding-bottom:96px;}
+#view-selecao{min-height:100vh;min-height:100dvh;background:var(--selpub-bg,#F9F9F9);color:var(--selpub-tinta,#1A1A1A);padding-bottom:24px;}
 #view-selecao .publica-topo{border-bottom:1px solid rgba(0,0,0,.08);}
 #view-selecao .publica-topo span{color:#1A1A1A;}
 #view-selecao h2{color:#1A1A1A;font-size:22px;}
@@ -8100,6 +8100,22 @@ let _selPub = { token: null, senha: null, dados: null, selecionados: new Set() }
 let _selPubFiltro = 'todas'
 let _selPubLightboxIdx = -1
 let _selPubFotosLiberadas = []
+
+// o rodapé flutuante quebra linha (fica mais alto) em telas estreitas ou
+// quando o texto de status cresce — um padding-bottom fixo no CSS não
+// acompanha isso, e a última fileira de fotos fica coberta pelo rodapé
+// no fim da rolagem em mobile. Em vez de chutar um valor, mede a altura
+// real do rodapé toda vez que ela muda e ajusta o respiro do conteúdo.
+;(function _selPubRodapeObserverSetup() {
+  const sticky = document.getElementById('selpub-sticky')
+  const view = document.getElementById('view-selecao')
+  if (!sticky || !view || typeof ResizeObserver === 'undefined') return
+  const sync = () => {
+    const visivel = getComputedStyle(sticky).display !== 'none'
+    view.style.paddingBottom = visivel ? (sticky.offsetHeight + 24) + 'px' : ''
+  }
+  new ResizeObserver(sync).observe(sticky)
+})()
 
 function _iniciarModoSelecao(token) {
   document.getElementById('login-screen').style.display = 'none'
