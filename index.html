@@ -8373,7 +8373,14 @@ function _selPubAbrirConfirmar() {
   `
   const pix = _selPub.dados.pix
   const pixBox = document.getElementById('selpub-confirmar-pix')
-  if (total > 0 && pix?.chave) {
+  const podePagarAutomatico = total > 0 && _selPub.dados.pagamento_automatico
+  if (total > 0 && podePagarAutomatico) {
+    pixBox.innerHTML = `
+      <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Pagar Agora</button>
+      <div class="meta" style="text-align:center;margin-top:8px;">🔒 Compra segura e protegida</div>
+      ${pix?.chave ? `<div class="meta" style="text-align:center;margin-top:10px;">ou pague via PIX manual — envie primeiro e combine com o estúdio</div>` : ''}
+    `
+  } else if (total > 0 && pix?.chave) {
     pixBox.innerHTML = `
       <div class="selpub-pix-box">
         <div style="margin-bottom:6px;">Pague os extras via PIX:</div>
@@ -8388,6 +8395,20 @@ function _selPubAbrirConfirmar() {
   }
   document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
   abrirModal('modal-selecao-confirmar')
+}
+
+// abre o checkout InfinitePay numa aba nova — a liberação de verdade só
+// acontece quando o webhook confirmar (nunca aqui no client). Precisa
+// ter enviado a seleção antes (pedido já registrado no banco), senão
+// não tem valor_total pra cobrar ainda.
+async function _selPubPagarAgora() {
+  const btn = document.getElementById('selpub-btn-pagar')
+  if (!_selPub.dados.pedido) { await _selPubEnviarPedido() }
+  if (btn) { btn.disabled = true; btn.textContent = 'Gerando link de pagamento…' }
+  const { data, error } = await _selecaoPublicaFetch('criar_pagamento', _selPub.token, _selPub.senha, { redirect_url: location.href })
+  if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
+  if (error) { toast(error); return }
+  window.open(data.checkout_url, '_blank')
 }
 
 async function _selPubEnviarPedido() {

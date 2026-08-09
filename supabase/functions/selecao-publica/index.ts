@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
   if (action === 'dados') return await acaoDados(admin, token, senha)
   if (action === 'enviar') return await acaoEnviar(admin, token, senha, body?.foto_ids || [], body?.observacoes || null)
   if (action === 'download') return await acaoDownload(admin, token, senha)
+  if (action === 'criar_pagamento') return await acaoCriarPagamento(admin, token, senha, body?.redirect_url || null)
   return json({ error: 'Ação desconhecida.' }, 400)
 })
 
@@ -54,7 +55,44 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
     return { id: f.id, url: signed?.signedUrl || null }
   }))
 
-  return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix })
+  return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
+}
+
+// gera um link de checkout InfinitePay pro pedido já registrado (o
+// cliente precisa ter chamado 'enviar' antes) — nunca expõe o handle
+// pro client, só usa ele aqui dentro pra falar com a API da InfinitePay.
+// A liberação de verdade só acontece quando selecao-webhook reconfirmar
+// o pagamento (payment_check) e chamar selecao_liberar_pedido_automatico
+// — esse endpoint só CRIA o link, não libera nada sozinho.
+async function acaoCriarPagamento(admin: any, token: string, senha: string | null, redirectUrl: string | null) {
+  const { data, error } = await admin.rpc('selecao_publica_dados', { p_token: token, p_senha: senha })
+  if (error) { console.error('selecao-publica[criar_pagamento]: RPC dados falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
+  if (!data.pagamento_automatico) return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400)
+  if (!data.pedido || !data.pedido.valor_total || data.pedido.valor_total <= 0) return json({ error: 'Envie sua seleção primeiro — não há valor extra a pagar ainda.' }, 400)
+
+  const { data: config } = await admin.from('selecao_config').select('infinitepay_handle').eq('id', true).single()
+  const handle = (config?.infinitepay_handle || '').replace(/^\$/, '').trim()
+  if (!handle) return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400)
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const resp = await fetch('https://api.checkout.infinitepay.io/links', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      handle,
+      order_nsu: data.pedido.id,
+      webhook_url: `${supabaseUrl}/functions/v1/selecao-webhook`,
+      ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
+      items: [{ description: `Fotos extras — ${data.galeria.titulo}`, quantity: 1, price: Math.round(data.pedido.valor_total * 100) }],
+    }),
+  })
+  const linkData = await resp.json().catch(() => ({}))
+  const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
+  if (!resp.ok || !checkoutUrl) {
+    console.error('selecao-publica[criar_pagamento]: InfinitePay /links falhou', { token, status: resp.status, linkData })
+    return json({ error: 'Não foi possível gerar o link de pagamento agora. Tente de novo em instantes, ou pague pelo PIX abaixo mesmo.' }, 502)
+  }
+  return json({ checkout_url: checkoutUrl })
 }
 
 async function acaoEnviar(admin: any, token: string, senha: string | null, fotoIds: string[], observacoes: string | null) {
