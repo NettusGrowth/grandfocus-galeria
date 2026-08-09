@@ -71,31 +71,61 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .publica-senha-card{max-width:360px;margin:60px auto;text-align:center;}
 .publica-capa{width:100%;height:220px;border-radius:14px;object-fit:cover;margin-bottom:18px;}
 
-/* ── seleção de fotos & extras (Bloco 8) — tela do cliente ── */
-#view-selecao{min-height:100vh;background:var(--palco);}
-.selpub-sticky{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 24px;background:rgba(16,9,16,.92);backdrop-filter:blur(8px);border-bottom:1px solid rgba(200,175,127,.18);}
-.selpub-contador{display:flex;gap:20px;flex-wrap:wrap;}
+/* ── seleção de fotos & extras (Bloco 8/11) — tela do cliente ──
+   Canvas próprio, boutique/e-commerce: claro, a foto é a protagonista,
+   nada do resto do painel (admin, login) é afetado — tudo escopado
+   dentro de #view-selecao. */
+:root{ --gf-verde-vivo:#10B981; }
+#view-selecao{min-height:100vh;min-height:100dvh;background:var(--selpub-bg,#F9F9F9);color:var(--selpub-tinta,#1A1A1A);padding-bottom:96px;}
+#view-selecao .publica-topo{border-bottom:1px solid rgba(0,0,0,.08);}
+#view-selecao .publica-topo span{color:#1A1A1A;}
+#view-selecao h2{color:#1A1A1A;font-size:22px;}
+#view-selecao .meta{color:#6B6B6B;}
+#view-selecao .selpub-label{display:block;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8A8A;margin-bottom:10px;}
+#view-selecao .publica-conteudo{padding:20px 16px 16px;}
+@media(min-width:720px){#view-selecao .publica-conteudo{padding:28px 32px;}}
+
+/* rodapé flutuante de conversão — fixo embaixo, nunca em cima do grid */
+.selpub-sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:12px 18px calc(12px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -8px 24px -8px rgba(0,0,0,.15);}
+.selpub-contador{display:flex;gap:18px;flex-wrap:wrap;}
 .selpub-item{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2;}
-.selpub-item .n{font-family:var(--serif);font-size:19px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
-.selpub-item .l{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#B39F86;}
-.selpub-item.extra .n{color:var(--vermelho);}
-.selpub-item.valor .n{color:var(--verde);}
-.selpub-filtros{display:flex;gap:8px;margin:18px 0;flex-wrap:wrap;}
-.selpub-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
-.selpub-card{position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#0c0509;}
-.selpub-card img{width:100%;height:100%;object-fit:cover;transition:transform .2s;}
-.selpub-card:hover img{transform:scale(1.04);}
-.selpub-card .check{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;background:rgba(16,9,16,.55);border:1.5px solid rgba(246,240,230,.7);display:flex;align-items:center;justify-content:center;transition:all .15s;}
-.selpub-zoom{position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:50%;background:rgba(16,9,16,.55);border:0;display:flex;align-items:center;justify-content:center;color:#F6F0E6;cursor:pointer;}
+.selpub-item .n{font-family:var(--sans-num);font-weight:700;font-size:16px;color:#1A1A1A;font-variant-numeric:tabular-nums;}
+.selpub-item .l{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:#8A8A8A;}
+.selpub-item.extra .n{color:#C2762E;}
+.selpub-item.valor .n{color:var(--gf-verde-vivo);}
+#selpub-btn-finalizar{border-radius:999px;background:#161616;color:#fff;border-color:#161616;padding:.85em 1.6em;font-weight:600;letter-spacing:.06em;}
+#selpub-btn-finalizar:hover{background:#000;}
+.selpub-filtros{display:flex;gap:8px;margin:16px 0;flex-wrap:wrap;}
+.selpub-filtros .chip{border-radius:999px;}
+
+.selpub-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;}
+@media(min-width:600px){.selpub-grid{grid-template-columns:repeat(3,1fr);gap:10px;}}
+@media(min-width:900px){.selpub-grid{grid-template-columns:repeat(4,1fr);}}
+@media(min-width:1280px){.selpub-grid{grid-template-columns:repeat(6,1fr);}}
+.selpub-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s;}
+.selpub-card img{width:100%;height:100%;object-fit:cover;}
+.selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
+.selpub-zoom{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
 .selpub-zoom svg{width:14px;height:14px;}
-.selpub-card.on .check{background:var(--ouro);border-color:var(--ouro);}
+.selpub-card.on{border-color:var(--gf-verde-vivo);}
+.selpub-card.on .check{background:var(--gf-verde-vivo);border-color:var(--gf-verde-vivo);}
 .selpub-card.on .check svg{opacity:1;}
-.selpub-card .check svg{width:14px;height:14px;opacity:0;stroke:var(--tinta);stroke-width:3;}
-.selpub-card.on{outline:2px solid var(--ouro);outline-offset:-2px;}
-.selpub-banner{background:rgba(200,175,127,.12);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13.5px;color:var(--ouro-luz);}
-.selpub-pix-box{background:rgba(61,207,142,.1);border:1px solid rgba(61,207,142,.3);border-radius:10px;padding:12px 14px;font-size:13px;}
-.selpub-pix-box .chave{font-family:monospace;font-size:13.5px;color:var(--verde);word-break:break-all;}
+.selpub-card .check svg{width:15px;height:15px;opacity:0;stroke:#fff;stroke-width:3;}
+.selpub-card.pop{animation:selpub-pop .28s ease;}
+@keyframes selpub-pop{0%{transform:scale(1);}45%{transform:scale(.93);}100%{transform:scale(1);}}
+@media(prefers-reduced-motion:reduce){.selpub-card.pop{animation:none;}}
+
+.selpub-banner{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13.5px;color:#0d7a5f;}
+.selpub-pix-box{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:12px 14px;font-size:13px;}
+.selpub-pix-box .chave{font-family:monospace;font-size:13.5px;color:#0d7a5f;word-break:break-all;}
 .selpub-download-list{display:flex;flex-direction:column;gap:8px;}
+
+/* lightbox da seleção herda o mesmo canvas claro + botão pílula */
+#selpub-lightbox{background:rgba(249,249,249,.98);}
+#selpub-lightbox .lightbox-close,#selpub-lightbox .lightbox-nav{background:rgba(0,0,0,.55);color:#fff;}
+#selpub-lightbox .lightbox-foot{background:transparent;}
+#selpub-lightbox-caption{color:#1A1A1A;}
+#selpub-lightbox-btn{border-radius:999px;padding:.75em 1.6em;font-weight:600;}
 
 /* ── login ── */
 #login-screen{
@@ -722,11 +752,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span>Grand Focus</span>
   </div>
   <div class="selpub-sticky" id="selpub-sticky" style="display:none;">
-    <div class="selpub-contador">
-      <div class="selpub-item"><span class="n" id="selpub-n-pacote">0</span><span class="l">no pacote</span></div>
-      <div class="selpub-item"><span class="n" id="selpub-n-selecionadas">0</span><span class="l">selecionadas</span></div>
-      <div class="selpub-item extra"><span class="n" id="selpub-n-extras">0</span><span class="l">extras</span></div>
-      <div class="selpub-item valor"><span class="n" id="selpub-n-total">R$ 0,00</span><span class="l">total extra</span></div>
+    <div>
+      <div class="selpub-contador">
+        <div class="selpub-item"><span class="n" id="selpub-n-pacote">0</span><span class="l">no pacote</span></div>
+        <div class="selpub-item"><span class="n" id="selpub-n-selecionadas">0</span><span class="l">selecionadas</span></div>
+        <div class="selpub-item extra"><span class="n" id="selpub-n-extras">0</span><span class="l">extras</span></div>
+        <div class="selpub-item valor"><span class="n" id="selpub-n-total">R$ 0,00</span><span class="l">total extra</span></div>
+      </div>
+      <div class="selpub-status" id="selpub-status" style="font-size:11.5px;color:#8A8A8A;margin-top:4px;"></div>
     </div>
     <button class="btn btn-primary btn-sm" id="selpub-btn-finalizar" onclick="_selPubAbrirConfirmar()">Finalizar Seleção ➔</button>
   </div>
@@ -8062,6 +8095,7 @@ function _renderSelPub() {
     <h2>${esc(d.galeria.titulo)}</h2>
     <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
     ${banner}
+    <span class="selpub-label">Suas Fotos</span>
     <div class="selpub-filtros">
       <span class="chip${_selPubFiltro === 'todas' ? ' on' : ''}" onclick="_selPubFiltrar('todas')">Todas</span>
       <span class="chip${_selPubFiltro === 'selecionadas' ? ' on' : ''}" onclick="_selPubFiltrar('selecionadas')">Selecionadas (${_selPub.selecionados.size})</span>
@@ -8106,6 +8140,9 @@ function _selPubToggle(fotoId) {
   _selPubRenderGrid()
   _selPubAtualizarContador()
   _selPubSalvarLocal()
+  // pulse de escala no card pra dar feedback tátil instantâneo do clique/toque
+  const card = document.getElementById('selpub-card-' + fotoId)
+  if (card) { card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop') }
 }
 
 function _selPubSalvarLocal() {
@@ -8122,6 +8159,12 @@ function _selPubAtualizarContador() {
   document.getElementById('selpub-n-extras').textContent = extras
   document.getElementById('selpub-n-total').textContent = 'R$ ' + total.toFixed(2).replace('.', ',')
   document.getElementById('selpub-btn-finalizar').textContent = `Finalizar Seleção (${n}) ➔`
+  const statusEl = document.getElementById('selpub-status')
+  if (statusEl) {
+    statusEl.textContent = extras > 0
+      ? `${extras} foto(s) extra(s) adicionada(s)`
+      : `${Math.min(n, g.qtd_incluida)}/${g.qtd_incluida} do pacote inclusas`
+  }
 }
 
 function _selPubAbrirLightbox(idx) {
@@ -8135,6 +8178,27 @@ function _selPubFecharLightbox() {
   document.getElementById('selpub-lightbox-img').src = ''
   document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
 }
+
+// swipe no celular (o teclado — setas/Esc — já existe via keydown global,
+// ver linha ~4539) — só troca de foto se o gesto for majoritariamente
+// horizontal e passar de um limiar mínimo, senão um scroll vertical
+// acidental trocaria de foto.
+;(function _selPubLightboxSwipeSetup() {
+  const wrap = document.getElementById('selpub-lightbox-img-wrap')
+  if (!wrap) return
+  let x0 = null, y0 = null
+  wrap.addEventListener('touchstart', e => {
+    if (wrap.classList.contains('zoomed')) return
+    x0 = e.touches[0].clientX; y0 = e.touches[0].clientY
+  }, { passive: true })
+  wrap.addEventListener('touchend', e => {
+    if (x0 === null) return
+    const dx = e.changedTouches[0].clientX - x0
+    const dy = e.changedTouches[0].clientY - y0
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) _selPubLightboxNav(dx < 0 ? 1 : -1)
+    x0 = null; y0 = null
+  }, { passive: true })
+})()
 function _selPubLightboxNav(delta) {
   const d = _selPub.dados
   if (!d?.fotos.length) return
