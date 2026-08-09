@@ -2964,6 +2964,9 @@ function renderEventos() {
 
 function fmtData(d) { if (!d) return ''; const [y, m, dd] = d.split('-'); return `${dd}/${m}/${y}` }
 function fmtDataHora(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }
+// "R$ 45,00" — vírgula, não ponto (formato brasileiro). Usar em TODO
+// lugar que exibe dinheiro pro usuário; nunca ${valor.toFixed(2)} cru.
+function fmtBRL(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtUltimoAcesso(iso) { return iso ? fmtDataHora(iso) : 'nunca acessou' }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
 
@@ -7705,8 +7708,8 @@ function renderSelecaoLista() {
       <div class="capa" id="sel-cover-${g.id}"><span class="data-badge status-badge ${info.cls}">${info.label}</span></div>
       <div class="body">
         <div class="nome">${esc(g.titulo)}</div>
-        <div class="meta">${esc(g.cliente_nome)} · ${g.qtd_incluida} incluída(s) · R$ ${Number(g.preco_extra).toFixed(2)}/extra</div>
-        ${pedido ? `<div class="meta">${pedido.qtd_extra} extra(s) selecionado(s) · R$ ${Number(pedido.valor_total).toFixed(2)}</div>` : ''}
+        <div class="meta">${esc(g.cliente_nome)} · ${g.qtd_incluida} incluída(s) · ${fmtBRL(g.preco_extra)}/extra</div>
+        ${pedido ? `<div class="meta">${pedido.qtd_extra} extra(s) selecionado(s) · ${fmtBRL(pedido.valor_total)}</div>` : ''}
       </div>
     </div>`
   }).join('')
@@ -7784,7 +7787,7 @@ function _selecaoFaixaEditar(i, campo, valor) {
     let novoPreco = parseFloat(valor) || 0
     if (novoPreco >= basePreco) {
       novoPreco = Math.max(0, basePreco - 0.01)
-      toast(`O preço dessa faixa precisa ser menor que o preço base (R$ ${basePreco.toFixed(2)}) — ajustado pra R$ ${novoPreco.toFixed(2)}`)
+      toast(`O preço dessa faixa precisa ser menor que o preço base (${fmtBRL(basePreco)}) — ajustado pra ${fmtBRL(novoPreco)}`)
       _selecaoFaixasEdit[i].preco = novoPreco
       _renderSelecaoFaixas()
       return
@@ -7941,7 +7944,7 @@ function _selecaoPedidoHubHTML(pedido) {
   return `
     <div class="card" style="margin-bottom:16px;">
       <h3 style="font-size:15px;margin-bottom:10px;">Pedido do cliente</h3>
-      <div class="meta" style="margin-bottom:10px;">${pedido.qtd_selecionada} foto(s) escolhida(s) (${pedido.qtd_extra} extra(s)) = <b style="color:var(--ouro-luz);">R$ ${Number(pedido.valor_total).toFixed(2)}</b></div>
+      <div class="meta" style="margin-bottom:10px;">${pedido.qtd_selecionada} foto(s) escolhida(s) (${pedido.qtd_extra} extra(s)) = <b style="color:var(--ouro-luz);">${fmtBRL(pedido.valor_total)}</b></div>
       ${pedido.observacoes ? `<div class="meta" style="margin-bottom:10px;">Observações do cliente: "${esc(pedido.observacoes)}"</div>` : ''}
       <div class="foto-grid" id="sel-pedido-fotos-grid" style="margin-bottom:12px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
@@ -7987,7 +7990,7 @@ function renderSelecaoDetalhe() {
       </div>
     </div>
     <div class="card" style="margin-bottom:16px;">
-      <div class="meta" style="margin-bottom:10px;">${esc(g.cliente_nome)}${g.cliente_whatsapp ? ' · ' + esc(g.cliente_whatsapp) : ''} · ${g.qtd_incluida} incluída(s) · R$ ${Number(g.preco_extra).toFixed(2)}/extra${g.expira_em ? ' · expira ' + fmtData(g.expira_em) : ''}</div>
+      <div class="meta" style="margin-bottom:10px;">${esc(g.cliente_nome)}${g.cliente_whatsapp ? ' · ' + esc(g.cliente_whatsapp) : ''} · ${g.qtd_incluida} incluída(s) · ${fmtBRL(g.preco_extra)}/extra${g.expira_em ? ' · expira ' + fmtData(g.expira_em) : ''}</div>
       <button class="btn btn-sm" onclick="_copiarLinkSelecao()">📋 Copiar link da galeria</button>
       <div class="meta" id="sel-link-resultado" style="margin-top:8px;white-space:pre-line;"></div>
     </div>
@@ -8407,7 +8410,7 @@ function _selPubRenderRegua(extras) {
     const pctOff = Math.round((1 - c.preco / precoBase) * 100)
     const atingiu = extras > c.ate
     return `<div class="selpub-regua-ponto${atingiu ? ' on' : ''}" style="left:${pctPos(c.ate)}%;">
-      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : ('R$ ' + c.preco.toFixed(0))}<br>${c.ate + 1}+ fotos</span>
+      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : fmtBRL(c.preco)}<br>${c.ate + 1}+ fotos</span>
     </div>`
   }).join('')
   const nudgeEl = document.getElementById('selpub-regua-nudge')
@@ -8415,7 +8418,7 @@ function _selPubRenderRegua(extras) {
   if (proxima) {
     const faltam = proxima.ate + 1 - extras
     const pctOff = Math.round((1 - proxima.preco / precoBase) * 100)
-    nudgeEl.textContent = `Adicione mais ${faltam} foto${faltam > 1 ? 's' : ''} pra pagar R$ ${proxima.preco.toFixed(2).replace('.', ',')} em cada extra${pctOff > 0 ? ' (' + pctOff + '% OFF)' : ''}!`
+    nudgeEl.textContent = `Adicione mais ${faltam} foto${faltam > 1 ? 's' : ''} pra pagar ${fmtBRL(proxima.preco)} em cada extra${pctOff > 0 ? ' (' + pctOff + '% OFF)' : ''}!`
   } else if (extras > 0) {
     nudgeEl.textContent = '🎉 Você já está no melhor preço por foto extra!'
   } else {
@@ -8432,7 +8435,7 @@ function _selPubAtualizarContador() {
   document.getElementById('selpub-n-pacote').textContent = g.qtd_incluida
   document.getElementById('selpub-n-selecionadas').textContent = n
   document.getElementById('selpub-n-extras').textContent = extras
-  document.getElementById('selpub-n-total').textContent = 'R$ ' + total.toFixed(2).replace('.', ',')
+  document.getElementById('selpub-n-total').textContent = fmtBRL(total)
   document.getElementById('selpub-btn-finalizar').textContent = `Finalizar Seleção (${n}) ➔`
   const statusEl = document.getElementById('selpub-status')
   if (statusEl) {
@@ -8507,7 +8510,7 @@ function _selPubAbrirConfirmar() {
   document.getElementById('selpub-confirmar-resumo').innerHTML = `
     <b>${n}</b> foto(s) selecionada(s)<br>
     ${Math.min(n, g.qtd_incluida)} incluída(s) no pacote + <b>${extras}</b> extra(s)<br>
-    Total a pagar: <b style="color:var(--verde);">R$ ${total.toFixed(2).replace('.', ',')}</b>
+    Total a pagar: <b style="color:var(--verde);">${fmtBRL(total)}</b>
   `
   const pix = _selPub.dados.pix
   const pixBox = document.getElementById('selpub-confirmar-pix')
