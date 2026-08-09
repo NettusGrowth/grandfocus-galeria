@@ -70,9 +70,12 @@ async function acaoCriarPagamento(admin: any, token: string, senha: string | nul
   if (!data.pagamento_automatico) return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400)
   if (!data.pedido || !data.pedido.valor_total || data.pedido.valor_total <= 0) return json({ error: 'Envie sua seleção primeiro — não há valor extra a pagar ainda.' }, 400)
 
-  const { data: config } = await admin.from('selecao_config').select('infinitepay_handle').eq('id', true).single()
-  const handle = (config?.infinitepay_handle || '').replace(/^\$/, '').trim()
-  if (!handle) return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400)
+  // usa o handle que já veio junto no mesmo RPC de dados acima — evita
+  // uma segunda leitura separada na tabela (era o que estava mascarando
+  // esse erro: aquela leitura falhava calada, sem log, e caía na mesma
+  // mensagem de "não configurado" mesmo com o handle salvo certinho).
+  const handle = (data.infinitepay_handle || '').replace(/^\$/, '').trim()
+  if (!handle) { console.error('selecao-publica[criar_pagamento]: infinitepay_handle vazio apesar de pagamento_automatico=true', { token }); return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400) }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
   const resp = await fetch('https://api.checkout.infinitepay.io/links', {
