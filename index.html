@@ -105,7 +105,8 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-card{position:relative;border-radius:12px;overflow:hidden;aspect-ratio:1;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
 .selpub-card img{width:100%;height:100%;object-fit:cover;}
 .selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
-.selpub-zoom{position:absolute;top:8px;left:8px;width:30px;height:30px;border-radius:50%;background:rgba(0,0,0,.45);border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
+.selpub-zoom{position:absolute;top:2px;left:2px;width:44px;height:44px;border-radius:50%;background:transparent;border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
+.selpub-zoom::before{content:'';position:absolute;inset:7px;border-radius:50%;background:rgba(0,0,0,.45);}
 .selpub-zoom svg{width:14px;height:14px;}
 .selpub-card.on{border-color:var(--gf-verde-vivo);box-shadow:0 10px 24px -8px rgba(16,185,129,.45);transform:translateY(-2px);}
 .selpub-card.on .check{background:var(--gf-verde-vivo);border-color:var(--gf-verde-vivo);}
@@ -152,6 +153,11 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 #selpub-lightbox .lightbox-foot{background:transparent;}
 #selpub-lightbox-caption{color:#1A1A1A;}
 #selpub-lightbox-btn{border-radius:999px;padding:.75em 1.6em;font-weight:600;}
+/* zoom da seleção é por pinça (JS aplica transform:scale direto na
+   img) — a regra genérica .zoomed img{width:180%} é só pro toque
+   único do lightbox comum; aqui ela dobraria o zoom em cima do
+   transform, então é neutralizada. */
+#selpub-lightbox-img-wrap.zoomed img{width:100%;max-width:100%;max-height:100%;transition:transform .05s linear;}
 
 /* ── login ── */
 #login-screen{
@@ -528,7 +534,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .lightbox-img-wrap.zoomed{align-items:flex-start;justify-content:flex-start;}
 .lightbox-img-wrap.zoomed img{max-width:none;max-height:none;width:180%;cursor:zoom-out;}
 .lightbox-close{
-  position:absolute;top:22px;right:26px;width:38px;height:38px;border-radius:50%;background:rgba(75,4,22,.6);
+  position:absolute;top:18px;right:22px;width:44px;height:44px;border-radius:50%;background:rgba(75,4,22,.6);
   border:1px solid var(--ouro);color:var(--ouro-luz);font-size:20px;line-height:1;display:grid;place-items:center;cursor:pointer;
 }
 .lightbox-close:hover{background:var(--ouro);color:var(--tinta);}
@@ -542,7 +548,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .lightbox-nav.next{right:16px;}
 .lightbox-foot{display:flex;align-items:center;gap:10px;margin-top:18px;color:var(--ouro-fundo);font-size:12.5px;letter-spacing:.03em;}
 .lightbox-foot img{width:16px;opacity:.7;}
-@media(max-width:640px){.lightbox-nav{width:36px;height:36px;font-size:18px;}.lightbox-nav.prev{left:6px;}.lightbox-nav.next{right:6px;}}
+@media(max-width:640px){.lightbox-nav{font-size:18px;}.lightbox-nav.prev{left:6px;}.lightbox-nav.next{right:6px;}}
 
 .welcome-overlay{
   display:none;position:fixed;inset:0;z-index:400;cursor:pointer;
@@ -1795,7 +1801,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <button class="lightbox-close" onclick="_selPubFecharLightbox()" aria-label="Fechar">×</button>
   <button class="lightbox-nav prev" onclick="_selPubLightboxNav(-1)" aria-label="Anterior">‹</button>
   <button class="lightbox-nav next" onclick="_selPubLightboxNav(1)" aria-label="Próxima">›</button>
-  <div class="lightbox-img-wrap" id="selpub-lightbox-img-wrap"><img id="selpub-lightbox-img" src="" alt="" onclick="event.stopPropagation();document.getElementById('selpub-lightbox-img-wrap').classList.toggle('zoomed')"></div>
+  <div class="lightbox-img-wrap" id="selpub-lightbox-img-wrap"><img id="selpub-lightbox-img" src="" alt="" onclick="event.stopPropagation();_selPubLightboxTapZoom()"></div>
   <div class="lightbox-foot">
     <span id="selpub-lightbox-caption"></span>
     <button class="btn btn-sm btn-primary" id="selpub-lightbox-btn" onclick="_selPubLightboxToggleAtual()">Marcar</button>
@@ -1852,8 +1858,23 @@ const ICON_LIXEIRA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none
 const ICON_VINCULO = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" stroke-linecap="round" stroke-linejoin="round"/></svg>'
 const ICON_CHAVE = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="3.5"/><path d="M10 13 19 4M15 8l2 2M18 5l2 2"/></svg>'
 
-function abrirModal(id) { document.getElementById(id).classList.add('show') }
-function fecharModal(id) { document.getElementById(id).classList.remove('show') }
+// trava o scroll do body enquanto qualquer modal/lightbox estiver
+// aberto — sem isso, no celular dava pra rolar a página de fundo por
+// baixo do overlay (rolagem dupla confusa). Contador em vez de
+// booleano porque às vezes um modal abre outro por cima (ex.: modal de
+// aluno abrindo o de vincular pai) — sem o contador, fechar o de cima
+// destravaria o scroll com o de baixo ainda aberto.
+let _scrollTravasAtivas = 0
+function _travarScrollFundo() {
+  _scrollTravasAtivas++
+  document.body.style.overflow = 'hidden'
+}
+function _destravarScrollFundo() {
+  _scrollTravasAtivas = Math.max(0, _scrollTravasAtivas - 1)
+  if (_scrollTravasAtivas === 0) document.body.style.overflow = ''
+}
+function abrirModal(id) { document.getElementById(id).classList.add('show'); _travarScrollFundo() }
+function fecharModal(id) { document.getElementById(id).classList.remove('show'); _destravarScrollFundo() }
 
 // Confirmação com tela bonita em vez de confirm() nativo. Uso:
 // if (!await confirmModal('Apagar mesmo?')) return
@@ -4532,6 +4553,7 @@ function abrirLightbox(fotoId) {
   _lightboxIdx = idx
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
+  _travarScrollFundo()
 }
 function fecharLightbox() {
   const lb = document.getElementById('lightbox')
@@ -4539,6 +4561,7 @@ function fecharLightbox() {
   delete lb.dataset.modo
   document.getElementById('lightbox-img').src = ''
   document.getElementById('lightbox-img-wrap').classList.remove('zoomed')
+  _destravarScrollFundo()
 }
 function lightboxNav(delta) {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
@@ -8449,31 +8472,66 @@ function _selPubAbrirLightbox(idx) {
   _selPubLightboxIdx = idx
   _renderSelPubLightboxAtual()
   document.getElementById('selpub-lightbox').classList.add('show')
+  _travarScrollFundo()
 }
 function _selPubFecharLightbox() {
   const lb = document.getElementById('selpub-lightbox')
   lb.classList.remove('show')
   document.getElementById('selpub-lightbox-img').src = ''
+  document.getElementById('selpub-lightbox-img').style.transform = ''
   document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
+  _selPubLightboxEscala = 1
+  _destravarScrollFundo()
 }
 
-// swipe no celular (o teclado — setas/Esc — já existe via keydown global,
-// ver linha ~4539) — só troca de foto se o gesto for majoritariamente
-// horizontal e passar de um limiar mínimo, senão um scroll vertical
-// acidental trocaria de foto.
-;(function _selPubLightboxSwipeSetup() {
+// gestos no celular (o teclado — setas/Esc — já existe via keydown
+// global, ver linha ~4539): pinça pra zoom contínuo, arrasto horizontal
+// pra trocar de foto, arrasto vertical pra baixo pra fechar — tudo
+// desativado enquanto a foto está ampliada (senão um arrasto pra
+// mover a imagem trocaria de foto ou fecharia sem querer).
+let _selPubLightboxEscala = 1
+function _selPubLightboxTapZoom() {
+  if (_selPubLightboxEscala <= 1) return // zoom de verdade é por pinça; toque só reseta
+  _selPubLightboxEscala = 1
+  document.getElementById('selpub-lightbox-img').style.transform = ''
+  document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
+}
+;(function _selPubLightboxGestosSetup() {
   const wrap = document.getElementById('selpub-lightbox-img-wrap')
-  if (!wrap) return
+  const img = document.getElementById('selpub-lightbox-img')
+  if (!wrap || !img) return
   let x0 = null, y0 = null
+  let pinchD0 = null, pinchEscalaBase = 1
+  const distancia = touches => Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY)
+
   wrap.addEventListener('touchstart', e => {
-    if (wrap.classList.contains('zoomed')) return
+    if (e.touches.length === 2) {
+      pinchD0 = distancia(e.touches)
+      pinchEscalaBase = _selPubLightboxEscala
+      x0 = null; y0 = null
+      return
+    }
+    if (_selPubLightboxEscala > 1) return // deixa o navegador rolar a imagem ampliada
     x0 = e.touches[0].clientX; y0 = e.touches[0].clientY
   }, { passive: true })
+
+  wrap.addEventListener('touchmove', e => {
+    if (e.touches.length === 2 && pinchD0) {
+      _selPubLightboxEscala = Math.min(4, Math.max(1, pinchEscalaBase * (distancia(e.touches) / pinchD0)))
+      img.style.transform = `scale(${_selPubLightboxEscala})`
+      wrap.classList.toggle('zoomed', _selPubLightboxEscala > 1.02)
+    }
+  }, { passive: true })
+
   wrap.addEventListener('touchend', e => {
-    if (x0 === null) return
+    if (e.touches.length > 0) return // ainda tem dedo na tela (soltou só um dos dois da pinça)
+    pinchD0 = null
+    if (_selPubLightboxEscala <= 1.05 && _selPubLightboxEscala !== 1) _selPubLightboxTapZoom()
+    if (x0 === null || _selPubLightboxEscala > 1) { x0 = null; y0 = null; return }
     const dx = e.changedTouches[0].clientX - x0
     const dy = e.changedTouches[0].clientY - y0
     if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) _selPubLightboxNav(dx < 0 ? 1 : -1)
+    else if (dy > 80 && dy > Math.abs(dx) * 1.5) _selPubFecharLightbox()
     x0 = null; y0 = null
   }, { passive: true })
 })()
@@ -8481,6 +8539,8 @@ function _selPubLightboxNav(delta) {
   const d = _selPub.dados
   if (!d?.fotos.length) return
   _selPubLightboxIdx = (_selPubLightboxIdx + delta + d.fotos.length) % d.fotos.length
+  _selPubLightboxEscala = 1
+  document.getElementById('selpub-lightbox-img').style.transform = ''
   document.getElementById('selpub-lightbox-img-wrap').classList.remove('zoomed')
   _renderSelPubLightboxAtual()
 }
