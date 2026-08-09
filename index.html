@@ -1780,6 +1780,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="modal-secao-titulo">📌 Informações Básicas</div>
       <div class="field"><label>Título do ensaio</label><input type="text" id="sel-titulo" placeholder="Ex: Ensaio Solo — Ana Clara"></div>
       <div class="field">
+        <label>Link Amigável (Slug)</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="sel-slug" placeholder="ex: ensaio-ana-clara" style="flex:1;">
+          <button class="btn btn-sm" type="button" onclick="_selecaoSlugGerarDoTitulo()">Gerar do título</button>
+        </div>
+        <div class="meta" style="margin-top:4px;">Deixe em branco pra gerar automaticamente do título ao salvar. Vira o link /s/slug-do-ensaio — sem token feio na URL.</div>
+      </div>
+      <div class="field">
         <label>Destinatário</label>
         <select id="sel-dest-tipo" onchange="_selecaoTipoMudou()">
           <option value="avulso">Pessoa avulsa (sem cadastro)</option>
@@ -8041,11 +8049,19 @@ function _selecaoFaixasLimpar() {
   _renderSelecaoFaixas()
 }
 
+function _slugify(texto) {
+  return (texto || '').toLowerCase().normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+}
+function _selecaoSlugGerarDoTitulo() {
+  document.getElementById('sel-slug').value = _slugify(document.getElementById('sel-titulo').value)
+}
+
 async function abrirModalSelecaoGaleria(id) {
   document.getElementById('sel-id').value = id || ''
   document.getElementById('sel-modal-titulo').textContent = id ? 'Editar Galeria' : 'Nova Galeria de Seleção'
   const g = id ? store.selecaoGalerias.find(x => x.id === id) : null
   document.getElementById('sel-titulo').value = g?.titulo || ''
+  document.getElementById('sel-slug').value = g?.slug || ''
   document.getElementById('sel-dest-tipo').value = g?.destinatario_tipo || 'avulso'
   document.getElementById('sel-cliente-nome').value = g?.cliente_nome || ''
   document.getElementById('sel-cliente-whatsapp').value = g?.cliente_whatsapp || ''
@@ -8108,22 +8124,31 @@ async function salvarSelecaoGaleria() {
   const expiraInput = document.getElementById('sel-expira').value
   const expira_em = expiraInput ? new Date(expiraInput + 'T23:59:59').toISOString() : null
   const senha = document.getElementById('sel-senha').value.trim()
+  const slug = _slugify(document.getElementById('sel-slug').value) || _slugify(titulo) || null
 
   const btn = document.getElementById('sel-salvar-btn')
   btn.disabled = true; btn.textContent = 'Salvando…'
 
+  const erroSlugEmUso = e => /selecao_galerias_slug_key|duplicate key.*slug/i.test(e?.message || '') || e?.code === '23505'
+
   let galeriaId = id
   if (id) {
-    const { error } = await db.from('selecao_galerias').update({ titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, faixas_preco, expira_em }).eq('id', id)
-    if (error) { toast('Erro ao salvar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
+    const { error } = await db.from('selecao_galerias').update({ titulo, slug, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, faixas_preco, expira_em }).eq('id', id)
+    if (error) {
+      toast(erroSlugEmUso(error) ? 'Esse link amigável já está em uso por outra galeria — escolha outro.' : 'Erro ao salvar: ' + error.message)
+      btn.disabled = false; btn.textContent = 'Salvar e continuar'; return
+    }
     registrarAuditoria('editou galeria de seleção', 'selecao_galerias', id, titulo)
   } else {
     const token = crypto.randomUUID().replace(/-/g, '')
     const { data, error } = await db.from('selecao_galerias').insert({
-      titulo, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp,
+      titulo, slug, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp,
       qtd_incluida, preco_extra, faixas_preco, expira_em, token, criado_por: currentUser.id,
     }).select().single()
-    if (error) { toast('Erro ao criar: ' + error.message); btn.disabled = false; btn.textContent = 'Salvar e continuar'; return }
+    if (error) {
+      toast(erroSlugEmUso(error) ? 'Esse link amigável já está em uso por outra galeria — escolha outro.' : 'Erro ao criar: ' + error.message)
+      btn.disabled = false; btn.textContent = 'Salvar e continuar'; return
+    }
     galeriaId = data.id
     registrarAuditoria('criou galeria de seleção', 'selecao_galerias', galeriaId, titulo)
   }
@@ -8364,15 +8389,16 @@ async function _apagarSelecaoGaleria() {
   renderSelecaoLista()
 }
 
-function _selecaoUrlPublica(token, nome) {
-  const slug = (nome || '').toLowerCase().normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60)
+function _selecaoUrlPublica(token, nome, slugSalvo) {
+  if (slugSalvo) return `${location.origin}/s/${slugSalvo}`
+  const slug = _slugify(nome)
   return `${location.origin}${location.pathname}?sel=${token}${slug ? `&e=${slug}` : ''}`
 }
 
 async function _copiarLinkSelecao() {
   const g = _selecaoDetalheAtual
   if (!g) return
-  const url = _selecaoUrlPublica(g.token, g.titulo)
+  const url = _selecaoUrlPublica(g.token, g.titulo, g.slug)
   try { await navigator.clipboard.writeText(url) } catch (e) { /* clipboard indisponível, ainda mostra na tela */ }
   const resEl = document.getElementById('sel-link-resultado')
   if (resEl) resEl.textContent = url
@@ -8939,6 +8965,9 @@ async function _selPubBaixarTodas() {
 // ── boot ────────────────────────────────────────────────────────
 const _tokenPublico = new URLSearchParams(location.search).get('g')
 const _tokenSelecao = new URLSearchParams(location.search).get('sel')
+// rota /s/:slug (ver vercel.json) — link amigável sem token feio na
+// URL; resolve o slug pro token real e segue o mesmo fluxo de sempre.
+const _slugSelecaoMatch = location.pathname.match(/^\/s\/([^/]+)\/?$/)
 if (_configPendente) {
   const errEl = document.getElementById('login-error')
   errEl.textContent = '⚠ Configure SUPABASE_URL e SUPABASE_ANON_KEY no topo do <script> (Project Settings → API do seu projeto) antes de usar.'
@@ -8948,6 +8977,11 @@ if (_configPendente) {
   _iniciarModoPublico(_tokenPublico)
 } else if (_tokenSelecao) {
   _iniciarModoSelecao(_tokenSelecao)
+} else if (_slugSelecaoMatch) {
+  db.rpc('selecao_resolver_slug', { p_slug: decodeURIComponent(_slugSelecaoMatch[1]) }).then(({ data: token }) => {
+    if (token) _iniciarModoSelecao(token)
+    else { document.getElementById('login-screen').style.display = 'none'; document.getElementById('selecao-pub-conteudo').innerHTML = '<div class="empty">Galeria não encontrada ou link expirado.</div>'; document.getElementById('view-selecao').style.display = 'block' }
+  })
 } else {
   iniciarAuth()
 }
