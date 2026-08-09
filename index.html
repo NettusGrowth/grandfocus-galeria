@@ -131,6 +131,7 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-download-list{display:flex;flex-direction:column;gap:8px;}
 
 /* régua de desconto progressivo */
+.selpub-badge-expira{display:inline-block;font-size:11.5px;font-weight:600;color:#8A5A00;background:#FFF3D6;border:1px solid rgba(138,90,0,.25);border-radius:99px;padding:5px 12px;margin-bottom:14px;}
 .selpub-regua{margin:6px 0 20px;padding:16px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;}
 .selpub-regua-track{position:relative;height:6px;background:#eee;border-radius:99px;margin:24px 4px 54px;}
 .selpub-regua-fill{position:absolute;top:0;left:0;height:100%;background:var(--gf-verde-vivo);border-radius:99px;transition:width .3s;}
@@ -8495,6 +8496,19 @@ function _renderSelPubSenhaCard(token, senhaErrada) {
   `
 }
 
+// bloqueio duro de galeria vencida já existe no RPC (estoura antes de
+// chegar aqui) — esse badge é só o aviso prévio, enquanto ainda dá
+// tempo de aproveitar os preços/seleção.
+function _selPubBadgeExpiracao(expiraEm) {
+  if (!expiraEm) return ''
+  const ms = new Date(expiraEm).getTime() - Date.now()
+  if (ms <= 0) return ''
+  const dias = Math.floor(ms / 86400000)
+  const horas = Math.floor((ms % 86400000) / 3600000)
+  const texto = dias > 0 ? `${dias} dia${dias > 1 ? 's' : ''}${horas > 0 ? ` e ${horas}h` : ''}` : `${Math.max(1, horas)}h`
+  return `<div class="selpub-badge-expira">⏳ Esta galeria expira em ${texto}</div>`
+}
+
 function _renderSelPub() {
   const d = _selPub.dados
   const sticky = document.getElementById('selpub-sticky')
@@ -8509,6 +8523,7 @@ function _renderSelPub() {
   conteudo.innerHTML = `
     <h2>${esc(d.galeria.titulo)}</h2>
     <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
+    ${_selPubBadgeExpiracao(d.galeria.expira_em)}
     ${banner}
     <div class="selpub-regua" id="selpub-regua" style="display:none;">
       <span class="selpub-label" style="margin-bottom:0;">Desconto Progressivo</span>
