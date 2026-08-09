@@ -56,14 +56,14 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .btn[disabled]{opacity:.5;cursor:default;}
 .card{background:rgba(75,4,22,.5);border:1px solid rgba(200,175,127,.24);border-radius:10px;padding:22px;box-shadow:0 8px 24px -8px rgba(0,0,0,.5);}
 .toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--tinta);
+  position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%) translateY(20px);background:var(--tinta);
   border:1px solid var(--ouro);color:var(--ouro-luz);padding:.8em 1.4em;border-radius:8px;font-size:13.5px;
   z-index:999;opacity:0;transition:all .25s;pointer-events:none;
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
 /* ── galeria pública (link privado) ── */
-#view-publica{min-height:100vh;background:var(--palco);}
+#view-publica{min-height:100vh;min-height:100dvh;background:var(--palco);}
 .publica-topo{display:flex;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid rgba(200,175,127,.16);}
 .publica-topo img{width:28px;}
 .publica-topo span{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
@@ -161,7 +161,7 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 
 /* ── login ── */
 #login-screen{
-  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+  min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:24px;
   background:radial-gradient(ellipse at 50% 30%, #58061C 0%, #3A0311 45%, #2B0210 78%);
 }
 .login-card{width:100%;max-width:380px;text-align:center;}
@@ -176,7 +176,7 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 #login-btn{width:100%;margin-top:6px;}
 
 /* ── app shell ── */
-#app{display:none;height:100vh;flex-direction:column;overflow:hidden;}
+#app{display:none;height:100vh;height:100dvh;flex-direction:column;overflow:hidden;}
 .topbar{
   display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
   background:rgba(16,9,16,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
@@ -8709,6 +8709,15 @@ function _renderSelPubLightboxAtual() {
   const btn = document.getElementById('selpub-lightbox-btn')
   btn.textContent = marcada ? '✓ Marcada — clique pra desmarcar' : 'Marcar essa foto'
   btn.className = 'btn btn-sm ' + (marcada ? '' : 'btn-primary')
+  _selPubPrecarregarVizinhas(d, _selPubLightboxIdx)
+}
+// carrega em background as fotos anterior/próxima do índice atual, pra
+// navegar no lightbox sem tela preta esperando a próxima imagem baixar.
+function _selPubPrecarregarVizinhas(d, idx) {
+  if (!d?.fotos.length) return
+  const anterior = d.fotos[(idx - 1 + d.fotos.length) % d.fotos.length]
+  const proxima = d.fotos[(idx + 1) % d.fotos.length]
+  for (const f of [anterior, proxima]) { if (f?.url) new Image().src = f.url }
 }
 function _selPubLightboxToggleAtual() {
   const f = _selPub.dados?.fotos[_selPubLightboxIdx]
