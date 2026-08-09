@@ -493,6 +493,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modal{background:rgba(26,10,14,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:26px;width:100%;max-width:420px;}
 .modal h3{font-size:19px;margin-bottom:18px;}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
+.modal-secao{border-bottom:1px solid rgba(200,175,127,.14);padding-bottom:16px;margin-bottom:16px;}
+.modal-secao-titulo{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:12px;}
 
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
 .foto-item{
@@ -1773,39 +1775,55 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div class="modal" style="max-width:480px;">
     <input type="hidden" id="sel-id">
     <h3 style="margin-bottom:16px;" id="sel-modal-titulo">Nova Galeria de Seleção</h3>
-    <div class="field"><label>Título do ensaio</label><input type="text" id="sel-titulo" placeholder="Ex: Ensaio Solo — Ana Clara"></div>
-    <div class="field">
-      <label>Destinatário</label>
-      <select id="sel-dest-tipo" onchange="_selecaoTipoMudou()">
-        <option value="avulso">Pessoa avulsa (sem cadastro)</option>
-        <option value="aluno">Aluno</option>
-        <option value="pai">Pai / Responsável</option>
-        <option value="professor">Professor</option>
-      </select>
+
+    <div class="modal-secao">
+      <div class="modal-secao-titulo">📌 Informações Básicas</div>
+      <div class="field"><label>Título do ensaio</label><input type="text" id="sel-titulo" placeholder="Ex: Ensaio Solo — Ana Clara"></div>
+      <div class="field">
+        <label>Destinatário</label>
+        <select id="sel-dest-tipo" onchange="_selecaoTipoMudou()">
+          <option value="avulso">Pessoa avulsa (sem cadastro)</option>
+          <option value="aluno">Aluno</option>
+          <option value="pai">Pai / Responsável</option>
+          <option value="professor">Professor</option>
+        </select>
+      </div>
+      <div class="field" id="sel-dest-pessoa-wrap" style="display:none;">
+        <label>Selecione</label>
+        <select id="sel-dest-id" onchange="_selecaoPessoaMudou()"></select>
+      </div>
+      <div class="field"><label>Nome do cliente</label><input type="text" id="sel-cliente-nome"></div>
+      <div class="field"><label>WhatsApp</label><input type="text" id="sel-cliente-whatsapp" placeholder="(11) 91234-5678"></div>
     </div>
-    <div class="field" id="sel-dest-pessoa-wrap" style="display:none;">
-      <label>Selecione</label>
-      <select id="sel-dest-id" onchange="_selecaoPessoaMudou()"></select>
-    </div>
-    <div class="field"><label>Nome do cliente</label><input type="text" id="sel-cliente-nome"></div>
-    <div class="field"><label>WhatsApp</label><input type="text" id="sel-cliente-whatsapp" placeholder="(11) 91234-5678"></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label>Fotos incluídas no pacote</label><input type="number" id="sel-qtd-incluida" min="0" value="10"></div>
-      <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00" onchange="_selecaoPrecoBaseMudou()"></div>
-    </div>
-    <div class="field">
-      <label>Desconto progressivo (opcional)</label>
-      <div class="meta" style="margin-bottom:8px;">Se configurar faixas, elas substituem o valor único acima — cada faixa cobra só pelas fotos extras dela mesma (ex.: 1-5 a R$15, 6-10 a R$12 — 8 extras = 5×15 + 3×12).</div>
-      <div id="sel-faixas-lista"></div>
-      <div style="display:flex;gap:8px;margin-top:6px;">
-        <button class="btn btn-sm" type="button" onclick="_selecaoFaixaAdicionar()">+ Faixa</button>
-        <button class="btn btn-sm" type="button" onclick="_selecaoFaixasLimpar()" id="sel-faixas-limpar" style="display:none;">Usar valor único</button>
+
+    <div class="modal-secao">
+      <div class="modal-secao-titulo">💰 Regras de Cobrança</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>Fotos incluídas no pacote</label><input type="number" id="sel-qtd-incluida" min="0" value="10"></div>
+        <div class="field"><label>Valor por foto extra (R$)</label><input type="number" id="sel-preco-extra" min="0" step="0.01" value="15.00" onchange="_selecaoPrecoBaseMudou()"></div>
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
-      <div class="field"><label>Expira em</label><input type="date" id="sel-expira"></div>
-      <div class="field"><label>Senha (opcional)</label><input type="text" id="sel-senha" placeholder="Deixe em branco pra não usar"></div>
+
+    <div class="modal-secao">
+      <div class="modal-secao-titulo">📈 Desconto Progressivo</div>
+      <div class="field">
+        <div class="meta" style="margin-bottom:8px;">Se configurar faixas, elas substituem o valor único acima — cada faixa cobra só pelas fotos extras dela mesma (ex.: 1-5 a R$15, 6-10 a R$12 — 8 extras = 5×15 + 3×12).</div>
+        <div id="sel-faixas-lista"></div>
+        <div style="display:flex;gap:8px;margin-top:6px;">
+          <button class="btn btn-sm" type="button" onclick="_selecaoFaixaAdicionar()">+ Faixa</button>
+          <button class="btn btn-sm" type="button" onclick="_selecaoFaixasLimpar()" id="sel-faixas-limpar" style="display:none;">Usar valor único</button>
+        </div>
+      </div>
     </div>
+
+    <div class="modal-secao" style="border-bottom:none;padding-bottom:0;margin-bottom:0;">
+      <div class="modal-secao-titulo">🔒 Segurança &amp; Validade</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="field"><label>Expira em</label><input type="date" id="sel-expira"></div>
+        <div class="field"><label>Senha (opcional)</label><input type="text" id="sel-senha" placeholder="Deixe em branco pra não usar"></div>
+      </div>
+    </div>
+
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-selecao-galeria')">Cancelar</button>
       <button class="btn btn-primary btn-sm" id="sel-salvar-btn" onclick="salvarSelecaoGaleria()">Salvar e continuar</button>
