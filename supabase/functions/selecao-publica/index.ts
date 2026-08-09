@@ -107,11 +107,12 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_download_liberado', { p_token: token, p_senha: senha })
   if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
-  const fotos = await Promise.all((data.fotos || []).map(async (f: any) => {
+  const assinar = (lista: any[]) => Promise.all((lista || []).map(async (f: any) => {
     const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(f.storage_path_alta, 3600)
     return { id: f.id, url: signed?.signedUrl || null }
   }))
-  return json({ fotos: fotos.filter((f) => f.url) })
+  const [fotos, bastidores] = await Promise.all([assinar(data.fotos), assinar(data.bastidores)])
+  return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
 }
 
 function mapErro(msg: string) {

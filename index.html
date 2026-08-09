@@ -7918,15 +7918,18 @@ function renderSelecaoDetalhe() {
     ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
     <div class="card">
       <h3 style="font-size:15px;margin-bottom:10px;">Fotos da galeria (${g.fotos.length})</h3>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:#DBC9A8;">
+        <input type="checkbox" id="sel-upload-bonus" style="width:auto;"> Marcar como Bastidores/Brinde (grátis, libera junto com o pedido pago, não entra na seleção)
+      </label>
       <div class="upload-drop" id="sel-dropzone" onclick="document.getElementById('sel-upload-input').click()">
         Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
-        <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files])">
+        <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files], document.getElementById('sel-upload-bonus').checked)">
       </div>
       <div id="sel-upload-status"></div>
       <div class="foto-grid" id="sel-fotos-grid" style="margin-top:12px;"></div>
     </div>
   `
-  _ligarDropzone('sel-dropzone', 'sel-upload-input', files => uploadFotosSelecao(files))
+  _ligarDropzone('sel-dropzone', 'sel-upload-input', files => uploadFotosSelecao(files, document.getElementById('sel-upload-bonus')?.checked))
   _renderSelecaoFotosGrid()
   if (g.pedido) _renderSelecaoPedidoFotosGrid()
 }
@@ -7939,6 +7942,8 @@ function _renderSelecaoFotosGrid() {
   grid.innerHTML = g.fotos.map(f => `
     <div class="foto-item" id="selfoto-${f.id}">
       <img alt="">
+      ${f.bonus ? '<span class="ck" style="left:6px;right:auto;background:var(--ouro);color:var(--tinta);opacity:1;">🎁</span>' : ''}
+      <button class="foto-expand" style="opacity:1;right:34px;" onclick="event.stopPropagation();_toggleBonusSelecao('${f.id}')" title="${f.bonus ? 'Tirar de Bastidores/Brinde' : 'Marcar como Bastidores/Brinde'}">${f.bonus ? '🎁' : '🎁'}</button>
       <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
     </div>`).join('')
   g.fotos.forEach(async f => {
@@ -7961,7 +7966,7 @@ function _renderSelecaoPedidoFotosGrid() {
   })
 }
 
-async function uploadFotosSelecao(files) {
+async function uploadFotosSelecao(files, bonus) {
   if (!files?.length || !_selecaoDetalheAtual) return
   const galeriaId = _selecaoDetalheAtual.id
   const estados = files.map(() => 'aguardando')
@@ -7985,7 +7990,7 @@ async function uploadFotosSelecao(files) {
       estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
     }
     const { data: fotoRow, error: insErr } = await db.from('selecao_fotos').insert({
-      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length, nome_original: file.name,
+      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length, nome_original: file.name, bonus: !!bonus,
     }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     _selecaoDetalheAtual.fotos.push(fotoRow)
@@ -7997,6 +8002,17 @@ async function uploadFotosSelecao(files) {
   if (inputEl) inputEl.value = ''
   if (ok) registrarAuditoria('fez upload de fotos de seleção', 'selecao_galerias', galeriaId, `${ok} foto(s)`)
   _renderSelecaoFotosGrid()
+}
+
+async function _toggleBonusSelecao(fotoId) {
+  const f = _selecaoDetalheAtual?.fotos.find(x => x.id === fotoId)
+  if (!f) return
+  const novoValor = !f.bonus
+  const { error } = await db.from('selecao_fotos').update({ bonus: novoValor }).eq('id', fotoId)
+  if (error) { toast('Erro: ' + error.message); return }
+  f.bonus = novoValor
+  _renderSelecaoFotosGrid()
+  toast(novoValor ? 'Marcada como Bastidores/Brinde 🎁' : 'Tirada de Bastidores/Brinde')
 }
 
 async function _apagarFotoSelecao(fotoId) {
@@ -8427,24 +8443,49 @@ async function _selPubEnviarPedido() {
   _renderSelPub()
 }
 
+let _selPubBastidoresLiberados = []
+let _selPubAbaLiberado = 'fotos'
+
 async function _renderSelPubLiberado() {
   const conteudo = document.getElementById('selecao-pub-conteudo')
   conteudo.innerHTML = '<div class="empty">Preparando seus downloads em alta resolução…</div>'
   const { data, error } = await _selecaoPublicaFetch('download', _selPub.token, _selPub.senha)
   if (error) { conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`; return }
   _selPubFotosLiberadas = data.fotos || []
+  _selPubBastidoresLiberados = data.bastidores || []
+  _selPubAbaLiberado = 'fotos'
+  _renderSelPubLiberadoConteudo()
+}
+
+// Bastidores/Brinde entram numa aba separada da entrega, sempre grátis
+// — o mesmo link (?sel=TOKEN) já virou "modo entrega" sozinho quando o
+// pedido ficou 'liberado' (_carregarSelecaoPublica), essa função só
+// decide qual das duas listas mostrar dentro desse modo.
+function _selPubTrocarAbaLiberado(aba) {
+  _selPubAbaLiberado = aba
+  _renderSelPubLiberadoConteudo()
+}
+
+function _renderSelPubLiberadoConteudo() {
+  const conteudo = document.getElementById('selecao-pub-conteudo')
+  const temBastidores = _selPubBastidoresLiberados.length > 0
+  const lista = _selPubAbaLiberado === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   conteudo.innerHTML = `
     <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
     <div class="selpub-banner">🎉 Pagamento confirmado! Suas fotos em alta resolução estão liberadas.</div>
-    ${_selPubFotosLiberadas.length ? `<button class="btn btn-primary" style="margin-bottom:8px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${_selPubFotosLiberadas.length})</button>` : ''}
+    ${temBastidores ? `<div class="selpub-filtros">
+      <span class="chip${_selPubAbaLiberado === 'fotos' ? ' on' : ''}" onclick="_selPubTrocarAbaLiberado('fotos')">Suas Fotos (${_selPubFotosLiberadas.length})</span>
+      <span class="chip${_selPubAbaLiberado === 'bastidores' ? ' on' : ''}" onclick="_selPubTrocarAbaLiberado('bastidores')">🎁 Bastidores &amp; Brinde (${_selPubBastidoresLiberados.length})</span>
+    </div>` : ''}
+    ${lista.length ? `<button class="btn btn-primary" style="margin-bottom:8px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${lista.length})</button>` : ''}
     <div class="meta" style="margin-bottom:16px;">ou clique em qualquer foto abaixo pra baixar ela sozinha, na hora</div>
     <div class="selpub-grid" id="selpub-liberado-grid"></div>
   `
   const grid = document.getElementById('selpub-liberado-grid')
-  grid.innerHTML = _selPubFotosLiberadas.map((f, i) => `
+  grid.innerHTML = lista.length ? lista.map((f, i) => `
     <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
       <img src="${f.url}" alt="">
-    </div>`).join('')
+    </div>`).join('') : '<div class="empty">Nenhuma foto por aqui.</div>'
 }
 
 // baixa em lotes (chunks) em vez de um zip gigante só — pedidos grandes
@@ -8454,12 +8495,13 @@ async function _renderSelPubLiberado() {
 // UM lote, não do pedido inteiro. Pedido pequeno (≤ TAMANHO_LOTE)
 // continua saindo num .zip só, sem "parte 1 de 1" confuso.
 async function _selPubBaixarTodas() {
-  const fotos = _selPubFotosLiberadas
+  const fotos = _selPubAbaLiberado === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   if (!fotos.length) return
   const TAMANHO_LOTE = 25
   const lotes = []
   for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
-  const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+  const sufixoNome = _selPubAbaLiberado === 'bastidores' ? '-bastidores' : ''
+  const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
 
   for (let lote = 0; lote < lotes.length; lote++) {
     toast(lotes.length > 1 ? `Preparando lote ${lote + 1} de ${lotes.length}…` : `Preparando ${fotos.length} foto(s)…`)
