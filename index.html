@@ -803,7 +803,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-doc-card{display:flex;align-items:center;gap:10px;background:rgba(75,4,22,.35);border:1px solid rgba(200,175,127,.2);border-radius:8px;padding:10px 12px;margin-bottom:10px;text-decoration:none;cursor:pointer;}
 .post-doc-card svg{width:20px;height:20px;color:var(--ouro);flex-shrink:0;}
 .post-doc-card span{font-size:12.5px;color:#DBC9A8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.post-coment-moderado{font-size:9.5px;color:var(--ouro-fundo);border:1px solid rgba(200,175,127,.3);border-radius:99px;padding:0 .5em;margin-left:4px;}
+.post-coment-menu-wrap{position:relative;display:inline-block;margin-left:4px;}
+.post-coment-menu-btn{background:none;border:none;color:#DBC9A8;font-size:14px;line-height:1;cursor:pointer;padding:2px 4px;}
+.post-coment-menu-lista{display:none;position:absolute;right:0;top:100%;z-index:20;background:#2A0A12;border:1px solid rgba(200,175,127,.3);border-radius:8px;box-shadow:0 8px 20px rgba(0,0,0,.4);min-width:150px;overflow:hidden;}
+.post-coment-menu-lista.aberto{display:block;}
+.post-coment-menu-lista button{display:block;width:100%;text-align:left;background:none;border:none;color:#DBC9A8;font-size:12.5px;padding:8px 12px;cursor:pointer;}
+.post-coment-menu-lista button:hover{background:rgba(200,175,127,.12);}
 
 @media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
 </style>
@@ -5126,11 +5131,27 @@ function _comentItemHTML(c, postId, resposta) {
   return `
     <div class="post-coment-item${resposta ? ' resposta' : ''}">
       <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
-      ${ehModeracao ? `<span class="post-coment-moderado" title="Você pode remover como moderação — não é seu comentário">Moderação</span>` : ''}
       ${!resposta ? `<button class="post-coment-responder" onclick="_mostrarRespostaInput('${c.id}','${postId}')" title="Responder">Responder</button>` : ''}
-      ${podeApagar ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
+      ${ehModeracao ? `
+        <div class="post-coment-menu-wrap">
+          <button class="post-coment-menu-btn" onclick="_toggleComentMenu('${c.id}')" title="Mais opções">⋯</button>
+          <div class="post-coment-menu-lista" id="coment-menu-${c.id}">
+            <button onclick="apagarComentario('${c.id}','${postId}')">Excluir Comentário</button>
+          </div>
+        </div>` : ''}
+      ${podeApagar && !ehModeracao ? `<button class="post-coment-apagar" onclick="apagarComentario('${c.id}','${postId}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
     </div>`
 }
+
+function _toggleComentMenu(comentId) {
+  const el = document.getElementById('coment-menu-' + comentId)
+  if (!el) return
+  const abrir = !el.classList.contains('aberto')
+  _fecharComentMenus()
+  if (abrir) el.classList.add('aberto')
+}
+function _fecharComentMenus() { document.querySelectorAll('.post-coment-menu-lista.aberto').forEach(m => m.classList.remove('aberto')) }
+document.addEventListener('click', e => { if (!e.target.closest('.post-coment-menu-wrap')) _fecharComentMenus() })
 
 function renderComentarios(postId) {
   const lista = document.getElementById('post-coment-lista-' + postId)
@@ -8153,9 +8174,10 @@ function renderSelecaoDetalhe() {
     ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
     <div class="card">
       <h3 style="font-size:15px;margin-bottom:10px;">Fotos da galeria (${g.fotos.length})</h3>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:#DBC9A8;">
-        <input type="checkbox" id="sel-upload-bonus" style="width:auto;"> Marcar como Bastidores/Brinde (grátis, libera junto com o pedido pago, não entra na seleção)
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:#DBC9A8;" title="Fotos marcadas como brinde não contam no pacote e são liberadas de graça depois que o pedido é pago">
+        <input type="checkbox" id="sel-upload-bonus" style="width:auto;"> 🎁 Foto Bônus / Brinde
       </label>
+      <div class="meta" style="margin-bottom:10px;">Não conta no pacote — libera de graça junto com o pedido pago.</div>
       <div class="upload-drop" id="sel-dropzone" onclick="document.getElementById('sel-upload-input').click()">
         Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
         <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files], document.getElementById('sel-upload-bonus').checked)">
