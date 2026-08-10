@@ -280,6 +280,9 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .list-avatar img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;}
 .icon-btn{width:30px;height:30px;border-radius:8px;background:rgba(75,4,22,.3);border:1px solid rgba(200,175,127,.2);color:#DBC9A8;display:grid;place-items:center;cursor:pointer;transition:all .15s;flex-shrink:0;}
 .icon-btn:hover{background:rgba(200,175,127,.15);color:var(--ouro-luz);}
+/* botão com texto (não só ícone) dentro do mesmo estilo — a caixa
+   quadrada fixa de 30x30 do .icon-btn cortava o texto "✕ Destaque". */
+.icon-btn.largo{width:auto;padding:0 10px;gap:4px;font-size:11.5px;white-space:nowrap;}
 .icon-btn.danger:hover{background:rgba(224,85,112,.16);color:var(--vermelho);}
 .import-row-erro{background:rgba(224,85,112,.08);}
 .import-status-ok{color:var(--verde);font-size:11px;font-weight:700;}
@@ -5054,7 +5057,7 @@ function _postCardHTML(p) {
           <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${p.turma ? `Turma ${esc(p.turma)} · ` : ''}${fmtDataHora(p.criado_em)}</div>
         </div>
         ${destaqueAtivo ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
-        ${(p.destaque && podeApagar) ? `<button class="icon-btn" onclick="removerDestaque('${p.id}')" title="Remover destaque">✕ Destaque</button>` : ''}
+        ${(p.destaque && podeApagar) ? `<button class="icon-btn largo" onclick="removerDestaque('${p.id}')" title="Remover destaque">✕ Destaque</button>` : ''}
         ${podeApagar ? `<button class="icon-btn danger" onclick="apagarPost('${p.id}')" title="Apagar">${ICON_LIXEIRA}</button>` : ''}
       </div>
       ${p.texto ? `<div class="post-texto">${esc(p.texto)}</div>` : ''}
