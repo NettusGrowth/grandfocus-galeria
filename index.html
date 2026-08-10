@@ -2086,7 +2086,7 @@ function _ligarRealtimeGlobal() {
   if (_canalRealtime || !db) return
   _canalRealtime = db.channel('gf-realtime')
     .on('postgres_changes', { event: '*', schema: 'public', table: 'posts' }, _onRealtimeComunidade)
-    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reacoes' }, _onRealtimeComunidade)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'post_reacoes' }, _onRealtimeReacao)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'post_comentarios' }, _onRealtimeComentario)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'post_midias' }, _onRealtimeComunidade)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'fotos' }, _onRealtimeFotos)
@@ -2133,6 +2133,32 @@ function _onRealtimeComentario(payload) {
     const btn = document.getElementById('post-comentbtn-' + postId)
     if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
   }, 600)
+}
+
+// mesmo motivo do handler de comentário acima: reação de QUALQUER
+// pessoa em QUALQUER post ainda caía no rebuild geral do feed, jogando
+// o scroll pro topo e fechando a gaveta de comentários de quem só
+// estava lendo — só que disparado por curtida em vez de comentário,
+// bug bem mais frequente na prática. Reconsulta só as reações do post
+// afetado e repinta só a contagem/estado dos botões dele.
+function _onRealtimeReacao(payload) {
+  const postId = payload.new?.post_id ?? payload.old?.post_id
+  if (!postId) return
+  _debounceChave('reacao-' + postId, async () => {
+    const { data } = await db.from('post_reacoes').select('post_id,user_id,tipo').eq('post_id', postId)
+    const r = { porTipo: {}, minhaTipo: null }
+    ;(data || []).forEach(x => {
+      r.porTipo[x.tipo] = (r.porTipo[x.tipo] || 0) + 1
+      if (x.user_id === currentUser?.id) r.minhaTipo = x.tipo
+    })
+    _feedReacoes[postId] = r
+    const contagemEl = document.getElementById('post-reacoes-contagem-' + postId)
+    if (!contagemEl) return // post não está na tela agora (feed filtrado/trocado) — nada a repintar
+    const card = contagemEl.closest('.post-card')
+    card?.querySelectorAll('.post-reagir-opt').forEach(b => b.classList.toggle('on', b.title === r.minhaTipo))
+    const total = Object.values(r.porTipo).reduce((a, b) => a + b, 0)
+    contagemEl.textContent = total || ''
+  }, 400)
 }
 
 // offsetParent volta null se o elemento (ou algum ancestral, tipo a
