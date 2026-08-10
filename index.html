@@ -874,7 +874,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
   <div id="selecao-pub-conteudo" class="publica-conteudo"></div>
   <div class="publica-rodape-contato selpub-rodape-contato">
-    <a href="https://wa.me/5534992632922" target="_blank" rel="noopener">💬 Falar com o fotógrafo</a>
+    <a href="https://wa.me/5534992632922" id="selpub-whatsapp-suporte" target="_blank" rel="noopener">💬 Falar com o fotógrafo</a>
     <a href="https://www.instagram.com/grandfocus_" target="_blank" rel="noopener">📷 Instagram</a>
     <a href="https://grandfocuspf.myportfolio.com" target="_blank" rel="noopener">🖼 Portfólio</a>
   </div>
@@ -8575,6 +8575,13 @@ async function _carregarSelecaoPublica(token, senha) {
   _selPub.token = token
   _selPub.senha = senha
   _selPub.dados = data
+  // "preenchido automaticamente" pedido no prompt — mensagem já vem com
+  // o nome do ensaio, o cliente só precisa apertar enviar no WhatsApp.
+  const linkWpp = document.getElementById('selpub-whatsapp-suporte')
+  if (linkWpp) {
+    const msg = `Olá! Estou selecionando as fotos de "${data.galeria?.titulo || 'meu ensaio'}" e gostaria de tirar uma dúvida.`
+    linkWpp.href = `https://wa.me/5534992632922?text=${encodeURIComponent(msg)}`
+  }
   // crash recovery: sem pedido enviado ainda, o único lugar onde o
   // rascunho existe é o localStorage DESSE navegador (nunca foi pro
   // banco). Com pedido já existente, o banco é a fonte de verdade —
