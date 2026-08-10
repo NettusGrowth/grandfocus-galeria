@@ -4693,10 +4693,10 @@ function _gerarThumbWatermark(file) {
       }
 
       ctx.save()
-      ctx.globalAlpha = 0.22
+      ctx.globalAlpha = 0.78
       ctx.fillStyle = corMarca
       ctx.shadowColor = corContorno
-      ctx.shadowBlur = 3
+      ctx.shadowBlur = 4
       ctx.font = `${Math.max(16, Math.round(w / 20))}px Jost, sans-serif`
       ctx.textBaseline = 'middle'
       ctx.translate(w / 2, h / 2)
