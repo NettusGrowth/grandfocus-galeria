@@ -47,8 +47,26 @@ input,select,textarea{
   color:#EADFCF;border-radius:6px;padding:.55em .8em;font-family:var(--sans);font-size:14px;width:100%;
 }
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ouro);}
+/* autofill do Chrome (usuário/senha, nome, whatsapp...) pinta o campo
+   de azul pastel por padrão, quebrando a paleta escura — trava a cor
+   de fundo/texto do próprio campo via box-shadow inset (truque padrão,
+   já que background-color de autofill não é sobrescrevível direto). */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus{
+  -webkit-text-fill-color:#EADFCF;caret-color:#EADFCF;
+  -webkit-box-shadow:0 0 0px 1000px rgba(75,4,22,.4) inset;
+  box-shadow:0 0 0px 1000px rgba(75,4,22,.4) inset;
+  transition:background-color 9999s ease-in-out 0s;
+}
 label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--ouro-fundo);display:block;margin-bottom:6px;font-weight:500;}
 .field{margin-bottom:14px;}
+.toggle-switch{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;}
+.toggle-switch input{position:absolute;opacity:0;width:0;height:0;}
+.toggle-slider{position:absolute;inset:0;background:rgba(200,175,127,.18);border:1px solid rgba(200,175,127,.3);border-radius:999px;cursor:pointer;transition:background .15s,border-color .15s;}
+.toggle-slider::before{content:'';position:absolute;left:2px;top:2px;width:16px;height:16px;border-radius:50%;background:#8C7853;transition:transform .15s,background .15s;}
+.toggle-switch input:checked + .toggle-slider{background:rgba(212,175,55,.3);border-color:var(--dourado);}
+.toggle-switch input:checked + .toggle-slider::before{transform:translateX(16px);background:var(--ouro-luz);}
 .btn{
   display:inline-flex;align-items:center;justify-content:center;gap:.5em;font-family:var(--sans);font-size:13px;
   letter-spacing:.08em;font-weight:500;padding:.7em 1.4em;border-radius:6px;border:1px solid var(--ouro);
@@ -537,8 +555,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modal{background:rgba(26,10,14,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:26px;width:100%;max-width:420px;max-height:calc(100vh - 40px);max-height:calc(100dvh - 40px);overflow-y:auto;-webkit-overflow-scrolling:touch;}
 .modal h3{font-size:19px;margin-bottom:18px;}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;}
-.modal-secao{border-bottom:1px solid rgba(200,175,127,.14);padding-bottom:16px;margin-bottom:16px;}
-.modal-secao-titulo{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:12px;}
+.modal-secao{border-bottom:1px solid rgba(200,175,127,.14);padding-bottom:20px;margin-bottom:20px;}
+.modal-secao-titulo{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:14px;}
+.modal-secao-titulo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.modal-secao-titulo-row .modal-secao-titulo{margin-bottom:0;}
 
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
 .foto-item{
@@ -559,6 +579,26 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
+/* tarja clara de bônus (Seleção de Fotos) — em vez de um emoji
+   pequeno disputando espaço com os ícones de ação no canto, ocupa a
+   base inteira da foto pra ficar óbvio num relance de olhos. */
+.selfoto-bonus-badge{
+  position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(212,175,55,.96),rgba(212,175,55,.82));
+  color:#1A0A0E;font-size:10px;font-weight:700;letter-spacing:.03em;text-align:center;padding:4px 6px;
+}
+/* seleção em lote (marcar várias fotos como Bônus de uma vez) — anel
+   dourado + véu translúcido com check, sem disputar canto com os
+   ícones de ação (que ficam escondidos enquanto esse modo tá ativo). */
+.foto-item.sel-lote{border-color:var(--dourado);cursor:pointer;}
+.foto-item.sel-lote::after{
+  content:'✓';position:absolute;inset:0;background:rgba(212,175,55,.35);
+  display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:700;
+  color:#fff;text-shadow:0 1px 5px rgba(0,0,0,.5);pointer-events:none;
+}
+.selfoto-lote-barra{
+  align-items:center;justify-content:space-between;gap:10px;background:rgba(212,175,55,.1);
+  border:1px solid rgba(212,175,55,.35);border-radius:8px;padding:8px 12px;margin-bottom:10px;
+}
 .foto-item .tagbar{
   position:absolute;left:0;right:0;bottom:0;background:linear-gradient(to top,rgba(26,10,14,.92),transparent);
   padding:6px 8px;font-size:10.5px;color:var(--ouro-luz);opacity:0;transition:opacity .2s;
@@ -1874,14 +1914,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
 
     <div class="modal-secao">
-      <div class="modal-secao-titulo">📈 Desconto Progressivo</div>
-      <div class="field">
-        <div class="meta" style="margin-bottom:8px;">Se configurar faixas, elas substituem o valor único acima — cada faixa cobra só pelas fotos extras dela mesma (ex.: 1-5 a R$15, 6-10 a R$12 — 8 extras = 5×15 + 3×12).</div>
+      <div class="modal-secao-titulo-row">
+        <div class="modal-secao-titulo" style="margin-bottom:0;">📈 Desconto Progressivo</div>
+        <label class="toggle-switch"><input type="checkbox" id="sel-desconto-toggle" onchange="_selecaoToggleDesconto(this.checked)"><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field" id="sel-faixas-wrap" style="display:none;margin-bottom:0;">
         <div id="sel-faixas-lista"></div>
-        <div style="display:flex;gap:8px;margin-top:6px;">
-          <button class="btn btn-sm" type="button" onclick="_selecaoFaixaAdicionar()">+ Faixa</button>
-          <button class="btn btn-sm" type="button" onclick="_selecaoFaixasLimpar()" id="sel-faixas-limpar" style="display:none;">Usar valor único</button>
-        </div>
+        <button class="btn btn-sm" type="button" onclick="_selecaoFaixaAdicionar()">+ Faixa</button>
       </div>
     </div>
 
@@ -8138,11 +8177,25 @@ function _selecaoPrecoBaseMudou() {
   _renderSelecaoFaixas()
 }
 
+// liga/desliga o desconto progressivo pelo toggle — ON sem nenhuma
+// faixa ainda usa os valores sugeridos de _selecaoFaixaAdicionar (a
+// mesma sugestão de sempre); OFF limpa tudo e volta pro preço único,
+// igual clicar em "Usar valor único" fazia antes.
+function _selecaoToggleDesconto(ligado) {
+  if (ligado) { if (!_selecaoFaixasEdit.length) _selecaoFaixaAdicionar() }
+  else { _selecaoFaixasLimpar() }
+  const wrap = document.getElementById('sel-faixas-wrap')
+  if (wrap) wrap.style.display = ligado ? 'block' : 'none'
+}
+
 function _renderSelecaoFaixas() {
   const wrap = document.getElementById('sel-faixas-lista')
-  const btnLimpar = document.getElementById('sel-faixas-limpar')
+  const toggle = document.getElementById('sel-desconto-toggle')
+  const faixasWrap = document.getElementById('sel-faixas-wrap')
   if (!wrap) return
-  if (btnLimpar) btnLimpar.style.display = _selecaoFaixasEdit.length ? 'inline-flex' : 'none'
+  const ligado = _selecaoFaixasEdit.length > 0
+  if (toggle) toggle.checked = ligado
+  if (faixasWrap) faixasWrap.style.display = ligado ? 'block' : 'none'
   wrap.innerHTML = _selecaoFaixasEdit.map((f, i) => {
     const ultima = i === _selecaoFaixasEdit.length - 1
     const primeira = i === 0
@@ -8392,22 +8445,61 @@ function renderSelecaoDetalhe() {
     </div>
     ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
     <div class="card">
-      <h3 style="font-size:15px;margin-bottom:10px;">Fotos da galeria (${g.fotos.length})</h3>
-      <label style="display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:#DBC9A8;" title="Fotos marcadas como brinde não contam no pacote e são liberadas de graça depois que o pedido é pago">
-        <input type="checkbox" id="sel-upload-bonus" style="width:auto;"> 🎁 Foto Bônus / Brinde
-      </label>
-      <div class="meta" style="margin-bottom:10px;">Não conta no pacote — libera de graça junto com o pedido pago.</div>
-      <div class="upload-drop" id="sel-dropzone" onclick="document.getElementById('sel-upload-input').click()">
+      <div class="foto-toolbar">
+        <h3 style="font-size:15px;">Fotos da galeria (${g.fotos.length})</h3>
+        <button class="btn btn-sm" onclick="_selecaoLoteToggleModo()">${_selLoteModoAtivo ? '✕ Cancelar seleção' : '☑ Selecionar fotos'}</button>
+      </div>
+      <div class="meta" style="margin-bottom:10px;">${_selLoteModoAtivo ? 'Clique nas fotos pra marcar — depois converta todas de uma vez.' : 'Marque uma foto como <b>🎁 Bônus/Brinde</b> clicando no ícone de presente sobre ela — não conta no pacote e libera de graça junto com o pedido pago.'}</div>
+      <div class="selfoto-lote-barra" id="sel-lote-barra" style="display:${_selLoteModoAtivo ? 'flex' : 'none'};">
+        <span class="meta" id="sel-lote-contagem" style="margin:0;">${_selLoteMarcadas.size} selecionada(s)</span>
+        <button class="btn btn-sm btn-primary" onclick="_selecaoLoteConverterBonus()">🎁 Converter em Bônus</button>
+      </div>
+      <div class="upload-drop" id="sel-dropzone" style="${_selLoteModoAtivo ? 'display:none;' : ''}" onclick="document.getElementById('sel-upload-input').click()">
         Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
-        <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files], document.getElementById('sel-upload-bonus').checked)">
+        <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files], false)">
       </div>
       <div id="sel-upload-status"></div>
       <div class="foto-grid" id="sel-fotos-grid" style="margin-top:12px;"></div>
     </div>
   `
-  _ligarDropzone('sel-dropzone', 'sel-upload-input', files => uploadFotosSelecao(files, document.getElementById('sel-upload-bonus')?.checked))
+  _ligarDropzone('sel-dropzone', 'sel-upload-input', files => uploadFotosSelecao(files, false))
   _renderSelecaoFotosGrid()
   if (g.pedido) _renderSelecaoPedidoFotosGrid()
+}
+
+// ── seleção em lote pra marcar várias fotos como Bônus/Brinde de uma
+// vez, sem o checkbox ambíguo que ficava acima do upload (não dava pra
+// saber se ele afetava só o próximo envio ou a galeria inteira). Ação
+// individual (clique no 🎁 de cada foto) continua funcionando igual,
+// isso aqui é só um atalho pra marcar várias de uma vez. ──
+let _selLoteModoAtivo = false
+let _selLoteMarcadas = new Set()
+
+function _selecaoLoteToggleModo() {
+  _selLoteModoAtivo = !_selLoteModoAtivo
+  _selLoteMarcadas.clear()
+  renderSelecaoDetalhe()
+}
+
+function _selecaoLoteToggleFoto(fotoId) {
+  if (_selLoteMarcadas.has(fotoId)) _selLoteMarcadas.delete(fotoId)
+  else _selLoteMarcadas.add(fotoId)
+  _renderSelecaoFotosGrid()
+  const barra = document.getElementById('sel-lote-contagem')
+  if (barra) barra.textContent = `${_selLoteMarcadas.size} selecionada(s)`
+}
+
+async function _selecaoLoteConverterBonus() {
+  if (!_selLoteMarcadas.size) return
+  const ids = [..._selLoteMarcadas]
+  const { error } = await db.from('selecao_fotos').update({ bonus: true }).in('id', ids)
+  if (error) { toast('Erro: ' + error.message); return }
+  const g = _selecaoDetalheAtual
+  ids.forEach(id => { const f = g?.fotos.find(x => x.id === id); if (f) f.bonus = true })
+  toast(`${ids.length} foto${ids.length > 1 ? 's' : ''} marcada${ids.length > 1 ? 's' : ''} como Bônus/Brinde 🎁`)
+  _selLoteModoAtivo = false
+  _selLoteMarcadas.clear()
+  renderSelecaoDetalhe()
 }
 
 function _renderSelecaoFotosGrid() {
@@ -8417,14 +8509,16 @@ function _renderSelecaoFotosGrid() {
   if (!g.fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto enviada ainda.</div>'; return }
   grid.innerHTML = g.fotos.map(f => {
     const ehCapa = g.capa_url && f.storage_path === g.capa_url
+    const marcada = _selLoteMarcadas.has(f.id)
     return `
-    <div class="foto-item" id="selfoto-${f.id}">
+    <div class="foto-item${marcada ? ' sel-lote' : ''}" id="selfoto-${f.id}" ${_selLoteModoAtivo ? `onclick="_selecaoLoteToggleFoto('${f.id}')"` : ''}>
       <img alt="">
-      ${f.bonus ? '<span class="ck" style="left:6px;right:auto;background:var(--ouro);color:var(--tinta);opacity:1;">🎁</span>' : ''}
-      ${ehCapa ? '<span class="ck" style="left:6px;right:auto;top:30px;background:var(--verde);color:#fff;opacity:1;" title="Capa da galeria">⭐</span>' : ''}
+      ${ehCapa ? '<span class="ck" style="left:6px;right:auto;background:var(--verde);color:#fff;opacity:1;" title="Capa da galeria">⭐</span>' : ''}
+      ${f.bonus ? '<div class="selfoto-bonus-badge">🎁 Bônus/Brinde</div>' : ''}
+      ${!_selLoteModoAtivo ? `
       <button class="foto-expand" style="opacity:1;right:62px;" onclick="event.stopPropagation();_definirCapaSelecao('${f.id}')" title="${ehCapa ? 'Essa é a capa da galeria' : 'Usar como capa da galeria'}" ${ehCapa ? 'disabled' : ''}>${ehCapa ? '★' : '☆'}</button>
-      <button class="foto-expand" style="opacity:1;right:34px;" onclick="event.stopPropagation();_toggleBonusSelecao('${f.id}')" title="${f.bonus ? 'Tirar de Bastidores/Brinde' : 'Marcar como Bastidores/Brinde'}">${f.bonus ? '🎁' : '🎁'}</button>
-      <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>
+      <button class="foto-expand" style="opacity:1;right:34px;" onclick="event.stopPropagation();_toggleBonusSelecao('${f.id}')" title="${f.bonus ? 'Tirar de Bastidores/Brinde' : 'Marcar como Bastidores/Brinde'}">🎁</button>
+      <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>` : ''}
     </div>`
   }).join('')
   g.fotos.forEach(async f => {
