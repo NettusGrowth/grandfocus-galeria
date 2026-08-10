@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Galeria Grand Focus</title>
-<link rel="icon" href="assets/logo-icone.png">
+<link rel="icon" href="/assets/logo-icone.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@200;300;400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
@@ -875,7 +875,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <!-- galeria pública (link privado, sem login) — só aparece com ?g=TOKEN na URL -->
 <div id="view-publica" style="display:none;">
   <div class="publica-topo">
-    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <img src="/assets/logo-icone.png" alt="Grand Focus">
     <span>Grand Focus</span>
   </div>
   <div id="publica-conteudo" class="publica-conteudo"></div>
@@ -889,7 +889,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <!-- seleção de fotos & extras (Bloco 8) — só aparece com ?sel=TOKEN na URL -->
 <div id="view-selecao" style="display:none;">
   <div class="publica-topo">
-    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <img src="/assets/logo-icone.png" alt="Grand Focus">
     <span>Grand Focus</span>
   </div>
   <div class="selpub-sticky" id="selpub-sticky" style="display:none;">
@@ -906,7 +906,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <div id="login-screen">
   <div class="login-card">
-    <img src="assets/logo-icone.png" alt="Grand Focus">
+    <img src="/assets/logo-icone.png" alt="Grand Focus">
     <h1>Grand Focus</h1>
     <div class="sub">Galeria Digital</div>
     <div id="login-error"></div>
@@ -923,14 +923,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </div>
 
 <div class="welcome-overlay" id="welcome-overlay">
-  <img src="assets/logo-icone.png" alt="">
+  <img src="/assets/logo-icone.png" alt="">
   <h1 id="welcome-nome">Bem-vindo!</h1>
   <div class="sub">Grand Focus · Galeria Digital</div>
 </div>
 
 <div id="app">
   <div class="topbar">
-    <div class="brand"><img src="assets/logo-icone.png" alt=""><span>Grand Focus</span></div>
+    <div class="brand"><img src="/assets/logo-icone.png" alt=""><span>Grand Focus</span></div>
     <button class="topbar-busca" id="topbar-busca-btn" onclick="_abrirBuscaGlobal()" style="display:none;">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="10.5" cy="10.5" r="6.5"/><line x1="20" y1="20" x2="15.3" y2="15.3"/></svg>
       <span>Buscar escola, aluno, evento…</span>
@@ -1941,7 +1941,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <button class="lightbox-nav next" onclick="lightboxNav(1)" aria-label="Próxima">›</button>
   <div class="lightbox-img-wrap" id="lightbox-img-wrap"><img id="lightbox-img" src="" alt="" onclick="event.stopPropagation();_lightboxToggleZoom()"></div>
   <div class="lightbox-foot">
-    <img src="assets/logo-icone.png" alt="">
+    <img src="/assets/logo-icone.png" alt="">
     <span id="lightbox-caption"></span>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
   </div>
@@ -8820,9 +8820,22 @@ function _selPubRenderGrid() {
 function _selPubFiltrar(f) { _selPubFiltro = f; _renderSelPub() }
 
 function _selPubToggle(fotoId) {
-  if (_selPub.selecionados.has(fotoId)) _selPub.selecionados.delete(fotoId)
+  const jaSelecionado = _selPub.selecionados.has(fotoId)
+  if (jaSelecionado) _selPub.selecionados.delete(fotoId)
   else _selPub.selecionados.add(fotoId)
-  _selPubRenderGrid()
+  // no filtro "Todas" nenhuma foto entra/sai da lista visível ao
+  // (des)marcar — só troca a classe no card que já existe no DOM, sem
+  // recriar a grade inteira. Recriar tudo a cada toque fazia TODAS as
+  // fotos piscarem (cada <img> era destruída e recriada) e, no celular,
+  // o reflow do grid tipo masonry chegava a jogar a página de volta pro
+  // topo. Nos filtros "Selecionadas"/"Pendentes" a foto some da lista
+  // atual de verdade, aí sim precisa re-renderizar a grade.
+  if (_selPubFiltro === 'todas') {
+    const card = document.getElementById('selpub-card-' + fotoId)
+    if (card) card.classList.toggle('on', !jaSelecionado)
+  } else {
+    _selPubRenderGrid()
+  }
   _selPubAtualizarContador()
   _selPubSalvarLocal()
   // pulse de escala no card pra dar feedback tátil instantâneo do clique/toque
