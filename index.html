@@ -9002,7 +9002,12 @@ function _selPubAbrirConfirmar() {
   // visível ao mesmo tempo deixava as duas ações lado a lado, e clicar
   // em "Enviar Seleção" pulava o pagamento direto pro status "enviado".
   const btnEnviar = document.getElementById('selpub-btn-enviar')
-  if (btnEnviar) btnEnviar.style.display = podePagarAutomatico ? 'none' : ''
+  if (btnEnviar) {
+    btnEnviar.style.display = podePagarAutomatico ? 'none' : ''
+    // total zerado (dentro do pacote) é um fluxo diferente de "enviei e
+    // vou pagar depois" — texto do botão precisa deixar isso claro.
+    btnEnviar.textContent = total > 0 ? 'Enviar Seleção para o Estúdio' : 'Confirmar e Enviar Seleção'
+  }
   document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
   abrirModal('modal-selecao-confirmar')
 }
@@ -9023,17 +9028,20 @@ async function _selPubPagarAgora() {
 
 async function _selPubEnviarPedido() {
   const btn = document.getElementById('selpub-btn-enviar')
+  const textoOriginal = btn.textContent
   btn.disabled = true; btn.textContent = 'Enviando…'
   const observacoes = document.getElementById('selpub-observacoes').value.trim() || null
   const { data, error } = await _selecaoPublicaFetch('enviar', _selPub.token, _selPub.senha, {
     foto_ids: [..._selPub.selecionados], observacoes,
   })
-  btn.disabled = false; btn.textContent = 'Enviar Seleção para o Estúdio'
+  btn.disabled = false; btn.textContent = textoOriginal
   if (error) { toast(error); return }
   _selPub.dados.pedido = { foto_ids: [..._selPub.selecionados], status: 'enviado', valor_total: data.valor_total, qtd_extra: data.qtd_extra, observacoes }
   try { localStorage.removeItem('gf_sel_' + _selPub.token) } catch (e) {}
   fecharModal('modal-selecao-confirmar')
-  toast('Seleção enviada ✓ — o estúdio vai confirmar o pagamento e liberar suas fotos em alta.')
+  toast(data.valor_total > 0
+    ? 'Seleção enviada ✓ — o estúdio vai confirmar o pagamento e liberar suas fotos em alta.'
+    : 'Seleção confirmada ✓ — dentro do pacote, sem valor extra a pagar.')
   _renderSelPub()
 }
 
