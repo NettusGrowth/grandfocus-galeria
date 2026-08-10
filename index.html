@@ -71,6 +71,22 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .publica-senha-card{max-width:360px;margin:60px auto;text-align:center;}
 .publica-capa{width:100%;height:220px;border-radius:14px;object-fit:cover;margin-bottom:18px;}
 
+/* ── galeria pública (?g=TOKEN) — mesmo canvas boutique claro da
+   Seleção (#view-selecao), só visual: nenhuma lógica de dados, permissão
+   ou navegação foi tocada, só o CSS escopado aqui dentro. ── */
+#view-publica{background:#F9F9F9;color:#1A1A1A;}
+#view-publica .publica-topo{border-bottom:1px solid rgba(0,0,0,.08);}
+#view-publica .publica-topo span{color:#1A1A1A;}
+#view-publica h2{color:#1A1A1A;font-size:22px;}
+#view-publica .meta{color:#6B6B6B;}
+#view-publica .publica-conteudo{padding:20px 16px 16px;}
+@media(min-width:720px){#view-publica .publica-conteudo{padding:28px 32px;}}
+#view-publica .publica-capa{border-radius:16px;box-shadow:0 16px 40px -16px rgba(0,0,0,.25);}
+#view-publica .foto-grid{gap:6px;}
+@media(min-width:720px){#view-publica .foto-grid{gap:14px;}}
+#view-publica .foto-item{border-radius:10px;border:1px solid rgba(0,0,0,.06);background:#eee;transition:transform .15s,box-shadow .15s;}
+#view-publica .foto-item:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(0,0,0,.25);}
+
 /* ── seleção de fotos & extras (Bloco 8/11) — tela do cliente ──
    Canvas próprio, boutique/e-commerce: claro, a foto é a protagonista,
    nada do resto do painel (admin, login) é afetado — tudo escopado
