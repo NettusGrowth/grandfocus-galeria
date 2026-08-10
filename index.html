@@ -9078,10 +9078,20 @@ if (_configPendente) {
 } else if (_tokenSelecao) {
   _iniciarModoSelecao(_tokenSelecao)
 } else if (_slugSelecaoMatch) {
-  db.rpc('selecao_resolver_slug', { p_slug: decodeURIComponent(_slugSelecaoMatch[1]) }).then(({ data: token }) => {
-    if (token) _iniciarModoSelecao(token)
-    else { document.getElementById('login-screen').style.display = 'none'; document.getElementById('selecao-pub-conteudo').innerHTML = '<div class="empty">Galeria não encontrada ou link expirado.</div>'; document.getElementById('view-selecao').style.display = 'block' }
-  })
+  // esconde o login e mostra "carregando" na hora — sem isso, o visitante
+  // via /s/slug via um flash da tela de login enquanto o RPC resolve.
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('view-selecao').style.display = 'block'
+  document.getElementById('selecao-pub-conteudo').innerHTML = '<div class="empty">Carregando…</div>'
+  db.rpc('selecao_resolver_slug', { p_slug: decodeURIComponent(_slugSelecaoMatch[1]) })
+    .then(({ data: token, error }) => {
+      if (error) throw error
+      if (token) _iniciarModoSelecao(token)
+      else _renderSelPubInvalidoCard('Galeria não encontrada ou link expirado.')
+    })
+    .catch(() => {
+      document.getElementById('selecao-pub-conteudo').innerHTML = '<div class="empty">Não foi possível conectar. Confira sua internet e tente de novo.</div>'
+    })
 } else {
   iniciarAuth()
 }
