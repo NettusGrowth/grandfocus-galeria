@@ -5017,7 +5017,7 @@ function _postMidiaHTML(m) {
       <audio id="post-midia-${m.id}" controls preload="none"><source src="" type="audio/mpeg"></audio>
     </div>`
   }
-  return `<img id="post-midia-${m.id}" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
+  return `<img id="post-midia-${m.id}" loading="lazy" onclick="abrirLightboxPost('${m.post_id}',${JSON.stringify(m.id)})" alt="">`
 }
 // player customizado (play/pausa, progresso, tempo, tela cheia) na
 // paleta Grand Focus — troca os controles nativos feios do <video>.
@@ -7733,7 +7733,7 @@ function filtrarFotosAluno(alunoId, chipEl) {
 function _fotoItemHTML(f) {
   return `
     <div class="foto-item${_fotoSelecao.has(f.id) ? ' sel' : ''}" id="fg-${f.id}" onclick="toggleSelecaoFoto('${f.id}')">
-      <img data-path="${esc(f.storage_path)}" alt="">
+      <img data-path="${esc(f.storage_path)}" loading="lazy" alt="">
       <div class="ck">${_fotoSelecao.has(f.id) ? '✓' : ''}</div>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -7876,22 +7876,33 @@ async function _carregarGaleriaPublica(token, senha) {
   const data = await resp.json().catch(() => ({}))
   if (!resp.ok || data.error) {
     if (/senha/i.test(data.error || '')) { _renderPublicaSenhaCard(token, /^.+$/.test(senha || '')); return }
-    conteudo.innerHTML = `<div class="empty">${esc(data.error || 'Não foi possível abrir esse link.')}</div>`
+    _renderPublicaInvalidoCard(data.error)
     return
   }
   _publicaFotos = data.fotos || []
   conteudo.innerHTML = `
-    ${data.evento?.capaUrl ? `<img class="publica-capa" src="${data.evento.capaUrl}" alt="">` : ''}
+    ${data.evento?.capaUrl ? `<img class="publica-capa" src="${data.evento.capaUrl}" loading="lazy" alt="">` : ''}
     <h2>${esc(data.evento?.nome || 'Galeria')}</h2>
     <div class="meta" style="margin-bottom:20px;">${data.evento?.data ? fmtData(data.evento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
-    ${_publicaFotos.length ? '<div class="foto-grid" id="publica-grid"></div>' : '<div class="empty">Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
+    ${_publicaFotos.length ? '<div class="foto-grid" id="publica-grid"></div>' : '<div class="empty">📷<br>Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
   `
   const grid = document.getElementById('publica-grid')
   if (grid) {
     grid.innerHTML = _publicaFotos.map((f, i) => `
-      <div class="foto-item" style="cursor:pointer;" onclick="_publicaAbrirLightbox(${i})"><img src="${f.url}" alt=""></div>
+      <div class="foto-item" style="cursor:pointer;" onclick="_publicaAbrirLightbox(${i})"><img src="${f.url}" loading="lazy" alt=""></div>
     `).join('')
   }
+}
+
+// token inexistente/malformado — mesmo padrão visual do card de senha,
+// em vez do ".empty" genérico usado no resto do app.
+function _renderPublicaInvalidoCard(mensagem) {
+  document.getElementById('publica-conteudo').innerHTML = `
+    <div class="card publica-senha-card">
+      <h3 style="margin-bottom:6px;">🔍 Galeria não encontrada</h3>
+      <div class="meta">${esc(mensagem || 'Esse link não existe ou foi removido. Confira se copiou certinho, ou peça um novo link ao estúdio.')}</div>
+    </div>
+  `
 }
 
 function _renderPublicaSenhaCard(token, senhaErrada) {
@@ -8655,7 +8666,7 @@ function _selPubRenderGrid() {
     const idxGlobal = d.fotos.findIndex(x => x.id === f.id)
     return `
     <div class="selpub-card${_selPub.selecionados.has(f.id) ? ' on' : ''}" id="selpub-card-${f.id}" onclick="_selPubToggle('${f.id}')">
-      <img src="${f.url}" alt="">
+      <img src="${f.url}" loading="lazy" alt="">
       <button class="selpub-zoom" onclick="event.stopPropagation();_selPubAbrirLightbox(${idxGlobal})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
@@ -8957,13 +8968,13 @@ function _renderSelPubLiberadoConteudo() {
   const grid = document.getElementById('selpub-liberado-grid')
   grid.innerHTML = _selPubFotosLiberadas.length ? _selPubFotosLiberadas.map((f, i) => `
     <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
-      <img src="${f.url}" alt="">
+      <img src="${f.url}" loading="lazy" alt="">
     </div>`).join('') : '<div class="empty">Nenhuma foto por aqui.</div>'
   if (temBastidores) {
     const gridB = document.getElementById('selpub-bastidores-grid')
     gridB.innerHTML = _selPubBastidoresLiberados.map((f, i) => `
       <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','bastidor-${i + 1}.jpg')" title="Baixar essa foto">
-        <img src="${f.url}" alt="">
+        <img src="${f.url}" loading="lazy" alt="">
       </div>`).join('')
   }
 }
