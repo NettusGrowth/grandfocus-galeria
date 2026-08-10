@@ -8669,12 +8669,40 @@ function _selPubBadgeExpiracao(expiraEm) {
   return `<div class="selpub-badge-expira">⏳ Esta galeria expira em ${texto}</div>`
 }
 
+let _selPubPollingLiberado = null
+function _selPubIniciarPollingLiberado() {
+  if (_selPubPollingLiberado) return
+  let tentativas = 0
+  _selPubPollingLiberado = setInterval(() => {
+    tentativas++
+    if (tentativas > 24) { _selPubPararPollingLiberado(); return } // ~2min (24 × 5s), desiste — o admin ainda pode liberar na mão
+    _carregarSelecaoPublica(_selPub.token, _selPub.senha)
+  }, 5000)
+}
+function _selPubPararPollingLiberado() {
+  if (_selPubPollingLiberado) { clearInterval(_selPubPollingLiberado); _selPubPollingLiberado = null }
+}
+
 function _renderSelPub() {
   const d = _selPub.dados
   const sticky = document.getElementById('selpub-sticky')
   const conteudo = document.getElementById('selecao-pub-conteudo')
 
-  if (d.pedido?.status === 'liberado') { sticky.style.display = 'none'; _renderSelPubLiberado(); return }
+  if (d.pedido?.status === 'liberado') { _selPubPararPollingLiberado(); sticky.style.display = 'none'; _renderSelPubLiberado(); return }
+
+  // o "Pagar Agora" abre o checkout numa ABA NOVA — essa aba aqui não
+  // tem como saber sozinha quando o webhook confirmou o pagamento. O
+  // redirect_url da InfinitePay volta pra cá, mas pode chegar antes do
+  // nosso webhook terminar de processar (corrida de rede). Enquanto o
+  // pedido estiver "enviado" com pagamento automático configurado e
+  // valor pendente, reconsulta sozinho de tempos em tempos até liberar
+  // — é o que garante a "transição instantânea" pedida, mesmo se o
+  // redirect chegar cedo demais.
+  if (d.pedido?.status === 'enviado' && d.pagamento_automatico && d.pedido.valor_total > 0) {
+    _selPubIniciarPollingLiberado()
+  } else {
+    _selPubPararPollingLiberado()
+  }
 
   sticky.style.display = 'flex'
   const banner = d.pedido
