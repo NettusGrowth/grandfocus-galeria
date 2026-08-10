@@ -69,6 +69,11 @@ async function acaoCriarPagamento(admin: any, token: string, senha: string | nul
   if (error) { console.error('selecao-publica[criar_pagamento]: RPC dados falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
   if (!data.pagamento_automatico) return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400)
   if (!data.pedido || !data.pedido.valor_total || data.pedido.valor_total <= 0) return json({ error: 'Envie sua seleção primeiro — não há valor extra a pagar ainda.' }, 400)
+  // a InfinitePay recusa (422 "Total price must be greater than 1") valores
+  // de R$1,00 ou menos — confirmado num teste real (log de produção).
+  // Checa isso ANTES de chamar a API deles, pra dar uma mensagem clara em
+  // vez de deixar a chamada falhar com um erro genérico de "tente de novo".
+  if (data.pedido.valor_total <= 1) return json({ error: 'O pagamento automático só funciona pra valores acima de R$ 1,00 (regra da InfinitePay). Pague pelo PIX manual abaixo, ou fale com o estúdio.' }, 400)
 
   // usa o handle que já veio junto no mesmo RPC de dados acima — evita
   // uma segunda leitura separada na tabela (era o que estava mascarando
