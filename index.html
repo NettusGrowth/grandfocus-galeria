@@ -8648,20 +8648,36 @@ async function _selecaoPublicaFetch(action, token, senha, extra) {
   }
 }
 
-async function _carregarSelecaoPublica(token, senha) {
+async function _carregarSelecaoPublica(token, senha, opts = {}) {
+  const silencioso = !!opts.silencioso
   const conteudo = document.getElementById('selecao-pub-conteudo')
-  conteudo.innerHTML = '<div class="empty">Carregando…</div>'
-  document.getElementById('selpub-sticky').style.display = 'none'
+  if (!silencioso) {
+    conteudo.innerHTML = '<div class="empty">Carregando…</div>'
+    document.getElementById('selpub-sticky').style.display = 'none'
+  }
   const { data, error } = await _selecaoPublicaFetch('dados', token, senha)
   if (error) {
+    // poll de fundo (esperando o webhook confirmar o pagamento) que
+    // falhou por uma instabilidade passageira — tenta de novo sozinho
+    // no próximo tick, sem derrubar a tela pro cliente no meio da
+    // espera.
+    if (silencioso) return
     if (/senha/i.test(error)) { _renderSelPubSenhaCard(token, !!senha); return }
     if (/expirou/i.test(error)) { _renderSelPubExpiradaCard(error); return }
     _renderSelPubInvalidoCard(error)
     return
   }
+  // no poll de fundo, se o status do pedido não mudou desde a última
+  // vez, não tem nada de novo pra mostrar — só guarda o dado fresco e
+  // NÃO re-renderiza. Reconstruir a grade inteira a cada 5s (mesmo sem
+  // nada mudar) fazia todas as fotos piscarem e parecia a página
+  // reiniciando sozinha enquanto o cliente esperava a confirmação do
+  // pagamento.
+  const statusAntes = _selPub.dados?.pedido?.status
   _selPub.token = token
   _selPub.senha = senha
   _selPub.dados = data
+  if (silencioso && (data.pedido?.status || null) === (statusAntes || null)) return
   // "preenchido automaticamente" pedido no prompt — mensagem já vem com
   // o nome do ensaio, o cliente só precisa apertar enviar no WhatsApp.
   const linkWpp = document.getElementById('selpub-whatsapp-suporte')
@@ -8737,7 +8753,7 @@ function _selPubIniciarPollingLiberado() {
   _selPubPollingLiberado = setInterval(() => {
     tentativas++
     if (tentativas > 24) { _selPubPararPollingLiberado(); return } // ~2min (24 × 5s), desiste — o admin ainda pode liberar na mão
-    _carregarSelecaoPublica(_selPub.token, _selPub.senha)
+    _carregarSelecaoPublica(_selPub.token, _selPub.senha, { silencioso: true })
   }, 5000)
 }
 function _selPubPararPollingLiberado() {
@@ -9092,31 +9108,56 @@ function _selPubAbrirConfirmar() {
 // não tem valor_total pra cobrar ainda.
 async function _selPubPagarAgora() {
   const btn = document.getElementById('selpub-btn-pagar')
-  if (!_selPub.dados.pedido) { await _selPubEnviarPedido() }
+  // abre a aba ANTES de qualquer "await" — depois de esperar uma
+  // resposta de rede o navegador (principalmente no celular) não conta
+  // mais como "gesto direto do usuário" e BLOQUEIA um window.open()
+  // novo silenciosamente, mesmo com o link certinho. Abre em branco já
+  // aqui (isso conta como gesto do usuário) e só troca o destino dela
+  // depois que o link real estiver pronto.
+  const abaCheckout = window.open('', '_blank')
   if (btn) { btn.disabled = true; btn.textContent = 'Gerando link de pagamento…' }
+  if (!_selPub.dados.pedido) {
+    // silencioso: aqui é só um passo interno pra poder cobrar — mostrar
+    // o toast/fechar o modal de "seleção enviada, aguarde o estúdio"
+    // nesse momento enganava o cliente, fazendo parecer que já tinha
+    // terminado quando na verdade o pagamento ainda ia começar agora.
+    const ok = await _selPubEnviarPedido({ silencioso: true })
+    if (!ok) {
+      if (abaCheckout) abaCheckout.close()
+      if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
+      return
+    }
+  }
   const { data, error } = await _selecaoPublicaFetch('criar_pagamento', _selPub.token, _selPub.senha, { redirect_url: location.href })
   if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
-  if (error) { toast(error); return }
-  window.open(data.checkout_url, '_blank')
+  if (error) { if (abaCheckout) abaCheckout.close(); toast(error); return }
+  if (abaCheckout) abaCheckout.location.href = data.checkout_url
+  else window.open(data.checkout_url, '_blank') // navegador bloqueou até a aba em branco — última tentativa
+  fecharModal('modal-selecao-confirmar')
+  _renderSelPub()
 }
 
-async function _selPubEnviarPedido() {
+async function _selPubEnviarPedido(opts = {}) {
+  const silencioso = !!opts.silencioso
   const btn = document.getElementById('selpub-btn-enviar')
-  const textoOriginal = btn.textContent
-  btn.disabled = true; btn.textContent = 'Enviando…'
+  const textoOriginal = btn?.textContent
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…' }
   const observacoes = document.getElementById('selpub-observacoes').value.trim() || null
   const { data, error } = await _selecaoPublicaFetch('enviar', _selPub.token, _selPub.senha, {
     foto_ids: [..._selPub.selecionados], observacoes,
   })
-  btn.disabled = false; btn.textContent = textoOriginal
-  if (error) { toast(error); return }
+  if (btn) { btn.disabled = false; btn.textContent = textoOriginal }
+  if (error) { toast(error); return false }
   _selPub.dados.pedido = { foto_ids: [..._selPub.selecionados], status: 'enviado', valor_total: data.valor_total, qtd_extra: data.qtd_extra, observacoes }
   try { localStorage.removeItem('gf_sel_' + _selPub.token) } catch (e) {}
-  fecharModal('modal-selecao-confirmar')
-  toast(data.valor_total > 0
-    ? 'Seleção enviada ✓ — o estúdio vai confirmar o pagamento e liberar suas fotos em alta.'
-    : 'Seleção confirmada ✓ — dentro do pacote, sem valor extra a pagar.')
-  _renderSelPub()
+  if (!silencioso) {
+    fecharModal('modal-selecao-confirmar')
+    toast(data.valor_total > 0
+      ? 'Seleção enviada ✓ — o estúdio vai confirmar o pagamento e liberar suas fotos em alta.'
+      : 'Seleção confirmada ✓ — dentro do pacote, sem valor extra a pagar.')
+    _renderSelPub()
+  }
+  return true
 }
 
 let _selPubBastidoresLiberados = []
