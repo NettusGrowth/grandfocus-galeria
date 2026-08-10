@@ -8301,7 +8301,7 @@ function renderSelecaoDetalhe() {
     </div>
     <div class="card" style="margin-bottom:16px;">
       <div class="meta" style="margin-bottom:10px;">${esc(g.cliente_nome)}${g.cliente_whatsapp ? ' · ' + esc(g.cliente_whatsapp) : ''} · ${g.qtd_incluida} incluída(s) · ${fmtBRL(g.preco_extra)}/extra${g.expira_em ? ' · expira ' + fmtData(g.expira_em) : ''}</div>
-      <button class="btn btn-sm" onclick="_copiarLinkSelecao()">📋 Copiar link da galeria</button>
+      <button class="btn btn-sm" onclick="_copiarLinkSelecao()">${g.slug ? '📋 Copiar Link Amigável' : '📋 Copiar link da galeria'}</button>
       <div class="meta" id="sel-link-resultado" style="margin-top:8px;white-space:pre-line;"></div>
     </div>
     ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
