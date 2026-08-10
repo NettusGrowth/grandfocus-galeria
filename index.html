@@ -24,7 +24,15 @@
   --vinho-nobre:#1E0810; --dourado:#D4AF37;
 }
 *{box-sizing:border-box;}
+html{height:100%;}
 body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+/* com o app logado (#app) visível, o scroll tem que acontecer só
+   dentro do <main> — se o <body> também ganhar scroll (arredondamento
+   de 100vh/100dvh varia por zoom, DPI do monitor e navegador), a
+   página inteira desliza junto e a sidebar "sticky" parece perder o
+   fixo. Trava o body enquanto o app está ativo; as telas públicas
+   (login, galeria pública, seleção) continuam de rolagem normal. */
+body.app-ativo{height:100%;overflow:hidden;}
 * {scrollbar-width:thin;scrollbar-color:var(--ouro-fundo) var(--palco);}
 *::-webkit-scrollbar{width:10px;height:10px;}
 *::-webkit-scrollbar-track{background:var(--palco);}
@@ -2251,6 +2259,7 @@ function mostrarLogin() {
   _desligarRealtimeGlobal()
   document.getElementById('login-screen').style.display = 'flex'
   document.getElementById('app').style.display = 'none'
+  document.body.classList.remove('app-ativo')
 }
 
 async function mostrarApp(user) {
@@ -2269,6 +2278,7 @@ async function mostrarApp(user) {
   if (data.role === 'responsavel' && !data.lgpd_aceito_em) abrirModal('modal-lgpd')
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'flex'
+  document.body.classList.add('app-ativo')
   document.getElementById('topbar-role').textContent = ROLE_LABEL[data.role] || data.role
   document.getElementById('topbar-nome').textContent = data.nome || user.email
   document.querySelectorAll('.sidebar-footer .sf-nome').forEach(el => el.textContent = data.nome || user.email)
@@ -8000,6 +8010,7 @@ function _renderPublicaLightboxAtual() {
 function _iniciarModoPublico(token) {
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'none'
+  document.body.classList.remove('app-ativo')
   document.getElementById('view-publica').style.display = 'block'
   _carregarGaleriaPublica(token, null)
 }
@@ -8585,6 +8596,7 @@ let _selPubFotosLiberadas = []
 function _iniciarModoSelecao(token) {
   document.getElementById('login-screen').style.display = 'none'
   document.getElementById('app').style.display = 'none'
+  document.body.classList.remove('app-ativo')
   document.getElementById('view-selecao').style.display = 'block'
   _selPub.token = token
   _carregarSelecaoPublica(token, null)
