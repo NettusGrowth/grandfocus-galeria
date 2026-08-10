@@ -8491,7 +8491,7 @@ async function _carregarSelecaoPublica(token, senha) {
   if (error) {
     if (/senha/i.test(error)) { _renderSelPubSenhaCard(token, !!senha); return }
     if (/expirou/i.test(error)) { _renderSelPubExpiradaCard(error); return }
-    conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`
+    _renderSelPubInvalidoCard(error)
     return
   }
   _selPub.token = token
@@ -8517,6 +8517,19 @@ function _renderSelPubExpiradaCard(mensagem) {
     <div class="card publica-senha-card">
       <h3 style="margin-bottom:6px;">⏳ Galeria expirada</h3>
       <div class="meta">${esc(mensagem)}</div>
+    </div>
+  `
+}
+
+// token inexistente, malformado ou removido — mesmo padrão visual dos
+// cards de senha/expirada, em vez de deixar cair no ".empty" genérico
+// usado em todo o resto do app.
+function _renderSelPubInvalidoCard(mensagem) {
+  document.getElementById('selpub-sticky').style.display = 'none'
+  document.getElementById('selecao-pub-conteudo').innerHTML = `
+    <div class="card publica-senha-card">
+      <h3 style="margin-bottom:6px;">🔍 Galeria não encontrada</h3>
+      <div class="meta">${esc(mensagem || 'Esse link não existe ou foi removido. Confira se copiou certinho, ou peça um novo link ao estúdio.')}</div>
     </div>
   `
 }
@@ -8590,6 +8603,7 @@ function _selPubRenderGrid() {
   const d = _selPub.dados
   const grid = document.getElementById('selpub-grid')
   if (!d || !grid) return
+  if (!d.fotos.length) { grid.innerHTML = '<div class="empty">📷<br>Nenhuma foto cadastrada neste álbum ainda — o estúdio está preparando o ensaio.</div>'; return }
   const fotos = _fotosFiltradasAtual()
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
   grid.innerHTML = fotos.map(f => {
