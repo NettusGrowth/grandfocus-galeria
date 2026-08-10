@@ -8843,7 +8843,21 @@ function _renderSelPubLightboxAtual() {
   document.getElementById('selpub-lightbox-caption').textContent = `${_selPubLightboxIdx + 1} de ${d.fotos.length}`
   const marcada = _selPub.selecionados.has(f.id)
   const btn = document.getElementById('selpub-lightbox-btn')
-  btn.textContent = marcada ? '✓ Marcada — clique pra desmarcar' : 'Marcar essa foto'
+  // indicador de valor: quanto o total muda se essa foto específica for
+  // marcada/desmarcada agora — não é um "preço fixo por foto" (o
+  // desconto progressivo depende de quantas já estão selecionadas), é o
+  // impacto real no total, que é o que interessa pra decisão de compra.
+  const g = d.galeria
+  const nAtual = _selPub.selecionados.size
+  const totalAtual = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, Math.max(0, nAtual - g.qtd_incluida))
+  const nDepois = marcada ? nAtual - 1 : nAtual + 1
+  const totalDepois = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, Math.max(0, nDepois - g.qtd_incluida))
+  const delta = totalDepois - totalAtual
+  if (marcada) {
+    btn.textContent = delta < 0 ? `✓ Marcada — desmarcar (−${fmtBRL(Math.abs(delta))})` : '✓ Marcada — clique pra desmarcar'
+  } else {
+    btn.textContent = delta > 0 ? `🛒 Adicionar aos Extras — ${fmtBRL(delta)}` : '💚 Selecionar esta foto (incluída no pacote)'
+  }
   btn.className = 'btn btn-sm ' + (marcada ? '' : 'btn-primary')
   _selPubPrecarregarVizinhas(d, _selPubLightboxIdx)
 }
@@ -8879,7 +8893,13 @@ function _selPubAbrirConfirmar() {
     pixBox.innerHTML = `
       <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Pagar Agora</button>
       <div class="meta" style="text-align:center;margin-top:8px;">🔒 Compra segura e protegida</div>
-      ${pix?.chave ? `<div class="meta" style="text-align:center;margin-top:10px;">ou pague via PIX manual — envie primeiro e combine com o estúdio</div>` : ''}
+      ${pix?.chave ? `
+        <div class="meta" style="text-align:center;margin-top:14px;">Se o pagamento automático não funcionar, pague via PIX manual e combine com o estúdio:</div>
+        <div class="selpub-pix-box" style="margin-top:8px;">
+          <div class="chave">${esc(pix.chave)}</div>
+          ${pix.nome ? `<div class="meta" style="margin-top:4px;">${esc(pix.nome)}</div>` : ''}
+          ${pix.qrcode_url ? `<img src="${esc(pix.qrcode_url)}" alt="QR Code PIX" style="width:140px;margin-top:8px;border-radius:8px;">` : ''}
+        </div>` : ''}
     `
   } else if (total > 0 && pix?.chave) {
     pixBox.innerHTML = `
