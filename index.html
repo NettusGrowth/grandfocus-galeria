@@ -2076,8 +2076,18 @@ function _ligarRealtimeGlobal() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_aluno' }, _onRealtimeFotos)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_pessoa' }, _onRealtimeFotos)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, _onRealtimeEventos)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria' }, _onRealtimeAuditoria)
     .subscribe()
 }
+
+// pedido de fotos extras enviado pelo cliente e pagamento automático
+// liberado pela InfinitePay já gravam em auditoria via RPC (rodando
+// como service role, sem precisar de sessão do cliente público) — esse
+// handler só faz o sino aparecer na hora pro admin, sem precisar
+// recarregar a página ou reabrir o dropdown.
+const _onRealtimeAuditoria = _debounce(() => {
+  if (['admin', 'super_admin'].includes(meuPerfil?.role)) iniciarSinoNotificacoes()
+}, 800)
 
 function _desligarRealtimeGlobal() {
   if (_canalRealtime) { db.removeChannel(_canalRealtime); _canalRealtime = null }
@@ -2351,7 +2361,7 @@ function _toggleSinoNotificacoes() {
 // diferente da Auditoria (log cru de tudo), o sino só mostra eventos de
 // alto valor: criação de cadastros, publicações na comunidade, links
 // privados gerados — não espelha toda ação de edição/rotina.
-const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos|enviou pedido de fotos extras/i
+const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos|enviou pedido de fotos extras|liberou pagamento automaticamente/i
 function _notifIcone(texto) {
   if (/pedido de fotos extras/i.test(texto)) return '💰'
   if (/upload/i.test(texto)) return '📷'
