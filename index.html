@@ -121,6 +121,8 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 @media(prefers-reduced-motion:reduce){.selpub-card.pop{animation:none;}}
 
 .selpub-banner{background:rgba(16,185,129,.1);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:14px 16px;margin-bottom:18px;font-size:13.5px;color:#0d7a5f;}
+.selpub-bastidores-bloco{margin-top:28px;padding:18px;background:linear-gradient(135deg,rgba(194,118,46,.08),rgba(194,118,46,.03));border:1px solid rgba(194,118,46,.25);border-radius:14px;}
+.selpub-bastidores-bloco h3{font-size:16px;color:#8A4E1E;margin-bottom:12px;}
 .selpub-pix-box{background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3);border-radius:10px;padding:12px 14px;font-size:13px;}
 .selpub-pix-box .chave{font-family:monospace;font-size:13.5px;color:#0d7a5f;word-break:break-all;}
 .selpub-download-list{display:flex;flex-direction:column;gap:8px;}
@@ -8860,7 +8862,6 @@ async function _selPubEnviarPedido() {
 }
 
 let _selPubBastidoresLiberados = []
-let _selPubAbaLiberado = 'fotos'
 
 async function _renderSelPubLiberado() {
   const conteudo = document.getElementById('selecao-pub-conteudo')
@@ -8869,39 +8870,40 @@ async function _renderSelPubLiberado() {
   if (error) { conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`; return }
   _selPubFotosLiberadas = data.fotos || []
   _selPubBastidoresLiberados = data.bastidores || []
-  _selPubAbaLiberado = 'fotos'
   _renderSelPubLiberadoConteudo()
 }
 
-// Bastidores/Brinde entram numa aba separada da entrega, sempre grátis
-// — o mesmo link (?sel=TOKEN) já virou "modo entrega" sozinho quando o
-// pedido ficou 'liberado' (_carregarSelecaoPublica), essa função só
-// decide qual das duas listas mostrar dentro desse modo.
-function _selPubTrocarAbaLiberado(aba) {
-  _selPubAbaLiberado = aba
-  _renderSelPubLiberadoConteudo()
-}
-
+// Bastidores/Brinde sempre visíveis na MESMA página de entrega, logo
+// abaixo das fotos pagas — nada de aba/chip escondendo o presente que
+// o cliente pode nem notar que existe.
 function _renderSelPubLiberadoConteudo() {
   const conteudo = document.getElementById('selecao-pub-conteudo')
   const temBastidores = _selPubBastidoresLiberados.length > 0
-  const lista = _selPubAbaLiberado === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   conteudo.innerHTML = `
     <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
-    <div class="selpub-banner">🎉 Pagamento confirmado! Suas fotos em alta resolução estão liberadas.</div>
-    ${temBastidores ? `<div class="selpub-filtros">
-      <span class="chip${_selPubAbaLiberado === 'fotos' ? ' on' : ''}" onclick="_selPubTrocarAbaLiberado('fotos')">Suas Fotos (${_selPubFotosLiberadas.length})</span>
-      <span class="chip${_selPubAbaLiberado === 'bastidores' ? ' on' : ''}" onclick="_selPubTrocarAbaLiberado('bastidores')">🎁 Bastidores &amp; Brinde (${_selPubBastidoresLiberados.length})</span>
-    </div>` : ''}
-    ${lista.length ? `<button class="btn btn-primary" style="margin-bottom:8px;" onclick="_selPubBaixarTodas()">⬇ Baixar todas (${lista.length})</button>` : ''}
+    <div class="selpub-banner">✨ Seu ensaio está pronto! Faça o download das suas fotos em alta resolução.</div>
+    ${_selPubFotosLiberadas.length ? `<button class="btn btn-primary" style="width:100%;border-radius:999px;margin-bottom:8px;" onclick="_selPubBaixarTodas('fotos')">⬇️ Baixar Todas em Alta Qualidade (ZIP)</button>` : ''}
     <div class="meta" style="margin-bottom:16px;">ou clique em qualquer foto abaixo pra baixar ela sozinha, na hora</div>
     <div class="selpub-grid" id="selpub-liberado-grid"></div>
+    ${temBastidores ? `
+      <div class="selpub-bastidores-bloco">
+        <h3>🎁 Seu Presente Exclusivo: Fotos de Bastidores!</h3>
+        <button class="btn" style="margin-bottom:8px;" onclick="_selPubBaixarTodas('bastidores')">⬇ Baixar todas (${_selPubBastidoresLiberados.length})</button>
+        <div class="selpub-grid" id="selpub-bastidores-grid"></div>
+      </div>` : ''}
   `
   const grid = document.getElementById('selpub-liberado-grid')
-  grid.innerHTML = lista.length ? lista.map((f, i) => `
+  grid.innerHTML = _selPubFotosLiberadas.length ? _selPubFotosLiberadas.map((f, i) => `
     <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
       <img src="${f.url}" alt="">
     </div>`).join('') : '<div class="empty">Nenhuma foto por aqui.</div>'
+  if (temBastidores) {
+    const gridB = document.getElementById('selpub-bastidores-grid')
+    gridB.innerHTML = _selPubBastidoresLiberados.map((f, i) => `
+      <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','bastidor-${i + 1}.jpg')" title="Baixar essa foto">
+        <img src="${f.url}" alt="">
+      </div>`).join('')
+  }
 }
 
 // baixa em lotes (chunks) em vez de um zip gigante só — pedidos grandes
@@ -8910,13 +8912,13 @@ function _renderSelPubLiberadoConteudo() {
 // próximo começar, então o pico de memória fica limitado ao tamanho de
 // UM lote, não do pedido inteiro. Pedido pequeno (≤ TAMANHO_LOTE)
 // continua saindo num .zip só, sem "parte 1 de 1" confuso.
-async function _selPubBaixarTodas() {
-  const fotos = _selPubAbaLiberado === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
+async function _selPubBaixarTodas(tipo) {
+  const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   if (!fotos.length) return
   const TAMANHO_LOTE = 25
   const lotes = []
   for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
-  const sufixoNome = _selPubAbaLiberado === 'bastidores' ? '-bastidores' : ''
+  const sufixoNome = tipo === 'bastidores' ? '-bastidores' : ''
   const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
 
   for (let lote = 0; lote < lotes.length; lote++) {
