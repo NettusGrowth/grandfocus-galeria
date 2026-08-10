@@ -4697,14 +4697,38 @@ async function uploadFotosEvento(files, subpasta, marcar) {
 // aba, reabrir modal etc.), que era a causa do atraso/flash antes da
 // foto aparecer. Margem de 30s pra nunca servir uma URL prestes a expirar.
 const _cacheUrlAssinada = new Map()
+// toda lista (Professores, Pais, Alunos, Escolas, feed...) renderiza
+// vários avatares/capas de uma vez, cada um chamando _urlAssinada — sem
+// isso, cada foto disparava seu PRÓPRIO round trip de rede isolado, e
+// era essa pilha de requisições paralelas (não o download da imagem em
+// si) que segurava a lista inteira em 1-2s. Em vez de mudar as ~40
+// chamadas espalhadas pelo app, junta aqui dentro: todo pedido que
+// chega no mesmo "instante" (mesmo forEach de uma lista, por ex.) entra
+// numa fila e sai numa ÚNICA chamada em lote (createSignedUrls) no
+// microtask seguinte — chamadas isoladas (uma foto só) continuam
+// funcionando igual, só que sempre passam pelo lote (de 1 item só).
+let _loteUrlAssinada = null
 async function _urlAssinada(path) {
   const cache = _cacheUrlAssinada.get(path)
   if (cache && cache.expira > Date.now()) return cache.url
-  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 300)
-  if (error) { console.error(error); return null }
-  const url = data?.signedUrl || null
-  if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
-  return url
+  if (!_loteUrlAssinada) { _loteUrlAssinada = new Map(); queueMicrotask(_processarLoteUrlAssinada) }
+  if (!_loteUrlAssinada.has(path)) _loteUrlAssinada.set(path, [])
+  return new Promise(resolve => _loteUrlAssinada.get(path).push(resolve))
+}
+async function _processarLoteUrlAssinada() {
+  const lote = _loteUrlAssinada
+  _loteUrlAssinada = null
+  const paths = [...lote.keys()]
+  const resolverTodos = url => paths.forEach(p => lote.get(p).forEach(r => r(url)))
+  let data, error
+  try { ({ data, error } = await db.storage.from(BUCKET).createSignedUrls(paths, 300)) }
+  catch (e) { error = e }
+  if (error) { console.error(error); resolverTodos(null); return }
+  (data || []).forEach(item => {
+    const url = item.signedUrl || null
+    if (url) _cacheUrlAssinada.set(item.path, { url, expira: Date.now() + 270000 })
+    ;(lote.get(item.path) || []).forEach(r => r(url))
+  })
 }
 // chamar depois de QUALQUER upload com upsert:true num caminho fixo
 // (avatar/capa) — sem isso, o cache acima continua servindo a URL
