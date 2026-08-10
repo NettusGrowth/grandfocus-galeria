@@ -699,6 +699,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-reagir.on{color:var(--vermelho);}
 .post-comentarios{margin-top:12px;padding-top:12px;border-top:1px solid rgba(200,175,127,.12);}
 .post-coment-item{font-size:13px;color:#DBC9A8;padding:8px 12px;margin-bottom:6px;display:flex;align-items:baseline;gap:6px;background:rgba(16,9,16,.3);border-radius:12px;}
+.post-coment-item.pendente{opacity:.55;}
 .post-coment-item b{color:var(--ouro-luz);flex-shrink:0;}
 .post-coment-item span{flex:1;overflow-wrap:break-word;word-break:break-word;min-width:0;}
 .post-coment-apagar{background:none;border:none;color:#8A7461;cursor:pointer;padding:2px;flex-shrink:0;}
@@ -5212,7 +5213,7 @@ function _comentItemHTML(c, postId, resposta) {
   const ehModeracao = !proprio && ['admin', 'super_admin'].includes(meuPerfil.role)
   const podeApagar = proprio || ehModeracao
   return `
-    <div class="post-coment-item${resposta ? ' resposta' : ''}">
+    <div class="post-coment-item${resposta ? ' resposta' : ''}${c._pendente ? ' pendente' : ''}">
       <b>${esc(c.autor_nome || '—')}</b> <span>${esc(c.texto)}</span>
       ${!resposta ? `<button class="post-coment-responder" onclick="_mostrarRespostaInput('${c.id}','${postId}')" title="Responder">Responder</button>` : ''}
       ${ehModeracao ? `
@@ -5258,19 +5259,40 @@ function _mostrarRespostaInput(comentId, postId) {
   if (el) { el.style.display = 'flex'; document.getElementById('post-coment-resp-txt-' + comentId)?.focus() }
 }
 
+// otimista: o comentário aparece na tela na hora (marcado como
+// "pendente" até confirmar), sem esperar o round-trip do banco —
+// desfaz e devolve o texto pro campo se a gravação falhar de verdade.
 async function enviarComentario(postId, parentId) {
   const input = parentId ? document.getElementById('post-coment-resp-txt-' + parentId) : document.getElementById('post-coment-input-' + postId)
   const texto = input.value.trim()
   if (!texto) return
-  input.disabled = true
-  const { error } = await db.from('post_comentarios').insert({ post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto, parent_id: parentId || null })
-  input.disabled = false
-  if (error) { toast('Erro ao comentar: ' + error.message); return }
   input.value = ''
+
+  const tempId = 'tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2)
+  const otimista = { id: tempId, post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto, parent_id: parentId || null, criado_em: new Date().toISOString(), _pendente: true }
+  if (!_feedComentariosCache[postId]) _feedComentariosCache[postId] = []
+  _feedComentariosCache[postId].push(otimista)
   _feedComentCount[postId] = (_feedComentCount[postId] || 0) + 1
-  await carregarComentarios(postId)
+  renderComentarios(postId)
   const btn = document.getElementById('post-comentbtn-' + postId)
   if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
+
+  const { data, error } = await db.from('post_comentarios')
+    .insert({ post_id: postId, autor_user_id: currentUser.id, autor_nome: meuPerfil.nome, texto, parent_id: parentId || null })
+    .select().single()
+
+  if (error) {
+    _feedComentariosCache[postId] = _feedComentariosCache[postId].filter(c => c.id !== tempId)
+    _feedComentCount[postId] = Math.max(0, (_feedComentCount[postId] || 1) - 1)
+    renderComentarios(postId)
+    if (btn) btn.textContent = `💬 Comentar${_feedComentCount[postId] ? ' · ' + _feedComentCount[postId] : ''}`
+    input.value = texto
+    toast('Erro ao comentar: ' + error.message)
+    return
+  }
+  const idx = _feedComentariosCache[postId].findIndex(c => c.id === tempId)
+  if (idx !== -1) _feedComentariosCache[postId][idx] = data || otimista
+  renderComentarios(postId)
 }
 
 // distingue "apaguei meu próprio comentário" de "moderei o comentário de
