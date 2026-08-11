@@ -2037,6 +2037,33 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: Gold Reserve — drill-down do card Receita Total (Bloco 16) -->
+<div class="modal-overlay" id="modal-gr-drilldown">
+  <div class="modal" style="max-width:640px;">
+    <h3 style="margin-bottom:16px;">Detalhe da Receita</h3>
+    <div style="max-height:60vh;overflow-y:auto;">
+      <table class="tabela-auditoria"><tbody id="gr-drilldown-lista"></tbody></table>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-gr-drilldown')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Gold Reserve — gasto de marketing do mês (Bloco 16) -->
+<div class="modal-overlay" id="modal-gr-marketing">
+  <div class="modal" style="max-width:400px;">
+    <h3 style="margin-bottom:16px;">Gasto de Marketing</h3>
+    <div class="field"><label>Mês</label><input type="month" id="gr-mkt-mes"></div>
+    <div class="field"><label>Valor gasto (R$)</label><input type="number" id="gr-mkt-valor" min="0" step="0.01"></div>
+    <div class="field"><label>Observação (opcional)</label><input type="text" id="gr-mkt-obs" placeholder="Ex: Instagram Ads"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-gr-marketing')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_grSalvarMarketing()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal: confirmação da seleção (cliente público) -->
 <div class="modal-overlay" id="modal-selecao-confirmar">
   <div class="modal" style="max-width:440px;">
@@ -3167,6 +3194,7 @@ async function iniciarGoldReserveAdmin() {
   _grEquipamentos = eq.error ? [] : (eq.data || [])
   _grMarketing = mkt.error ? [] : (mkt.data || [])
   _grRenderVisaoGeral()
+  _grRenderVendas()
 }
 
 // custo operacional mensal amortizado: soma(custo/vida_util) de cada
@@ -3201,10 +3229,10 @@ function _grRenderVisaoGeral() {
 
   el.innerHTML = `
     <div class="gr-kpi-grid">
-      <div class="gr-kpi-card ouro">
+      <div class="gr-kpi-card ouro" style="cursor:pointer;" onclick="_grAbrirDrilldown()" title="Ver detalhe por cliente">
         <div class="gr-kpi-label">Receita Total</div>
         <div class="gr-kpi-valor">${fmtBRL(receitaBruta)}</div>
-        <div class="gr-kpi-meta">${fmtBRL(receitaSessoes)} sessões + ${fmtBRL(receitaExtras)} extras</div>
+        <div class="gr-kpi-meta">${fmtBRL(receitaSessoes)} sessões + ${fmtBRL(receitaExtras)} extras · clique pra detalhar</div>
       </div>
       <div class="gr-kpi-card perda">
         <div class="gr-kpi-label">Diferença de Parcelamento</div>
@@ -3257,6 +3285,110 @@ function _grEquipItemHTML(e) {
       <div class="ge-topo"><span class="ge-nome">${esc(e.nome)}</span><span>${restante > 0 ? restante + ' mês(es) até substituir' : 'já passou da vida útil estimada'}</span></div>
       <div class="gr-waterfall-track"><div class="gr-waterfall-fill" style="width:${pct}%;background:${pct >= 100 ? 'var(--vermelho)' : 'var(--dourado)'};"></div></div>
     </div>`
+}
+
+// ── Pilar 2: inteligência de vendas (drill-down, CLV, CAC) ──
+function _grAbrirDrilldown() {
+  const lista = _grDados.filter(g => g.receitaTotal > 0).sort((a, b) => (b.criadoEmPedido || b.criadoEmGaleria).localeCompare(a.criadoEmPedido || a.criadoEmGaleria))
+  const el = document.getElementById('gr-drilldown-lista')
+  el.innerHTML = lista.length ? lista.map(g => `
+    <tr>
+      <td>${esc(g.cliente || '—')}</td>
+      <td>${esc(g.categoria || g.eventoNome || '—')}</td>
+      <td>${fmtBRL(g.receitaTotal)}</td>
+      <td>${g.qtdExtra} extra(s)</td>
+      <td>${g.liberadoEm ? fmtDataHora(g.liberadoEm) : '—'}</td>
+    </tr>`).join('') : '<tr><td colspan="5" class="empty">Nenhuma receita registrada ainda.</td></tr>'
+  abrirModal('modal-gr-drilldown')
+}
+
+// chave de agrupamento por cliente — nome livre (sem cadastro
+// unificado entre Eventos/Ensaios/Selecao), normalizado pra reduzir
+// duplicidade por maiusculas/espaco/acento; ainda assim é heurística,
+// não uma identidade de cliente real.
+function _grChaveCliente(nome) {
+  return (nome || '').trim().toLowerCase().normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+}
+
+function _grTop5CLV() {
+  const porCliente = new Map()
+  _grDados.forEach(g => {
+    if (!g.cliente || g.receitaTotal <= 0) return
+    const chave = _grChaveCliente(g.cliente)
+    const atual = porCliente.get(chave) || { nome: g.cliente, total: 0, qtd: 0 }
+    atual.total += g.receitaTotal
+    atual.qtd += 1
+    porCliente.set(chave, atual)
+  })
+  return [...porCliente.values()].sort((a, b) => b.total - a.total).slice(0, 5)
+}
+
+function _grRenderVendas() {
+  const el = document.getElementById('gr-sub-vendas')
+  const top5 = _grTop5CLV()
+  const clientesUnicos = new Set(_grDados.filter(g => g.cliente).map(g => _grChaveCliente(g.cliente))).size
+  const clvMedio = clientesUnicos ? _grDados.reduce((s, g) => s + g.receitaTotal, 0) / clientesUnicos : 0
+  const gastoMktTotal = _grMarketing.reduce((s, m) => s + (m.valor || 0), 0)
+  // CAC simplificado: total gasto em marketing dividido pelo total de
+  // clientes distintos que já passaram pelo sistema — não distingue
+  // "cliente novo por causa do anuncio" de "cliente que já vinha por
+  // indicação", porque essa origem não é rastreada em lugar nenhum.
+  const cac = clientesUnicos ? gastoMktTotal / clientesUnicos : 0
+
+  el.innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Top 5 Clientes por Valor Vitalício (CLV)</h3>
+    ${top5.length ? `
+      <div class="gr-waterfall" style="margin-bottom:26px;">
+        ${top5.map(c => _grWaterfallPasso(`${c.nome} (${c.qtd} sessão/seleção)`, c.total, top5[0].total, 'subtotal')).join('')}
+      </div>
+    ` : '<div class="empty">Nenhum cliente com receita registrada ainda.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Gasto de Marketing por Mês</h3>
+    <div class="filtro-row" style="margin-bottom:14px;">
+      <button class="btn btn-primary btn-sm" onclick="abrirModalGrMarketing()">+ Registrar gasto do mês</button>
+    </div>
+    ${_grMarketing.length ? `
+      <table class="tabela-auditoria" style="margin-bottom:26px;"><tbody>
+        ${_grMarketing.map(m => `<tr><td>${_grMesLabel(m.mes)}</td><td>${fmtBRL(m.valor)}</td><td>${esc(m.observacao || '')}</td></tr>`).join('')}
+      </tbody></table>
+    ` : '<div class="empty" style="margin-bottom:26px;">Nenhum gasto de marketing cadastrado ainda — sem isso, CAC fica zerado.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">CAC × CLV</h3>
+    <div class="gr-waterfall">
+      ${_grWaterfallPasso('Custo de Aquisição (CAC, estimado)', cac, Math.max(cac, clvMedio), 'negativo')}
+      ${_grWaterfallPasso('Valor Vitalício médio (CLV)', clvMedio, Math.max(cac, clvMedio), 'positivo')}
+    </div>
+    <div class="meta" style="margin-top:8px;">CAC estimado dividindo o gasto total de marketing pelo total de clientes — o sistema não sabe QUAL cliente veio de qual anúncio, então isso é uma média grosseira, não um funil de atribuição de verdade.</div>
+  `
+}
+
+function _grMesLabel(mesIso) {
+  const [y, m] = (mesIso || '').split('-')
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez']
+  return m ? `${nomes[parseInt(m, 10) - 1]}/${y}` : mesIso
+}
+
+function abrirModalGrMarketing() {
+  document.getElementById('gr-mkt-mes').value = new Date().toISOString().slice(0, 7)
+  document.getElementById('gr-mkt-valor').value = ''
+  document.getElementById('gr-mkt-obs').value = ''
+  abrirModal('modal-gr-marketing')
+}
+
+async function _grSalvarMarketing() {
+  const mesInput = document.getElementById('gr-mkt-mes').value
+  if (!mesInput) { toast('Escolha o mês'); return }
+  const mes = mesInput + '-01'
+  const valor = parseFloat(document.getElementById('gr-mkt-valor').value) || 0
+  const observacao = document.getElementById('gr-mkt-obs').value.trim() || null
+  const { error } = await db.from('gr_marketing_gastos').upsert({ mes, valor, observacao, criado_por: meuPerfil.user_id }, { onConflict: 'mes' })
+  if (error) { toast('Erro ao salvar: ' + error.message); return }
+  fecharModal('modal-gr-marketing')
+  toast('Gasto de marketing salvo ✓')
+  const { data } = await db.from('gr_marketing_gastos').select('*').order('mes', { ascending: false })
+  _grMarketing = data || []
+  _grRenderVisaoGeral()
+  _grRenderVendas()
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
