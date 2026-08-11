@@ -25,7 +25,15 @@
 }
 *{box-sizing:border-box;}
 html{height:100%;}
-body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+body{margin:0;background:var(--palco);color:#EADFCF;font-family:var(--sans);font-weight:300;font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;
+  /* sem isso, um toque com qualquer arrasto vertical mínimo (comum em
+     touchscreen, mesmo num "toque" pra selecionar foto) perto do topo
+     da página é interpretado pelo navegador mobile como o gesto nativo
+     de "puxar pra atualizar" — RECARREGANDO A PÁGINA INTEIRA de
+     verdade. Isso é o "pisca e reinicia sozinho" relatado no celular,
+     não um bug de re-render do JS. */
+  overscroll-behavior-y:none;
+}
 /* com o app logado (#app) visível, o scroll tem que acontecer só
    dentro do <main> — se o <body> também ganhar scroll (arredondamento
    de 100vh/100dvh varia por zoom, DPI do monitor e navegador), a
@@ -119,7 +127,10 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
    dentro de #view-selecao. */
 :root{ --gf-verde-vivo:#10B981; }
 #view-selecao{min-height:100vh;min-height:100dvh;background:var(--selpub-bg,#F9F9F9);color:var(--selpub-tinta,#1A1A1A);padding-bottom:24px;}
-#view-selecao .publica-topo{border-bottom:1px solid rgba(0,0,0,.08);}
+#view-selecao .publica-topo{
+  border-bottom:1px solid rgba(0,0,0,.08);position:sticky;top:0;z-index:15;height:56px;padding:0 20px;
+  background:rgba(249,249,249,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
 #view-selecao .publica-topo span{color:#1A1A1A;}
 #view-selecao h2{color:#1A1A1A;font-size:22px;}
 #view-selecao .meta{color:#6B6B6B;}
@@ -152,8 +163,8 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 @media(min-width:600px){.selpub-grid{column-count:3;column-gap:8px;}}
 @media(min-width:900px){.selpub-grid{column-count:4;column-gap:10px;}}
 @media(min-width:1280px){.selpub-grid{column-count:6;}}
-.selpub-card{position:relative;display:block;width:100%;break-inside:avoid;margin-bottom:4px;border-radius:6px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
-@media(min-width:600px){.selpub-card{margin-bottom:8px;border-radius:8px;}}
+.selpub-card{position:relative;display:block;width:100%;break-inside:avoid;margin-bottom:4px;border-radius:4px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
+@media(min-width:600px){.selpub-card{margin-bottom:8px;}}
 .selpub-card img{width:100%;height:auto;display:block;}
 .selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .selpub-zoom{position:absolute;top:2px;left:2px;width:44px;height:44px;border-radius:50%;background:transparent;border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
