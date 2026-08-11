@@ -5509,7 +5509,37 @@ async function _urlPreview(f) { return _urlAssinada(f.thumb_path || f.storage_pa
 // leve da foto original — é essa versão que aparece na grade e no
 // visualizador ampliado; o download sempre busca o storage_path
 // original, sem marca d'água nenhuma.
-function _gerarThumbWatermark(file) {
+// ícone (bailarina+obturador) da marca d'água — mesmo arquivo já usado
+// no cabeçalho/favicon (PNG com alpha de verdade), carregado uma vez só
+// e reaproveitado em todas as fotos de um upload em lote.
+let _iconeMarcaDaguaPromise = null
+function _carregarIconeMarcaDagua() {
+  if (!_iconeMarcaDaguaPromise) {
+    _iconeMarcaDaguaPromise = new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve(img)
+      img.onerror = () => reject(new Error('Falha ao carregar ícone da marca d\'água'))
+      img.src = '/assets/logo-icone.png'
+    })
+  }
+  return _iconeMarcaDaguaPromise
+}
+// recolore o ícone (mantendo o formato/alpha original) pra cor sólida
+// escolhida pelo brilho da foto — o dourado original do ícone tem
+// contraste ruim tanto em fotos muito claras quanto muito escuras.
+function _recolorirIcone(img, cor) {
+  const c = document.createElement('canvas')
+  c.width = img.naturalWidth; c.height = img.naturalHeight
+  const cx = c.getContext('2d')
+  cx.drawImage(img, 0, 0)
+  cx.globalCompositeOperation = 'source-in'
+  cx.fillStyle = cor
+  cx.fillRect(0, 0, c.width, c.height)
+  return c
+}
+
+async function _gerarThumbWatermark(file) {
+  const icone = await _carregarIconeMarcaDagua()
   return new Promise((resolve, reject) => {
     const img = new Image()
     const objUrl = URL.createObjectURL(file)
@@ -5526,10 +5556,9 @@ function _gerarThumbWatermark(file) {
       ctx.drawImage(img, 0, 0, w, h)
 
       // amostra o brilho médio da foto (canvas pequeno, barato) pra
-      // decidir a cor da marca d'água — a cor clara fixa de antes ficava
-      // quase invisível em fotos claras. Com contorno na cor oposta,
-      // fica legível em qualquer imagem.
-      let corMarca = '#FFFFFF', corContorno = 'rgba(0,0,0,.6)'
+      // decidir a cor da marca d'água — uma cor fixa fica quase
+      // invisível numa foto clara ou escura demais dependendo do caso.
+      let corMarca = '#FFFFFF'
       const AMOSTRA = 40
       const amostraCanvas = document.createElement('canvas')
       amostraCanvas.width = AMOSTRA; amostraCanvas.height = AMOSTRA
@@ -5540,22 +5569,21 @@ function _gerarThumbWatermark(file) {
         let soma = 0
         for (let i = 0; i < data.length; i += 4) soma += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
         const brilhoMedio = soma / (data.length / 4)
-        if (brilhoMedio > 140) { corMarca = '#1A1A1A'; corContorno = 'rgba(255,255,255,.6)' }
+        if (brilhoMedio > 140) corMarca = '#1A1A1A'
       }
+
+      const iconeColorido = _recolorirIcone(icone, corMarca)
+      const iconeW = Math.max(40, Math.round(w / 14))
+      const iconeH = Math.round(iconeW * (iconeColorido.height / iconeColorido.width))
 
       ctx.save()
       ctx.globalAlpha = 0.5
-      ctx.fillStyle = corMarca
-      ctx.shadowColor = corContorno
-      ctx.shadowBlur = 4
-      ctx.font = `${Math.max(16, Math.round(w / 20))}px Jost, sans-serif`
-      ctx.textBaseline = 'middle'
       ctx.translate(w / 2, h / 2)
       ctx.rotate(-Math.PI / 8)
-      const passoY = Math.max(90, Math.round(h / 5))
-      const passoX = Math.max(220, Math.round(w / 2.2))
+      const passoY = Math.max(110, Math.round(h / 4.5))
+      const passoX = Math.max(180, Math.round(w / 3))
       for (let y = -h; y < h; y += passoY) {
-        for (let x = -w; x < w; x += passoX) ctx.fillText('GRAND FOCUS', x, y)
+        for (let x = -w; x < w; x += passoX) ctx.drawImage(iconeColorido, x - iconeW / 2, y - iconeH / 2, iconeW, iconeH)
       }
       ctx.restore()
 
