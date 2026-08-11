@@ -160,10 +160,13 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 /* grid imersivo (padrão Alboom/Proof) — sem corte 1:1 forçado, cada
    foto ocupa a proporção real dela; colunas tipo masonry em vez de
    grid de células fixas, que exigiria cortar/letterboxar a imagem. */
-.selpub-grid{column-count:2;column-gap:4px;}
-@media(min-width:600px){.selpub-grid{column-count:3;column-gap:8px;}}
-@media(min-width:900px){.selpub-grid{column-count:4;column-gap:10px;}}
-@media(min-width:1280px){.selpub-grid{column-count:6;}}
+/* fotos grandes, estilo editorial (pedido explícito do usuário
+   comparando com a imagem de referência) — teto de 3 colunas mesmo em
+   telas largas, já que .publica-conteudo trava em 1100px de qualquer
+   forma (6 colunas antes deixava cada foto pequena/apertada). */
+.selpub-grid{column-count:2;column-gap:6px;}
+@media(min-width:600px){.selpub-grid{column-count:2;column-gap:12px;}}
+@media(min-width:900px){.selpub-grid{column-count:3;column-gap:16px;}}
 .selpub-card{position:relative;display:block;width:100%;break-inside:avoid;margin-bottom:4px;border-radius:4px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
 @media(min-width:600px){.selpub-card{margin-bottom:8px;}}
 .selpub-card img{width:100%;height:auto;display:block;}
