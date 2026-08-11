@@ -9303,8 +9303,12 @@ function renderSelecaoDetalhe() {
     <div class="card">
       <div class="foto-toolbar">
         <h3 style="font-size:15px;">Fotos da galeria (${g.fotos.length})</h3>
-        <button class="btn btn-sm" onclick="_selecaoLoteToggleModo()">${_selLoteModoAtivo ? '✕ Cancelar seleção' : '☑ Selecionar fotos'}</button>
+        <div style="display:flex;gap:8px;">
+          ${g.fotos.length ? `<button class="btn btn-sm" onclick="_selecaoReprocessarMarcaDagua()" title="Gera de novo a prévia com marca d'água (tamanho/opacidade atuais) de todas as fotos já enviadas — não muda fotos novas, elas já saem certas.">🔄 Atualizar marca d'água</button>` : ''}
+          <button class="btn btn-sm" onclick="_selecaoLoteToggleModo()">${_selLoteModoAtivo ? '✕ Cancelar seleção' : '☑ Selecionar fotos'}</button>
+        </div>
       </div>
+      <div class="meta" id="sel-reprocessar-status" style="margin-bottom:4px;color:var(--gf-verde-vivo);"></div>
       <div class="meta" style="margin-bottom:10px;">${_selLoteModoAtivo ? 'Clique nas fotos pra marcar — depois converta todas de uma vez.' : 'Marque uma foto como <b>🎁 Bônus/Brinde</b> clicando no ícone de presente sobre ela — não conta no pacote e libera de graça junto com o pedido pago.'}</div>
       <div class="selfoto-lote-barra" id="sel-lote-barra" style="display:${_selLoteModoAtivo ? 'flex' : 'none'};">
         <span class="meta" id="sel-lote-contagem" style="margin:0;">${_selLoteMarcadas.size} selecionada(s)</span>
@@ -9356,6 +9360,46 @@ async function _selecaoLoteConverterBonus() {
   _selLoteModoAtivo = false
   _selLoteMarcadas.clear()
   renderSelecaoDetalhe()
+}
+
+// a marca d'água é gerada uma vez, no upload, e fica salva pra sempre
+// no arquivo "leve-" (é essa versão com marca d'água que a página
+// pública mostra) — mudar o código de _gerarThumbWatermark (tamanho,
+// opacidade, etc.) só afeta fotos enviadas DAQUI PRA FRENTE. As que já
+// estavam na galeria continuam com a marca d'água antiga até alguém
+// rodar isso: baixa o original (storage_path_alta, sem marca d'água),
+// gera a prévia de novo com o código atual, e sobrescreve o "leve-"
+// (upsert) — mesma foto, mesmo link, só a prévia muda.
+async function _selecaoReprocessarMarcaDagua() {
+  const g = _selecaoDetalheAtual
+  if (!g || !g.fotos.length) return
+  const ok = await confirmModal(
+    `Isso baixa e gera de novo a prévia com marca d'água de ${g.fotos.length} foto(s) dessa galeria, usando o tamanho/opacidade atuais. Pode demorar um pouco. Continuar?`,
+    { titulo: "Atualizar marca d'água", okLabel: 'Reprocessar' }
+  )
+  if (!ok) return
+  const status = document.getElementById('sel-reprocessar-status')
+  let feitas = 0, falhas = 0
+  for (const f of g.fotos) {
+    if (status) status.textContent = `Reprocessando ${feitas + falhas + 1} de ${g.fotos.length}…`
+    try {
+      const origemPath = f.storage_path_alta || f.storage_path
+      const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(origemPath)
+      if (dlErr || !blob) throw dlErr || new Error('download vazio')
+      const novoBlob = await _gerarThumbWatermark(blob)
+      const { error: upErr } = await db.storage.from(BUCKET).upload(f.storage_path, novoBlob, { contentType: 'image/jpeg', upsert: true })
+      if (upErr) throw upErr
+      _invalidarUrlCache(f.storage_path)
+      feitas++
+    } catch (e) {
+      console.error("reprocessar marca d'água falhou", f.id, e)
+      falhas++
+    }
+  }
+  if (status) status.textContent = ''
+  toast(`Marca d'água atualizada em ${feitas} foto(s)${falhas ? `, ${falhas} falharam` : ''}.`)
+  _renderSelecaoFotosGrid()
+  if (g.pedido) _renderSelecaoPedidoFotosGrid()
 }
 
 function _renderSelecaoFotosGrid() {
