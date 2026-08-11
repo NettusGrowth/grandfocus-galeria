@@ -50,12 +50,23 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_publica_dados', { p_token: token, p_senha: senha })
   if (error) { console.error('selecao-publica[dados]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
-  const fotos = await Promise.all((data.fotos || []).map(async (f: any) => {
-    const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(f.storage_path, 3600)
-    return { id: f.id, url: signed?.signedUrl || null }
-  }))
+  const fotos = await assinarEmLote(admin, data.fotos || [], 'storage_path')
 
   return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
+}
+
+// createSignedUrl (singular) faz uma chamada de rede por foto — com uma
+// galeria de 20-30 fotos isso empilha centenas de ms cada e vira uma
+// espera visível (era a causa real dos "30 segundos" pra alta resolução
+// aparecer após o pagamento). createSignedUrls (plural) resolve tudo
+// numa única chamada à Storage API, igual ao cache em lote que o client
+// já usa pra thumbnails/avatares.
+async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
+  if (!lista.length) return []
+  const paths = lista.map((f) => f[campoPath])
+  const { data: assinadas, error } = await admin.storage.from(BUCKET).createSignedUrls(paths, 3600)
+  if (error) { console.error('selecao-publica: createSignedUrls falhou', error.message); return lista.map((f) => ({ id: f.id, url: null })) }
+  return lista.map((f, i) => ({ id: f.id, url: assinadas[i]?.signedUrl || null }))
 }
 
 // gera um link de checkout InfinitePay pro pedido já registrado (o
@@ -115,11 +126,10 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_download_liberado', { p_token: token, p_senha: senha })
   if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
-  const assinar = (lista: any[]) => Promise.all((lista || []).map(async (f: any) => {
-    const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(f.storage_path_alta, 3600)
-    return { id: f.id, url: signed?.signedUrl || null }
-  }))
-  const [fotos, bastidores] = await Promise.all([assinar(data.fotos), assinar(data.bastidores)])
+  const [fotos, bastidores] = await Promise.all([
+    assinarEmLote(admin, data.fotos || [], 'storage_path_alta'),
+    assinarEmLote(admin, data.bastidores || [], 'storage_path_alta'),
+  ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
 }
 
