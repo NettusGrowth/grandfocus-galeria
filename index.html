@@ -5856,7 +5856,25 @@ const REACOES = { curtir: '👍', amei: '❤️', parabens: '🎉', ciente: '✅
 function _perfilPorUserId(userId) {
   if (!userId) return null
   if (userId === currentUser?.id) return meuPerfil
-  return store.professores.find(p => p.user_id === userId) || store.responsaveis.find(r => r.user_id === userId) || null
+  return store.professores.find(p => p.user_id === userId) || store.responsaveis.find(r => r.user_id === userId)
+    || store.alunos.find(a => a.id === userId) || _cachePerfilExtra.get(userId) || null
+}
+
+// _perfilPorUserId só enxerga quem já está pré-carregado nas listas
+// da tela atual (professores/responsáveis/alunos) — um admin/
+// super_admin nunca aparece em nenhuma dessas listas, então o autor
+// de um post feito por um admin sempre voltava null pra qualquer
+// outro usuário (a própria pessoa via a si mesma via o atalho
+// currentUser.id, por isso o bug só aparecia pros OUTROS). Esse cache
+// + busca direta cobre qualquer role, inclusive admin, sem precisar
+// pré-carregar uma lista de admins em toda tela que mostra autor de
+// post/auditoria.
+const _cachePerfilExtra = new Map()
+async function _garantirPerfilExtra(userId) {
+  if (!userId || _perfilPorUserId(userId)) return _cachePerfilExtra.get(userId) || null
+  const { data } = await db.from('perfis').select('*').eq('user_id', userId).maybeSingle()
+  _cachePerfilExtra.set(userId, data || null)
+  return data || null
 }
 
 // mesma regra de posso_postar() no SQL — mantém sincronizado se aquela
@@ -5978,13 +5996,24 @@ function renderFeed(containerId) {
   wrap.innerHTML = barraFiltro + blocoAvisos + listaHTML
   const visiveis = filtrando ? normais : [...avisos, ...normais]
   visiveis.forEach(p => {
-    const autor = _perfilPorUserId(p.autor_user_id)
-    if (autor?.foto_url) {
-      _carregarImgCache(autor.foto_url).then(url => {
-        const av = document.getElementById('post-avatar-' + p.id)
-        if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${autor.foto_pos || POS_PADRAO};">`
-      })
+    const autorConhecido = _perfilPorUserId(p.autor_user_id)
+    const aplicarAutor = autor => {
+      if (autor?.foto_url) {
+        _carregarImgCache(autor.foto_url).then(url => {
+          const av = document.getElementById('post-avatar-' + p.id)
+          if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${autor.foto_pos || POS_PADRAO};">`
+        })
+      }
+      if (autor?.role) {
+        const cargoEl = document.getElementById('post-cargo-' + p.id)
+        if (cargoEl) cargoEl.textContent = ROLE_LABEL[autor.role] || autor.role
+      }
     }
+    if (autorConhecido) aplicarAutor(autorConhecido)
+    // autor não achado nas listas pré-carregadas (ex: post de um
+    // admin/super_admin visto por outro usuário) — busca direto e
+    // aplica assim que chegar, sem re-renderizar o post inteiro.
+    else if (p.autor_user_id) _garantirPerfilExtra(p.autor_user_id).then(autor => { if (autor) aplicarAutor(autor) })
     ;(_feedMidias[p.id] || []).filter(m => m.tipo !== 'documento').forEach(async m => {
       const el = document.getElementById('post-midia-' + m.id)
       const url = await _urlAssinada(m.storage_path)
@@ -6104,7 +6133,7 @@ function _postCardHTML(p) {
       <div class="post-head">
         <span class="list-avatar" id="post-avatar-${p.id}">${esc((p.autor_nome || '?').trim().charAt(0).toUpperCase())}</span>
         <div style="flex:1;min-width:0;">
-          <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}<span class="post-cargo">${esc(cargo)}</span></div>
+          <div class="post-autor">${esc(p.autor_nome || 'Grand Focus')}<span class="post-cargo" id="post-cargo-${p.id}">${esc(cargo)}</span></div>
           <div class="post-meta">${esc(escolaLabel)}${escolaLabel ? ' · ' : ''}${p.turma ? `Turma ${esc(p.turma)} · ` : ''}${fmtDataHora(p.criado_em)}</div>
         </div>
         ${destaqueAtivo ? '<span class="post-destaque-tag">★ Destaque</span>' : ''}
@@ -6801,7 +6830,11 @@ async function _auditoriaThumbPath(e) {
   if (e.tabela === 'escolas') return store.escolas.find(x => x.id === e.registro_id)?.capa_url || null
   if (e.tabela === 'alunos') return store.alunos.find(x => x.id === e.registro_id)?.foto_url || null
   if (e.tabela === 'eventos') return store.eventos.find(x => x.id === e.registro_id)?.capa_url || null
-  if (e.tabela === 'perfis') return (store.professores.find(x => x.user_id === e.registro_id) || store.responsaveis.find(x => x.user_id === e.registro_id))?.foto_url || null
+  // _perfilPorUserId já cobre professores/responsáveis/alunos + cache
+  // de qualquer outro papel (admin/super_admin incluso) — mesmo motivo
+  // do fix em renderFeed: essas linhas de auditoria são de login/ações
+  // de QUALQUER papel, não só quem já está pré-carregado na tela atual.
+  if (e.tabela === 'perfis') return (_perfilPorUserId(e.registro_id) || await _garantirPerfilExtra(e.registro_id))?.foto_url || null
   if (e.tabela === 'posts') {
     const { data } = await db.from('post_midias').select('storage_path').eq('post_id', e.registro_id).eq('tipo', 'foto').order('ordem').limit(1)
     return data?.[0]?.storage_path || null
