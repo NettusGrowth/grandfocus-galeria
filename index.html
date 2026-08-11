@@ -489,6 +489,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modulo-card .mv{font-family:var(--sans-num);font-weight:700;font-size:22px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
 .modulo-card .ms{font-size:11px;color:#C9AF87;margin-left:6px;}
 
+/* ── Gold Reserve: sub-nav local dentro da aba (Visão Geral/Vendas/…) ── */
+.gr-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
+.gr-subnav-item{
+  padding:8px 16px;border-radius:999px;border:1px solid rgba(212,175,55,.25);background:transparent;
+  color:#C9AF87;font-family:var(--sans);font-size:13px;cursor:pointer;transition:all .15s;
+}
+.gr-subnav-item:hover{border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
+.gr-subnav-item.on{background:var(--dourado);border-color:var(--dourado);color:#1E0810;font-weight:600;}
+
 /* ── barra de busca/filtro (Escolas, Alunos, Pais) ── */
 .filtro-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
 .filtro-row input[type="text"]{max-width:280px;}
@@ -1036,6 +1045,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="navgroup-label">Sistema</div>
         <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
+        <div class="navgroup-label" id="navgroup-financeiro" style="display:none;">Financeiro</div>
+        <div class="tab" data-tab="gold-reserve" id="tab-gold-reserve" style="display:none;" data-tip="Gold Reserve" onclick="setAdminTab('gold-reserve');iniciarGoldReserveAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1 3 2.3c0 3-6 1.4-6 4.3 0 1.4 1.3 2.4 3 2.4s3-1 3-2.4"/></svg><span>Gold Reserve</span></div>
         <div class="sidebar-social">
           <span class="ss-label">Conecte-se</span>
           <div class="ss-row">
@@ -1226,6 +1237,26 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div style="text-align:center;margin-top:16px;">
           <button class="btn btn-sm" id="auditoria-carregar-mais" onclick="carregarMaisAuditoria()">Carregar mais</button>
         </div>
+      </div>
+
+      <!-- Bloco 16: Gold Reserve — hub financeiro, só super_admin (trava
+           aplicada em mostrarApp(), igual ao resto do gating por role) -->
+      <div class="admin-tab" id="admintab-gold-reserve" style="display:none;">
+        <div class="section-h"><h2>Gold Reserve</h2></div>
+        <div class="gr-subnav">
+          <button class="gr-subnav-item on" data-gr-sub="visao-geral" onclick="setGrSubTab('visao-geral')">Visão Geral</button>
+          <button class="gr-subnav-item" data-gr-sub="vendas" onclick="setGrSubTab('vendas')">Vendas</button>
+          <button class="gr-subnav-item" data-gr-sub="conversao" onclick="setGrSubTab('conversao')">Conversão</button>
+          <button class="gr-subnav-item" data-gr-sub="portfolio" onclick="setGrSubTab('portfolio')">Portfólio</button>
+          <button class="gr-subnav-item" data-gr-sub="auditoria" onclick="setGrSubTab('auditoria')">Auditoria</button>
+          <button class="gr-subnav-item" data-gr-sub="perdas" onclick="setGrSubTab('perdas')">Perdas</button>
+        </div>
+        <div class="gr-section" data-sub="visao-geral" id="gr-sub-visao-geral"></div>
+        <div class="gr-section" data-sub="vendas" id="gr-sub-vendas" style="display:none;"></div>
+        <div class="gr-section" data-sub="conversao" id="gr-sub-conversao" style="display:none;"></div>
+        <div class="gr-section" data-sub="portfolio" id="gr-sub-portfolio" style="display:none;"></div>
+        <div class="gr-section" data-sub="auditoria" id="gr-sub-auditoria" style="display:none;"></div>
+        <div class="gr-section" data-sub="perdas" id="gr-sub-perdas" style="display:none;"></div>
       </div>
 
       </div>
@@ -2353,6 +2384,10 @@ async function mostrarApp(user) {
   if (data.role !== 'avulso') iniciarSinoNotificacoes()
   const tabEquipe = document.querySelector('#view-escola .tab[data-tab="equipe"]')
   if (tabEquipe) tabEquipe.style.display = ['proprietario', 'diretor'].includes(data.role) ? 'flex' : 'none'
+  // Gold Reserve (Bloco 16): dado financeiro sensível, só super_admin —
+  // até um 'admin' comum fica de fora, tanto da aba quanto do RLS.
+  document.getElementById('navgroup-financeiro').style.display = data.role === 'super_admin' ? 'block' : 'none'
+  document.getElementById('tab-gold-reserve').style.display = data.role === 'super_admin' ? 'flex' : 'none'
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
@@ -3023,6 +3058,20 @@ function setAdminTab(tab) {
   document.querySelectorAll('#view-admin .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none')
   document.getElementById('admintab-' + tab).style.display = 'block'
+}
+
+// sub-nav local do Gold Reserve (Visão Geral/Vendas/Conversão/…) — não
+// mexe na navegação principal do admin, só troca qual .gr-section
+// aparece dentro da própria aba.
+function setGrSubTab(sub) {
+  document.querySelectorAll('.gr-subnav-item').forEach(el => el.classList.toggle('on', el.dataset.grSub === sub))
+  document.querySelectorAll('.gr-section').forEach(el => el.style.display = el.dataset.sub === sub ? 'block' : 'none')
+}
+
+// stub — a camada de dados de verdade (_grConsolidar) entra no Bloco 16
+// (5/12); por enquanto só prova que a rota/trava funcionam.
+async function iniciarGoldReserveAdmin() {
+  console.log('Gold Reserve: rota ok, dados ainda não implementados (Bloco 16 5/12+)')
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
