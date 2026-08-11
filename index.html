@@ -5591,15 +5591,15 @@ async function _gerarThumbWatermark(file) {
       }
 
       const iconeColorido = _recolorirIcone(icone, corMarca)
-      const iconeW = Math.max(40, Math.round(w / 14))
+      const iconeW = Math.max(70, Math.round(w / 8))
       const iconeH = Math.round(iconeW * (iconeColorido.height / iconeColorido.width))
 
       ctx.save()
-      ctx.globalAlpha = 0.5
+      ctx.globalAlpha = 0.32
       ctx.translate(w / 2, h / 2)
       ctx.rotate(-Math.PI / 8)
-      const passoY = Math.max(110, Math.round(h / 4.5))
-      const passoX = Math.max(180, Math.round(w / 3))
+      const passoY = Math.max(170, Math.round(h / 3))
+      const passoX = Math.max(260, Math.round(w / 2))
       for (let y = -h; y < h; y += passoY) {
         for (let x = -w; x < w; x += passoX) ctx.drawImage(iconeColorido, x - iconeW / 2, y - iconeH / 2, iconeW, iconeH)
       }
