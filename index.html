@@ -641,6 +641,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
+/* Galeria "boutique" — fotos grandes, masonry fluido, sem o corte
+   forçado 1:1, mesmo espírito visual da Seleção de Fotos (.selpub-*).
+   Só entra pra quem RECEBE as fotos (responsável/escola/professor/
+   diretor/proprietário, via _galRole !== 'admin') — o admin mantém a
+   grade compacta de gestão (sem essa classe) porque ali a prioridade é
+   multi-seleção prática pra marcar/apagar em lote, não impacto visual. */
+.foto-grid.gal-boutique{display:block;column-count:2;column-gap:8px;}
+@media(min-width:600px){.foto-grid.gal-boutique{column-gap:14px;}}
+@media(min-width:900px){.foto-grid.gal-boutique{column-count:3;column-gap:18px;}}
+.foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;}
+.foto-item.gal-boutique img{height:auto;object-fit:unset;display:block;}
 /* tarja clara de bônus (Seleção de Fotos) — em vez de um emoji
    pequeno disputando espaço com os ícones de ação no canto, ocupa a
    base inteira da foto pra ficar óbvio num relance de olhos. */
@@ -7405,7 +7416,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
       </div>
     </div>
-    <div class="foto-grid">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
+    <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
   `
   fotos.forEach(async f => {
     const img = wrap.querySelector(`#gal-fg-${f.id} img`)
@@ -7442,7 +7453,7 @@ function renderGaleriaFotosAvulso(wrap) {
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
       </div>
     </div>
-    <div class="foto-grid">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
+    <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
   `
   fotos.forEach(async f => {
     const img = wrap.querySelector(`#gal-fg-${f.id} img`)
@@ -7530,7 +7541,7 @@ function renderGaleriaFotosDoAno(wrap) {
       const ev = store.eventos.find(e => e.id === eventoId)
       return `<div class="galeria-secao">
         <h3 class="galeria-secao-titulo">${esc(ev?.nome || '(evento removido)')}${ev?.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</h3>
-        <div class="foto-grid">${lista.map(f => _galFotoItemHTML(f)).join('')}</div>
+        <div class="${_galGridClass()}">${lista.map(f => _galFotoItemHTML(f)).join('')}</div>
       </div>`
     }).join('')}
   `
@@ -7541,10 +7552,16 @@ function renderGaleriaFotosDoAno(wrap) {
   })
 }
 
+// mesma condição do card (_galRole !== 'admin') aplicada ao container —
+// os dois precisam concordar, senão a classe boutique de um lado não
+// bate com o layout (columns) do outro.
+function _galGridClass() { return 'foto-grid' + (_galRole !== 'admin' ? ' gal-boutique' : '') }
+
 // item de foto reaproveitado pelos 3 caminhos (álbum/avulso/aluno-ano)
 function _galFotoItemHTML(f) {
+  const boutique = _galRole !== 'admin' ? ' gal-boutique' : ''
   return `
-    <div class="foto-item${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="_galToggleSelecao('${f.id}')">
+    <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="_galToggleSelecao('${f.id}')">
       <img data-path="${esc(f.storage_path)}" alt="">
       <div class="ck">${_galSelecao.has(f.id) ? '✓' : ''}</div>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
