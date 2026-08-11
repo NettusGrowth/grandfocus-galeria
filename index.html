@@ -3068,10 +3068,72 @@ function setGrSubTab(sub) {
   document.querySelectorAll('.gr-section').forEach(el => el.style.display = el.dataset.sub === sub ? 'block' : 'none')
 }
 
-// stub — a camada de dados de verdade (_grConsolidar) entra no Bloco 16
-// (5/12); por enquanto só prova que a rota/trava funcionam.
+// ══════════════════════════════════════════════════════════════
+// GOLD RESERVE (Bloco 16) — hub financeiro, só super_admin.
+// _grConsolidar() é a ÚNICA query pesada: busca cada galeria de
+// seleção com o pedido (se existir) e o evento/preço de sessão
+// vinculado (se existir), e devolve uma lista já pronta pra qualquer
+// sub-aba filtrar/agrupar — nenhuma sub-aba refaz essa busca.
+// ══════════════════════════════════════════════════════════════
+let _grDados = []
+
+async function _grConsolidar() {
+  const { data, error } = await db.from('selecao_galerias')
+    .select('id, titulo, cliente_nome, criado_em, evento_id, eventos(nome, categoria, data, eventos_financeiro(preco_sessao)), selecao_pedidos(status, valor_total, valor_pago, qtd_extra, criado_em, enviado_em, liberado_em, pago_automaticamente)')
+  if (error) { console.error('_grConsolidar: falha ao carregar', error.message); return [] }
+
+  return (data || []).map(g => {
+    // PostgREST devolve o lado "um" de uma relação 1:1 (FK unique) ora
+    // como objeto, ora como array de 1 — trata os dois formatos.
+    const pedido = Array.isArray(g.selecao_pedidos) ? g.selecao_pedidos[0] : g.selecao_pedidos
+    const evento = Array.isArray(g.eventos) ? g.eventos[0] : g.eventos
+    const finRaw = evento?.eventos_financeiro
+    const financeiro = Array.isArray(finRaw) ? finRaw[0] : finRaw
+    const precoSessao = financeiro?.preco_sessao || 0
+
+    const statusPedido = pedido?.status || null
+    const pago = statusPedido === 'liberado'
+    const receitaExtras = pago ? (pedido.valor_total || 0) : 0
+    // pedido liberado manualmente (Confirmar Pagamento, PIX visto a
+    // olho) nunca passou pelo payment_check da InfinitePay — valor_pago
+    // fica null nesse caso. Trata como igual ao valor_total (sem
+    // diferença fantasma) em vez de mostrar NaN ou 0 enganoso.
+    const valorPago = pago ? (pedido.pago_automaticamente ? (pedido.valor_pago ?? pedido.valor_total) : pedido.valor_total) : 0
+    const diferenca = pago ? (valorPago - receitaExtras) : 0
+
+    return {
+      galeriaId: g.id,
+      titulo: g.titulo,
+      cliente: g.cliente_nome,
+      categoria: evento?.categoria || null,
+      eventoNome: evento?.nome || null,
+      eventoData: evento?.data || null,
+      eventoId: g.evento_id,
+      temEventoVinculado: !!g.evento_id,
+      precoSessao,
+      receitaExtras,
+      valorPago,
+      diferenca,
+      qtdExtra: pago ? (pedido.qtd_extra || 0) : 0,
+      receitaTotal: precoSessao + receitaExtras,
+      statusPedido,
+      pagoAutomaticamente: !!pedido?.pago_automaticamente,
+      criadoEmGaleria: g.criado_em,
+      criadoEmPedido: pedido?.criado_em || null,
+      enviadoEm: pedido?.enviado_em || null,
+      liberadoEm: pedido?.liberado_em || null,
+    }
+  })
+}
+
 async function iniciarGoldReserveAdmin() {
-  console.log('Gold Reserve: rota ok, dados ainda não implementados (Bloco 16 5/12+)')
+  _grDados = await _grConsolidar()
+  _grRenderVisaoGeral()
+}
+
+// stub — vira os KPIs/waterfall/timer de verdade no Bloco 16 (6/12).
+function _grRenderVisaoGeral() {
+  console.log('Gold Reserve: dados consolidados', _grDados.length, 'galeria(s)')
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
