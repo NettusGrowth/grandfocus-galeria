@@ -5537,11 +5537,24 @@ function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path); _invalidarIm
 // Guardando o blob local (uma vez só por sessão, por caminho), a
 // segunda visita em diante pinta a foto na hora — é o que o Facebook
 // faz: a foto já está ali, não recarrega, não pisca.
-const _cacheImagemBlob = new Map() // path -> object URL
+const _cacheImagemBlob = new Map() // path -> object URL (só dura a aba aberta)
 const _promessaImagemBlob = new Map() // path -> Promise em andamento (evita baixar 2x em paralelo)
 
+// o Map acima já mata o pisca-pisca ao trocar de MENU, mas não
+// sobrevive a um F5 nem a trocar de conta (logout/login = página nova
+// = memória zerada) — e é assim que a maior parte dos testes reais
+// acontece. Cache Storage (a mesma API de Service Worker, mas dá pra
+// usar direto de um script normal, sem registrar nenhum worker) fica
+// gravado em disco pelo navegador e sobrevive a reload/nova sessão —
+// aí a foto pinta na hora mesmo na primeira renderização depois de
+// entrar de novo, sem precisar baixar de novo do Supabase.
+const _imgCacheStorage = ('caches' in window) ? caches.open('grandfocus-img-v1') : null
+function _imgCacheStorageKey(path) { return '/_imgcache/' + encodeURIComponent(path) }
+
 // versão síncrona — dá pra usar direto dentro de um template literal,
-// sem esperar nada. null quando ainda não foi buscada nesta sessão.
+// sem esperar nada (só enxerga o que já foi buscado NESTA aba; o
+// cache em disco só se resolve de forma assíncrona, ver
+// _carregarImgCache). null quando ainda não foi buscada.
 function _imgCache(path) { return path ? (_cacheImagemBlob.get(path) || null) : null }
 
 async function _carregarImgCache(path) {
@@ -5552,10 +5565,20 @@ async function _carregarImgCache(path) {
   if (emAndamento) return emAndamento
   const promessa = (async () => {
     try {
+      if (_imgCacheStorage) {
+        const cache = await _imgCacheStorage
+        const respDisco = await cache.match(_imgCacheStorageKey(path))
+        if (respDisco) {
+          const objUrl = URL.createObjectURL(await respDisco.blob())
+          _cacheImagemBlob.set(path, objUrl)
+          return objUrl
+        }
+      }
       const url = await _urlAssinada(path)
       if (!url) return null
       const resp = await fetch(url)
       if (!resp.ok) return null
+      if (_imgCacheStorage) { const cache = await _imgCacheStorage; await cache.put(_imgCacheStorageKey(path), resp.clone()) }
       const blob = await resp.blob()
       const objUrl = URL.createObjectURL(blob)
       _cacheImagemBlob.set(path, objUrl)
@@ -5572,13 +5595,15 @@ async function _carregarImgCache(path) {
 }
 
 // upload novo por cima do mesmo caminho (upsert) precisa soltar o
-// object URL antigo (senão vaza memória) e tirar do cache, pra a
-// próxima _carregarImgCache buscar a versão nova de verdade.
+// object URL antigo (senão vaza memória), tirar do cache em memória E
+// do cache em disco — senão a versão velha continua sendo servida do
+// disco pra sempre, mesmo depois de trocar a foto.
 function _invalidarImgCache(path) {
   const antigo = _cacheImagemBlob.get(path)
   if (antigo) URL.revokeObjectURL(antigo)
   _cacheImagemBlob.delete(path)
   _promessaImagemBlob.delete(path)
+  if (_imgCacheStorage) _imgCacheStorage.then(cache => cache.delete(_imgCacheStorageKey(path)))
 }
 
 // gera o <img> já pronto: se a foto já estiver no cache local, nasce
