@@ -1533,7 +1533,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <label>Quem participa deste evento? <span style="text-transform:none;font-weight:400;color:#B39F86;">(alunos, professores, diretores… marca automaticamente essas fotos pra eles)</span></label>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <input type="text" id="evt-alunos-busca" placeholder="Buscar…" style="max-width:220px;" oninput="_renderEventoSeletorAlunos()">
-        <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos os alunos</button>
+        <button class="btn btn-sm" type="button" onclick="_eventoSelecionarTodosAlunos()">Selecionar todos</button>
       </div>
       <div class="tag-picker" id="evt-alunos-lista" style="max-height:180px;overflow-y:auto;"></div>
     </div>
@@ -1560,7 +1560,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="margin-bottom:0;">Quem vai ver essas fotos? <span style="text-transform:none;font-weight:400;color:#B39F86;">(aluno, responsável, professor, diretor)</span></label>
-        <button class="btn btn-sm" type="button" onclick="_ensaioSelecionarTodosAlunos()">Selecionar todos os alunos</button>
+        <button class="btn btn-sm" type="button" onclick="_ensaioSelecionarTodosAlunos()">Selecionar todos</button>
       </div>
       <input type="text" id="ens-busca" placeholder="Buscar por nome…" style="margin-bottom:6px;" oninput="_renderEnsaioSeletorPessoas()">
       <div class="tag-picker" id="ens-pessoas-lista" style="max-height:220px;overflow-y:auto;"></div>
@@ -5100,10 +5100,17 @@ function _eventoTogglePessoa(tipo, id, el) {
   el.classList.toggle('on')
 }
 
+// selecionava só alunos, deixando professores/diretores da mesma
+// escola de fora do roster silenciosamente (a marcação individual já
+// funcionava pra eles — só esse atalho de massa que ignorava) — quem
+// usasse esse botão achando que "selecionou todo mundo" nunca
+// conseguia marcar professor/diretor nas fotos depois, porque eles
+// nunca entravam em alunos_selecionados/pessoas_selecionadas.
 function _eventoSelecionarTodosAlunos() {
   const escolaId = document.getElementById('evt-escola').value
   if (!escolaId) return
   store.alunos.filter(a => a.escola_id === escolaId).forEach(a => _eventoAlunosSelecionados.add(a.id))
+  _pessoasDaEscola(escolaId).forEach(p => _eventoPessoasSelecionadas.add(p.id))
   _renderEventoSeletorAlunos()
 }
 
@@ -7721,8 +7728,10 @@ function abrirModalEnsaio(ensaioId) {
   abrirModal('modal-ensaio')
 }
 
+// mesmo bug do evento — ignorava professor/diretor/responsável.
 function _ensaioSelecionarTodosAlunos() {
   store.alunos.forEach(a => _ensaioAlunosSel.add(a.id))
+  _todasPessoasSelecionaveis().filter(p => p.tipo === 'pessoa').forEach(p => _ensaioPessoasSel.add(p.id))
   _renderEnsaioSeletorPessoas()
 }
 
