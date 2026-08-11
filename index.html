@@ -3195,6 +3195,7 @@ async function iniciarGoldReserveAdmin() {
   _grMarketing = mkt.error ? [] : (mkt.data || [])
   _grRenderVisaoGeral()
   _grRenderVendas()
+  _grRenderConversao()
 }
 
 // custo operacional mensal amortizado: soma(custo/vida_util) de cada
@@ -3266,13 +3267,14 @@ function _grRenderVisaoGeral() {
   `
 }
 
-function _grWaterfallPasso(label, valor, base, classe) {
+function _grWaterfallPasso(label, valor, base, classe, formato) {
   const pct = base ? Math.min(100, Math.abs(valor) / Math.abs(base) * 100) : 0
+  const textoValor = formato === 'numero' ? String(valor) : fmtBRL(valor)
   return `
     <div class="gr-waterfall-passo ${classe}">
       <div class="gwp-label">${esc(label)}</div>
       <div class="gr-waterfall-track"><div class="gr-waterfall-fill" style="width:${pct}%;"></div></div>
-      <div class="gwp-valor">${fmtBRL(valor)}</div>
+      <div class="gwp-valor">${textoValor}</div>
     </div>`
 }
 
@@ -3389,6 +3391,47 @@ async function _grSalvarMarketing() {
   _grMarketing = data || []
   _grRenderVisaoGeral()
   _grRenderVendas()
+}
+
+// ── Pilar 3: funil de conversão + atraso médio ──
+// só considera galerias com evento/ensaio vinculado — sem esse elo não
+// dá pra saber quando o ensaio de verdade aconteceu, e misturar
+// inflaria o funil com um "ensaio realizado" que não existe nos dados.
+function _grRenderConversao() {
+  const el = document.getElementById('gr-sub-conversao')
+  const comEvento = _grDados.filter(g => g.temEventoVinculado)
+  if (!comEvento.length) { el.innerHTML = '<div class="empty">Nenhuma galeria vinculada a um ensaio/evento ainda — vincule no modal da Seleção de Fotos pra o funil aparecer aqui.</div>'; return }
+
+  const totalEnsaios = comEvento.length
+  const abriuSelecao = comEvento.filter(g => g.statusPedido).length
+  const comprou = comEvento.filter(g => g.statusPedido === 'liberado').length
+
+  const media = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null
+  const diasEntre = (a, b) => (new Date(b).getTime() - new Date(a).getTime()) / 86400000
+  const atrasoAbertura = media(comEvento.filter(g => g.enviadoEm).map(g => diasEntre(g.criadoEmGaleria, g.enviadoEm)))
+  const atrasoPagamento = media(comEvento.filter(g => g.enviadoEm && g.liberadoEm).map(g => diasEntre(g.enviadoEm, g.liberadoEm)))
+
+  el.innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Funil de Conversão</h3>
+    <div class="gr-waterfall" style="margin-bottom:8px;">
+      ${_grWaterfallPasso('Ensaios com seleção vinculada', totalEnsaios, totalEnsaios, 'subtotal', 'numero')}
+      ${_grWaterfallPasso('Seleção aberta/enviada', abriuSelecao, totalEnsaios, '', 'numero')}
+      ${_grWaterfallPasso('Compra concluída', comprou, totalEnsaios, 'positivo', 'numero')}
+    </div>
+    <div class="meta" style="margin-bottom:26px;">Considera só galerias com ensaio vinculado (${totalEnsaios} de ${_grDados.length} no total) — histórico sem esse elo fica de fora pra não inflar o funil.</div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Atraso Médio</h3>
+    <div class="gr-kpi-grid" style="grid-template-columns:repeat(2,1fr);">
+      <div class="gr-kpi-card ouro">
+        <div class="gr-kpi-label">Ensaio → Seleção enviada</div>
+        <div class="gr-kpi-valor">${atrasoAbertura !== null ? atrasoAbertura.toFixed(1) + ' dias' : '—'}</div>
+      </div>
+      <div class="gr-kpi-card ouro">
+        <div class="gr-kpi-label">Seleção enviada → Pagamento</div>
+        <div class="gr-kpi-valor">${atrasoPagamento !== null ? atrasoPagamento.toFixed(1) + ' dias' : '—'}</div>
+      </div>
+    </div>
+  `
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
