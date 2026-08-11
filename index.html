@@ -1440,6 +1440,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>Nome</label><input type="text" id="evt-nome" placeholder="Ex: Recital de Verão 2026"></div>
     <div class="field"><label>Categoria</label><select id="evt-categoria"><option value="">— nenhuma —</option></select></div>
     <div class="field"><label>Data</label><input type="date" id="evt-data"></div>
+    <div class="field"><label>💰 Preço da sessão (opcional)</label><input type="number" id="evt-preco-sessao" placeholder="0,00" step="0.01" min="0"></div>
     <div class="field">
       <label>Escola</label>
       <select id="evt-escola" onchange="_renderEventoSeletorAlunos()"><option value="">— Avulso / geral —</option></select>
@@ -1471,6 +1472,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>Nome</label><input type="text" id="ens-nome" placeholder="Ex: Ensaio individual — Bia"></div>
     <div class="field"><label>Categoria</label><select id="ens-categoria"><option value="">— nenhuma —</option></select></div>
     <div class="field"><label>Data</label><input type="date" id="ens-data"></div>
+    <div class="field"><label>💰 Preço da sessão (opcional)</label><input type="number" id="ens-preco-sessao" placeholder="0,00" step="0.01" min="0"></div>
     <div class="field">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <label style="margin-bottom:0;">Quem vai ver essas fotos? <span style="text-transform:none;font-weight:400;color:#B39F86;">(aluno, responsável, professor, diretor)</span></label>
@@ -1914,6 +1916,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
       <div class="field"><label>Nome do cliente</label><input type="text" id="sel-cliente-nome"></div>
       <div class="field"><label>WhatsApp</label><input type="text" id="sel-cliente-whatsapp" placeholder="(11) 91234-5678"></div>
+      <div class="field">
+        <label>Ensaio/Evento de origem (opcional)</label>
+        <select id="sel-evento-origem"><option value="">— nenhum —</option></select>
+        <div class="meta" style="margin-top:4px;">Liga essa seleção ao ensaio no financeiro (Gold Reserve) — sem isso, essa venda de fotos extras fica "sem sessão vinculada" nos relatórios.</div>
+      </div>
     </div>
 
     <div class="modal-secao">
@@ -4332,6 +4339,10 @@ function abrirModalEvento(eventoId) {
   document.getElementById('evt-nome').value = ev?.nome || ''
   document.getElementById('evt-data').value = ev?.data || ''
   document.getElementById('evt-alunos-busca').value = ''
+  document.getElementById('evt-preco-sessao').value = ''
+  if (ev?.id) db.from('eventos_financeiro').select('preco_sessao').eq('evento_id', ev.id).maybeSingle().then(({ data }) => {
+    if (data) document.getElementById('evt-preco-sessao').value = data.preco_sessao || ''
+  })
 
   const selCat = document.getElementById('evt-categoria')
   selCat.innerHTML = '<option value="">— nenhuma —</option>' + CATEGORIAS_EVENTO.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
@@ -4434,6 +4445,14 @@ async function salvarEvento() {
   fecharModal('modal-evento')
   toast(id ? 'Evento atualizado ✓' : 'Evento criado ✓')
   registrarAuditoria(id ? 'editou evento' : 'criou evento', 'eventos', data.id, nome)
+
+  // preço da sessão vive numa tabela separada (eventos_financeiro, só
+  // admin/super_admin) — não em `eventos`, que tem SELECT aberto pra
+  // aluno/pai/professor verem seus próprios eventos.
+  const precoSessao = parseFloat(document.getElementById('evt-preco-sessao').value) || 0
+  db.from('eventos_financeiro').upsert({ evento_id: data.id, preco_sessao: precoSessao, atualizado_em: new Date().toISOString(), atualizado_por: meuPerfil.user_id }).then(({ error: eFin }) => {
+    if (eFin) console.error('eventos_financeiro: falha ao salvar preço da sessão', eFin.message)
+  })
 }
 
 async function excluirEvento(id, aposApagar) {
@@ -6932,6 +6951,10 @@ function abrirModalEnsaio(ensaioId) {
   document.getElementById('ens-nome').value = ev?.nome || ''
   document.getElementById('ens-data').value = ev?.data || ''
   document.getElementById('ens-busca').value = ''
+  document.getElementById('ens-preco-sessao').value = ''
+  if (ev?.id) db.from('eventos_financeiro').select('preco_sessao').eq('evento_id', ev.id).maybeSingle().then(({ data }) => {
+    if (data) document.getElementById('ens-preco-sessao').value = data.preco_sessao || ''
+  })
 
   const selCat = document.getElementById('ens-categoria')
   selCat.innerHTML = '<option value="">— nenhuma —</option>' + CATEGORIAS_ENSAIO.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')
@@ -7054,6 +7077,12 @@ async function salvarEnsaio() {
   renderEnsaios()
   fecharModal('modal-ensaio')
   registrarAuditoria(id ? 'editou ensaio avulso' : 'criou ensaio avulso', 'eventos', data.id, nome)
+
+  const precoSessao = parseFloat(document.getElementById('ens-preco-sessao').value) || 0
+  db.from('eventos_financeiro').upsert({ evento_id: data.id, preco_sessao: precoSessao, atualizado_em: new Date().toISOString(), atualizado_por: meuPerfil.user_id }).then(({ error: eFin }) => {
+    if (eFin) console.error('eventos_financeiro: falha ao salvar preço da sessão', eFin.message)
+  })
+
   if (clienteAvulsoId) {
     _copiarLinkPrivado(data.id) // já copia o link do cliente pra área de transferência
     toast('Ensaio salvo ✓ — link do cliente copiado, é só colar e mandar')
@@ -8290,6 +8319,11 @@ async function abrirModalSelecaoGaleria(id) {
   _selecaoFaixasEditInit(g?.faixas_preco)
   document.getElementById('sel-expira').value = g?.expira_em ? g.expira_em.slice(0, 10) : ''
   document.getElementById('sel-senha').value = ''
+  const selEvento = document.getElementById('sel-evento-origem')
+  selEvento.innerHTML = '<option value="">— nenhum —</option>' + store.eventos
+    .slice().sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+    .map(e => `<option value="${e.id}">${esc(e.nome)}${e.data ? ' — ' + fmtData(e.data) : ''}</option>`).join('')
+  selEvento.value = g?.evento_id || ''
   await _selecaoTipoMudou(g?.destinatario_id)
   abrirModal('modal-selecao-galeria')
 }
@@ -8345,6 +8379,7 @@ async function salvarSelecaoGaleria() {
   const expira_em = expiraInput ? new Date(expiraInput + 'T23:59:59').toISOString() : null
   const senha = document.getElementById('sel-senha').value.trim()
   const slug = _slugify(document.getElementById('sel-slug').value) || _slugify(titulo) || null
+  const evento_id = document.getElementById('sel-evento-origem').value || null
 
   const btn = document.getElementById('sel-salvar-btn')
   btn.disabled = true; btn.textContent = 'Salvando…'
@@ -8353,7 +8388,7 @@ async function salvarSelecaoGaleria() {
 
   let galeriaId = id
   if (id) {
-    const { error } = await db.from('selecao_galerias').update({ titulo, slug, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, faixas_preco, expira_em }).eq('id', id)
+    const { error } = await db.from('selecao_galerias').update({ titulo, slug, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp, qtd_incluida, preco_extra, faixas_preco, expira_em, evento_id }).eq('id', id)
     if (error) {
       toast(erroSlugEmUso(error) ? 'Esse link amigável já está em uso por outra galeria — escolha outro.' : 'Erro ao salvar: ' + error.message)
       btn.disabled = false; btn.textContent = 'Salvar e continuar'; return
@@ -8363,7 +8398,7 @@ async function salvarSelecaoGaleria() {
     const token = crypto.randomUUID().replace(/-/g, '')
     const { data, error } = await db.from('selecao_galerias').insert({
       titulo, slug, destinatario_tipo, destinatario_id, cliente_nome, cliente_whatsapp,
-      qtd_incluida, preco_extra, faixas_preco, expira_em, token, criado_por: currentUser.id,
+      qtd_incluida, preco_extra, faixas_preco, expira_em, evento_id, token, criado_por: currentUser.id,
     }).select().single()
     if (error) {
       toast(erroSlugEmUso(error) ? 'Esse link amigável já está em uso por outra galeria — escolha outro.' : 'Erro ao criar: ' + error.message)
