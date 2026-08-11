@@ -9659,11 +9659,18 @@ function _selPubRenderGrid() {
   if (!d.fotos.length) { grid.innerHTML = '<div class="empty">📷<br>Nenhuma foto cadastrada neste álbum ainda — o estúdio está preparando o ensaio.</div>'; return }
   const fotos = _fotosFiltradasAtual()
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
-  grid.innerHTML = fotos.map(f => {
+  grid.innerHTML = fotos.map((f, i) => {
     const idxGlobal = d.fotos.findIndex(x => x.id === f.id)
+    // os primeiros cards já aparecem na tela ao abrir — loading="lazy"
+    // neles não economiza nada (carregam na hora de qualquer forma) e
+    // em alguns navegadores mobile causa um "pisca" se o toque acontece
+    // enquanto a imagem ainda está decodificando pela primeira vez
+    // (bug relatado especificamente nos 3 primeiros cards, nunca nos
+    // de baixo — que aí sim se beneficiam do lazy de verdade).
+    const lazy = i < 6 ? '' : 'loading="lazy"'
     return `
     <div class="selpub-card${_selPub.selecionados.has(f.id) ? ' on' : ''}" id="selpub-card-${f.id}" onclick="_selPubToggle('${f.id}')">
-      <img src="${f.url}" loading="lazy" alt="">
+      <img src="${f.url}" ${lazy} alt="">
       <button class="selpub-zoom" onclick="event.stopPropagation();_selPubAbrirLightbox(${idxGlobal})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
