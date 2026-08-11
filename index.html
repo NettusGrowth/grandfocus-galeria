@@ -2064,6 +2064,21 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: Gold Reserve — cadastro de equipamento (Bloco 16) -->
+<div class="modal-overlay" id="modal-gr-equipamento">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-bottom:16px;">Equipamento</h3>
+    <div class="field"><label>Nome</label><input type="text" id="gr-eq-nome" placeholder="Ex: Câmera Sony A7III"></div>
+    <div class="field"><label>Custo (R$)</label><input type="number" id="gr-eq-custo" min="0" step="0.01"></div>
+    <div class="field"><label>Data da compra</label><input type="date" id="gr-eq-data"></div>
+    <div class="field"><label>Vida útil estimada (meses)</label><input type="number" id="gr-eq-vida" min="1" value="36"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-gr-equipamento')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_grSalvarEquipamento()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal: confirmação da seleção (cliente público) -->
 <div class="modal-overlay" id="modal-selecao-confirmar">
   <div class="modal" style="max-width:440px;">
@@ -3196,6 +3211,7 @@ async function iniciarGoldReserveAdmin() {
   _grRenderVisaoGeral()
   _grRenderVendas()
   _grRenderConversao()
+  _grRenderPortfolio()
 }
 
 // custo operacional mensal amortizado: soma(custo/vida_util) de cada
@@ -3432,6 +3448,74 @@ function _grRenderConversao() {
       </div>
     </div>
   `
+}
+
+// ── Pilar 6: ROI de portfólio por categoria ──
+function _grRenderPortfolio() {
+  const el = document.getElementById('gr-sub-portfolio')
+  const porCategoria = new Map()
+  _grDados.forEach(g => {
+    const cat = g.categoria || '(sem categoria)'
+    const atual = porCategoria.get(cat) || { categoria: cat, receita: 0 }
+    atual.receita += g.receitaTotal
+    porCategoria.set(cat, atual)
+  })
+  const linhas = [...porCategoria.values()].filter(c => c.receita > 0).sort((a, b) => b.receita - a.receita)
+  const receitaTotalGeral = linhas.reduce((s, c) => s + c.receita, 0)
+  const custoOperacionalMensal = _grCustoOperacionalMensal()
+
+  const gastoMktTotal = _grMarketing.reduce((s, m) => s + (m.valor || 0), 0)
+
+  el.innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:6px;color:var(--papel,#F6F0E6);">ROI por Tipo de Ensaio</h3>
+    <div class="meta" style="margin-bottom:14px;">Custo operacional (equipamento + marketing) rateado proporcional à receita de cada categoria — é uma estimativa, não contabilidade de custo real por categoria (o sistema não sabe qual equipamento/gasto foi usado em qual ensaio).</div>
+    ${linhas.length ? `
+      <div class="gr-waterfall" style="margin-bottom:26px;">
+        ${linhas.map(c => {
+    const custoAlocado = receitaTotalGeral ? custoOperacionalMensal * (c.receita / receitaTotalGeral) : 0
+    const liquido = c.receita - custoAlocado
+    return _grWaterfallPasso(`${c.categoria} — líquido ${fmtBRL(liquido)}`, c.receita, linhas[0].receita, 'subtotal')
+  }).join('')}
+      </div>
+    ` : '<div class="empty" style="margin-bottom:26px;">Nenhuma receita categorizada ainda.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Equipamento cadastrado</h3>
+    <div class="filtro-row" style="margin-bottom:14px;">
+      <button class="btn btn-primary btn-sm" onclick="abrirModalGrEquipamento()">+ Novo equipamento</button>
+    </div>
+    ${_grEquipamentos.length ? `<div>${_grEquipamentos.map(_grEquipItemHTML).join('')}</div>` : '<div class="empty">Nenhum equipamento cadastrado ainda.</div>'}
+
+    <h3 style="font-size:15px;margin:26px 0 12px;color:var(--papel,#F6F0E6);">CAC vs ROI do Portfólio</h3>
+    <div class="gr-waterfall">
+      ${_grWaterfallPasso('Gasto total de marketing', gastoMktTotal, Math.max(gastoMktTotal, receitaTotalGeral), 'negativo')}
+      ${_grWaterfallPasso('Receita total do portfólio', receitaTotalGeral, Math.max(gastoMktTotal, receitaTotalGeral), 'positivo')}
+    </div>
+  `
+}
+
+function abrirModalGrEquipamento() {
+  document.getElementById('gr-eq-nome').value = ''
+  document.getElementById('gr-eq-custo').value = ''
+  document.getElementById('gr-eq-data').value = new Date().toISOString().slice(0, 10)
+  document.getElementById('gr-eq-vida').value = 36
+  abrirModal('modal-gr-equipamento')
+}
+
+async function _grSalvarEquipamento() {
+  const nome = document.getElementById('gr-eq-nome').value.trim()
+  if (!nome) { toast('Informe o nome do equipamento'); return }
+  const custo = parseFloat(document.getElementById('gr-eq-custo').value) || 0
+  const data_compra = document.getElementById('gr-eq-data').value
+  if (!data_compra) { toast('Informe a data da compra'); return }
+  const vida_util_meses = parseInt(document.getElementById('gr-eq-vida').value, 10) || 36
+  const { error } = await db.from('gr_equipamentos').insert({ nome, custo, data_compra, vida_util_meses, criado_por: meuPerfil.user_id })
+  if (error) { toast('Erro ao salvar: ' + error.message); return }
+  fecharModal('modal-gr-equipamento')
+  toast('Equipamento cadastrado ✓')
+  const { data } = await db.from('gr_equipamentos').select('*').order('data_compra', { ascending: false })
+  _grEquipamentos = data || []
+  _grRenderVisaoGeral()
+  _grRenderPortfolio()
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
