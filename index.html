@@ -22,6 +22,7 @@
   --sans:"Jost","Futura",system-ui,-apple-system,sans-serif;
   --sans-num:"Plus Jakarta Sans",var(--sans);
   --vinho-nobre:#1E0810; --dourado:#D4AF37;
+  --topbar-h:64px;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html{height:100%;}
@@ -246,9 +247,9 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 /* ── app shell ── */
 #app{display:none;height:100vh;height:100dvh;flex-direction:column;overflow:hidden;}
 .topbar{
-  display:flex;align-items:center;justify-content:space-between;padding:14px 28px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 28px;height:var(--topbar-h);
   background:rgba(16,9,16,.78);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
-  border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;
+  border-bottom:1px solid rgba(200,175,127,.16);position:sticky;top:0;z-index:50;flex-shrink:0;
 }
 .topbar .brand{display:flex;align-items:center;gap:11px;}
 .topbar .brand img{width:36px;filter:drop-shadow(0 0 10px rgba(212,175,55,.4)) brightness(1.12) contrast(1.08);}
@@ -364,11 +365,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
      scroll/altura do ancestral, e isso se mostrou frágil dependendo de
      monitor/zoom/navegador (já tinha voltado a "descer" junto com o
      conteúdo mesmo depois de um fix anterior). Fixed trava o menu na
-     tela de verdade, sempre, sem depender de contexto de layout —
-     .view-shell mantém a coluna de 260px/64px reservada (grid-
-     template-columns) só pra abrir espaço; quem desenha ali é isso
-     aqui, por cima. */
-  position:fixed;top:0;left:0;bottom:0;width:260px;overflow-y:auto;z-index:10;
+     tela de verdade, sempre, sem depender de contexto de layout.
+     top:var(--topbar-h) (não 0) porque a .topbar é sticky/z-index:50
+     por cima do <main> — com top:0 o menu ficava por baixo da topbar e
+     escondia os primeiros itens (Galeria/Dashboard). */
+  position:fixed;top:var(--topbar-h);left:0;bottom:0;width:260px;overflow-y:auto;z-index:10;
   background:linear-gradient(180deg,#16050C 0%,#0C0A0D 100%);
 }
 .tab{
