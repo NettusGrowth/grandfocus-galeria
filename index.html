@@ -5465,19 +5465,31 @@ let _loteUrlAssinada = null
 async function _urlAssinada(path) {
   const cache = _cacheUrlAssinada.get(path)
   if (cache && cache.expira > Date.now()) return cache.url
-  if (!_loteUrlAssinada) { _loteUrlAssinada = new Map(); queueMicrotask(_processarLoteUrlAssinada) }
+  if (!_loteUrlAssinada) { _loteUrlAssinada = new Map(); queueMicrotask(_disparaLoteUrlAssinada) }
   if (!_loteUrlAssinada.has(path)) _loteUrlAssinada.set(path, [])
   return new Promise(resolve => _loteUrlAssinada.get(path).push(resolve))
 }
-async function _processarLoteUrlAssinada() {
+function _disparaLoteUrlAssinada() {
   const lote = _loteUrlAssinada
   _loteUrlAssinada = null
-  const paths = [...lote.keys()]
-  const resolverTodos = url => paths.forEach(p => lote.get(p).forEach(r => r(url)))
+  _processarLoteUrlAssinada([...lote.keys()], lote)
+}
+// sem retry aqui, uma falha de rede passageira (comum depois de um
+// tempo com a aba em segundo plano/idle) deixava TODAS as fotos
+// daquele lote permanentemente sem imagem - só um F5 ou trocar de
+// aba/voltar (que dispara um _urlAssinada novo) resolvia. Uma
+// retentativa curta cobre a maioria dos casos sozinha.
+async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
+  const resolverTodos = url => paths.forEach(p => (lote.get(p) || []).forEach(r => r(url)))
   let data, error
   try { ({ data, error } = await db.storage.from(BUCKET).createSignedUrls(paths, 300)) }
   catch (e) { error = e }
-  if (error) { console.error(error); resolverTodos(null); return }
+  if (error) {
+    console.error('_processarLoteUrlAssinada falhou' + (tentativa === 1 ? ', tentando de novo em 1.5s' : ''), error)
+    if (tentativa === 1) { setTimeout(() => _processarLoteUrlAssinada(paths, lote, 2), 1500); return }
+    resolverTodos(null)
+    return
+  }
   (data || []).forEach(item => {
     const url = item.signedUrl || null
     if (url) _cacheUrlAssinada.set(item.path, { url, expira: Date.now() + 270000 })
