@@ -2781,7 +2781,7 @@ function _renderBuscaGlobal() {
   secoes.forEach(s => s.itens.slice(0, 8).forEach(async it => {
     if (!it.foto) return
     const i = _cmdkResultados.indexOf(it)
-    const url = await _urlAssinada(it.foto)
+    const url = await _carregarImgCache(it.foto)
     const el = document.getElementById('cmdk-av-' + i)
     if (url && el) el.innerHTML = `<img src="${url}" alt="">`
   }))
@@ -2925,7 +2925,7 @@ async function atualizarAvatarTopbar() {
   if (!el) return
   const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar')]
   if (meuPerfil?.foto_url) {
-    const url = await _urlAssinada(meuPerfil.foto_url)
+    const url = await _carregarImgCache(meuPerfil.foto_url)
     if (url) { alvos.forEach(a => a.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`); return }
   }
   const letra = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
@@ -2951,8 +2951,8 @@ async function abrirModalPerfil() {
   // cache miss, não em toda reabertura do modal.
   if (meuPerfil?.capa_url) document.getElementById('perfil-capa-skeleton')?.classList.add('on')
   const [urlFoto, urlCapa] = await Promise.all([
-    meuPerfil?.foto_url ? _urlAssinada(meuPerfil.foto_url) : null,
-    meuPerfil?.capa_url ? _urlAssinada(meuPerfil.capa_url) : null,
+    meuPerfil?.foto_url ? _carregarImgCache(meuPerfil.foto_url) : null,
+    meuPerfil?.capa_url ? _carregarImgCache(meuPerfil.capa_url) : null,
   ])
   if (urlFoto) { avatarEl.querySelector('.letra-fallback')?.remove(); avatarEl.insertAdjacentHTML('afterbegin', `<img src="${urlFoto}" alt="">`) }
   if (urlCapa) capaEl.insertAdjacentHTML('afterbegin', `<img src="${urlCapa}" alt="">`)
@@ -3851,7 +3851,7 @@ function renderEscolas() {
   }).join('') + '</div>'
   escolas.forEach(async e => {
     if (e.capa_url) {
-      const url = await _urlAssinada(e.capa_url)
+      const url = await _carregarImgCache(e.capa_url)
       const cover = document.getElementById(`esc-cover-${e.id}`)
       if (url && cover) { cover.style.backgroundImage = `url('${url}')`; cover.style.backgroundPosition = e.capa_pos || POS_PADRAO }
     }
@@ -3859,7 +3859,7 @@ function renderEscolas() {
     // num quadradinho, ficava ilegível) — sem logo próprio, mantém a
     // letra-fallback em vez de forçar a capa errada no selo.
     if (e.logo_url) {
-      const url = await _urlAssinada(e.logo_url)
+      const url = await _carregarImgCache(e.logo_url)
       const av = document.getElementById(`esc-av-${e.id}`)
       if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${e.logo_pos || '50% 50%'};">`
     }
@@ -3907,7 +3907,7 @@ function renderAlunos() {
   }).join('')
   alunos.forEach(async a => {
     if (!a.foto_url) return
-    const url = await _urlAssinada(a.foto_url)
+    const url = await _carregarImgCache(a.foto_url)
     const el2 = document.getElementById(`alu-av-${a.id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
@@ -3958,7 +3958,7 @@ function renderEventos() {
   `).join('') + '</div>'
   eventos.forEach(async ev => {
     if (!ev.capa_url) return
-    const url = await _urlAssinada(ev.capa_url)
+    const url = await _carregarImgCache(ev.capa_url)
     const el2 = document.getElementById(`evt-cover-${ev.id}`)
     if (url && el2) { el2.style.backgroundImage = `url('${url}')`; el2.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
@@ -4161,17 +4161,17 @@ async function abrirDetalheEscola(escolaId, focarSecao) {
   `
   ;[...staffDaEscola, ...paisDaEscola].forEach(async p => {
     if (!p.foto_url) return
-    const url = await _urlAssinada(p.foto_url)
+    const url = await _carregarImgCache(p.foto_url)
     const el2 = document.getElementById(`vinc-av-${p.user_id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || POS_PADRAO};">`
   })
   alunosDaEscola.forEach(async a => {
     if (!a.foto_url) return
-    const url = await _urlAssinada(a.foto_url)
+    const url = await _carregarImgCache(a.foto_url)
     const el2 = document.getElementById(`vinc-av-${a.id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
-  if (e.capa_url) { const url = await _urlAssinada(e.capa_url); if (url) document.getElementById('esc-det-capa').insertAdjacentHTML('afterbegin', `<img src="${url}" alt="" style="object-position:${e.capa_pos || POS_PADRAO};">`) }
+  if (e.capa_url) { const url = await _carregarImgCache(e.capa_url); if (url) document.getElementById('esc-det-capa').insertAdjacentHTML('afterbegin', `<img src="${url}" alt="" style="object-position:${e.capa_pos || POS_PADRAO};">`) }
   if (focarSecao) document.getElementById(`esc-det-sec-${focarSecao}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 function fecharDetalheEscola() {
@@ -4340,7 +4340,7 @@ function renderProfessores() {
   `).join('')
   store.professores.forEach(async p => {
     if (!p.foto_url) return
-    const url = await _urlAssinada(p.foto_url)
+    const url = await _carregarImgCache(p.foto_url)
     const el2 = document.getElementById(`prof-av-${p.user_id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || POS_PADRAO};">`
   })
@@ -4586,7 +4586,7 @@ function renderPais() {
   }).join('')
   responsaveis.forEach(async r => {
     if (!r.foto_url) return
-    const url = await _urlAssinada(r.foto_url)
+    const url = await _carregarImgCache(r.foto_url)
     const el2 = document.getElementById(`resp-av-${r.user_id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${r.foto_pos || POS_PADRAO};">`
   })
@@ -5272,7 +5272,7 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
     </div>
     <div id="evt-fotos-por-subpasta"></div>
   `
-  if (_eventoAtual.capa_url) { const url = await _urlAssinada(_eventoAtual.capa_url); if (url) document.getElementById('evt-header-bg').style.backgroundImage = `url('${url}')` }
+  if (_eventoAtual.capa_url) { const url = await _carregarImgCache(_eventoAtual.capa_url); if (url) document.getElementById('evt-header-bg').style.backgroundImage = `url('${url}')` }
   _ligarDropzone('evt-dropzone', 'evt-upload-input', files => _prepararUploadEvento(files))
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
   if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
@@ -5525,11 +5525,86 @@ async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
 // chamar depois de QUALQUER upload com upsert:true num caminho fixo
 // (avatar/capa) — sem isso, o cache acima continua servindo a URL
 // assinada antiga por até 270s e a foto nova só aparece com F5.
-function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path) }
+function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path); _invalidarImgCache(path) }
+
+// cache de imagem DE VERDADE (bytes já baixados e decodificados), não
+// só a URL assinada — antes, toda vez que você saía e voltava pra uma
+// tela (trocar de aba, reabrir um menu), o <img>/capa era recriado do
+// zero sem foto nenhuma e só ganhava a foto de volta depois de um
+// round trip assíncrono — mesmo com a URL assinada em cache, o
+// navegador ainda tinha que buscar os bytes de novo e decodificar de
+// novo, e É ESSE intervalo que aparecia como "fica preto"/"pisca".
+// Guardando o blob local (uma vez só por sessão, por caminho), a
+// segunda visita em diante pinta a foto na hora — é o que o Facebook
+// faz: a foto já está ali, não recarrega, não pisca.
+const _cacheImagemBlob = new Map() // path -> object URL
+const _promessaImagemBlob = new Map() // path -> Promise em andamento (evita baixar 2x em paralelo)
+
+// versão síncrona — dá pra usar direto dentro de um template literal,
+// sem esperar nada. null quando ainda não foi buscada nesta sessão.
+function _imgCache(path) { return path ? (_cacheImagemBlob.get(path) || null) : null }
+
+async function _carregarImgCache(path) {
+  if (!path) return null
+  const pronta = _cacheImagemBlob.get(path)
+  if (pronta) return pronta
+  const emAndamento = _promessaImagemBlob.get(path)
+  if (emAndamento) return emAndamento
+  const promessa = (async () => {
+    try {
+      const url = await _urlAssinada(path)
+      if (!url) return null
+      const resp = await fetch(url)
+      if (!resp.ok) return null
+      const blob = await resp.blob()
+      const objUrl = URL.createObjectURL(blob)
+      _cacheImagemBlob.set(path, objUrl)
+      return objUrl
+    } catch (e) {
+      console.error('_carregarImgCache falhou', path, e)
+      return null
+    } finally {
+      _promessaImagemBlob.delete(path)
+    }
+  })()
+  _promessaImagemBlob.set(path, promessa)
+  return promessa
+}
+
+// upload novo por cima do mesmo caminho (upsert) precisa soltar o
+// object URL antigo (senão vaza memória) e tirar do cache, pra a
+// próxima _carregarImgCache buscar a versão nova de verdade.
+function _invalidarImgCache(path) {
+  const antigo = _cacheImagemBlob.get(path)
+  if (antigo) URL.revokeObjectURL(antigo)
+  _cacheImagemBlob.delete(path)
+  _promessaImagemBlob.delete(path)
+}
+
+// gera o <img> já pronto: se a foto já estiver no cache local, nasce
+// com o src certo (zero flash); senão nasce com data-path pro
+// _hidratarImgCache preencher depois. Uso: em qualquer template que
+// hoje faz `<img data-path="...">` + hidratação manual.
+function _imgTagCache(path, attrs = '') {
+  const cache = _imgCache(path)
+  return cache ? `<img src="${cache}" ${attrs}>` : `<img data-path="${esc(path)}" ${attrs}>`
+}
+
+// roda depois de jogar HTML com _imgTagCache() no DOM — hidrata só os
+// que sobraram sem src (os que já nasceram prontos do cache nem
+// entram no seletor). Pode passar um container pra não varrer a
+// página inteira.
+function _hidratarImgCache(escopo) {
+  ;(escopo || document).querySelectorAll('img[data-path]').forEach(img => {
+    const path = img.dataset.path
+    _carregarImgCache(path).then(url => { if (url) img.src = url })
+  })
+}
 
 // prévia (com marca d'água) quando existir; fotos de antes do Estágio E
 // não têm thumb_path, cai pro original — nunca quebra a grade.
-async function _urlPreview(f) { return _urlAssinada(f.thumb_path || f.storage_path) }
+function _fotoPreviewPath(f) { return f.thumb_path || f.storage_path }
+async function _urlPreview(f) { return _urlAssinada(_fotoPreviewPath(f)) }
 
 // gera, no navegador, uma versão redimensionada + com marca d'água
 // leve da foto original — é essa versão que aparece na grade e no
@@ -5880,7 +5955,7 @@ function renderFeed(containerId) {
   visiveis.forEach(p => {
     const autor = _perfilPorUserId(p.autor_user_id)
     if (autor?.foto_url) {
-      _urlAssinada(autor.foto_url).then(url => {
+      _carregarImgCache(autor.foto_url).then(url => {
         const av = document.getElementById('post-avatar-' + p.id)
         if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${autor.foto_pos || POS_PADRAO};">`
       })
@@ -5893,7 +5968,7 @@ function renderFeed(containerId) {
     })
     if (p.imagem_url && !(_feedMidias[p.id] || []).length) {
       const img = document.getElementById('post-img-' + p.id)
-      _urlAssinada(p.imagem_url).then(url => { if (url && img) img.src = url })
+      _carregarImgCache(p.imagem_url).then(url => { if (url && img) img.src = url })
     }
   })
 }
@@ -6321,7 +6396,7 @@ function _composerHTML(contexto) {
 function _composerAtualizarAvatar() {
   const el = document.getElementById('composer-avatar')
   if (!el || !meuPerfil?.foto_url) return
-  _urlAssinada(meuPerfil.foto_url).then(url => {
+  _carregarImgCache(meuPerfil.foto_url).then(url => {
     if (url) el.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`
   })
 }
@@ -6479,7 +6554,7 @@ async function _renderComunidadeHeader(containerId, escolaId) {
       </div>
     </div>`
   const capaPath = e.comunidade_capa_url || e.capa_url
-  if (capaPath) { const url = await _urlAssinada(capaPath); if (url) document.getElementById(`comunidade-header-${escolaId}`)?.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) }
+  if (capaPath) { const url = await _carregarImgCache(capaPath); if (url) document.getElementById(`comunidade-header-${escolaId}`)?.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`) }
 }
 function _abrirEditarComunidadeHeader(escolaId) {
   const e = store.escolas.find(x => x.id === escolaId)
@@ -6686,7 +6761,7 @@ function renderAuditoria() {
     const path = await _auditoriaThumbPath(e)
     const img = document.getElementById('aud-thumb-' + e.id)
     if (!path) { img?.closest('td') && (img.closest('td').innerHTML = ''); return }
-    const url = await _urlAssinada(path)
+    const url = await _carregarImgCache(path)
     if (url && img) img.src = url
   })
   atualizarBotaoCarregarMaisAuditoria()
@@ -6807,7 +6882,7 @@ function _renderMarcarPessoasLista() {
   }).join('') : '<div class="empty" style="padding:16px 0;">Ninguém encontrado.</div>'
   pessoas.forEach(p => {
     if (!p.foto_url) return
-    _urlAssinada(p.foto_url).then(url => {
+    _carregarImgCache(p.foto_url).then(url => {
       const av = document.getElementById(`mp-av-${p.tipo}-${p.id}`)
       if (url && av) av.innerHTML = `<img src="${url}" alt="" style="object-position:${p.foto_pos || '50% 25%'};">`
     })
@@ -6826,7 +6901,7 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
   const sel = _eventoFotoSelecao.has(f.id)
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
-      <img data-path="${esc(f.storage_path)}" alt="">
+      ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
@@ -6861,11 +6936,7 @@ async function renderFotosEventoAdmin() {
       <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#fitem-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(wrap)
   _atualizarToolbarEvento()
 }
 
@@ -7294,7 +7365,7 @@ function renderGaleriaEscolas(wrap) {
     </div>`).join('') : '<div class="empty">Nenhuma escola cadastrada ainda.</div>'}</div>`
   cards.forEach(async c => {
     if (!c.capa) return
-    const url = await _urlAssinada(c.capa)
+    const url = await _carregarImgCache(c.capa)
     const el = document.getElementById(`gal-esc-${c.id}`)
     if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-fit:contain;">`
   })
@@ -7369,7 +7440,7 @@ function renderGaleriaAlunosDaEscola(wrap) {
     </div>`).join('') : '<div class="empty">Nenhum aluno cadastrado nessa escola ainda.</div>'}</div>`
   alunos.forEach(async a => {
     if (!a.foto_url) return
-    const url = await _urlAssinada(a.foto_url)
+    const url = await _carregarImgCache(a.foto_url)
     const el = document.getElementById(`gal-esc-alu-${a.id}`)
     if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
@@ -7433,11 +7504,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
     </div>
     <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
   `
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#gal-fg-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(wrap)
 }
 
 // ── caminho Avulsos: lista de ensaios (busca) → Fotos (sem filtro) ─
@@ -7470,11 +7537,7 @@ function renderGaleriaFotosAvulso(wrap) {
     </div>
     <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
   `
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#gal-fg-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(wrap)
 }
 
 // ── caminho Alunos: lista de TODOS os alunos (busca + filtro por
@@ -7503,7 +7566,7 @@ function renderGaleriaListaTodosAlunos(wrap) {
     </div>`).join('')
   filtrados.forEach(async a => {
     if (!a.foto_url) return
-    const url = await _urlAssinada(a.foto_url)
+    const url = await _carregarImgCache(a.foto_url)
     const el2 = document.getElementById(`gal-alu2-${a.id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
@@ -7560,11 +7623,7 @@ function renderGaleriaFotosDoAno(wrap) {
       </div>`
     }).join('')}
   `
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#gal-fg-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(wrap)
 }
 
 // mesma condição do card (_galRole !== 'admin') aplicada ao container —
@@ -7577,7 +7636,7 @@ function _galFotoItemHTML(f) {
   const boutique = _galRole !== 'admin' ? ' gal-boutique' : ''
   return `
     <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="_galToggleSelecao('${f.id}')">
-      <img data-path="${esc(f.storage_path)}" alt="">
+      ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <div class="ck">${_galSelecao.has(f.id) ? '✓' : ''}</div>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -7660,7 +7719,7 @@ function renderEnsaios() {
   }).join('') + '</div>'
   ensaios.forEach(async ev => {
     if (!ev.capa_url) return
-    const url = await _urlAssinada(ev.capa_url)
+    const url = await _carregarImgCache(ev.capa_url)
     const el2 = document.getElementById(`ens-cover-${ev.id}`)
     if (url && el2) { el2.style.backgroundImage = `url('${url}')`; el2.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
@@ -7980,7 +8039,7 @@ async function abrirEnsaioAdmin(ensaioId) {
     </div>
     <div id="ens-fotos-por-subpasta"></div>
   `
-  if (_ensaioAtual.capa_url) { const url = await _urlAssinada(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
+  if (_ensaioAtual.capa_url) { const url = await _carregarImgCache(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
   _ligarDropzone('ens-dropzone', 'ens-upload-input', files => _prepararUploadEnsaio(files))
   const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
   if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
@@ -8071,7 +8130,7 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis) {
   const sel = _ensaioFotoSelecao.has(f.id)
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" onclick="_ensaioToggleSelecaoFoto('${f.id}')">
-      <img data-path="${esc(f.storage_path)}" alt="">
+      ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
@@ -8103,11 +8162,7 @@ async function renderFotosEnsaioAdmin() {
       <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
-  fotos.forEach(async f => {
-    const img = wrap.querySelector(`#efitem-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(wrap)
   _atualizarToolbarEnsaio()
 }
 
@@ -8564,7 +8619,7 @@ function renderEventosEscola(listElId, chipsElId) {
     (soEnsaios.length ? `<div class="section-h"><h3>Ensaios Avulsos</h3></div><div class="eventos-grid">${soEnsaios.map(cardHTML).join('')}</div>` : '')
   eventos.forEach(async ev => {
     if (!ev.capa_url) return
-    const url = await _urlAssinada(ev.capa_url)
+    const url = await _carregarImgCache(ev.capa_url)
     const capaEl = document.getElementById(`esc-ev-cover-${ev.id}`)
     if (url && capaEl) { capaEl.style.backgroundImage = `url('${url}')`; capaEl.style.backgroundPosition = ev.capa_pos || POS_PADRAO }
   })
@@ -8678,7 +8733,7 @@ function filtrarFotosAluno(alunoId, chipEl) {
 function _fotoItemHTML(f) {
   return `
     <div class="foto-item${_fotoSelecao.has(f.id) ? ' sel' : ''}" id="fg-${f.id}" onclick="toggleSelecaoFoto('${f.id}')">
-      <img data-path="${esc(f.storage_path)}" loading="lazy" alt="">
+      ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
       <div class="ck">${_fotoSelecao.has(f.id) ? '✓' : ''}</div>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
@@ -8699,11 +8754,7 @@ function renderFotosGrid(gridElId) {
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
   _lightboxFotos = fotos
   grid.innerHTML = fotos.map(f => _fotoItemHTML(f)).join('')
-  fotos.forEach(async f => {
-    const img = grid.querySelector(`#fg-${f.id} img`)
-    const url = await _urlPreview(f)
-    if (url && img) img.src = url
-  })
+  _hidratarImgCache(grid)
   atualizarBotaoBaixar()
 }
 
@@ -8791,7 +8842,7 @@ function renderGaleriaListaFilhos(wrap) {
     </div>`).join('') : '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
   store.alunos.forEach(async a => {
     if (!a.foto_url) return
-    const url = await _urlAssinada(a.foto_url)
+    const url = await _carregarImgCache(a.foto_url)
     const el = document.getElementById(`gal-filho-${a.id}`)
     if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
@@ -8932,7 +8983,7 @@ function renderSelecaoLista() {
   }).join('')
   store.selecaoGalerias.forEach(async g => {
     if (!g.capa_url) return
-    const url = await _urlAssinada(g.capa_url)
+    const url = await _carregarImgCache(g.capa_url)
     const el2 = document.getElementById(`sel-cover-${g.id}`)
     if (url && el2) el2.style.backgroundImage = `url('${url}')`
   })
@@ -9327,7 +9378,7 @@ function _renderSelecaoFotosGrid() {
     </div>`
   }).join('')
   g.fotos.forEach(async f => {
-    const url = await _urlAssinada(f.storage_path)
+    const url = await _carregarImgCache(f.storage_path)
     const img = document.querySelector(`#selfoto-${f.id} img`)
     if (url && img) img.src = url
   })
@@ -9340,7 +9391,7 @@ function _renderSelecaoPedidoFotosGrid() {
   const fotos = g.fotos.filter(f => (g.pedido.foto_ids || []).includes(f.id))
   grid.innerHTML = fotos.map(f => `<div class="foto-item" id="selpedfoto-${f.id}"><img alt=""></div>`).join('')
   fotos.forEach(async f => {
-    const url = await _urlAssinada(f.storage_path)
+    const url = await _carregarImgCache(f.storage_path)
     const img = document.querySelector(`#selpedfoto-${f.id} img`)
     if (url && img) img.src = url
   })
