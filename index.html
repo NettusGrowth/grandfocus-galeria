@@ -354,12 +354,21 @@ table.import-tabela th{color:var(--ouro-fundo);font-size:10.5px;text-transform:u
 main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 /* ── navegação: sidebar fixa em telas largas, vira barra no mobile ── */
-.view-shell{display:grid;grid-template-columns:260px 1fr;align-items:start;}
-.view-content{padding:28px;max-width:1180px;width:100%;}
+.view-shell{display:block;}
+.view-content{padding:28px;max-width:1180px;width:100%;margin-left:260px;}
+.view-shell.sidebar-collapsed .view-content{margin-left:64px;}
 .tabs{
   display:flex;flex-direction:column;gap:2px;padding:20px 10px;flex-wrap:nowrap;
   border-right:1px solid rgba(200,175,127,.14);
-  position:sticky;top:0;max-height:100vh;overflow-y:auto;
+  /* position:fixed (não sticky) — sticky depende do container de
+     scroll/altura do ancestral, e isso se mostrou frágil dependendo de
+     monitor/zoom/navegador (já tinha voltado a "descer" junto com o
+     conteúdo mesmo depois de um fix anterior). Fixed trava o menu na
+     tela de verdade, sempre, sem depender de contexto de layout —
+     .view-shell mantém a coluna de 260px/64px reservada (grid-
+     template-columns) só pra abrir espaço; quem desenha ali é isso
+     aqui, por cima. */
+  position:fixed;top:0;left:0;bottom:0;width:260px;overflow-y:auto;z-index:10;
   background:linear-gradient(180deg,#16050C 0%,#0C0A0D 100%);
 }
 .tab{
@@ -405,7 +414,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .sidebar-toggle:hover{background:rgba(255,255,255,.03);color:#DBC9A8;}
 .sidebar-toggle svg{width:15px;height:15px;flex-shrink:0;transition:transform .2s;}
 .view-shell.sidebar-collapsed{grid-template-columns:64px 1fr;}
-.view-shell.sidebar-collapsed .tabs{overflow-x:hidden;}
+.view-shell.sidebar-collapsed .tabs{width:64px;overflow-x:hidden;}
 .view-shell.sidebar-collapsed .tab{justify-content:center;padding:.65em;border-left:none;}
 .view-shell.sidebar-collapsed .tab.on{border-left:none;box-shadow:inset 2px 0 0 var(--dourado);}
 .view-shell.sidebar-collapsed .tab span,
@@ -427,10 +436,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(max-width:900px){
   .view-shell{display:block;}
   .tabs{
-    flex-direction:row;flex-wrap:wrap;position:static;border-right:0;max-height:none;overflow-y:visible;
+    flex-direction:row;flex-wrap:wrap;position:static;width:auto;border-right:0;max-height:none;overflow-y:visible;
     border-bottom:1px solid rgba(200,175,127,.14);padding:14px 16px;gap:6px;
   }
-  .view-content{padding:16px;max-width:none;}
+  .view-content{padding:16px;max-width:none;margin-left:0;}
 }
 
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
