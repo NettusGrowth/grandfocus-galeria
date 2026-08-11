@@ -3191,6 +3191,10 @@ async function _grConsolidar() {
       valorPago,
       diferenca,
       qtdExtra: pago ? (pedido.qtd_extra || 0) : 0,
+      // valor do carrinho independente de status — receitaExtras só
+      // conta dinheiro já realizado (liberado); isso aqui é pro
+      // "carrinho parado" (Pilar 5), onde o pedido ainda não foi pago.
+      valorPedidoTotal: pedido?.valor_total || 0,
       receitaTotal: precoSessao + receitaExtras,
       statusPedido,
       pagoAutomaticamente: !!pedido?.pago_automaticamente,
@@ -3217,6 +3221,38 @@ async function iniciarGoldReserveAdmin() {
   _grRenderConversao()
   _grRenderPortfolio()
   _grRenderAuditoria()
+  _grRenderPerdas()
+}
+
+// ── Pilar 5: perdas e recuperação ──
+const GR_DIAS_CARRINHO_PARADO = 7
+
+function _grRenderPerdas() {
+  const el = document.getElementById('gr-sub-perdas')
+  const comDiferenca = _grDados.filter(g => g.pagoAutomaticamente && g.diferenca !== 0)
+  const agora = Date.now()
+  const parados = _grDados
+    .filter(g => g.statusPedido === 'enviado' && g.enviadoEm && (agora - new Date(g.enviadoEm).getTime()) / 86400000 >= GR_DIAS_CARRINHO_PARADO)
+    .map(g => ({ ...g, diasParado: Math.floor((agora - new Date(g.enviadoEm).getTime()) / 86400000) }))
+    .sort((a, b) => b.diasParado - a.diasParado)
+
+  el.innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:6px;color:var(--papel,#F6F0E6);">Diferença de Valor Confirmado</h3>
+    <div class="meta" style="margin-bottom:14px;">Pedidos em que a InfinitePay confirmou um valor diferente do preço listado — sobretaxa de parcelamento no cartão, não é "taxa de gateway perdida" (esse dado não existe no sistema, ver Visão Geral).</div>
+    ${comDiferenca.length ? `
+      <table class="tabela-auditoria" style="margin-bottom:26px;"><tbody>
+        ${comDiferenca.map(g => `<tr><td>${esc(g.cliente || '—')}</td><td>${esc(g.titulo)}</td><td>Preço: ${fmtBRL(g.receitaExtras)}</td><td>Confirmado: ${fmtBRL(g.valorPago)}</td><td style="color:${g.diferenca > 0 ? 'var(--verde)' : 'var(--vermelho)'};">${g.diferenca > 0 ? '+' : ''}${fmtBRL(g.diferenca)}</td></tr>`).join('')}
+      </tbody></table>
+    ` : '<div class="empty" style="margin-bottom:26px;">Nenhuma diferença registrada ainda.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:6px;color:var(--papel,#F6F0E6);">Oportunidades Perdidas (carrinho parado)</h3>
+    <div class="meta" style="margin-bottom:14px;">Seleção enviada há ${GR_DIAS_CARRINHO_PARADO}+ dias sem confirmar pagamento — bom momento pra um lembrete pro cliente.</div>
+    ${parados.length ? `
+      <table class="tabela-auditoria"><tbody>
+        ${parados.map(g => `<tr><td>${esc(g.cliente || '—')}</td><td>${esc(g.titulo)}</td><td>${g.diasParado} dia(s) parado</td><td>${fmtBRL(g.valorPedidoTotal)}</td></tr>`).join('')}
+      </tbody></table>
+    ` : '<div class="empty">Nenhum carrinho parado no momento — tudo em dia.</div>'}
+  `
 }
 
 // ── Pilar 4: trilha de auditoria ──
