@@ -498,6 +498,35 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .gr-subnav-item:hover{border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
 .gr-subnav-item.on{background:var(--dourado);border-color:var(--dourado);color:#1E0810;font-weight:600;}
 
+.gr-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
+@media(max-width:1000px){.gr-kpi-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:560px){.gr-kpi-grid{grid-template-columns:1fr;}}
+.gr-kpi-card{border-radius:16px;padding:18px;border:1px solid rgba(212,175,55,.15);background:linear-gradient(155deg,var(--vinho-nobre),#250A14);}
+.gr-kpi-card .gr-kpi-label{font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:#B39F86;margin-bottom:8px;}
+.gr-kpi-card .gr-kpi-valor{font-family:var(--sans-num);font-weight:700;font-size:24px;font-variant-numeric:tabular-nums;}
+.gr-kpi-card .gr-kpi-meta{font-size:11.5px;color:#9C8874;margin-top:4px;}
+.gr-kpi-card.ouro .gr-kpi-valor{color:var(--dourado);}
+.gr-kpi-card.perda .gr-kpi-valor{color:var(--vermelho);}
+.gr-kpi-card.liquido .gr-kpi-valor{color:var(--verde);}
+
+/* waterfall: lista de passos com barra proporcional — sem lib de
+   gráfico nenhuma no projeto, reusa o mesmo componente de barra do
+   upload (.barra/.barra-fill). */
+.gr-waterfall{display:flex;flex-direction:column;gap:10px;margin-bottom:26px;}
+.gr-waterfall-passo{display:grid;grid-template-columns:180px 1fr 120px;gap:12px;align-items:center;}
+@media(max-width:700px){.gr-waterfall-passo{grid-template-columns:110px 1fr 90px;font-size:12.5px;}}
+.gr-waterfall-passo .gwp-label{color:#C9AF87;font-size:13px;}
+.gr-waterfall-passo .gwp-valor{font-family:var(--sans-num);font-variant-numeric:tabular-nums;text-align:right;font-weight:600;}
+.gr-waterfall-passo.subtotal .gwp-valor{color:var(--dourado);}
+.gr-waterfall-passo.negativo .gwp-valor{color:var(--vermelho);}
+.gr-waterfall-passo.positivo .gwp-valor{color:var(--verde);}
+.gr-waterfall-track{height:8px;border-radius:99px;background:rgba(212,175,55,.1);overflow:hidden;}
+.gr-waterfall-fill{height:100%;border-radius:99px;background:var(--dourado);transition:width .3s;}
+
+.gr-equip-item{margin-bottom:14px;}
+.gr-equip-item .ge-topo{display:flex;justify-content:space-between;font-size:13px;color:#C9AF87;margin-bottom:5px;}
+.gr-equip-item .ge-nome{color:var(--papel,#F6F0E6);}
+
 /* ── barra de busca/filtro (Escolas, Alunos, Pais) ── */
 .filtro-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
 .filtro-row input[type="text"]{max-width:280px;}
@@ -3076,6 +3105,8 @@ function setGrSubTab(sub) {
 // sub-aba filtrar/agrupar — nenhuma sub-aba refaz essa busca.
 // ══════════════════════════════════════════════════════════════
 let _grDados = []
+let _grEquipamentos = []
+let _grMarketing = []
 
 async function _grConsolidar() {
   const { data, error } = await db.from('selecao_galerias')
@@ -3127,13 +3158,105 @@ async function _grConsolidar() {
 }
 
 async function iniciarGoldReserveAdmin() {
-  _grDados = await _grConsolidar()
+  const [dados, eq, mkt] = await Promise.all([
+    _grConsolidar(),
+    db.from('gr_equipamentos').select('*').order('data_compra', { ascending: false }),
+    db.from('gr_marketing_gastos').select('*').order('mes', { ascending: false }),
+  ])
+  _grDados = dados
+  _grEquipamentos = eq.error ? [] : (eq.data || [])
+  _grMarketing = mkt.error ? [] : (mkt.data || [])
   _grRenderVisaoGeral()
 }
 
-// stub — vira os KPIs/waterfall/timer de verdade no Bloco 16 (6/12).
+// custo operacional mensal amortizado: soma(custo/vida_util) de cada
+// equipamento + média mensal do que já foi cadastrado em marketing.
+// Fica 0 se nada foi cadastrado — nunca inventa um número.
+function _grCustoOperacionalMensal() {
+  const amortEquip = _grEquipamentos.reduce((s, e) => s + (e.vida_util_meses > 0 ? e.custo / e.vida_util_meses : 0), 0)
+  const mediaMkt = _grMarketing.length ? _grMarketing.reduce((s, m) => s + (m.valor || 0), 0) / _grMarketing.length : 0
+  return amortEquip + mediaMkt
+}
+
 function _grRenderVisaoGeral() {
-  console.log('Gold Reserve: dados consolidados', _grDados.length, 'galeria(s)')
+  const el = document.getElementById('gr-sub-visao-geral')
+  if (!_grDados.length) { el.innerHTML = '<div class="empty">Nenhuma galeria de seleção criada ainda — sem dado pra mostrar.</div>'; return }
+
+  const receitaSessoes = _grDados.reduce((s, g) => s + g.precoSessao, 0)
+  const receitaExtras = _grDados.reduce((s, g) => s + g.receitaExtras, 0)
+  const receitaBruta = receitaSessoes + receitaExtras
+  // "diferença de parcelamento": o payment_check da InfinitePay confirma
+  // o que o CLIENTE pagou, não a taxa que o gateway retém no repasse pro
+  // estúdio — essa última não aparece em nenhum dado que o sistema tem.
+  // O que dá pra medir de verdade é quando o valor confirmado veio MAIOR
+  // que o valor_total (sobretaxa de parcelamento no cartão) — nunca uma
+  // perda, porque a RPC recusa pagamento menor que o valor_total.
+  const diferencaParcelamento = _grDados.reduce((s, g) => s + g.diferenca, 0)
+  const custoOperacionalMensal = _grCustoOperacionalMensal()
+  const ganhoLiquido = receitaBruta + diferencaParcelamento - custoOperacionalMensal
+
+  const totalGalerias = _grDados.length
+  const totalPagas = _grDados.filter(g => g.statusPedido === 'liberado').length
+  const taxaConversao = totalGalerias ? (totalPagas / totalGalerias * 100) : 0
+
+  el.innerHTML = `
+    <div class="gr-kpi-grid">
+      <div class="gr-kpi-card ouro">
+        <div class="gr-kpi-label">Receita Total</div>
+        <div class="gr-kpi-valor">${fmtBRL(receitaBruta)}</div>
+        <div class="gr-kpi-meta">${fmtBRL(receitaSessoes)} sessões + ${fmtBRL(receitaExtras)} extras</div>
+      </div>
+      <div class="gr-kpi-card perda">
+        <div class="gr-kpi-label">Diferença de Parcelamento</div>
+        <div class="gr-kpi-valor">${fmtBRL(diferencaParcelamento)}</div>
+        <div class="gr-kpi-meta">Sobretaxa de cartão confirmada acima do preço — não é taxa de gateway (o sistema não tem esse dado)</div>
+      </div>
+      <div class="gr-kpi-card liquido">
+        <div class="gr-kpi-label">Ganho Líquido (estimado)</div>
+        <div class="gr-kpi-valor">${fmtBRL(ganhoLiquido)}</div>
+        <div class="gr-kpi-meta">${custoOperacionalMensal ? 'Descontando ' + fmtBRL(custoOperacionalMensal) + ' de custo operacional/mês' : 'Sem custo operacional cadastrado ainda'}</div>
+      </div>
+      <div class="gr-kpi-card ouro">
+        <div class="gr-kpi-label">Taxa de Conversão da Seleção</div>
+        <div class="gr-kpi-valor">${taxaConversao.toFixed(0)}%</div>
+        <div class="gr-kpi-meta">${totalPagas} de ${totalGalerias} galeria(s) viraram venda de extras</div>
+      </div>
+    </div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Fluxo de Caixa</h3>
+    <div class="gr-waterfall">
+      ${_grWaterfallPasso('Receita Bruta (sessão + extras)', receitaBruta, receitaBruta, 'subtotal')}
+      ${diferencaParcelamento ? _grWaterfallPasso('+ Diferença de parcelamento', diferencaParcelamento, receitaBruta, 'positivo') : ''}
+      ${custoOperacionalMensal ? _grWaterfallPasso('− Custo operacional/mês', -custoOperacionalMensal, receitaBruta, 'negativo') : ''}
+      ${_grWaterfallPasso('= Ganho Líquido', ganhoLiquido, receitaBruta, 'subtotal')}
+    </div>
+
+    ${_grEquipamentos.length ? `
+      <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Fundo de Reserva de Equipamento</h3>
+      <div id="gr-equip-lista">${_grEquipamentos.map(_grEquipItemHTML).join('')}</div>
+    ` : `<div class="empty">Nenhum equipamento cadastrado ainda — adicione em Portfólio pra ver o timer de reserva.</div>`}
+  `
+}
+
+function _grWaterfallPasso(label, valor, base, classe) {
+  const pct = base ? Math.min(100, Math.abs(valor) / Math.abs(base) * 100) : 0
+  return `
+    <div class="gr-waterfall-passo ${classe}">
+      <div class="gwp-label">${esc(label)}</div>
+      <div class="gr-waterfall-track"><div class="gr-waterfall-fill" style="width:${pct}%;"></div></div>
+      <div class="gwp-valor">${fmtBRL(valor)}</div>
+    </div>`
+}
+
+function _grEquipItemHTML(e) {
+  const meses = (Date.now() - new Date(e.data_compra).getTime()) / (1000 * 60 * 60 * 24 * 30.44)
+  const pct = e.vida_util_meses > 0 ? Math.min(100, Math.max(0, meses / e.vida_util_meses * 100)) : 0
+  const restante = Math.max(0, Math.round(e.vida_util_meses - meses))
+  return `
+    <div class="gr-equip-item">
+      <div class="ge-topo"><span class="ge-nome">${esc(e.nome)}</span><span>${restante > 0 ? restante + ' mês(es) até substituir' : 'já passou da vida útil estimada'}</span></div>
+      <div class="gr-waterfall-track"><div class="gr-waterfall-fill" style="width:${pct}%;background:${pct >= 100 ? 'var(--vermelho)' : 'var(--dourado)'};"></div></div>
+    </div>`
 }
 
 // mesmo padrão de setAdminTab, mas escopado a cada view — "eventos" e
