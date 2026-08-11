@@ -3248,11 +3248,37 @@ function _grRenderPerdas() {
     <h3 style="font-size:15px;margin-bottom:6px;color:var(--papel,#F6F0E6);">Oportunidades Perdidas (carrinho parado)</h3>
     <div class="meta" style="margin-bottom:14px;">Seleção enviada há ${GR_DIAS_CARRINHO_PARADO}+ dias sem confirmar pagamento — bom momento pra um lembrete pro cliente.</div>
     ${parados.length ? `
-      <table class="tabela-auditoria"><tbody>
+      <table class="tabela-auditoria" style="margin-bottom:26px;"><tbody>
         ${parados.map(g => `<tr><td>${esc(g.cliente || '—')}</td><td>${esc(g.titulo)}</td><td>${g.diasParado} dia(s) parado</td><td>${fmtBRL(g.valorPedidoTotal)}</td></tr>`).join('')}
       </tbody></table>
-    ` : '<div class="empty">Nenhum carrinho parado no momento — tudo em dia.</div>'}
+    ` : '<div class="empty" style="margin-bottom:26px;">Nenhum carrinho parado no momento — tudo em dia.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:6px;color:var(--papel,#F6F0E6);">Estimativa de Sazonalidade</h3>
+    ${_grEstimativaSazonalidadeHTML()}
   `
+}
+
+// GR_MIN_MESES_SAZONALIDADE: com menos meses que isso, um "dip
+// sazonal" seria ruído estatístico com cara de insight — melhor
+// mostrar estado vazio honesto do que um gráfico bonito e enganoso.
+const GR_MIN_MESES_SAZONALIDADE = 6
+
+function _grEstimativaSazonalidadeHTML() {
+  const porMes = new Map()
+  _grDados.filter(g => g.statusPedido === 'liberado' && g.liberadoEm).forEach(g => {
+    const mes = g.liberadoEm.slice(0, 7)
+    porMes.set(mes, (porMes.get(mes) || 0) + g.receitaTotal)
+  })
+  const meses = [...porMes.entries()].sort((a, b) => a[0].localeCompare(b[0]))
+  if (meses.length < GR_MIN_MESES_SAZONALIDADE) {
+    return `<div class="empty">Dados insuficientes pra uma estimativa confiável — precisa de pelo menos ${GR_MIN_MESES_SAZONALIDADE} meses de histórico com pagamentos (hoje tem ${meses.length}).</div>`
+  }
+  const mediaGeral = meses.reduce((s, [, v]) => s + v, 0) / meses.length
+  return `
+    <div class="meta" style="margin-bottom:14px;">Comparação com a média mensal histórica (${fmtBRL(mediaGeral)}) — meses bem abaixo da média são bons candidatos pra uma campanha de mini-ensaio com fotos bônus.</div>
+    <div class="gr-waterfall">
+      ${meses.map(([mes, v]) => _grWaterfallPasso(_grMesLabel(mes) + (v < mediaGeral * 0.7 ? ' — período fraco' : ''), v, Math.max(mediaGeral, ...meses.map(m => m[1])), v < mediaGeral * 0.7 ? 'negativo' : '')).join('')}
+    </div>`
 }
 
 // ── Pilar 4: trilha de auditoria ──
@@ -3570,7 +3596,37 @@ function _grRenderConversao() {
         <div class="gr-kpi-valor">${atrasoPagamento !== null ? atrasoPagamento.toFixed(1) + ' dias' : '—'}</div>
       </div>
     </div>
+
+    <h3 style="font-size:15px;margin:26px 0 6px;color:var(--papel,#F6F0E6);">Estimativa de Compra Extra por Categoria</h3>
+    <div class="meta" style="margin-bottom:14px;">Média histórica do que clientes desse tipo de ensaio gastaram em fotos extras — é uma estimativa simples, não um modelo preditivo/IA: com poucos pedidos, o número não é confiável e o card avisa isso em vez de fingir precisão.</div>
+    ${_grEstimativaHTML(_grEstimativaCompraExtra())}
   `
+}
+
+// GR_MIN_AMOSTRA/GR_MIN_MESES: abaixo disso, mostra estado vazio
+// explícito em vez de um número preciso-mas-inventado.
+const GR_MIN_AMOSTRA_CATEGORIA = 3
+
+function _grEstimativaCompraExtra() {
+  const porCategoria = new Map()
+  _grDados.filter(g => g.statusPedido === 'liberado' && g.categoria).forEach(g => {
+    const atual = porCategoria.get(g.categoria) || { categoria: g.categoria, somaExtra: 0, n: 0 }
+    atual.somaExtra += g.receitaExtras
+    atual.n += 1
+    porCategoria.set(g.categoria, atual)
+  })
+  return [...porCategoria.values()].map(c => ({ categoria: c.categoria, media: c.somaExtra / c.n, n: c.n, confiavel: c.n >= GR_MIN_AMOSTRA_CATEGORIA }))
+}
+
+function _grEstimativaHTML(lista) {
+  if (!lista.length) return '<div class="empty">Nenhuma venda de extras registrada por categoria ainda.</div>'
+  return `<div>${lista.map(c => `
+    <div class="gr-equip-item">
+      <div class="ge-topo">
+        <span class="ge-nome">${esc(c.categoria)}</span>
+        <span>${c.confiavel ? fmtBRL(c.media) + ' em média (' + c.n + ' pedidos)' : 'dados insuficientes (' + c.n + ' pedido(s), precisa de ' + GR_MIN_AMOSTRA_CATEGORIA + '+)'}</span>
+      </div>
+    </div>`).join('')}</div>`
 }
 
 // ── Pilar 6: ROI de portfólio por categoria ──
