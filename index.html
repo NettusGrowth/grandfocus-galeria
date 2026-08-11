@@ -3137,6 +3137,9 @@ function setAdminTab(tab) {
 function setGrSubTab(sub) {
   document.querySelectorAll('.gr-subnav-item').forEach(el => el.classList.toggle('on', el.dataset.grSub === sub))
   document.querySelectorAll('.gr-section').forEach(el => el.style.display = el.dataset.sub === sub ? 'block' : 'none')
+  // trilha de webhook é pesada (pode crescer muito) — só busca na
+  // primeira vez que essa sub-aba é aberta, não no load geral do tab.
+  if (sub === 'auditoria' && !_grWebhookCarregado) _grCarregarWebhookEvents()
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -3208,10 +3211,94 @@ async function iniciarGoldReserveAdmin() {
   _grDados = dados
   _grEquipamentos = eq.error ? [] : (eq.data || [])
   _grMarketing = mkt.error ? [] : (mkt.data || [])
+  _grWebhookCarregado = false
   _grRenderVisaoGeral()
   _grRenderVendas()
   _grRenderConversao()
   _grRenderPortfolio()
+  _grRenderAuditoria()
+}
+
+// ── Pilar 4: trilha de auditoria ──
+// linha do tempo por pedido usa os 4 timestamps que existem de
+// verdade no schema (evento criado -> galeria criada -> pedido
+// enviado -> pedido liberado) - não existe uma data de "entrega"
+// separada de liberado_em, então o log tem 4 marcos, não 5.
+function _grRenderAuditoria() {
+  const el = document.getElementById('gr-sub-auditoria')
+  const comAtividade = _grDados.filter(g => g.criadoEmPedido || g.eventoData).sort((a, b) => (b.criadoEmGaleria || '').localeCompare(a.criadoEmGaleria || ''))
+
+  el.innerHTML = `
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Linha do Tempo por Pedido</h3>
+    ${comAtividade.length ? `
+      <table class="tabela-auditoria" style="margin-bottom:26px;"><tbody>
+        ${comAtividade.map(g => `
+          <tr>
+            <td>${esc(g.cliente || '—')}</td>
+            <td>${g.eventoData ? 'Ensaio: ' + fmtData(g.eventoData) : '—'}</td>
+            <td>Galeria criada: ${fmtData(g.criadoEmGaleria)}</td>
+            <td>${g.enviadoEm ? 'Enviado: ' + fmtDataHora(g.enviadoEm) : '—'}</td>
+            <td>${g.liberadoEm ? 'Liberado: ' + fmtDataHora(g.liberadoEm) : '—'}</td>
+          </tr>`).join('')}
+      </tbody></table>
+    ` : '<div class="empty" style="margin-bottom:26px;">Nenhuma atividade registrada ainda.</div>'}
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Trilha de Webhook (InfinitePay)</h3>
+    <div id="gr-webhook-lista"><div class="empty">Abrindo…</div></div>
+    <div style="text-align:center;margin-top:16px;">
+      <button class="btn btn-sm" id="gr-webhook-mais" style="display:none;" onclick="_grCarregarMaisWebhookEvents()">Carregar mais</button>
+    </div>
+  `
+}
+
+let _grWebhookCarregado = false
+let _grWebhookPagina = 0
+const GR_WEBHOOK_POR_PAGINA = 20
+
+async function _grCarregarWebhookEvents() {
+  _grWebhookCarregado = true
+  _grWebhookPagina = 0
+  const { data, error } = await db.from('gr_webhook_events').select('*').order('criado_em', { ascending: false }).range(0, GR_WEBHOOK_POR_PAGINA - 1)
+  const el = document.getElementById('gr-webhook-lista')
+  if (error) { el.innerHTML = `<div class="empty">Erro ao carregar: ${esc(error.message)}</div>`; return }
+  _grRenderWebhookLista(data || [])
+  document.getElementById('gr-webhook-mais').style.display = (data || []).length === GR_WEBHOOK_POR_PAGINA ? 'inline-block' : 'none'
+}
+
+async function _grCarregarMaisWebhookEvents() {
+  _grWebhookPagina++
+  const desde = _grWebhookPagina * GR_WEBHOOK_POR_PAGINA
+  const { data, error } = await db.from('gr_webhook_events').select('*').order('criado_em', { ascending: false }).range(desde, desde + GR_WEBHOOK_POR_PAGINA - 1)
+  if (error) { toast('Erro ao carregar mais: ' + error.message); return }
+  const el = document.getElementById('gr-webhook-lista')
+  el.insertAdjacentHTML('beforeend', (data || []).map(_grWebhookEventoHTML).join(''))
+  document.getElementById('gr-webhook-mais').style.display = (data || []).length === GR_WEBHOOK_POR_PAGINA ? 'inline-block' : 'none'
+}
+
+function _grRenderWebhookLista(eventos) {
+  const el = document.getElementById('gr-webhook-lista')
+  el.innerHTML = eventos.length ? eventos.map(_grWebhookEventoHTML).join('') : '<div class="empty">Nenhum evento de webhook registrado ainda — só aparece aqui depois do primeiro pagamento automático (InfinitePay).</div>'
+}
+
+function _grWebhookResultadoInfo(resultado) {
+  return {
+    confirmado: { label: 'Confirmado', cor: 'var(--verde)' },
+    nao_confirmado: { label: 'Não confirmado', cor: 'var(--vermelho)' },
+    erro: { label: 'Erro', cor: 'var(--vermelho)' },
+    ja_processado: { label: 'Já processado (retry)', cor: '#B39F86' },
+  }[resultado] || { label: resultado, cor: '#B39F86' }
+}
+
+function _grWebhookEventoHTML(e) {
+  const info = _grWebhookResultadoInfo(e.resultado)
+  return `
+    <div class="gr-equip-item">
+      <div class="ge-topo">
+        <span class="ge-nome">${fmtDataHora(e.criado_em)} — <span style="color:${info.cor};">${info.label}</span></span>
+        <span>NSU: ${esc(e.transaction_nsu || '—')}</span>
+      </div>
+      <div class="meta">${esc(e.mensagem || '')}</div>
+    </div>`
 }
 
 // custo operacional mensal amortizado: soma(custo/vida_util) de cada
