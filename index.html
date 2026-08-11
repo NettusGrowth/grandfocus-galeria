@@ -164,11 +164,19 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
    comparando com a imagem de referência) — teto de 3 colunas mesmo em
    telas largas, já que .publica-conteudo trava em 1100px de qualquer
    forma (6 colunas antes deixava cada foto pequena/apertada). */
-.selpub-grid{column-count:2;column-gap:6px;}
-@media(min-width:600px){.selpub-grid{column-count:2;column-gap:12px;}}
-@media(min-width:900px){.selpub-grid{column-count:3;column-gap:16px;}}
-.selpub-card{position:relative;display:block;width:100%;break-inside:avoid;margin-bottom:4px;border-radius:4px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
-@media(min-width:600px){.selpub-card{margin-bottom:8px;}}
+/* colunas montadas em JS (_selPubRenderGrid), não CSS column-count —
+   o Safari mobile tem um bug conhecido onde qualquer mudança de estilo
+   num item dentro de um container column-count força o motor a
+   recalcular o balanceamento de TODAS as colunas e repintar tudo, o
+   que aparece como o card errado "piscando" ao selecionar/deselecionar
+   um outro. Colunas normais (flex, cada uma com fluxo de bloco comum)
+   não sofrem desse bug: mudar a classe de um card só repinta o próprio
+   card. */
+.selpub-grid{display:flex;gap:6px;align-items:flex-start;}
+.selpub-col{display:flex;flex-direction:column;flex:1;min-width:0;gap:4px;}
+@media(min-width:600px){.selpub-grid{gap:12px;}.selpub-col{gap:8px;}}
+@media(min-width:900px){.selpub-grid{gap:16px;}}
+.selpub-card{position:relative;display:block;width:100%;border-radius:4px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
 .selpub-card img{width:100%;height:auto;display:block;}
 .selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .selpub-zoom{position:absolute;top:2px;left:2px;width:44px;height:44px;border-radius:50%;background:transparent;border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
@@ -9706,6 +9714,12 @@ function _fotosFiltradasAtual() {
   return d.fotos
 }
 
+// número de colunas espelha os breakpoints que antes eram só CSS
+// (column-count:2 até 900px, 3 dali pra cima) — precisa ser JS agora
+// porque quem decide em qual coluna cada card entra é o JS, não o
+// navegador (ver motivo no comentário de .selpub-grid no CSS).
+function _selPubNumColunas() { return window.innerWidth >= 900 ? 3 : 2 }
+
 function _selPubRenderGrid() {
   const d = _selPub.dados
   const grid = document.getElementById('selpub-grid')
@@ -9713,7 +9727,10 @@ function _selPubRenderGrid() {
   if (!d.fotos.length) { grid.innerHTML = '<div class="empty">📷<br>Nenhuma foto cadastrada neste álbum ainda — o estúdio está preparando o ensaio.</div>'; return }
   const fotos = _fotosFiltradasAtual()
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nada com esse filtro.</div>'; return }
-  grid.innerHTML = fotos.map((f, i) => {
+  const numCols = _selPubNumColunas()
+  _selPubNumColunasAtual = numCols
+  const cols = Array.from({ length: numCols }, () => [])
+  fotos.forEach((f, i) => {
     const idxGlobal = d.fotos.findIndex(x => x.id === f.id)
     // os primeiros cards já aparecem na tela ao abrir — loading="lazy"
     // neles não economiza nada (carregam na hora de qualquer forma) e
@@ -9722,14 +9739,30 @@ function _selPubRenderGrid() {
     // (bug relatado especificamente nos 3 primeiros cards, nunca nos
     // de baixo — que aí sim se beneficiam do lazy de verdade).
     const lazy = i < 6 ? '' : 'loading="lazy"'
-    return `
+    const html = `
     <div class="selpub-card${_selPub.selecionados.has(f.id) ? ' on' : ''}" id="selpub-card-${f.id}" onclick="_selPubToggle('${f.id}')">
       <img src="${f.url}" ${lazy} alt="">
       <button class="selpub-zoom" onclick="event.stopPropagation();_selPubAbrirLightbox(${idxGlobal})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
-  }).join('')
+    // round-robin em vez de "coluna mais curta" — sem medir altura real
+    // da foto (só sabemos depois que ela carrega) não dá pra balancear
+    // de verdade, e round-robin já distribui razoavelmente bem numa
+    // galeria com muitas fotos de proporções variadas.
+    cols[i % numCols].push(html)
+  })
+  grid.innerHTML = cols.map(c => `<div class="selpub-col">${c.join('')}</div>`).join('')
 }
+
+// troca de 2↔3 colunas ao girar o celular ou redimensionar a janela —
+// só re-renderiza quando o número de colunas realmente muda (não a
+// cada pixel de resize), e só se a grade estiver na tela.
+let _selPubNumColunasAtual = null
+window.addEventListener('resize', () => {
+  if (!document.getElementById('selpub-grid')) return
+  const n = _selPubNumColunas()
+  if (n !== _selPubNumColunasAtual) { _selPubNumColunasAtual = n; _selPubRenderGrid() }
+})
 
 function _selPubFiltrar(f) { _selPubFiltro = f; _renderSelPub() }
 
