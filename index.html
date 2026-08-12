@@ -367,8 +367,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 /* ── navegação: sidebar fixa em telas largas, vira barra no mobile ── */
 .view-shell{display:block;}
-.view-content{padding:28px;max-width:1180px;width:100%;margin-left:260px;}
-.view-shell.sidebar-collapsed .view-content{margin-left:64px;}
+.view-content{padding:28px;max-width:1600px;width:calc(100% - 260px);margin-left:260px;}
+.view-shell.sidebar-collapsed .view-content{margin-left:64px;width:calc(100% - 64px);}
 .tabs{
   display:flex;flex-direction:column;gap:2px;padding:20px 10px;flex-wrap:nowrap;
   border-right:1px solid rgba(200,175,127,.14);
@@ -451,7 +451,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     flex-direction:row;flex-wrap:wrap;position:static;width:auto;border-right:0;max-height:none;overflow-y:visible;
     border-bottom:1px solid rgba(200,175,127,.14);padding:14px 16px;gap:6px;
   }
-  .view-content{padding:16px;max-width:none;margin-left:0;}
+  .view-content{padding:16px;max-width:none;margin-left:0;width:100%;}
 }
 
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
@@ -475,8 +475,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .quick-btn{
   display:flex;align-items:center;gap:10px;background:rgba(200,175,127,.08);border:1px solid rgba(212,175,55,.4);
   backdrop-filter:blur(12px) saturate(160%);-webkit-backdrop-filter:blur(12px) saturate(160%);
-  color:var(--ouro-luz);padding:.7em 1em;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s,border-color .15s,background .15s;
+  color:var(--ouro-luz);padding:.9em 1.1em;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s,border-color .15s,background .15s;
   font-family:var(--sans);box-shadow:0 4px 16px -4px rgba(0,0,0,.35);
+  flex:1 1 220px;
 }
 .quick-btn:hover{border-color:rgba(255,215,0,.5);background:rgba(200,175,127,.14);transform:translateY(-1px);box-shadow:0 6px 20px -4px rgba(0,0,0,.45);}
 .quick-btn .qi{width:34px;height:34px;border-radius:9px;background:rgba(212,175,55,.14);display:grid;place-items:center;flex-shrink:0;}
@@ -513,18 +514,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    resto da tela (cards, listas) continua opaco por cima, sem precisar
    de z-index explícito neles (chegam depois no fluxo normal). */
 #admintab-dashboard{position:relative;}
+#admintab-dashboard .section-h{padding-top:32px;}
 .dash-hero-bg{
-  position:absolute;top:-28px;left:-28px;right:-28px;height:380px;
+  position:absolute;top:-28px;left:-28px;right:-28px;height:680px;
   background-image:url('/assets/dashboard-hero.jpg');background-size:cover;background-position:center 70%;
   opacity:.5;pointer-events:none;z-index:0;will-change:transform;
   -webkit-mask-image:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.5) 45%,transparent 92%);
   mask-image:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.5) 45%,transparent 92%);
 }
-@media(max-width:900px){.dash-hero-bg{top:-16px;left:-16px;right:-16px;}}
-@media(max-width:700px){.dash-hero-bg{height:260px;opacity:.4;}}
+@media(max-width:900px){.dash-hero-bg{top:-16px;left:-16px;right:-16px;height:520px;}}
+@media(max-width:700px){.dash-hero-bg{height:420px;opacity:.4;}}
 
 /* ── grade de módulos: bento grid tom-sobre-tom, uma única cor de marca ── */
-.modulos-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:26px;}
+.modulos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:26px;}
 @media(max-width:900px){.modulos-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.modulos-grid{grid-template-columns:1fr;}}
 .modulo-card{
@@ -1195,9 +1197,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
       <div class="admin-tab" id="admintab-dashboard">
         <div class="dash-hero-bg" aria-hidden="true"></div>
-        <div class="section-h" style="align-items:flex-end;position:relative;z-index:1;">
+        <div class="section-h" style="position:relative;z-index:1;">
           <div><h2 id="dash-saudacao">Olá</h2><div id="dash-data" style="margin-top:4px;font-size:12.5px;color:#B39F86;"></div></div>
-          <div class="quick-row" style="margin-bottom:0;">
+        </div>
+        <div class="quick-row" style="position:relative;z-index:1;">
             <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()">
               <span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
               <span class="qt"><b>Cadastrar escola</b><span>com assistente</span></span>
@@ -1213,7 +1216,6 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
               <span class="qt"><b>Novo evento</b><span>com calendário</span></span>
               <svg class="qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
             </button>
-          </div>
         </div>
         <div class="modulos-grid" id="dash-modulos">
           <div class="modulo-card t-vinho" onclick="setAdminTab('escolas')">
