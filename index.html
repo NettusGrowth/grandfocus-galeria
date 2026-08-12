@@ -543,6 +543,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mkpi-proximos .pe-meta{color:#8A7461;font-size:11px;white-space:nowrap;}
 .mkpi-barras{display:flex;align-items:flex-end;gap:5px;height:36px;margin-top:10px;}
 .mkpi-barras .b{flex:1;background:linear-gradient(180deg,var(--dourado),var(--ouro-fundo));border-radius:3px 3px 0 0;min-height:3px;}
+.mkpi-alerta{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.mkpi-alerta svg{width:22px;height:22px;color:var(--vermelho);flex-shrink:0;}
 
 /* ── Gold Reserve: sub-nav local dentro da aba (Visão Geral/Vendas/…) ── */
 .gr-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
@@ -1214,8 +1216,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           </div>
           <div class="modulo-card t-burgundy" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg></div>
-            <div class="mn">Auditoria</div>
-            <div><span class="mv num" id="dash-mod-auditoria">—</span><span class="ms">registros</span></div>
+            <div class="mn">Alertas Críticos <span class="ms">(Auditoria)</span></div>
+            <div id="dash-alerta-critico"><div class="mkpi-vazio">Carregando…</div></div>
           </div>
         </div>
         <div class="dash-cols">
@@ -3138,6 +3140,7 @@ async function iniciarDashboardAdmin() {
   _dashCarregarModulos(error ? null : count)
   _dashRenderProximosEventos()
   _dashRenderGanhosRecentes()
+  _dashRenderAlertaCritico()
 }
 
 // reconstrói uma série de 14 pontos (1/dia) do total ACUMULADO
@@ -3224,12 +3227,8 @@ async function _dashCarregarModulos(totalFotos) {
     }
   }
 
-  const [{ count: nPosts }, { count: nAud }] = await Promise.all([
-    db.from('posts').select('id', { count: 'exact', head: true }),
-    db.from('auditoria').select('id', { count: 'exact', head: true }),
-  ])
+  const { count: nPosts } = await db.from('posts').select('id', { count: 'exact', head: true })
   const elPosts = document.getElementById('dash-mod-posts'); if (elPosts) elPosts.textContent = nPosts ?? 0
-  const elAud = document.getElementById('dash-mod-auditoria'); if (elAud) elAud.textContent = nAud ?? 0
 }
 
 // Próximos Eventos — substitui a contagem seca do card "Eventos &
@@ -3302,6 +3301,29 @@ async function _dashRenderGanhosRecentes() {
   const maxValor = Math.max(...valores, 1)
   const elBarras = document.getElementById('dash-ganhos-barras')
   if (elBarras) elBarras.innerHTML = valores.map(v => `<div class="b" style="height:${Math.max(8, (v / maxValor) * 100)}%;" title="${fmtBRL(v)}"></div>`).join('')
+}
+
+// Alertas Críticos — "crítico" é a MESMA classificação que a aba
+// Auditoria já usa (_auditoriaClasse: exclusão ou segurança), não uma
+// taxonomia nova inventada só pro Dashboard. Busca só os últimos 30
+// registros (não a tabela inteira) e filtra no cliente — se não achar
+// nenhum crítico nessa janela, mostra estado vazio de verdade, não
+// finge que a conta está limpa olhando pra sempre.
+async function _dashRenderAlertaCritico() {
+  const el = document.getElementById('dash-alerta-critico')
+  if (!el) return
+  const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(30)
+  if (error) { el.innerHTML = '<div class="mkpi-vazio">Não foi possível carregar agora</div>'; return }
+  const critico = (data || []).find(e => ['exclusao', 'seguranca'].includes(_auditoriaClasse(e.acao)))
+  if (!critico) { el.innerHTML = '<div class="mkpi-vazio">Nenhum alerta crítico recente</div>'; return }
+  el.innerHTML = `
+    <div class="mkpi-alerta">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 2.5 17.5a1.6 1.6 0 0 0 1.4 2.4h16.2a1.6 1.6 0 0 0 1.4-2.4L13.7 3.9a1.6 1.6 0 0 0-2.8 0Z"/></svg>
+      <div style="min-width:0;">
+        <div class="pe-nome">${esc(critico.user_nome || '—')} ${esc(critico.acao)}</div>
+        <div class="pe-meta">${fmtDataHora(critico.criado_em)}</div>
+      </div>
+    </div>`
 }
 
 // segunda coluna do dashboard — dado real (ultimo_acesso já carregado
