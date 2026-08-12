@@ -536,30 +536,29 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .list-item .nome{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
 .list-item .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .list-item .actions{display:flex;gap:6px;flex-shrink:0;}
-/* capa de pasta (mobile) — a foto de capa só entra em telas pequenas;
-   desktop mantém a linha de lista original (sem alterar o que já
-   funciona bem lá). ver _galPastaCardHTML/_galCapaEvento. */
-.pasta-capa{display:none;position:relative;}
-.pasta-badge{display:none;}
-@media(max-width:900px){
-  .pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;}
-  .pasta-item>.nome,.pasta-item>.meta{display:none;}
-  .pasta-capa{
-    display:block;width:100%;aspect-ratio:16/9;
-    background:linear-gradient(155deg,rgba(75,4,22,.55),rgba(37,10,20,.7));
-  }
-  .pasta-capa-img{width:100%;height:100%;object-fit:cover;display:block;}
-  .pasta-capa::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 65%);}
-  .pasta-badge{
-    display:block;position:absolute;top:8px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
-    background:rgba(20,8,15,.7);border:1px solid rgba(212,175,55,.35);border-radius:99px;padding:3px 9px;
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  }
-  .pasta-nome-overlay{
-    position:absolute;left:12px;right:12px;bottom:10px;z-index:1;
-    font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);
-    text-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-  }
+/* capa de pasta — foto de capa em vez do ícone genérico de pasta, em
+   qualquer tamanho de tela (desktop inclusive). ver
+   _galPastaCardHTML/_galCapaEvento. .pasta-grid substitui o .list
+   comum (empilhado vertical) só nesses 3 lugares — vira grid de
+   cards, senão cada capa ficaria esticada full-width e gigante. */
+.pasta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
+.pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;}
+.pasta-item>.nome,.pasta-item>.meta{display:none;}
+.pasta-capa{
+  position:relative;display:block;width:100%;aspect-ratio:16/9;
+  background:linear-gradient(155deg,rgba(75,4,22,.55),rgba(37,10,20,.7));
+}
+.pasta-capa-img{width:100%;height:100%;object-fit:cover;display:block;}
+.pasta-capa::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 65%);}
+.pasta-badge{
+  display:block;position:absolute;top:8px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
+  background:rgba(20,8,15,.7);border:1px solid rgba(212,175,55,.35);border-radius:99px;padding:3px 9px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.pasta-nome-overlay{
+  position:absolute;left:12px;right:12px;bottom:10px;z-index:1;
+  font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);
+  text-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 /* Galeria mobile: breadcrumb completo (podia quebrar em 2 linhas e
    comer espaço) vira um botão único "< nível anterior" — ver
@@ -1921,6 +1920,28 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal escondido (Ctrl+Shift+B, só admin/super_admin) — troca a foto
+     de fundo do Dashboard sem precisar de deploy novo. Ver
+     _abrirModalHeroBg/_salvarHeroBg/_restaurarHeroBgPadrao. -->
+<div class="modal-overlay" id="modal-hero-bg">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-bottom:4px;">Foto de fundo do Dashboard</h3>
+    <div class="hint" style="margin-top:10px;">Configuração avançada — muda o fundo que todo mundo vê no Dashboard. Se não trocar nada, continua a foto padrão de sempre.</div>
+    <div id="hero-bg-preview" style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.25);margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#8A7461;font-size:12.5px;">carregando…</div>
+    <div class="field">
+      <label>Nova foto</label>
+      <input type="file" id="hero-bg-input" accept="image/*" onchange="_heroBgArquivoSelecionado(this)">
+    </div>
+    <div class="modal-actions" style="justify-content:space-between;">
+      <button class="btn btn-sm btn-danger" onclick="_restaurarHeroBgPadrao()">Restaurar padrão</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="fecharModal('modal-hero-bg')">Cancelar</button>
+        <button class="btn btn-primary btn-sm" id="hero-bg-salvar-btn" disabled onclick="_salvarHeroBg()">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- modal: criar acesso (escola/responsável/avulso) + vincular filho -->
 <div class="modal-overlay" id="modal-acesso">
   <div class="modal" style="max-width:460px;">
@@ -2447,6 +2468,10 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 let currentUser = null
 let meuPerfil = null
 let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [] }
+// config global chave/valor (tabela app_config), carregada no login —
+// hoje só guarda hero_bg_path (foto de fundo do Dashboard, opcional,
+// ver _aplicarHeroBg). Ver Ctrl+Shift+B (só admin/super_admin).
+let _appConfig = {}
 let _fotoSelecao = new Set()
 let _fotoFiltroAluno = null
 
@@ -2788,6 +2813,97 @@ async function mostrarApp(user) {
   }
   await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
   _renderBottomNav()
+  _carregarAppConfig() // não bloqueia o login — o fundo padrão (CSS) já está na tela
+}
+
+// config global (chave/valor) — hoje só hero_bg_path. Não bloqueia
+// nada: se a tabela ainda não existe (migration 051 não rodada) ou a
+// busca falhar, o catch silencioso mantém o fundo padrão do CSS
+// (/assets/dashboard-hero.jpg), exatamente como era antes dessa
+// funcionalidade existir.
+async function _carregarAppConfig() {
+  try {
+    const { data, error } = await db.from('app_config').select('*')
+    if (error || !data) return
+    _appConfig = Object.fromEntries(data.map(r => [r.chave, r.valor]))
+    _aplicarHeroBg()
+  } catch { /* silencioso — CSS padrão continua valendo */ }
+}
+// só troca o fundo se houver um customizado configurado E ele carregar
+// com sucesso — nunca remove/mexe no CSS padrão, só sobrepõe depois de
+// pronto (sem flash de carregamento parcial, mesma técnica de cache
+// usada nas fotos do resto do app).
+async function _aplicarHeroBg() {
+  const alvo = document.querySelectorAll('.dash-hero-bg')
+  if (!alvo.length) return
+  if (!_appConfig.hero_bg_path) { alvo.forEach(el => el.style.backgroundImage = '') ; return }
+  const url = await _carregarImgCache(_appConfig.hero_bg_path)
+  if (url) alvo.forEach(el => el.style.backgroundImage = `url('${url}')`)
+}
+
+let _heroBgArquivo = null
+async function _abrirModalHeroBg() {
+  _heroBgArquivo = null
+  document.getElementById('hero-bg-input').value = ''
+  document.getElementById('hero-bg-salvar-btn').disabled = true
+  const preview = document.getElementById('hero-bg-preview')
+  preview.style.backgroundImage = ''
+  preview.textContent = 'carregando…'
+  abrirModal('modal-hero-bg')
+  const url = _appConfig.hero_bg_path ? await _carregarImgCache(_appConfig.hero_bg_path) : null
+  preview.textContent = url ? '' : 'usando a foto padrão do site'
+  if (url) { preview.style.backgroundImage = `url('${url}')`; preview.style.backgroundSize = 'cover'; preview.style.backgroundPosition = 'center' }
+}
+function _heroBgArquivoSelecionado(inputEl) {
+  const file = inputEl.files?.[0]
+  if (!file) return
+  _heroBgArquivo = file
+  const preview = document.getElementById('hero-bg-preview')
+  preview.textContent = ''
+  preview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`
+  preview.style.backgroundSize = 'cover'
+  preview.style.backgroundPosition = 'center'
+  document.getElementById('hero-bg-salvar-btn').disabled = false
+}
+// path SEMPRE novo (timestamp) — nunca reaproveita o path anterior.
+// Se reaproveitasse o mesmo nome, o cache de imagem (memória + disco,
+// usado em todo o app pra foto não piscar) continuaria servindo a
+// versão antiga pra quem já tinha visitado antes, mesmo depois de
+// trocar — essa é a armadilha real de "trocar foto no mesmo lugar",
+// evitada aqui de propósito.
+async function _salvarHeroBg() {
+  if (!_heroBgArquivo) { toast('Escolha uma imagem primeiro'); return }
+  const btn = document.getElementById('hero-bg-salvar-btn')
+  btn.disabled = true; btn.textContent = 'Enviando...'
+  try {
+    const blob = await _comprimirParaWebp(_heroBgArquivo, 2400)
+    const path = `config/hero-bg-${Date.now()}.webp`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, blob, { contentType: 'image/webp' })
+    if (upErr) { toast('Erro ao enviar: ' + upErr.message); return }
+    const anterior = _appConfig.hero_bg_path
+    const { error: cfgErr } = await db.from('app_config')
+      .upsert({ chave: 'hero_bg_path', valor: path, atualizado_por: currentUser.id })
+    if (cfgErr) { toast('Erro ao salvar configuração: ' + cfgErr.message); return }
+    _appConfig.hero_bg_path = path
+    if (anterior) db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
+    await _aplicarHeroBg()
+    toast('Fundo do Dashboard atualizado ✓')
+    fecharModal('modal-hero-bg')
+  } finally {
+    btn.disabled = false; btn.textContent = 'Salvar'
+  }
+}
+async function _restaurarHeroBgPadrao() {
+  if (!_appConfig.hero_bg_path) { fecharModal('modal-hero-bg'); return }
+  const anterior = _appConfig.hero_bg_path
+  const { error } = await db.from('app_config')
+    .upsert({ chave: 'hero_bg_path', valor: null, atualizado_por: currentUser.id })
+  if (error) { toast('Erro: ' + error.message); return }
+  _appConfig.hero_bg_path = null
+  db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
+  await _aplicarHeroBg()
+  toast('Fundo padrão restaurado ✓')
+  fecharModal('modal-hero-bg')
 }
 
 const ROLE_LABEL = {
@@ -3081,6 +3197,15 @@ function _buscaAtualizarSelecao() {
 document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); _abrirBuscaGlobal() }
   if (e.key === 'Escape' && document.getElementById('modal-busca')?.classList.contains('show')) fecharModal('modal-busca')
+})
+// atalho escondido (sem botão em lugar nenhum) pra trocar a foto de
+// fundo do Dashboard — só admin/super_admin. Ver _aplicarHeroBg().
+document.addEventListener('keydown', e => {
+  if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'b') {
+    if (!['admin', 'super_admin'].includes(meuPerfil?.role)) return
+    e.preventDefault()
+    _abrirModalHeroBg()
+  }
 })
 
 // ── meu perfil (foto, capa, nome, senha) ───────────────────────────
@@ -8212,9 +8337,9 @@ function renderGaleriaAlbunsDaEscola(wrap) {
   let extra = ''
   if (_galRole !== 'admin') {
     const avulsos = _galEventosAvulsosDeAlunosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
-    if (avulsos.length) extra = `<div class="section-h"><h3>Ensaios avulsos dos alunos</h3></div><div class="list">${avulsos.map(itemHTML).join('')}</div>`
+    if (avulsos.length) extra = `<div class="section-h"><h3>Ensaios avulsos dos alunos</h3></div><div class="pasta-grid">${avulsos.map(itemHTML).join('')}</div>`
   }
-  wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="list">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
+  wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="pasta-grid">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
   _hidratarImgCache(wrap)
 }
 
@@ -8268,8 +8393,10 @@ function _galSubpastasListHTML(eventoId) {
   const subs = _galSubpastasDisponiveis(eventoId)
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
-  return `<div class="list">
+  return `<div class="pasta-grid" style="margin-bottom:12px;">
     ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+  </div>
+  <div class="list">
     <div class="list-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()"><div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
   </div>`
 }
@@ -8325,7 +8452,7 @@ function renderGaleriaListaAvulsos(wrap) {
   const ensaios = store.eventos.filter(e => e.tipo === 'ensaio' && (e.nome || '').toLowerCase().includes(_galFiltroAvulso))
   wrap.innerHTML += `
     <div class="field" style="max-width:320px;"><input type="text" placeholder="Buscar ensaio avulso…" oninput="_galFiltroAvulso=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroAvulso)}"></div>
-    <div class="list" id="gal-lista-avulsos"></div>`
+    <div class="pasta-grid" id="gal-lista-avulsos"></div>`
   const el = document.getElementById('gal-lista-avulsos')
   el.innerHTML = ensaios.length ? ensaios.map(ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
