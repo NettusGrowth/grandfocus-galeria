@@ -8815,13 +8815,19 @@ function renderGaleriaFotosAvulso(wrap) {
 // ── caminho Alunos: lista de TODOS os alunos (busca + filtro por
 // escola) → Aluno → Ano → Fotos (já vem agrupada por evento/ensaio) ─
 function renderGaleriaListaTodosAlunos(wrap) {
-  _popularFiltroEscolas('gal-filtro-escola-alunos')
   wrap.innerHTML += `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" style="max-width:280px;" placeholder="Buscar aluno…" oninput="_galFiltroTexto=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroTexto)}">
       <select id="gal-filtro-escola-alunos" onchange="_galFiltroEscolaAlunos=this.value;renderGaleriaAdmin()"></select>
     </div>
     <div class="list" id="gal-lista-alunos2"></div>`
+  // _popularFiltroEscolas precisa rodar DEPOIS do innerHTML acima — esse
+  // <select> é criado na hora (diferente de alu-filtro-escola/
+  // evt-filtro-escola, que já existem fixos no HTML base). Chamar antes
+  // (como estava) tentava achar um elemento que ainda não existia — a
+  // função saía calada (guarda "if (!sel) return") e o filtro ficava
+  // pra sempre sem nenhuma opção, um select vazio e mudo.
+  _popularFiltroEscolas('gal-filtro-escola-alunos')
   document.getElementById('gal-filtro-escola-alunos').value = _galFiltroEscolaAlunos
   const filtrados = store.alunos.filter(a =>
     a.nome.toLowerCase().includes(_galFiltroTexto) &&
