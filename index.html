@@ -146,6 +146,12 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 #view-selecao .selpub-label{display:block;font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#8A8A8A;margin-bottom:10px;}
 #view-selecao .publica-conteudo{padding:16px 8px 16px;}
 @media(min-width:720px){#view-selecao .publica-conteudo{padding:28px 32px;}}
+/* 1100px (herdado de .publica-conteudo) sobrava muita área vazia nas
+   laterais em monitor largo — o teto de 3 colunas (_selPubNumColunas)
+   não muda com a largura, então alargar aqui só deixa CADA foto maior
+   (mais imersivo), nunca mais apertada/cortada como as 6 colunas de
+   antes que motivaram o limite original. */
+@media(min-width:1300px){#view-selecao .publica-conteudo{max-width:1500px;}}
 
 /* rodapé flutuante de conversão — fixo embaixo, nunca em cima do grid */
 .selpub-sticky{position:fixed;left:0;right:0;bottom:0;z-index:20;height:64px;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 18px calc(0px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid rgba(0,0,0,.08);box-shadow:0 -8px 24px -8px rgba(0,0,0,.15);}
@@ -545,10 +551,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;}
 .pasta-item>.nome,.pasta-item>.meta{display:none;}
 .pasta-capa{
-  position:relative;display:block;width:100%;aspect-ratio:16/9;
+  position:relative;display:block;width:100%;aspect-ratio:16/9;overflow:hidden;
   background:linear-gradient(155deg,rgba(75,4,22,.55),rgba(37,10,20,.7));
 }
-.pasta-capa-img{width:100%;height:100%;object-fit:cover;display:block;}
+/* posição absoluta (não width/height:100% comum) de propósito — uma
+   foto de capa em retrato (mais alta que larga) fazia o aspect-ratio
+   da caixa ser ignorado e virar do tamanho da própria foto (bug real,
+   puxava a fileira inteira do grid). Absoluto tira a imagem do fluxo
+   normal, então ela nunca influencia o tamanho do próprio pai. */
+.pasta-capa-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 .pasta-capa::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 65%);}
 .pasta-badge{
   display:block;position:absolute;top:8px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
@@ -856,13 +867,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-item .ck{
   position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:5px;background:rgba(26,10,14,.7);
   border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
+  cursor:pointer;z-index:2;
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
 /* checkbox redondo só no mobile (desktop mantém o quadrado, sem
-   mudar o fluxo de gestão em massa que já funciona bem lá). */
+   mudar o fluxo de gestão em massa que já funciona bem lá). Um pouco
+   maior que antes porque agora é o único jeito de selecionar (o card
+   inteiro abre o lightbox) — precisa de alvo de toque confortável. */
 @media(max-width:900px){
   .foto-item .ck{
-    width:22px;height:22px;border-radius:50%;background:rgba(20,8,15,.55);
+    width:26px;height:26px;top:8px;left:8px;border-radius:50%;background:rgba(20,8,15,.55);
     border:1.5px solid rgba(255,255,255,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
   }
   .foto-item.sel .ck{background:var(--dourado);border-color:var(--dourado);color:#1A0A0E;}
@@ -2426,6 +2440,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div class="lightbox-foot">
     <img src="/assets/logo-icone.png" onerror="this.style.display='none'" alt="">
     <span id="lightbox-caption"></span>
+    <button class="icon-btn" title="Compartilhar" onclick="_lightboxCompartilhar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg></button>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
   </div>
 </div>
@@ -6629,6 +6644,15 @@ async function _lightboxBaixar() {
   await _baixarUrl(url, nomeArquivo)
   if (!publico) registrarAuditoria('baixou foto (lightbox)', 'fotos', fotoId, '')
 }
+// sem compartilhar na galeria pública — lá a foto é sempre a versão
+// leve já com marca d'água, sem acesso direto ao storage privado pra
+// gerar link assinado (só o link público em si já cumpre esse papel).
+function _lightboxCompartilhar() {
+  const publico = document.getElementById('lightbox').dataset.modo === 'publico'
+  if (publico) return
+  const f = _lightboxFotos[_lightboxIdx]
+  if (f) compartilharFoto(f.id)
+}
 async function renderLightboxAtual() {
   const f = _lightboxFotos[_lightboxIdx]
   if (!f) return
@@ -8394,10 +8418,8 @@ function _galSubpastasListHTML(eventoId) {
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="pasta-grid" style="margin-bottom:12px;">
+    <div class="list-item pasta-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()">${_galPastaCardHTML('Todas as fotos', soltas + subs.length, _galCapaEvento(eventoId))}<div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
     ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
-  </div>
-  <div class="list">
-    <div class="list-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()"><div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
   </div>`
 }
 function renderGaleriaSubpastasDoAlbum(wrap) {
@@ -8577,22 +8599,21 @@ function renderGaleriaFotosDoAno(wrap) {
 function _galGridClass() { return 'foto-grid' + (_galRole !== 'admin' ? ' gal-boutique' : '') }
 
 // item de foto reaproveitado pelos 3 caminhos (álbum/avulso/aluno-ano)
+// card enxuto de propósito (sem os 3-4 botões empilhados de antes,
+// que no toque ficavam sempre visíveis e poluíam a miniatura — hover
+// não existe em touch). O card inteiro abre o lightbox; só o círculo
+// de seleção tem ação própria (stopPropagation pra não abrir o
+// lightbox junto). Baixar/Compartilhar moraram pro rodapé do
+// lightbox (_lightboxBaixar/_lightboxCompartilhar) — apagar
+// individual saiu, mas continua dando pra apagar em lote via seleção
+// + dock (mesmo fluxo de sempre, só que agora funciona pra 1 foto só
+// também).
 function _galFotoItemHTML(f) {
   const boutique = _galRole !== 'admin' ? ' gal-boutique' : ''
   return `
-    <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="_galToggleSelecao('${f.id}')">
+    <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="abrirLightbox('${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
-      <div class="ck">${_galSelecao.has(f.id) ? '✓' : ''}</div>
-      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </button>
-      <button class="foto-expand" style="right:34px;" title="Compartilhar" onclick="event.stopPropagation();compartilharFoto('${f.id}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg>
-      </button>
-      <button class="foto-expand" style="right:62px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
-      </button>
-      ${_galRole === 'admin' ? `<button class="foto-expand" style="right:90px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', () => renderGaleriaAdmin())">${ICON_LIXEIRA}</button>` : ''}
+      <div class="ck" onclick="event.stopPropagation();_galToggleSelecao('${f.id}')">${_galSelecao.has(f.id) ? '✓' : ''}</div>
     </div>`
 }
 
