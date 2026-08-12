@@ -533,6 +533,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mkpi-spark{display:block;width:100%;height:34px;margin-top:10px;}
 .mkpi-fotos{display:flex;gap:6px;margin-top:10px;height:52px;}
 .mkpi-fotos img{flex:1;min-width:0;height:100%;object-fit:cover;border-radius:8px;background:#2A1018;}
+.mkpi-vazio{font-size:12px;color:#8A7461;margin-top:8px;}
+.mkpi-proximos{margin-top:10px;display:flex;flex-direction:column;gap:8px;}
+.mkpi-proximos .pe-item{display:flex;align-items:center;gap:8px;font-size:12px;}
+.mkpi-proximos .pe-data{width:34px;height:34px;border-radius:8px;background:rgba(169,180,196,.14);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;line-height:1.1;}
+.mkpi-proximos .pe-data b{font-family:var(--sans-num);font-size:13px;color:#A9B4C4;font-variant-numeric:tabular-nums;}
+.mkpi-proximos .pe-data span{font-size:8px;text-transform:uppercase;color:#8A93A2;}
+.mkpi-proximos .pe-nome{color:var(--papel,#F6F0E6);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mkpi-proximos .pe-meta{color:#8A7461;font-size:11px;white-space:nowrap;}
+.mkpi-barras{display:flex;align-items:flex-end;gap:5px;height:36px;margin-top:10px;}
+.mkpi-barras .b{flex:1;background:linear-gradient(180deg,var(--dourado),var(--ouro-fundo));border-radius:3px 3px 0 0;min-height:3px;}
 
 /* ── Gold Reserve: sub-nav local dentro da aba (Visão Geral/Vendas/…) ── */
 .gr-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
@@ -1188,9 +1198,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <div class="modulo-card t-grafite" onclick="setAdminTab('eventos')">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/></svg></div>
             <div class="mn">Eventos &amp; Ensaios</div>
-            <div><span class="mv num" id="dash-mod-eventos">—</span><span class="ms">registrados</span></div>
+            <div class="mkpi-proximos" id="dash-proximos-eventos"><div class="mkpi-vazio">Carregando…</div></div>
           </div>
-          <div class="modulo-card t-vinho" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()">
+          <div class="modulo-card t-vinho" id="dash-card-ganhos" style="display:none;" onclick="setAdminTab('gold-reserve');iniciarGoldReserveAdmin()">
+            <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2.5 3-2.5s3 .9 3 2.2c0 2.8-6 1.4-6 4.2 0 1.3 1.3 2.2 3 2.2s3-1.1 3-2.5"/></svg></div>
+            <div class="mn">Ganhos Recentes <span class="ms">(Gold Reserve)</span></div>
+            <div><span class="mv num" id="dash-ganhos-mes" style="color:var(--dourado);">—</span><span class="ms">este mês</span></div>
+            <div class="mkpi-barras" id="dash-ganhos-barras"></div>
+            <div class="ms" id="dash-ganhos-acumulado" style="margin-top:8px;display:block;">Drill-down no Gold Reserve →</div>
+          </div>
+          <div class="modulo-card t-vinho" id="dash-card-comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg></div>
             <div class="mn">Comunidade</div>
             <div><span class="mv num" id="dash-mod-posts">—</span><span class="ms">publicações</span></div>
@@ -3119,6 +3136,8 @@ async function iniciarDashboardAdmin() {
   _dashCarregarAtividade()
   _dashRenderAcessos()
   _dashCarregarModulos(error ? null : count)
+  _dashRenderProximosEventos()
+  _dashRenderGanhosRecentes()
 }
 
 // reconstrói uma série de 14 pontos (1/dia) do total ACUMULADO
@@ -3179,7 +3198,6 @@ async function _dashCarregarModulos(totalFotos) {
   const elEsc = document.getElementById('dash-mod-escolas'); if (elEsc) elEsc.textContent = store.escolas.length
   const elAlu = document.getElementById('dash-mod-alunos'); if (elAlu) elAlu.textContent = store.alunos.length
   const elFot = document.getElementById('dash-mod-fotos'); if (elFot) elFot.textContent = totalFotos ?? '—'
-  const elEvt = document.getElementById('dash-mod-eventos'); if (elEvt) elEvt.textContent = store.eventos.length
 
   const serieEsc = _kpiSerieCumulativa(store.escolas.length, store.escolas.map(e => e.criado_em))
   const sparkEsc = document.getElementById('dash-mod-escolas-spark')
@@ -3212,6 +3230,78 @@ async function _dashCarregarModulos(totalFotos) {
   ])
   const elPosts = document.getElementById('dash-mod-posts'); if (elPosts) elPosts.textContent = nPosts ?? 0
   const elAud = document.getElementById('dash-mod-auditoria'); if (elAud) elAud.textContent = nAud ?? 0
+}
+
+// Próximos Eventos — substitui a contagem seca do card "Eventos &
+// Ensaios" por uma prévia dos 2 mais próximos (store.eventos já está
+// em memória, sem query nova).
+function _dashRenderProximosEventos() {
+  const el = document.getElementById('dash-proximos-eventos')
+  if (!el) return
+  const hojeISO = new Date().toISOString().slice(0, 10)
+  const proximos = store.eventos
+    .filter(e => e.data && e.data >= hojeISO)
+    .sort((a, b) => a.data.localeCompare(b.data))
+    .slice(0, 2)
+  if (!proximos.length) { el.innerHTML = `<div class="mkpi-vazio">Nenhum evento futuro agendado</div>`; return }
+  el.innerHTML = proximos.map(e => {
+    const d = new Date(e.data + 'T00:00:00')
+    const mes = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+    return `
+    <div class="pe-item">
+      <div class="pe-data"><b>${d.getDate()}</b><span>${esc(mes)}</span></div>
+      <div style="min-width:0;">
+        <div class="pe-nome">${esc(e.nome)}</div>
+        <div class="pe-meta">${esc(nomeEscola(e.escola_id) || 'Avulso')}</div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// Ganhos Recentes — mesmo cadeado do Gold Reserve (só super_admin viu
+// dado financeiro desde o Bloco 16; entrar no Dashboard não abre
+// exceção pra isso). Pra quem não é super_admin, o card volta a ser
+// "Comunidade" (mesmo slot, sem buraco vazio na grade). Reaproveita
+// _grConsolidar() e a MESMA definição de "Receita Total" já usada na
+// Visão Geral do Gold Reserve — não inventa outra régua de faturamento
+// só pro Dashboard.
+async function _dashRenderGanhosRecentes() {
+  const cardGanhos = document.getElementById('dash-card-ganhos')
+  const cardComunidade = document.getElementById('dash-card-comunidade')
+  if (!cardGanhos || !cardComunidade) return
+  if (meuPerfil?.role !== 'super_admin') { cardGanhos.style.display = 'none'; cardComunidade.style.display = ''; return }
+  cardComunidade.style.display = 'none'
+  cardGanhos.style.display = ''
+
+  const dados = await _grConsolidar()
+  const chaveMes = iso => iso ? iso.slice(0, 7) : null
+  const hoje = new Date()
+  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
+
+  const acumulado = dados.reduce((s, g) => s + g.receitaTotal, 0)
+  const receitaPorMes = new Map()
+  dados.forEach(g => {
+    const m = chaveMes(g.liberadoEm)
+    if (!m) return
+    receitaPorMes.set(m, (receitaPorMes.get(m) || 0) + g.receitaExtras)
+  })
+  const esteMs = receitaPorMes.get(mesAtual) || 0
+
+  const elMes = document.getElementById('dash-ganhos-mes')
+  if (elMes) elMes.textContent = fmtBRL(esteMs)
+  const elAcum = document.getElementById('dash-ganhos-acumulado')
+  if (elAcum) elAcum.textContent = acumulado > 0 ? `${fmtBRL(acumulado)} acumulado · Gold Reserve →` : 'Drill-down no Gold Reserve →'
+
+  // últimos 5 meses (mais antigo → mais recente), só com o que existir
+  // de dado real — barra mínima visível mesmo em 0, sem inventar altura.
+  const meses = Array.from({ length: 5 }, (_, i) => {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - (4 - i), 1)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  })
+  const valores = meses.map(m => receitaPorMes.get(m) || 0)
+  const maxValor = Math.max(...valores, 1)
+  const elBarras = document.getElementById('dash-ganhos-barras')
+  if (elBarras) elBarras.innerHTML = valores.map(v => `<div class="b" style="height:${Math.max(8, (v / maxValor) * 100)}%;" title="${fmtBRL(v)}"></div>`).join('')
 }
 
 // segunda coluna do dashboard — dado real (ultimo_acesso já carregado
