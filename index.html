@@ -579,6 +579,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);
   text-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+/* header "boas-vindas" da Galeria (mobile, só na raiz do módulo) —
+   ver _galHeroMobileHTML(). Mesma saudação do Dashboard
+   (_saudacaoTexto), avatar reaproveita .who-avatar. */
+.galeria-hero-mobile{display:none;}
+@media(max-width:900px){
+  .galeria-hero-mobile{display:block;margin-bottom:18px;}
+  .galeria-hero-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .galeria-hero-saudacao{font-size:14.5px;color:#DBC9A8;}
+  .galeria-hero-acoes{display:flex;align-items:center;gap:10px;}
+  .galeria-hero-avatar{width:32px;height:32px;font-size:13px;border:2px solid rgba(200,175,127,.35);}
+  .galeria-hero-titulo{font-family:var(--serif);font-weight:500;font-size:26px;color:var(--ouro-luz);margin:0;}
+}
 /* Galeria mobile: breadcrumb completo (podia quebrar em 2 linhas e
    comer espaço) vira um botão único "< nível anterior" — ver
    _galVoltarHTML(), que reaproveita a mesma ação do penúltimo item do
@@ -968,6 +980,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap;}
 .chip{font-size:12px;padding:.4em 1em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;cursor:pointer;}
 .chip.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
+/* pílulas de filtro da Galeria (Eventos & Álbuns/Alunos, pessoas do
+   álbum) — no mobile rolam na horizontal em vez de quebrar linha e
+   empurrar o conteúdo pra baixo. Desktop mantém o wrap normal. */
+@media(max-width:900px){
+  .gal-chip-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+  .gal-chip-row::-webkit-scrollbar{display:none;}
+  .gal-chip-row .chip{flex:0 0 auto;}
+}
 
 .galeria-secao{margin-bottom:34px;}
 .galeria-secao-titulo{font-size:18px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid rgba(200,175,127,.16);}
@@ -3460,7 +3480,7 @@ let _perfilArquivos = { foto: null, capa: null }
 async function atualizarAvatarTopbar() {
   const el = document.getElementById('topbar-avatar')
   if (!el) return
-  const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar')]
+  const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar'), ...document.querySelectorAll('.galeria-hero-avatar')]
   if (meuPerfil?.foto_url) {
     const url = await _carregarImgCache(meuPerfil.foto_url)
     if (url) { alvos.forEach(a => a.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`); return }
@@ -3601,13 +3621,19 @@ function _dashEmptyState(texto) {
   </li>`
 }
 
-function _dashSaudacao() {
-  const el = document.getElementById('dash-saudacao')
-  if (!el) return
+// texto puro (sem tocar DOM) — reaproveitado pelo header da Galeria
+// mobile além do próprio Dashboard, pra não duplicar a regra de
+// bom dia/boa tarde/boa noite em dois lugares.
+function _saudacaoTexto() {
   const h = new Date().getHours()
   const periodo = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite'
   const primeiroNome = (meuPerfil?.nome || '').trim().split(' ')[0] || ''
-  el.textContent = `${periodo}${primeiroNome ? ', ' + primeiroNome : ''} 👋`
+  return `${periodo}${primeiroNome ? ', ' + primeiroNome : ''} 👋`
+}
+function _dashSaudacao() {
+  const el = document.getElementById('dash-saudacao')
+  if (!el) return
+  el.textContent = _saudacaoTexto()
   const dataEl = document.getElementById('dash-data')
   if (dataEl) dataEl.textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })
 }
@@ -8367,6 +8393,26 @@ function _galWrapId() {
   return 'galeria-admin-wrap'
 }
 
+// header "boas-vindas" (saudação + busca + avatar + título), só na
+// raiz da Galeria e só no mobile (CSS cuida disso — no desktop fica
+// display:none) — é a tela de entrada do módulo "carro-chefe" do
+// painel, mesmo espírito da saudação do Dashboard, sem duplicar a
+// regra de bom-dia/boa-tarde/boa-noite (ver _saudacaoTexto). Busca só
+// pra quem realmente tem Ctrl+K (admin/super_admin) — não desenha um
+// ícone que não faz nada pros outros papéis.
+function _galHeroMobileHTML() {
+  const podeBuscar = ['admin', 'super_admin'].includes(meuPerfil?.role)
+  return `<div class="galeria-hero-mobile">
+    <div class="galeria-hero-topo">
+      <div class="galeria-hero-saudacao">${esc(_saudacaoTexto())}</div>
+      <div class="galeria-hero-acoes">
+        ${podeBuscar ? `<button class="icon-btn" title="Buscar" onclick="_abrirBuscaGlobal()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>` : ''}
+        <span class="who-avatar galeria-hero-avatar">?</span>
+      </div>
+    </div>
+    <h2 class="galeria-hero-titulo">Galeria de Fotos</h2>
+  </div>`
+}
 function renderGaleriaAdmin() {
   const wrap = document.getElementById(_galWrapId())
   if (!wrap) return
@@ -8375,8 +8421,10 @@ function renderGaleriaAdmin() {
   _galSelecao = new Set()
   _galSyncDock()
   const breadcrumbHTML = _galBreadcrumb()
-  const crumb = `<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
+  const heroHTML = _galRaiz === null ? _galHeroMobileHTML() : ''
+  const crumb = `${heroHTML}<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
   wrap.innerHTML = crumb
+  if (heroHTML) atualizarAvatarTopbar()
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
   if (_galRaiz === 'filhos') {
@@ -8476,7 +8524,7 @@ function _galEventosAvulsosDeAlunosDaEscola(escolaId) {
 // "Alunos" (caminho 3), não precisa dessas chips.
 function _galChipsEventosAlunos() {
   if (_galRole === 'admin') return ''
-  return `<div class="chip-row" style="margin-bottom:14px;">
+  return `<div class="chip-row gal-chip-row" style="margin-bottom:14px;">
     <span class="chip${_galEscolaModo !== 'alunos' ? ' on' : ''}" onclick="_galEscolaModo=null;renderGaleriaAdmin()">Eventos &amp; Álbuns</span>
     <span class="chip${_galEscolaModo === 'alunos' ? ' on' : ''}" onclick="_galEscolaModo='alunos';renderGaleriaAdmin()">Alunos</span>
   </div>`
@@ -8587,7 +8635,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
   _galSelecao = new Set()
   wrap.innerHTML += `
     <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
-    ${pessoasNoAlbum.length ? `<div class="chip-row" style="margin-bottom:12px;">
+    ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
       ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
     </div>` : ''}
