@@ -3361,20 +3361,48 @@ function _dashRenderAcessos() {
   `).join('')
 }
 
+// abre a Auditoria já filtrada por nome — a tela carrega o dado dela
+// de forma assíncrona (iniciarAuditoriaAdmin), então o filtro só pode
+// ser aplicado depois; o pequeno atraso é o mesmo idioma já usado em
+// outros atalhos entre abas deste projeto.
+function _dashIrParaAuditoriaUsuario(nome) {
+  setAdminTab('auditoria'); iniciarAuditoriaAdmin()
+  setTimeout(() => {
+    const busca = document.getElementById('auditoria-busca')
+    if (busca) { busca.value = nome; renderAuditoria() }
+  }, 80)
+}
+
 async function _dashCarregarAtividade() {
   const wrap = document.getElementById('dash-atividade')
   const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(6)
   if (error) { wrap.innerHTML = _dashEmptyState('Não foi possível carregar agora'); return }
   if (!data?.length) { wrap.innerHTML = _dashEmptyState('Nenhuma atividade registrada ainda'); return }
-  wrap.innerHTML = data.map(e => `
+  wrap.innerHTML = data.map(e => {
+    const classe = _auditoriaClasse(e.acao)
+    return `
     <li style="display:flex;align-items:flex-start;gap:10px;">
-      <span class="list-avatar" style="width:26px;height:26px;font-size:10px;flex-shrink:0;margin-top:1px;">${esc((e.user_nome || '?').trim().charAt(0).toUpperCase())}</span>
-      <span style="min-width:0;">
-        <b style="color:var(--ouro-luz);font-weight:500;">${esc(e.user_nome || 'Alguém')}</b> ${esc(e.acao)}
+      <span class="list-avatar" id="dash-ativ-av-${e.id}" style="width:26px;height:26px;font-size:10px;flex-shrink:0;margin-top:1px;">${esc((e.user_nome || '?').trim().charAt(0).toUpperCase())}</span>
+      <span style="min-width:0;flex:1;">
+        <b style="color:var(--ouro-luz);font-weight:500;cursor:pointer;" onclick="_dashIrParaAuditoriaUsuario('${esc(e.user_nome || '')}')">${esc(e.user_nome || 'Alguém')}</b> ${esc(e.acao)}
+        <span class="aud-badge ${classe}" style="margin-left:5px;font-size:9.5px;padding:1px 6px;vertical-align:1px;">${AUDITORIA_TIPO_LABEL[classe]}</span>
         <small style="display:block;color:#8A7461;font-size:11px;margin-top:2px;">${fmtDataHora(e.criado_em)}</small>
       </span>
-    </li>
-  `).join('')
+    </li>`
+  }).join('')
+  data.forEach(e => {
+    if (!e.user_id) return
+    const aplicar = p => {
+      if (!p?.foto_url) return
+      _carregarImgCache(p.foto_url).then(url => {
+        const av = document.getElementById(`dash-ativ-av-${e.id}`)
+        if (url && av) av.innerHTML = `<img src="${url}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;object-position:${p.foto_pos || POS_PADRAO};">`
+      })
+    }
+    const conhecido = _perfilPorUserId(e.user_id)
+    if (conhecido) aplicar(conhecido)
+    else _garantirPerfilExtra(e.user_id).then(p => { if (p) aplicar(p) })
+  })
 }
 
 async function carregarVinculosResponsaveis() {
