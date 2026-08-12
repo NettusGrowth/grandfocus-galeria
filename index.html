@@ -473,9 +473,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* ── dashboard ── */
 .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
 .quick-btn{
-  display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,var(--ouro-luz),var(--ouro));border:1px solid var(--ouro);
-  color:var(--tinta);padding:.7em 1em;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s;
-  font-family:var(--sans);box-shadow:0 4px 16px -4px rgba(200,175,127,.35);
+  display:flex;align-items:center;gap:10px;background:rgba(200,175,127,.08);border:1px solid rgba(212,175,55,.4);
+  backdrop-filter:blur(12px) saturate(160%);-webkit-backdrop-filter:blur(12px) saturate(160%);
+  color:var(--tinta);padding:.7em 1em;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s,border-color .15s;
+  font-family:var(--sans);box-shadow:0 4px 16px -4px rgba(0,0,0,.35);
 }
 .quick-btn:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 6px 20px -4px rgba(200,175,127,.5);}
 .quick-btn .qi{width:34px;height:34px;border-radius:9px;background:rgba(26,10,14,.14);display:grid;place-items:center;flex-shrink:0;}
@@ -498,6 +499,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .dash-empty{list-style:none;display:flex;flex-direction:column;align-items:center;gap:8px;padding:26px 10px;color:#8A7461;font-size:12.5px;text-align:center;}
 .dash-empty svg{width:26px;height:26px;color:var(--ouro-fundo);}
 
+/* .card genérica é usada no app inteiro (7+ telas) — glass mais forte
+   fica escopado só ao Dashboard, pra não vazar pro resto do app. */
+#admintab-dashboard .card{
+  background:rgba(28,9,15,.45);
+  backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);
+  border-color:rgba(212,175,55,.22);
+}
+
 /* foto atmosférica de fundo (ensaio real do Grand Focus, não banco de
    imagem/IA) atrás da saudação + atalhos — funde com o preto/vinho do
    canvas via máscara de gradiente, então só precisa cobrir o topo; o
@@ -518,8 +527,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(max-width:900px){.modulos-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.modulos-grid{grid-template-columns:1fr;}}
 .modulo-card{
-  border-radius:18px;padding:20px;cursor:pointer;border:1px solid rgba(212,175,55,.15);
-  background:linear-gradient(155deg,var(--vinho-nobre),#250A14);
+  border-radius:18px;padding:20px;cursor:pointer;border:1px solid rgba(212,175,55,.22);
+  background:linear-gradient(155deg,rgba(30,8,16,.55),rgba(37,10,20,.55));
+  backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);
   transition:transform .15s,border-color .15s,box-shadow .15s;position:relative;overflow:hidden;
 }
 .modulo-card:hover{transform:translateY(-2px);border-color:rgba(212,175,55,.5);box-shadow:0 10px 28px rgba(0,0,0,.35),0 0 0 1px rgba(212,175,55,.15);}
