@@ -3661,6 +3661,7 @@ function setAdminTab(tab) {
   document.querySelectorAll('#view-admin .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none')
   document.getElementById('admintab-' + tab).style.display = 'block'
+  document.querySelector('main').scrollTop = 0
   _bnSyncActive()
 }
 
@@ -4237,12 +4238,14 @@ function setEscolaTab(tab) {
   document.querySelectorAll('#view-escola .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('#view-escola .escola-tab').forEach(el => el.style.display = 'none')
   document.getElementById('escolatab-' + tab).style.display = 'block'
+  document.querySelector('main').scrollTop = 0
   _bnSyncActive()
 }
 function setRespTab(tab) {
   document.querySelectorAll('#view-responsavel .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('#view-responsavel .resp-tab').forEach(el => el.style.display = 'none')
   document.getElementById('resptab-' + tab).style.display = 'block'
+  document.querySelector('main').scrollTop = 0
   _bnSyncActive()
 }
 
