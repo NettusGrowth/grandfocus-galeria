@@ -507,6 +507,23 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   .mais-drawer .md-sep{height:1px;background:rgba(200,175,127,.14);margin:6px 4px;flex-shrink:0;}
 }
 
+/* dock flutuante da Galeria (mobile) — pílula fixa acima da
+   bottom-nav, só visível com 1+ foto selecionada (_galSyncDock). */
+.gal-action-dock{display:none;}
+@media(max-width:900px){
+  .gal-action-dock{
+    display:flex;align-items:center;gap:10px;position:fixed;left:50%;
+    bottom:calc(var(--bottomnav-h) + 14px);transform:translate(-50%,12px);z-index:140;
+    background:rgba(30,15,25,.9);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+    border:1px solid rgba(212,175,55,.4);box-shadow:0 10px 30px rgba(0,0,0,.5);
+    border-radius:30px;padding:8px 10px 8px 18px;
+    opacity:0;pointer-events:none;transition:opacity .18s,transform .18s;
+  }
+  .gal-action-dock.show{opacity:1;pointer-events:auto;transform:translate(-50%,0);}
+  .gal-action-dock #gal-dock-baixar{border-radius:99px;}
+  .gal-action-dock #gal-dock-apagar{width:32px;height:32px;padding:0;border-radius:50%;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;}
+}
+
 .section-h{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:10px;}
 .section-h h2{font-size:20px;}
 
@@ -519,6 +536,44 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .list-item .nome{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);}
 .list-item .meta{font-size:12px;color:#B39F86;margin-top:2px;}
 .list-item .actions{display:flex;gap:6px;flex-shrink:0;}
+/* capa de pasta (mobile) — a foto de capa só entra em telas pequenas;
+   desktop mantém a linha de lista original (sem alterar o que já
+   funciona bem lá). ver _galPastaCardHTML/_galCapaEvento. */
+.pasta-capa{display:none;position:relative;}
+.pasta-badge{display:none;}
+@media(max-width:900px){
+  .pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;}
+  .pasta-item>.nome,.pasta-item>.meta{display:none;}
+  .pasta-capa{
+    display:block;width:100%;aspect-ratio:16/9;
+    background:linear-gradient(155deg,rgba(75,4,22,.55),rgba(37,10,20,.7));
+  }
+  .pasta-capa-img{width:100%;height:100%;object-fit:cover;display:block;}
+  .pasta-capa::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 65%);}
+  .pasta-badge{
+    display:block;position:absolute;top:8px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
+    background:rgba(20,8,15,.7);border:1px solid rgba(212,175,55,.35);border-radius:99px;padding:3px 9px;
+    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  }
+  .pasta-nome-overlay{
+    position:absolute;left:12px;right:12px;bottom:10px;z-index:1;
+    font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);
+    text-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+}
+/* Galeria mobile: breadcrumb completo (podia quebrar em 2 linhas e
+   comer espaço) vira um botão único "< nível anterior" — ver
+   _galVoltarHTML(), que reaproveita a mesma ação do penúltimo item do
+   breadcrumb em vez de duplicar a árvore de navegação. */
+.gal-voltar-btn{display:none;}
+@media(max-width:900px){
+  .gal-breadcrumb-full{display:none;}
+  .gal-voltar-btn{
+    display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--ouro-luz);
+    font-family:var(--serif);font-size:17px;cursor:pointer;padding:0;margin-bottom:14px;
+  }
+  .gal-voltar-btn svg{width:19px;height:19px;flex-shrink:0;}
+}
 .empty{color:#8A7461;font-size:13.5px;padding:24px 0;text-align:center;}
 .hint{background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.22);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#DBC9A8;margin-bottom:16px;line-height:1.5;}
 .hint b{color:var(--ouro-luz);}
@@ -804,6 +859,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
+/* checkbox redondo só no mobile (desktop mantém o quadrado, sem
+   mudar o fluxo de gestão em massa que já funciona bem lá). */
+@media(max-width:900px){
+  .foto-item .ck{
+    width:22px;height:22px;border-radius:50%;background:rgba(20,8,15,.55);
+    border:1.5px solid rgba(255,255,255,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+  }
+  .foto-item.sel .ck{background:var(--dourado);border-color:var(--dourado);color:#1A0A0E;}
+  /* dock flutuante substitui os botões inline do toolbar no mobile —
+     ver _galSyncDock()/gal-action-dock. */
+  #gal-btn-baixar,#gal-btn-apagar{display:none;}
+}
 /* Galeria "boutique" — fotos grandes, masonry fluido, sem o corte
    forçado 1:1, mesmo espírito visual da Seleção de Fotos (.selpub-*).
    Só entra pra quem RECEBE as fotos (responsável/escola/professor/
@@ -1627,6 +1694,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div class="mais-drawer" id="mais-drawer">
     <div class="md-handle"></div>
     <div id="mais-drawer-itens"></div>
+  </div>
+  <div class="gal-action-dock" id="gal-action-dock">
+    <button class="btn btn-sm btn-primary" id="gal-dock-baixar" onclick="_galBaixarSelecionadas()">Baixar (0)</button>
+    <button class="btn btn-sm btn-danger" id="gal-dock-apagar" onclick="_galApagarSelecionadas()" title="Apagar selecionadas">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
   </div>
 </div>
 
@@ -7953,34 +8026,52 @@ function _galIrRaiz() {
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null; _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; renderGaleriaAdmin()
 }
 
+// partes guardadas como {label, onclick} (onclick ausente = nível
+// atual, não clicável) — serve tanto pro breadcrumb completo (desktop)
+// quanto pro botão "< nível anterior" compacto (mobile), sem duplicar
+// a árvore de navegação em dois lugares.
+let _galBreadcrumbPartes = []
 function _galBreadcrumb() {
-  const partes = [`<span onclick="_galIrRaiz()" style="cursor:pointer;">Galeria</span>`]
+  const partes = [{ label: 'Galeria', onclick: '_galIrRaiz()' }]
   if (_galRaiz === 'filhos') {
-    partes.push(`<span onclick="_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">Filhos</span>`)
+    partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;renderGaleriaAdmin()' })
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
-      partes.push(`<span onclick="_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(a?.nome || '')}</span>`)
+      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;renderGaleriaAdmin()' })
     }
-    if (_galAno) partes.push(`<span>${_galAno}</span>`)
+    if (_galAno) partes.push({ label: _galAno })
   } else if (_galRaiz === 'escolas') {
-    partes.push(`<span onclick="_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">Escolas</span>`)
-    if (_galEscolaId !== undefined) partes.push(`<span onclick="_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(nomeEscola(_galEscolaId))}</span>`)
-    if (_galAno) partes.push(`<span onclick="_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${_galAno}</span>`)
-    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push(`<span onclick="_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">📁 ${esc(ev?.nome || '')}</span>`) }
-    if (_galSubpasta) partes.push(`<span>${esc(_galSubpasta)}</span>`)
+    partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galEscolaId !== undefined) partes.push({ label: esc(nomeEscola(_galEscolaId)), onclick: '_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
+    if (_galSubpasta) partes.push({ label: esc(_galSubpasta) })
   } else if (_galRaiz === 'avulsos') {
-    partes.push(`<span onclick="_galAvulsoId=null;_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">Avulsos</span>`)
-    if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push(`<span onclick="_galSubpasta=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(ev?.nome || '')}</span>`) }
-    if (_galSubpasta) partes.push(`<span>${esc(_galSubpasta)}</span>`)
+    partes.push({ label: 'Avulsos', onclick: '_galAvulsoId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push({ label: esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
+    if (_galSubpasta) partes.push({ label: esc(_galSubpasta) })
   } else if (_galRaiz === 'alunos') {
-    partes.push(`<span onclick="_galAlunoId=null;_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">Alunos</span>`)
+    partes.push({ label: 'Alunos', onclick: '_galAlunoId=null;_galAno=null;renderGaleriaAdmin()' })
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
-      partes.push(`<span onclick="_galAno=null;renderGaleriaAdmin()" style="cursor:pointer;">${esc(a?.nome || '')}</span>`)
+      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;renderGaleriaAdmin()' })
     }
-    if (_galAno) partes.push(`<span>${_galAno}</span>`)
+    if (_galAno) partes.push({ label: _galAno })
   }
-  return partes.join(' <span style="opacity:.4;">/</span> ')
+  _galBreadcrumbPartes = partes
+  return partes.map(p => p.onclick ? `<span onclick="${p.onclick}" style="cursor:pointer;">${p.label}</span>` : `<span>${p.label}</span>`).join(' <span style="opacity:.4;">/</span> ')
+}
+// botão compacto "< nível anterior" (mobile) — reaproveita a mesma
+// ação do penúltimo item do breadcrumb (_galBreadcrumbPartes, já
+// calculado por _galBreadcrumb() logo antes). Some quando já está na
+// raiz da Galeria (nada pra voltar).
+function _galVoltarHTML() {
+  if (_galBreadcrumbPartes.length < 2) return ''
+  const anterior = _galBreadcrumbPartes[_galBreadcrumbPartes.length - 2]
+  return `<button class="gal-voltar-btn" onclick="${anterior.onclick || '_galIrRaiz()'}">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+    <span>${anterior.label.replace(/^📁 /, '')}</span>
+  </button>`
 }
 
 // mesmo motor de árvore serve pra todo mundo — só o elemento onde
@@ -7996,7 +8087,12 @@ function _galWrapId() {
 function renderGaleriaAdmin() {
   const wrap = document.getElementById(_galWrapId())
   if (!wrap) return
-  const crumb = `<div class="meta" style="margin-bottom:16px;font-size:13px;">${_galBreadcrumb()}</div>`
+  // seleção é sempre por tela — sem isso, trocar de pasta com fotos
+  // marcadas deixava o dock flutuante (mobile) preso na tela errada.
+  _galSelecao = new Set()
+  _galSyncDock()
+  const breadcrumbHTML = _galBreadcrumb()
+  const crumb = `<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
   wrap.innerHTML = crumb
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
@@ -8105,16 +8201,21 @@ function _galChipsEventosAlunos() {
 
 function renderGaleriaAlbunsDaEscola(wrap) {
   const eventos = _eventosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
-  const itemHTML = ev => `
-    <div class="list-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
-      <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
+  const itemHTML = ev => {
+    const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
+    return `
+    <div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
+      ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), contagem, _galCapaEvento(ev.id))}
+      <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${contagem} foto(s)</div>
     </div>`
+  }
   let extra = ''
   if (_galRole !== 'admin') {
     const avulsos = _galEventosAvulsosDeAlunosDaEscola(_galEscolaId).filter(ev => (ev.data ? ev.data.slice(0, 4) : 'Sem data') === _galAno)
     if (avulsos.length) extra = `<div class="section-h"><h3>Ensaios avulsos dos alunos</h3></div><div class="list">${avulsos.map(itemHTML).join('')}</div>`
   }
   wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="list">${eventos.length ? eventos.map(itemHTML).join('') : '<div class="empty">Nenhum álbum nesse ano.</div>'}</div>${extra}`
+  _hidratarImgCache(wrap)
 }
 
 // aba "Alunos" (diretor/proprietário/professor) — lista só os alunos
@@ -8144,22 +8245,43 @@ function renderGaleriaAlunosDaEscola(wrap) {
 function _galSubpastasDisponiveis(eventoId) {
   return [...new Set(store.fotos.filter(f => f.evento_id === eventoId && f.subpasta).map(f => f.subpasta))].sort()
 }
+// capa de pasta (mobile) — primeira foto encontrada do evento/subpasta,
+// sem preferência de ordem (qualquer foto real já é melhor que o
+// ícone genérico de pasta). null quando a pasta ainda está vazia.
+function _galCapaEvento(eventoId) {
+  const f = store.fotos.find(x => x.evento_id === eventoId)
+  return f ? _fotoPreviewPath(f) : null
+}
+function _galCapaSubpasta(eventoId, subpasta) {
+  const f = store.fotos.find(x => x.evento_id === eventoId && x.subpasta === subpasta)
+  return f ? _fotoPreviewPath(f) : null
+}
+function _galPastaCardHTML(nome, count, capaPath) {
+  return `
+    <div class="pasta-capa">
+      ${capaPath ? _imgTagCache(capaPath, 'class="pasta-capa-img" alt=""') : ''}
+      <span class="pasta-badge">${count} foto(s)</span>
+      <div class="pasta-nome-overlay">📁 ${esc(nome)}</div>
+    </div>`
+}
 function _galSubpastasListHTML(eventoId) {
   const subs = _galSubpastasDisponiveis(eventoId)
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="list">
-    ${subs.map(s => `<div class="list-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'><div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+    ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
     <div class="list-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()"><div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
   </div>`
 }
 function renderGaleriaSubpastasDoAlbum(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
   wrap.innerHTML += `<div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>` + _galSubpastasListHTML(_galAlbumId)
+  _hidratarImgCache(wrap)
 }
 function renderGaleriaSubpastasDoAvulso(wrap) {
   const ev = store.eventos.find(e => e.id === _galAvulsoId)
   wrap.innerHTML += `<div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>` + _galSubpastasListHTML(_galAvulsoId)
+  _hidratarImgCache(wrap)
 }
 
 function renderGaleriaFotosDoAlbum(wrap) {
@@ -8189,8 +8311,8 @@ function renderGaleriaFotosDoAlbum(wrap) {
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
+        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
@@ -8205,10 +8327,15 @@ function renderGaleriaListaAvulsos(wrap) {
     <div class="field" style="max-width:320px;"><input type="text" placeholder="Buscar ensaio avulso…" oninput="_galFiltroAvulso=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroAvulso)}"></div>
     <div class="list" id="gal-lista-avulsos"></div>`
   const el = document.getElementById('gal-lista-avulsos')
-  el.innerHTML = ensaios.length ? ensaios.map(ev => `
-    <div class="list-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
-      <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length} foto(s)</div>
-    </div>`).join('') : '<div class="empty">Nenhum ensaio avulso encontrado.</div>'
+  el.innerHTML = ensaios.length ? ensaios.map(ev => {
+    const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
+    return `
+    <div class="list-item pasta-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
+      ${_galPastaCardHTML(ev.nome, contagem, _galCapaEvento(ev.id))}
+      <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${contagem} foto(s)</div>
+    </div>`
+  }).join('') : '<div class="empty">Nenhum ensaio avulso encontrado.</div>'
+  _hidratarImgCache(el)
 }
 
 function renderGaleriaFotosAvulso(wrap) {
@@ -8222,8 +8349,8 @@ function renderGaleriaFotosAvulso(wrap) {
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
+        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
@@ -8302,8 +8429,8 @@ function renderGaleriaFotosDoAno(wrap) {
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="baixarComoZip([...store.fotos.filter(f=>_galSelecao.has(f.id))].map(f=>f.storage_path), 'fotos.zip')">Baixar selecionadas (0)</button>
-        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())">Apagar selecionadas</button>` : ''}
+        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
+        ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
     ${[...porEvento.entries()].map(([eventoId, lista]) => {
@@ -8350,6 +8477,29 @@ function _galToggleSelecao(fotoId) {
   const btnApagar = document.getElementById('gal-btn-apagar')
   if (btnBaixar) { btnBaixar.disabled = _galSelecao.size === 0; btnBaixar.textContent = `Baixar selecionadas (${_galSelecao.size})` }
   if (btnApagar) btnApagar.disabled = _galSelecao.size === 0
+  _galSyncDock()
+}
+// baixar/apagar em massa — usadas tanto pelos botões inline (desktop)
+// quanto pelo dock flutuante (mobile), pra não duplicar a lógica.
+function _galBaixarSelecionadas() {
+  baixarComoZip([...store.fotos.filter(f => _galSelecao.has(f.id))].map(f => f.storage_path), 'fotos.zip')
+}
+function _galApagarSelecionadas() {
+  excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())
+}
+// dock flutuante (mobile) — pílula fixa acima da bottom-nav, só
+// aparece com 1+ foto selecionada. Elemento único no shell da página
+// (não é recriado a cada render da Galeria), só mostra/esconde e
+// atualiza o texto/contagem.
+function _galSyncDock() {
+  const dock = document.getElementById('gal-action-dock')
+  if (!dock) return
+  const n = _galSelecao.size
+  dock.classList.toggle('show', n > 0)
+  const btnBaixar = document.getElementById('gal-dock-baixar')
+  const btnApagar = document.getElementById('gal-dock-apagar')
+  if (btnBaixar) btnBaixar.textContent = `Baixar (${n})`
+  if (btnApagar) btnApagar.style.display = _galRole === 'admin' ? 'inline-flex' : 'none'
 }
 
 // atalho: cria (ou reaproveita) um evento "avulso" desse ano pro aluno e
