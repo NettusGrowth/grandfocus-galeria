@@ -474,12 +474,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
 .quick-btn{
   display:flex;align-items:center;gap:10px;background:linear-gradient(180deg,var(--ouro-luz),var(--ouro));border:1px solid var(--ouro);
-  color:var(--tinta);padding:.8em 1.2em;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s;
+  color:var(--tinta);padding:.7em 1em;border-radius:10px;cursor:pointer;transition:filter .15s,transform .15s,box-shadow .15s;
   font-family:var(--sans);box-shadow:0 4px 16px -4px rgba(200,175,127,.35);
 }
 .quick-btn:hover{filter:brightness(1.06);transform:translateY(-1px);box-shadow:0 6px 20px -4px rgba(200,175,127,.5);}
-.quick-btn .qi{width:30px;height:30px;border-radius:8px;background:rgba(26,10,14,.14);display:grid;place-items:center;flex-shrink:0;}
-.quick-btn .qi svg{width:15px;height:15px;color:var(--tinta);}
+.quick-btn .qi{width:34px;height:34px;border-radius:9px;background:rgba(26,10,14,.14);display:grid;place-items:center;flex-shrink:0;}
+.quick-btn .qi svg{width:16px;height:16px;color:var(--tinta);}
+.quick-btn .qt{text-align:left;}
+.quick-btn .qt b{display:block;font-size:13.5px;font-weight:700;}
+.quick-btn .qt span{display:block;font-size:11px;font-weight:500;opacity:.68;margin-top:1px;}
+.quick-btn .qc{width:14px;height:14px;margin-left:6px;opacity:.55;flex-shrink:0;}
 
 .dash-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;}
 @media(max-width:760px){.dash-cols{grid-template-columns:1fr;}}
@@ -1165,9 +1169,21 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="section-h" style="align-items:flex-end;">
           <div><h2 id="dash-saudacao">Olá</h2><div id="dash-data" style="margin-top:4px;font-size:12.5px;color:#B39F86;"></div></div>
           <div class="quick-row" style="margin-bottom:0;">
-            <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Cadastrar escola</button>
-            <button class="quick-btn" type="button" onclick="setAdminTab('alunos');abrirModalAluno()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo aluno</button>
-            <button class="quick-btn" type="button" onclick="setAdminTab('eventos');abrirModalEvento()"><span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>Novo evento</button>
+            <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()">
+              <span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span class="qt"><b>Cadastrar escola</b><span>com assistente</span></span>
+              <svg class="qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <button class="quick-btn" type="button" onclick="setAdminTab('alunos');abrirModalAluno()">
+              <span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span class="qt"><b>Novo aluno</b><span>perfil completo</span></span>
+              <svg class="qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
+            <button class="quick-btn" type="button" onclick="setAdminTab('eventos');abrirModalEvento()">
+              <span class="qi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></span>
+              <span class="qt"><b>Novo evento</b><span>com calendário</span></span>
+              <svg class="qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </button>
           </div>
         </div>
         <div class="modulos-grid" id="dash-modulos">
