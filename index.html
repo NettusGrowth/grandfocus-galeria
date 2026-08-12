@@ -3524,11 +3524,18 @@ let _perfilArquivos = { foto: null, capa: null }
 async function atualizarAvatarTopbar() {
   const el = document.getElementById('topbar-avatar')
   if (!el) return
-  const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar'), ...document.querySelectorAll('.galeria-hero-avatar')]
+  // se _carregarImgCache falhar (rede ruim, path quebrado) e o erro
+  // não for pego, a função parava no meio e o avatar ficava travado
+  // no "?" estático do placeholder pra sempre — try/catch garante que
+  // sempre cai na letra de fallback. Os alvos são pegos de novo DEPOIS
+  // do await (não antes) porque, se a Galeria re-renderizou enquanto
+  // a imagem carregava, o elemento antigo já não está mais no DOM.
+  let url = null
   if (meuPerfil?.foto_url) {
-    const url = await _carregarImgCache(meuPerfil.foto_url)
-    if (url) { alvos.forEach(a => a.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`); return }
+    try { url = await _carregarImgCache(meuPerfil.foto_url) } catch { url = null }
   }
+  const alvos = [el, ...document.querySelectorAll('.sidebar-footer .who-avatar'), ...document.querySelectorAll('.galeria-hero-avatar')]
+  if (url) { alvos.forEach(a => a.innerHTML = `<img src="${url}" alt="" style="object-position:${meuPerfil.foto_pos || POS_PADRAO};">`); return }
   const letra = (meuPerfil?.nome || currentUser?.email || '?').trim().charAt(0).toUpperCase()
   alvos.forEach(a => a.textContent = letra)
 }
@@ -8382,20 +8389,24 @@ async function iniciarGaleriaAdmin() {
   // fica velho rápido: criar um álbum e subir fotos nele acontece fora
   // da Galeria (aba Eventos/Ensaios), então o card só mostrava "0
   // fotos" até um F5 forçar um fetch novo.
-  const { data: eventos } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
-  if (eventos) store.eventos = eventos
-  if (!store.fotos.length) {
-    const { data } = await db.from('fotos').select('*')
-    store.fotos = data || []
-  }
-  if (!store.fotoAluno.length) {
-    const { data } = await db.from('foto_aluno').select('*')
-    store.fotoAluno = data || []
-  }
-  if (!store.fotoPessoa.length) {
-    const { data } = await db.from('foto_pessoa').select('*')
-    store.fotoPessoa = data || []
-  }
+  // mesmo raciocínio do eventos acima: fotos/foto_aluno/foto_pessoa são
+  // arrays GLOBAIS reaproveitados pelo app inteiro (Eventos, Ensaios
+  // Avulsos, etc.) — se o admin abriu um ensaio específico antes de
+  // entrar na Galeria, essas telas trocam store.fotos por um recorte
+  // só daquele ensaio (ver _recarregarFotosEnsaio e afins). O guard
+  // antigo "só busca se tiver vazio" tratava esse recorte parcial como
+  // "já carregado" e nunca completava — daí um álbum qualquer fora do
+  // que já tinha sido visto aparecia com "0 fotos" e sem capa mesmo
+  // tendo fotos de verdade no banco. Sempre recarregar tudo aqui é a
+  // única forma de garantir os 3 arrays completos ao entrar na aba.
+  const [{ data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
+    db.from('fotos').select('*'),
+    db.from('foto_aluno').select('*'),
+    db.from('foto_pessoa').select('*'),
+  ])
+  store.fotos = fotos || []
+  store.fotoAluno = fa || []
+  store.fotoPessoa = fp || []
   renderGaleriaAdmin()
 }
 
@@ -8485,6 +8496,20 @@ function _galHeroMobileHTML() {
     <h2 class="galeria-hero-titulo">Galeria de Fotos</h2>
   </div>`
 }
+// tela de "entrada" da Galeria pra CADA papel — admin tem raiz de
+// verdade (_galRaiz===null), mas escola/professor/diretor/proprietário
+// já pousam direto no ramo 'escolas' (sempre com _galEscolaId fixo, a
+// própria escola) e responsável direto no ramo 'filhos' — pra eles o
+// "cabeçalho de boas-vindas" precisa aparecer no nível mais raso que
+// cada um alcança, não só quando _galRaiz é null (isso nunca acontece
+// fora do admin). Não muda a árvore de navegação de ninguém, só onde o
+// cabeçalho aparece por cima dela.
+function _galEhRaizDoPapel() {
+  if (_galRaiz === null) return true
+  if (_galRaiz === 'filhos') return !_galAlunoId
+  if (_galRaiz === 'escolas' && _galRole !== 'admin') return !_galAno && !_galAlbumId
+  return false
+}
 function renderGaleriaAdmin() {
   const wrap = document.getElementById(_galWrapId())
   if (!wrap) return
@@ -8493,7 +8518,7 @@ function renderGaleriaAdmin() {
   _galSelecao = new Set()
   _galSyncDock()
   const breadcrumbHTML = _galBreadcrumb()
-  const heroHTML = _galRaiz === null ? _galHeroMobileHTML() : ''
+  const heroHTML = _galEhRaizDoPapel() ? _galHeroMobileHTML() : ''
   const crumb = `${heroHTML}<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
   wrap.innerHTML = crumb
   if (heroHTML) atualizarAvatarTopbar()
@@ -9754,10 +9779,18 @@ async function iniciarViewEscola() {
   store.alunos = alunos || []
   // resto do que a árvore da Galeria precisa — RLS já escopa cada uma
   // dessas queries pro que esse login pode ver (a própria escola).
+  // fotos/foto_aluno/foto_pessoa sempre recarregam (não só "se
+  // vazio") pelo mesmo motivo do iniciarGaleriaAdmin: são arrays
+  // globais que outra tela pode ter deixado com um recorte parcial.
   if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
-  if (!store.fotos.length) { const { data } = await db.from('fotos').select('*'); store.fotos = data || [] }
-  if (!store.fotoAluno.length) { const { data } = await db.from('foto_aluno').select('*'); store.fotoAluno = data || [] }
-  if (!store.fotoPessoa.length) { const { data } = await db.from('foto_pessoa').select('*'); store.fotoPessoa = data || [] }
+  const [{ data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
+    db.from('fotos').select('*'),
+    db.from('foto_aluno').select('*'),
+    db.from('foto_pessoa').select('*'),
+  ])
+  store.fotos = fotos || []
+  store.fotoAluno = fa || []
+  store.fotoPessoa = fp || []
   _galRole = meuPerfil.role
   _galRaiz = 'escolas'; _galEscolaId = meuPerfil.escola_id; _galAno = null; _galAlbumId = null
   _galAvulsoId = null; _galAlunoId = null; _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
