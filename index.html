@@ -6657,8 +6657,16 @@ async function renderLightboxAtual() {
   const f = _lightboxFotos[_lightboxIdx]
   if (!f) return
   const img = document.getElementById('lightbox-img')
-  img.src = ''
-  const url = await _urlPreview(f)
+  const path = _fotoPreviewPath(f)
+  // a miniatura da grade (_galFotoItemHTML) já buscou e guardou essa
+  // MESMA imagem em cache (_carregarImgCache) — abrir o lightbox
+  // pedindo uma URL assinada nova e baixando tudo de novo do zero
+  // (o que dava os 2-3s de espera) era refazer um trabalho que já
+  // tinha acabado de ser feito. _imgCache() é a checagem síncrona: se
+  // já tiver em cache, pinta na hora; senão, cai no mesmo carregamento
+  // de antes (só na primeira vez que essa foto é vista).
+  img.src = _imgCache(path) || ''
+  const url = await _carregarImgCache(path)
   if (url) img.src = url
   const evento = store.eventos.find(e => e.id === f.evento_id)
   document.getElementById('lightbox-caption').textContent =
