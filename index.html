@@ -596,6 +596,34 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .hint{background:rgba(200,175,127,.08);border:1px solid rgba(200,175,127,.22);border-radius:8px;padding:10px 14px;font-size:12.5px;color:#DBC9A8;margin-bottom:16px;line-height:1.5;}
 .hint b{color:var(--ouro-luz);}
 
+/* ── botão de arquivo estilizado (input nativo escondido) — mesmo
+   idioma visual do .btn, pra nunca mais aparecer o input cru feio do
+   navegador ("Escolher arquivo"). ── */
+.trocar-arquivo{
+  display:inline-flex;align-items:center;justify-content:center;gap:.5em;font-family:var(--sans);font-size:13px;
+  letter-spacing:.06em;font-weight:500;padding:.7em 1.4em;border-radius:6px;border:1px solid var(--ouro);
+  cursor:pointer;transition:background .2s;background:transparent;color:var(--ouro-luz);width:100%;margin-bottom:16px;
+}
+.trocar-arquivo:hover{background:rgba(200,175,127,.12);}
+.trocar-arquivo input[type="file"]{position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;}
+
+/* ── prévia arrastável da foto de fundo (modal-hero-bg) — mesma
+   técnica de background-size:auto 200% do .dash-hero-bg de verdade
+   (ver _abrirModalHeroBg), então o enquadramento escolhido aqui bate
+   com o que vai aparecer no Dashboard publicado. */
+.hero-bg-preview-box{
+  position:relative;width:100%;border-radius:10px;overflow:hidden;
+  background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.25);margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;color:#8A7461;font-size:12.5px;
+  background-repeat:no-repeat;user-select:none;
+}
+.hero-bg-preview-box.tem-foto{cursor:grab;}
+.hero-bg-preview-box.tem-foto.arrastando{cursor:grabbing;}
+.hero-bg-preview-box .hero-bg-dica-arrastar{
+  position:absolute;left:8px;bottom:8px;background:rgba(20,8,15,.7);border:1px solid rgba(212,175,55,.3);
+  border-radius:99px;padding:3px 10px;font-size:10.5px;color:var(--ouro-luz);backdrop-filter:blur(4px);pointer-events:none;
+}
+
 /* ── dashboard ── */
 .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:26px;}
 .quick-btn{
@@ -651,7 +679,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 }
 .dash-hero-bg{
   position:absolute;top:-28px;left:-28px;right:-28px;height:680px;
-  background-image:url('/assets/dashboard-hero.jpg');background-size:auto 200%;background-position:center 60%;
+  background-image:url('/assets/dashboard-hero.jpg');background-size:auto 200%;background-position:center 60%;background-repeat:no-repeat;
   opacity:.5;pointer-events:none;z-index:0;will-change:transform;
   -webkit-mask-image:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.5) 45%,transparent 92%);
   mask-image:linear-gradient(180deg,rgba(255,255,255,.85) 0%,rgba(255,255,255,.5) 45%,transparent 92%);
@@ -1911,7 +1939,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <!-- modal: meu perfil -->
 <div class="modal-overlay" id="modal-perfil">
-  <div class="modal" style="max-width:400px;">
+  <div class="modal" style="max-width:400px;position:relative;">
     <div class="perfil-capa" id="perfil-capa-preview">
       <div class="skeleton-capa" id="perfil-capa-skeleton"></div>
       <div class="cam-btn" title="Trocar capa" onclick="document.getElementById('perfil-capa-input').click()">
@@ -1930,6 +1958,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
     </div>
     <h3 style="text-align:center;" id="perfil-modal-titulo">Meu perfil</h3>
+    <button class="icon-btn" id="perfil-btn-hero-bg" style="display:none;position:absolute;top:16px;right:16px;" title="Foto de fundo do Dashboard (avançado)" onclick="_abrirModalHeroBg()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg>
+    </button>
     <div class="perfil-secao-titulo">Informações do perfil</div>
     <div class="field"><label>Nome completo</label><input type="text" id="perfil-nome" placeholder="Seu nome"></div>
     <div class="perfil-secao-titulo">Alterar senha de acesso</div>
@@ -1946,14 +1977,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
      de fundo do Dashboard sem precisar de deploy novo. Ver
      _abrirModalHeroBg/_salvarHeroBg/_restaurarHeroBgPadrao. -->
 <div class="modal-overlay" id="modal-hero-bg">
-  <div class="modal" style="max-width:420px;">
+  <div class="modal" style="max-width:460px;">
     <h3 style="margin-bottom:4px;">Foto de fundo do Dashboard</h3>
-    <div class="hint" style="margin-top:10px;">Configuração avançada — muda o fundo que todo mundo vê no Dashboard. Se não trocar nada, continua a foto padrão de sempre.</div>
-    <div id="hero-bg-preview" style="width:100%;aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.25);margin-bottom:14px;display:flex;align-items:center;justify-content:center;color:#8A7461;font-size:12.5px;">carregando…</div>
-    <div class="field">
-      <label>Nova foto</label>
-      <input type="file" id="hero-bg-input" accept="image/*" onchange="_heroBgArquivoSelecionado(this)">
+    <div class="hint" style="margin-top:10px;">Configuração avançada — muda o fundo que todo mundo vê no Dashboard. Arraste a foto pra escolher o enquadramento; a prévia usa o mesmo tamanho de caixa do Dashboard de verdade. Se não trocar nada, continua a foto padrão de sempre.</div>
+    <div id="hero-bg-preview" class="hero-bg-preview-box">
+      <span id="hero-bg-preview-texto">carregando…</span>
     </div>
+    <label class="trocar-arquivo">
+      Escolher nova foto
+      <input type="file" id="hero-bg-input" accept="image/*" onchange="_heroBgArquivoSelecionado(this)">
+    </label>
     <div class="modal-actions" style="justify-content:space-between;">
       <button class="btn btn-sm btn-danger" onclick="_restaurarHeroBgPadrao()">Restaurar padrão</button>
       <div style="display:flex;gap:8px;">
@@ -2791,6 +2824,12 @@ async function mostrarApp(user) {
   meuPerfil = data
   _ligarRealtimeGlobal()
   marcarAcesso() // best-effort, não bloqueia
+  // dispara já, em paralelo com o resto do login — antes ficava pra
+  // depois de tudo (view inteira carregada, com várias queries
+  // sequenciais), então o fundo padrão ficava piscando na tela por 1-2s
+  // até a config chegar. Rodando em paralelo desde já, na maioria das
+  // vezes a foto certa já está pronta antes do Dashboard nem aparecer.
+  _carregarAppConfig()
   registrarAuditoria('fez login', 'perfis', user.id, null)
   if (data.role === 'responsavel' && !data.lgpd_aceito_em) abrirModal('modal-lgpd')
   document.getElementById('login-screen').style.display = 'none'
@@ -2836,7 +2875,6 @@ async function mostrarApp(user) {
   }
   await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
   _renderBottomNav()
-  _carregarAppConfig() // não bloqueia o login — o fundo padrão (CSS) já está na tela
 }
 
 // config global (chave/valor) — hoje só hero_bg_path. Não bloqueia
@@ -2855,39 +2893,111 @@ async function _carregarAppConfig() {
 // só troca o fundo se houver um customizado configurado E ele carregar
 // com sucesso — nunca remove/mexe no CSS padrão, só sobrepõe depois de
 // pronto (sem flash de carregamento parcial, mesma técnica de cache
-// usada nas fotos do resto do app).
+// usada nas fotos do resto do app). background-position só é
+// sobrescrito quando existe hero_bg_pos salvo — sem isso, o "center
+// 60%" do CSS original continua valendo.
 async function _aplicarHeroBg() {
   const alvo = document.querySelectorAll('.dash-hero-bg')
   if (!alvo.length) return
-  if (!_appConfig.hero_bg_path) { alvo.forEach(el => el.style.backgroundImage = '') ; return }
+  if (!_appConfig.hero_bg_path) { alvo.forEach(el => { el.style.backgroundImage = ''; el.style.backgroundPosition = '' }); return }
   const url = await _carregarImgCache(_appConfig.hero_bg_path)
-  if (url) alvo.forEach(el => el.style.backgroundImage = `url('${url}')`)
+  if (!url) return
+  alvo.forEach(el => {
+    el.style.backgroundImage = `url('${url}')`
+    if (_appConfig.hero_bg_pos) el.style.backgroundPosition = _appConfig.hero_bg_pos
+  })
 }
 
+const HERO_BG_POS_PADRAO = { x: 50, y: 60 } // bate com o "center 60%" do CSS original
 let _heroBgArquivo = null
+let _heroBgPosicao = { ...HERO_BG_POS_PADRAO }
+// mede a caixa REAL do Dashboard quando ela está na tela (mesma ideia
+// de _abrirAjusteFoto) — só funciona se a aba Dashboard estiver ativa
+// no momento (senão a caixa tem display:none em algum ancestral e o
+// rect vem 0×0). Fora daí (atalho chamado de outra aba), cai numa
+// proporção larga fixa — a prévia continua fiel ao MECANISMO
+// (background-size:auto 200%), só a caixa em si não é a exata.
+function _heroBgProporcao() {
+  const real = document.querySelector('.dash-hero-bg')
+  if (real) {
+    const r = real.getBoundingClientRect()
+    if (r.width > 0 && r.height > 0) return r.width / r.height
+  }
+  return 2.35
+}
 async function _abrirModalHeroBg() {
   _heroBgArquivo = null
   document.getElementById('hero-bg-input').value = ''
   document.getElementById('hero-bg-salvar-btn').disabled = true
   const preview = document.getElementById('hero-bg-preview')
+  preview.style.aspectRatio = _heroBgProporcao()
+  preview.classList.remove('tem-foto')
   preview.style.backgroundImage = ''
-  preview.textContent = 'carregando…'
+  preview.innerHTML = '<span id="hero-bg-preview-texto">carregando…</span>'
   abrirModal('modal-hero-bg')
   const url = _appConfig.hero_bg_path ? await _carregarImgCache(_appConfig.hero_bg_path) : null
-  preview.textContent = url ? '' : 'usando a foto padrão do site'
-  if (url) { preview.style.backgroundImage = `url('${url}')`; preview.style.backgroundSize = 'cover'; preview.style.backgroundPosition = 'center' }
+  _heroBgPosicao = _heroBgParsearPos(_appConfig.hero_bg_pos) || { ...HERO_BG_POS_PADRAO }
+  if (url) {
+    preview.innerHTML = '<span class="hero-bg-dica-arrastar">arraste pra reposicionar</span>'
+    preview.classList.add('tem-foto')
+    preview.style.backgroundImage = `url('${url}')`
+    preview.style.backgroundSize = 'auto 200%'
+    _heroBgAtualizarPosicaoPreview()
+  } else {
+    preview.innerHTML = '<span id="hero-bg-preview-texto">usando a foto padrão do site</span>'
+  }
+}
+function _heroBgParsearPos(str) {
+  if (!str) return null
+  const [x, y] = str.split(' ').map(v => parseFloat(v))
+  return (isFinite(x) && isFinite(y)) ? { x, y } : null
+}
+function _heroBgAtualizarPosicaoPreview() {
+  const el = document.getElementById('hero-bg-preview')
+  if (el) el.style.backgroundPosition = `${_heroBgPosicao.x.toFixed(1)}% ${_heroBgPosicao.y.toFixed(1)}%`
 }
 function _heroBgArquivoSelecionado(inputEl) {
   const file = inputEl.files?.[0]
   if (!file) return
   _heroBgArquivo = file
+  _heroBgPosicao = { ...HERO_BG_POS_PADRAO } // foto nova = recomeça o enquadramento do zero
   const preview = document.getElementById('hero-bg-preview')
-  preview.textContent = ''
+  preview.innerHTML = '<span class="hero-bg-dica-arrastar">arraste pra reposicionar</span>'
+  preview.classList.add('tem-foto')
   preview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`
-  preview.style.backgroundSize = 'cover'
-  preview.style.backgroundPosition = 'center'
+  preview.style.backgroundSize = 'auto 200%'
+  _heroBgAtualizarPosicaoPreview()
   document.getElementById('hero-bg-salvar-btn').disabled = false
 }
+// arrastar pra reposicionar — mesmo mecanismo de pointerdown/move/up
+// do resto do app (ver _abrirAjusteFoto), só que aplicando
+// background-position em vez de object-position (o fundo do Dashboard
+// é uma div com background-image, não uma tag de imagem).
+let _heroBgArrastando = null
+document.addEventListener('pointerdown', e => {
+  const wrap = e.target.closest('#hero-bg-preview')
+  if (!wrap || !wrap.classList.contains('tem-foto')) return
+  const rect = wrap.getBoundingClientRect()
+  _heroBgArrastando = { rect, startX: e.clientX, startY: e.clientY, baseX: _heroBgPosicao.x, baseY: _heroBgPosicao.y }
+  wrap.classList.add('arrastando')
+  wrap.setPointerCapture(e.pointerId)
+  e.preventDefault()
+})
+document.addEventListener('pointermove', e => {
+  if (!_heroBgArrastando) return
+  const { rect, startX, startY, baseX, baseY } = _heroBgArrastando
+  const dxPct = ((e.clientX - startX) / rect.width) * 100
+  const dyPct = ((e.clientY - startY) / rect.height) * 100
+  _heroBgPosicao = { x: Math.min(100, Math.max(0, baseX - dxPct)), y: Math.min(100, Math.max(0, baseY - dyPct)) }
+  _heroBgAtualizarPosicaoPreview()
+})
+function _pararHeroBgDrag() {
+  document.getElementById('hero-bg-preview')?.classList.remove('arrastando')
+  _heroBgArrastando = null
+}
+document.addEventListener('pointerup', _pararHeroBgDrag)
+document.addEventListener('pointercancel', _pararHeroBgDrag)
+
 // path SEMPRE novo (timestamp) — nunca reaproveita o path anterior.
 // Se reaproveitasse o mesmo nome, o cache de imagem (memória + disco,
 // usado em todo o app pra foto não piscar) continuaria servindo a
@@ -2904,10 +3014,14 @@ async function _salvarHeroBg() {
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, blob, { contentType: 'image/webp' })
     if (upErr) { toast('Erro ao enviar: ' + upErr.message); return }
     const anterior = _appConfig.hero_bg_path
-    const { error: cfgErr } = await db.from('app_config')
-      .upsert({ chave: 'hero_bg_path', valor: path, atualizado_por: currentUser.id })
+    const posValor = `${_heroBgPosicao.x.toFixed(1)}% ${_heroBgPosicao.y.toFixed(1)}%`
+    const { error: cfgErr } = await db.from('app_config').upsert([
+      { chave: 'hero_bg_path', valor: path, atualizado_por: currentUser.id },
+      { chave: 'hero_bg_pos', valor: posValor, atualizado_por: currentUser.id },
+    ])
     if (cfgErr) { toast('Erro ao salvar configuração: ' + cfgErr.message); return }
     _appConfig.hero_bg_path = path
+    _appConfig.hero_bg_pos = posValor
     if (anterior) db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
     await _aplicarHeroBg()
     toast('Fundo do Dashboard atualizado ✓')
@@ -2919,10 +3033,13 @@ async function _salvarHeroBg() {
 async function _restaurarHeroBgPadrao() {
   if (!_appConfig.hero_bg_path) { fecharModal('modal-hero-bg'); return }
   const anterior = _appConfig.hero_bg_path
-  const { error } = await db.from('app_config')
-    .upsert({ chave: 'hero_bg_path', valor: null, atualizado_por: currentUser.id })
+  const { error } = await db.from('app_config').upsert([
+    { chave: 'hero_bg_path', valor: null, atualizado_por: currentUser.id },
+    { chave: 'hero_bg_pos', valor: null, atualizado_por: currentUser.id },
+  ])
   if (error) { toast('Erro: ' + error.message); return }
   _appConfig.hero_bg_path = null
+  _appConfig.hero_bg_pos = null
   db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
   await _aplicarHeroBg()
   toast('Fundo padrão restaurado ✓')
@@ -3358,6 +3475,7 @@ async function abrirModalPerfil() {
   document.getElementById('perfil-nova-senha').value = ''
   document.getElementById('perfil-conf-senha').value = ''
   document.getElementById('perfil-modal-titulo').textContent = `${meuPerfil?.nome || 'Meu perfil'} • ${ROLE_LABEL[meuPerfil?.role] || 'Usuário'}`
+  document.getElementById('perfil-btn-hero-bg').style.display = ['admin', 'super_admin'].includes(meuPerfil?.role) ? 'grid' : 'none'
 
   const avatarEl = document.getElementById('perfil-avatar-preview')
   avatarEl.innerHTML = `<span class="letra-fallback">${(meuPerfil?.nome || '?').trim().charAt(0).toUpperCase()}</span><div class="trocar" onclick="document.getElementById('perfil-foto-input').click()">Trocar foto</div><input type="file" id="perfil-foto-input" accept="image/*" style="display:none;" onchange="_perfilArquivoSelecionado(this,'foto')">`
