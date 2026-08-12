@@ -507,7 +507,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .dash-hero-bg{
   position:absolute;top:-8px;left:-8px;right:-8px;height:380px;
   background-image:url('/assets/dashboard-hero.jpg');background-size:cover;background-position:center 22%;
-  opacity:.5;pointer-events:none;z-index:0;
+  opacity:.5;pointer-events:none;z-index:0;will-change:transform;
   -webkit-mask-image:linear-gradient(180deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.5) 45%,transparent 92%);
   mask-image:linear-gradient(180deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.5) 45%,transparent 92%);
 }
@@ -3173,6 +3173,35 @@ async function iniciarDashboardAdmin() {
   _dashRenderProximosEventos()
   _dashRenderGanhosRecentes()
   _dashRenderAlertaCritico()
+  _dashBindParallax()
+}
+
+// parallax sutil do fundo — liga o listener uma única vez (main não é
+// recriado ao trocar de aba, só tem display:none/block), e a própria
+// handler decide se o Dashboard está de fato visível antes de mexer no
+// transform, então não precisa desligar/religar a cada troca de aba.
+// Scroll é dentro de <main> (overflow-y:auto), não em window/body —
+// body fica com overflow:hidden enquanto o app está logado.
+let _dashParallaxBound = false
+function _dashBindParallax() {
+  if (_dashParallaxBound) return
+  _dashParallaxBound = true
+  const mainEl = document.querySelector('main')
+  if (!mainEl) return
+  let ticking = false
+  mainEl.addEventListener('scroll', () => {
+    if (ticking) return
+    ticking = true
+    requestAnimationFrame(() => {
+      const tabAtiva = document.getElementById('admintab-dashboard')
+      const bg = document.querySelector('.dash-hero-bg')
+      if (bg && tabAtiva && tabAtiva.style.display !== 'none') {
+        const deslocamento = Math.min(mainEl.scrollTop * 0.15, 40)
+        bg.style.transform = `translateY(${deslocamento}px)`
+      }
+      ticking = false
+    })
+  }, { passive: true })
 }
 
 // reconstrói uma série de 14 pontos (1/dia) do total ACUMULADO
