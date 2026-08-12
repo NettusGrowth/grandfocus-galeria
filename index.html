@@ -571,6 +571,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mkpi-tendencia.down{color:var(--vermelho);background:rgba(224,85,112,.12);}
 .mkpi-tendencia.flat{color:#8A7461;background:rgba(138,116,97,.12);}
 .mkpi-spark{display:block;width:100%;height:34px;margin-top:10px;filter:drop-shadow(0 0 3px rgba(212,175,55,.5)) drop-shadow(0 0 6px rgba(212,175,55,.25));}
+/* "desenha a si mesma" ao carregar — 500 é um teto generoso (viewBox
+   é só 100x34, nenhuma curva real chega perto disso), então cobre
+   qualquer série sem precisar medir o comprimento real do path via
+   JS (getTotalLength só funciona com o <path> já no DOM). */
+.mkpi-spark-path{stroke-dasharray:500;stroke-dashoffset:500;animation:mkpi-draw 1.1s ease-out forwards;}
+@keyframes mkpi-draw{to{stroke-dashoffset:0;}}
+@media(prefers-reduced-motion:reduce){.mkpi-spark-path{animation:none;stroke-dashoffset:0;}}
 .mkpi-fotos{display:flex;gap:8px;margin-top:10px;height:64px;overflow-x:auto;scroll-snap-type:x proximity;cursor:grab;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .mkpi-fotos::-webkit-scrollbar{display:none;}
 .mkpi-fotos.arrastando{cursor:grabbing;scroll-snap-type:none;}
@@ -3246,18 +3253,41 @@ function _kpiSerieCumulativa(totalAtual, timestamps, dias = 14) {
   return novosPorDia.map(n => (acumulado += n))
 }
 
+// converte uma lista de pontos [x,y] numa curva suave (Catmull-Rom ->
+// Bézier cúbica) — sem lib de gráfico nenhuma, só matemática de curva
+// (mesmo espírito do resto do projeto). Ponta duplicada nas bordas em
+// vez de espelhar o ponto vizinho.
+function _catmullRomParaBezier(pontos) {
+  if (pontos.length < 2) return ''
+  let d = `M ${pontos[0][0].toFixed(2)},${pontos[0][1].toFixed(2)}`
+  for (let i = 0; i < pontos.length - 1; i++) {
+    const p0 = pontos[i === 0 ? 0 : i - 1]
+    const p1 = pontos[i]
+    const p2 = pontos[i + 1]
+    const p3 = pontos[i + 2 < pontos.length ? i + 2 : i + 1]
+    const cp1x = p1[0] + (p2[0] - p0[0]) / 6
+    const cp1y = p1[1] + (p2[1] - p0[1]) / 6
+    const cp2x = p2[0] - (p3[0] - p1[0]) / 6
+    const cp2y = p2[1] - (p3[1] - p1[1]) / 6
+    d += ` C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`
+  }
+  return d
+}
 // sparkline sem lib de gráfico nenhuma (mesmo padrão do resto do
-// projeto) — só um <polyline> normalizado pro viewBox.
+// projeto) — curva suave (Bézier via Catmull-Rom) em vez de segmentos
+// retos; a classe .mkpi-spark-path dispara a animação de "desenhar a
+// si mesma" via CSS (stroke-dasharray/dashoffset), o glow neon
+// continua no <svg> pai (.mkpi-spark, já existente desde o Bloco 18).
 function _kpiSparklineSVG(serie, cor) {
   if (!serie || serie.length < 2) return ''
   const min = Math.min(...serie), max = Math.max(...serie)
   const range = max - min || 1
-  const pontos = serie.map((v, i) => {
-    const x = (i / (serie.length - 1)) * 100
-    const y = 32 - ((v - min) / range) * 30
-    return `${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  return `<svg class="mkpi-spark" viewBox="0 0 100 34" preserveAspectRatio="none"><polyline points="${pontos}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+  const pontos = serie.map((v, i) => [
+    (i / (serie.length - 1)) * 100,
+    32 - ((v - min) / range) * 30,
+  ])
+  const d = _catmullRomParaBezier(pontos)
+  return `<svg class="mkpi-spark" viewBox="0 0 100 34" preserveAspectRatio="none"><path class="mkpi-spark-path" d="${d}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 }
 
 // compara a média da 2ª metade da janela com a 1ª — vira "flat" (cinza)
