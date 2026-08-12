@@ -56,6 +56,14 @@ input,select,textarea{
   background:var(--surface,#3A0311);background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.3);
   color:#EADFCF;border-radius:6px;padding:.55em .8em;font-family:var(--sans);font-size:14px;width:100%;
 }
+/* input[type=date] some no tema escuro sem isso: o ícone do calendário
+   e o texto "dd/mm/aaaa" são desenhados pelo navegador (não são texto
+   normal, "color" do CSS não alcança), e por padrão vêm no estilo
+   claro — em cima do nosso fundo escuro fica uma caixa vazia
+   ilegível. Afeta 9 telas (Auditoria, Aluno, Evento, Ensaio, Seleção,
+   Gold Reserve, filtro da Comunidade) — bug de tema, não visual à
+   toa, corrigido uma vez só aqui. */
+input[type="date"]{color-scheme:dark;}
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ouro);}
 /* iOS/Safari dá zoom automático ao focar um campo com font-size < 16px
    — a base acima é 14px, então qualquer input/textarea/select do app
@@ -7284,7 +7292,7 @@ function _composerHTML(contexto) {
       <div class="composer-user-row">
         <span class="list-avatar" id="composer-avatar">${esc((meuPerfil?.nome || '?').trim().charAt(0).toUpperCase())}</span>
         <div class="composer-campo">
-          <textarea id="feed-composer-texto" rows="1" placeholder="Escreva um recado pra comunidade..." oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
+          <textarea id="feed-composer-texto" rows="1" placeholder="Escreva um recado..." oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"></textarea>
           <div id="feed-composer-preview" class="post-midia-grid"></div>
         </div>
       </div>
