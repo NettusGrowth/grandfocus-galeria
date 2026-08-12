@@ -510,6 +510,30 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modulo-card .mv{font-family:var(--sans-num);font-weight:700;font-size:22px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;}
 .modulo-card .ms{font-size:11px;color:#C9AF87;margin-left:6px;}
 
+/* 4 acentos de tema (existiam como classe morta, sem cor nenhuma até
+   aqui) — o fundo vinho continua igual em todos (identidade unificada),
+   só o ícone/tendência/sparkline mudam de tom, pra dar variedade sutil
+   sem virar arco-íris. */
+.modulo-card.t-burgundy .mi{background:rgba(217,139,160,.16);}
+.modulo-card.t-burgundy .mi svg{color:#D98BA0;}
+.modulo-card.t-bronze .mi{background:rgba(205,152,96,.16);}
+.modulo-card.t-bronze .mi svg{color:#CD9860;}
+.modulo-card.t-grafite .mi{background:rgba(169,180,196,.16);}
+.modulo-card.t-grafite .mi svg{color:#A9B4C4;}
+
+/* tendência: seta + % comparando a 2ª metade do período com a 1ª —
+   verde/vermelho reais (não decorativo), cinza quando não há variação
+   ou dado insuficiente pro cálculo. */
+.mkpi-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
+.mkpi-tendencia{display:flex;align-items:center;gap:3px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;padding:3px 7px;border-radius:999px;white-space:nowrap;}
+.mkpi-tendencia svg{width:11px;height:11px;}
+.mkpi-tendencia.up{color:var(--verde);background:rgba(61,207,142,.12);}
+.mkpi-tendencia.down{color:var(--vermelho);background:rgba(224,85,112,.12);}
+.mkpi-tendencia.flat{color:#8A7461;background:rgba(138,116,97,.12);}
+.mkpi-spark{display:block;width:100%;height:34px;margin-top:10px;}
+.mkpi-fotos{display:flex;gap:6px;margin-top:10px;height:52px;}
+.mkpi-fotos img{flex:1;min-width:0;height:100%;object-fit:cover;border-radius:8px;background:#2A1018;}
+
 /* ── Gold Reserve: sub-nav local dentro da aba (Visão Geral/Vendas/…) ── */
 .gr-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
 .gr-subnav-item{
@@ -1136,19 +1160,30 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         </div>
         <div class="modulos-grid" id="dash-modulos">
           <div class="modulo-card t-vinho" onclick="setAdminTab('escolas')">
-            <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 10.9a1 1 0 0 0 0-1.8L12.8 5.2a2 2 0 0 0-1.7 0L2.6 9.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.7 0Z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg></div>
+            <div class="mkpi-topo">
+              <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21.4 10.9a1 1 0 0 0 0-1.8L12.8 5.2a2 2 0 0 0-1.7 0L2.6 9.1a1 1 0 0 0 0 1.8l8.6 3.9a2 2 0 0 0 1.7 0Z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg></div>
+              <span id="dash-mod-escolas-tend"></span>
+            </div>
             <div class="mn">Escolas</div>
             <div><span class="mv num" id="dash-mod-escolas">—</span><span class="ms">cadastradas</span></div>
+            <div id="dash-mod-escolas-spark"></div>
           </div>
           <div class="modulo-card t-burgundy" onclick="setAdminTab('alunos')">
-            <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg></div>
+            <div class="mkpi-topo">
+              <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg></div>
+              <span id="dash-mod-alunos-tend"></span>
+            </div>
             <div class="mn">Alunos &amp; Bailarinos</div>
             <div><span class="mv num" id="dash-mod-alunos">—</span><span class="ms">matriculados</span></div>
+            <div id="dash-mod-alunos-spark"></div>
           </div>
           <div class="modulo-card t-bronze" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()">
-            <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg></div>
+            <div class="mkpi-topo">
+              <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg></div>
+            </div>
             <div class="mn">Galeria de Fotos</div>
             <div><span class="mv num" id="dash-mod-fotos">—</span><span class="ms">no acervo</span></div>
+            <div class="mkpi-fotos" id="dash-mod-fotos-preview"></div>
           </div>
           <div class="modulo-card t-grafite" onclick="setAdminTab('eventos')">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/></svg></div>
@@ -3086,6 +3121,56 @@ async function iniciarDashboardAdmin() {
   _dashCarregarModulos(error ? null : count)
 }
 
+// reconstrói uma série de 14 pontos (1/dia) do total ACUMULADO
+// terminando no total real de hoje — não tem tabela de snapshot
+// diário nenhuma no schema, então a curva é calculada ao vivo a partir
+// dos "criado_em" que já existem em cada linha (mesma ideia da
+// sazonalidade do Gold Reserve: dado real, não inventado).
+function _kpiSerieCumulativa(totalAtual, timestamps, dias = 14) {
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  const novosPorDia = new Array(dias).fill(0)
+  ;(timestamps || []).forEach(ts => {
+    if (!ts) return
+    const d = new Date(ts); d.setHours(0, 0, 0, 0)
+    const idx = dias - 1 - Math.round((hoje - d) / 86400000)
+    if (idx >= 0 && idx < dias) novosPorDia[idx]++
+  })
+  let acumulado = totalAtual - novosPorDia.reduce((a, b) => a + b, 0)
+  return novosPorDia.map(n => (acumulado += n))
+}
+
+// sparkline sem lib de gráfico nenhuma (mesmo padrão do resto do
+// projeto) — só um <polyline> normalizado pro viewBox.
+function _kpiSparklineSVG(serie, cor) {
+  if (!serie || serie.length < 2) return ''
+  const min = Math.min(...serie), max = Math.max(...serie)
+  const range = max - min || 1
+  const pontos = serie.map((v, i) => {
+    const x = (i / (serie.length - 1)) * 100
+    const y = 32 - ((v - min) / range) * 30
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }).join(' ')
+  return `<svg class="mkpi-spark" viewBox="0 0 100 34" preserveAspectRatio="none"><polyline points="${pontos}" fill="none" stroke="${cor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+}
+
+// compara a média da 2ª metade da janela com a 1ª — vira "flat" (cinza)
+// com dado insuficiente ou 1ª metade zerada, em vez de uma % absurda.
+function _kpiTendenciaHTML(serie) {
+  if (!serie || serie.length < 4) return ''
+  const meio = Math.floor(serie.length / 2)
+  const media1 = serie.slice(0, meio).reduce((a, b) => a + b, 0) / meio
+  const media2 = serie.slice(meio).reduce((a, b) => a + b, 0) / (serie.length - meio)
+  if (media1 <= 0) return ''
+  const variacao = ((media2 - media1) / media1) * 100
+  const classe = Math.abs(variacao) < 1 ? 'flat' : variacao > 0 ? 'up' : 'down'
+  const seta = classe === 'up'
+    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17 10 11 14 15 20 7"/><path d="M14 7h6v6"/></svg>'
+    : classe === 'down'
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7 10 13 14 9 20 17"/><path d="M14 17h6v-6"/></svg>'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16"/></svg>'
+  return `<span class="mkpi-tendencia ${classe}">${seta}${Math.abs(variacao) < 1 ? 'estável' : (variacao > 0 ? '+' : '') + variacao.toFixed(0) + '%'}</span>`
+}
+
 // grade de módulos — contagens reais (escolas/alunos/eventos já estão
 // em memória; fotos reaproveita a mesma query do KPI; posts/auditoria
 // pedem uma contagem própria, leve — select com head:true não traz
@@ -3095,6 +3180,31 @@ async function _dashCarregarModulos(totalFotos) {
   const elAlu = document.getElementById('dash-mod-alunos'); if (elAlu) elAlu.textContent = store.alunos.length
   const elFot = document.getElementById('dash-mod-fotos'); if (elFot) elFot.textContent = totalFotos ?? '—'
   const elEvt = document.getElementById('dash-mod-eventos'); if (elEvt) elEvt.textContent = store.eventos.length
+
+  const serieEsc = _kpiSerieCumulativa(store.escolas.length, store.escolas.map(e => e.criado_em))
+  const sparkEsc = document.getElementById('dash-mod-escolas-spark')
+  if (sparkEsc) sparkEsc.innerHTML = _kpiSparklineSVG(serieEsc, '#D4AF37')
+  const tendEsc = document.getElementById('dash-mod-escolas-tend')
+  if (tendEsc) tendEsc.innerHTML = _kpiTendenciaHTML(serieEsc)
+
+  const serieAlu = _kpiSerieCumulativa(store.alunos.length, store.alunos.map(a => a.criado_em))
+  const sparkAlu = document.getElementById('dash-mod-alunos-spark')
+  if (sparkAlu) sparkAlu.innerHTML = _kpiSparklineSVG(serieAlu, '#D98BA0')
+  const tendAlu = document.getElementById('dash-mod-alunos-tend')
+  if (tendAlu) tendAlu.innerHTML = _kpiTendenciaHTML(serieAlu)
+
+  const previewFotos = document.getElementById('dash-mod-fotos-preview')
+  if (previewFotos) {
+    const { data: fotosRecentes } = await db.from('fotos').select('storage_path,thumb_path').order('criado_em', { ascending: false }).limit(2)
+    if (fotosRecentes?.length) {
+      previewFotos.innerHTML = fotosRecentes.map((f, i) => `<img id="dash-fotos-prev-${i}" alt="">`).join('')
+      fotosRecentes.forEach(async (f, i) => {
+        const url = await _carregarImgCache(f.thumb_path || f.storage_path)
+        const img = document.getElementById(`dash-fotos-prev-${i}`)
+        if (url && img) img.src = url
+      })
+    }
+  }
 
   const [{ count: nPosts }, { count: nAud }] = await Promise.all([
     db.from('posts').select('id', { count: 'exact', head: true }),
