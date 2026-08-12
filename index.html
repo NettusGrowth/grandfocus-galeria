@@ -576,15 +576,24 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    normal, então ela nunca influencia o tamanho do próprio pai. */
 .pasta-capa-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;}
 .pasta-capa::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 65%);}
+/* badge no canto inferior direito (não superior) pra ficar junto do
+   resto da informação do card, como pedido — por isso o texto abaixo
+   reserva espaço à direita (right:70px) pra não passar por baixo dele. */
 .pasta-badge{
-  display:block;position:absolute;top:8px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
+  display:block;position:absolute;bottom:10px;right:8px;z-index:1;font-size:10.5px;color:var(--ouro-luz);
   background:rgba(20,8,15,.7);border:1px solid rgba(212,175,55,.35);border-radius:99px;padding:3px 9px;
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);white-space:nowrap;
 }
 .pasta-nome-overlay{
-  position:absolute;left:12px;right:12px;bottom:10px;z-index:1;
+  position:absolute;left:12px;right:70px;bottom:10px;z-index:1;
+}
+.pasta-nome-overlay .pasta-nome{
   font-family:var(--serif);font-size:16px;color:var(--papel,#F6F0E6);
   text-shadow:0 2px 8px rgba(0,0,0,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.pasta-nome-overlay .pasta-sub{
+  font-size:11px;color:rgba(246,240,230,.72);margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.6);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 /* header "boas-vindas" da Galeria (mobile, só na raiz do módulo) —
    ver _galHeroMobileHTML(). Mesma saudação do Dashboard
@@ -990,10 +999,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* pílulas de filtro da Galeria (Eventos & Álbuns/Alunos, pessoas do
    álbum) — no mobile rolam na horizontal em vez de quebrar linha e
    empurrar o conteúdo pra baixo. Desktop mantém o wrap normal. */
+.gal-raiz-pills{display:none;}
 @media(max-width:900px){
   .gal-chip-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   .gal-chip-row::-webkit-scrollbar{display:none;}
   .gal-chip-row .chip{flex:0 0 auto;}
+  .gal-raiz-pills{display:flex;margin-bottom:18px;}
+  .gal-raiz-pills .chip{padding:.65em 1.3em;}
+  .gal-raiz-lista{display:none;}
 }
 
 .galeria-secao{margin-bottom:34px;}
@@ -1208,6 +1221,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .vp-btn svg{width:20px;height:20px;}
 .vp-time{font-size:11px;color:var(--ouro-luz);font-variant-numeric:tabular-nums;flex-shrink:0;}
 .vp-seek{flex:1;accent-color:var(--ouro);height:3px;cursor:pointer;}
+#hero-bg-zoom{width:100%;accent-color:var(--ouro);margin-top:4px;cursor:pointer;}
 .post-reacoes-row{display:flex;gap:2px;background:rgba(16,9,16,.3);border-radius:99px;padding:3px;}
 .post-reagir-opt{background:none;border:1px solid transparent;border-radius:99px;color:#C9B9A4;font-size:15px;cursor:pointer;padding:3px 7px;font-family:var(--sans);transition:background .12s;}
 .post-reagir-opt:hover{background:rgba(200,175,127,.12);}
@@ -2006,9 +2020,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <div class="modal-overlay" id="modal-hero-bg">
   <div class="modal" style="max-width:460px;">
     <h3 style="margin-bottom:4px;">Foto de fundo do Dashboard</h3>
-    <div class="hint" style="margin-top:10px;">Configuração avançada — muda o fundo que todo mundo vê no Dashboard. Arraste a foto pra escolher o enquadramento; a prévia usa o mesmo tamanho de caixa do Dashboard de verdade. Se não trocar nada, continua a foto padrão de sempre.</div>
+    <div class="hint" style="margin-top:10px;">Configuração avançada — muda o fundo que todo mundo vê no Dashboard. Arraste a foto pra reposicionar e use o controle de tamanho pra dar zoom; a prévia usa o mesmo tamanho de caixa do Dashboard de verdade. Se não trocar nada, continua a foto padrão de sempre.</div>
     <div id="hero-bg-preview" class="hero-bg-preview-box">
       <span id="hero-bg-preview-texto">carregando…</span>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label style="font-size:12px;">Tamanho</label>
+      <input type="range" id="hero-bg-zoom" min="100" max="300" step="5" value="200" oninput="_heroBgZoomAlterado(this.value)">
     </div>
     <label class="trocar-arquivo">
       Escolher nova foto
@@ -2926,18 +2944,21 @@ async function _carregarAppConfig() {
 async function _aplicarHeroBg() {
   const alvo = document.querySelectorAll('.dash-hero-bg')
   if (!alvo.length) return
-  if (!_appConfig.hero_bg_path) { alvo.forEach(el => { el.style.backgroundImage = ''; el.style.backgroundPosition = '' }); return }
+  if (!_appConfig.hero_bg_path) { alvo.forEach(el => { el.style.backgroundImage = ''; el.style.backgroundPosition = ''; el.style.backgroundSize = '' }); return }
   const url = await _carregarImgCache(_appConfig.hero_bg_path)
   if (!url) return
   alvo.forEach(el => {
     el.style.backgroundImage = `url('${url}')`
     if (_appConfig.hero_bg_pos) el.style.backgroundPosition = _appConfig.hero_bg_pos
+    el.style.backgroundSize = `auto ${_appConfig.hero_bg_zoom || HERO_BG_ZOOM_PADRAO}%`
   })
 }
 
 const HERO_BG_POS_PADRAO = { x: 50, y: 60 } // bate com o "center 60%" do CSS original
+const HERO_BG_ZOOM_PADRAO = 200 // bate com o "auto 200%" do CSS original
 let _heroBgArquivo = null
 let _heroBgPosicao = { ...HERO_BG_POS_PADRAO }
+let _heroBgZoom = HERO_BG_ZOOM_PADRAO
 // mede a caixa REAL do Dashboard quando ela está na tela (mesma ideia
 // de _abrirAjusteFoto) — só funciona se a aba Dashboard estiver ativa
 // no momento (senão a caixa tem display:none em algum ancestral e o
@@ -2964,15 +2985,23 @@ async function _abrirModalHeroBg() {
   abrirModal('modal-hero-bg')
   const url = _appConfig.hero_bg_path ? await _carregarImgCache(_appConfig.hero_bg_path) : null
   _heroBgPosicao = _heroBgParsearPos(_appConfig.hero_bg_pos) || { ...HERO_BG_POS_PADRAO }
+  _heroBgZoom = _appConfig.hero_bg_zoom ? parseFloat(_appConfig.hero_bg_zoom) : HERO_BG_ZOOM_PADRAO
+  const zoomInput = document.getElementById('hero-bg-zoom')
+  if (zoomInput) zoomInput.value = _heroBgZoom
   if (url) {
     preview.innerHTML = '<span class="hero-bg-dica-arrastar">arraste pra reposicionar</span>'
     preview.classList.add('tem-foto')
     preview.style.backgroundImage = `url('${url}')`
-    preview.style.backgroundSize = 'auto 200%'
+    preview.style.backgroundSize = `auto ${_heroBgZoom}%`
     _heroBgAtualizarPosicaoPreview()
   } else {
     preview.innerHTML = '<span id="hero-bg-preview-texto">usando a foto padrão do site</span>'
   }
+}
+function _heroBgZoomAlterado(valor) {
+  _heroBgZoom = parseFloat(valor)
+  const preview = document.getElementById('hero-bg-preview')
+  if (preview) preview.style.backgroundSize = `auto ${_heroBgZoom}%`
 }
 function _heroBgParsearPos(str) {
   if (!str) return null
@@ -2988,11 +3017,14 @@ function _heroBgArquivoSelecionado(inputEl) {
   if (!file) return
   _heroBgArquivo = file
   _heroBgPosicao = { ...HERO_BG_POS_PADRAO } // foto nova = recomeça o enquadramento do zero
+  _heroBgZoom = HERO_BG_ZOOM_PADRAO
+  const zoomInput = document.getElementById('hero-bg-zoom')
+  if (zoomInput) zoomInput.value = _heroBgZoom
   const preview = document.getElementById('hero-bg-preview')
   preview.innerHTML = '<span class="hero-bg-dica-arrastar">arraste pra reposicionar</span>'
   preview.classList.add('tem-foto')
   preview.style.backgroundImage = `url('${URL.createObjectURL(file)}')`
-  preview.style.backgroundSize = 'auto 200%'
+  preview.style.backgroundSize = `auto ${_heroBgZoom}%`
   _heroBgAtualizarPosicaoPreview()
   document.getElementById('hero-bg-salvar-btn').disabled = false
 }
@@ -3042,13 +3074,16 @@ async function _salvarHeroBg() {
     if (upErr) { toast('Erro ao enviar: ' + upErr.message); return }
     const anterior = _appConfig.hero_bg_path
     const posValor = `${_heroBgPosicao.x.toFixed(1)}% ${_heroBgPosicao.y.toFixed(1)}%`
+    const zoomValor = String(_heroBgZoom)
     const { error: cfgErr } = await db.from('app_config').upsert([
       { chave: 'hero_bg_path', valor: path, atualizado_por: currentUser.id },
       { chave: 'hero_bg_pos', valor: posValor, atualizado_por: currentUser.id },
+      { chave: 'hero_bg_zoom', valor: zoomValor, atualizado_por: currentUser.id },
     ])
     if (cfgErr) { toast('Erro ao salvar configuração: ' + cfgErr.message); return }
     _appConfig.hero_bg_path = path
     _appConfig.hero_bg_pos = posValor
+    _appConfig.hero_bg_zoom = zoomValor
     if (anterior) db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
     await _aplicarHeroBg()
     toast('Fundo do Dashboard atualizado ✓')
@@ -3063,10 +3098,12 @@ async function _restaurarHeroBgPadrao() {
   const { error } = await db.from('app_config').upsert([
     { chave: 'hero_bg_path', valor: null, atualizado_por: currentUser.id },
     { chave: 'hero_bg_pos', valor: null, atualizado_por: currentUser.id },
+    { chave: 'hero_bg_zoom', valor: null, atualizado_por: currentUser.id },
   ])
   if (error) { toast('Erro: ' + error.message); return }
   _appConfig.hero_bg_path = null
   _appConfig.hero_bg_pos = null
+  _appConfig.hero_bg_zoom = null
   db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
   await _aplicarHeroBg()
   toast('Fundo padrão restaurado ✓')
@@ -8499,11 +8536,23 @@ function renderGaleriaRaiz(wrap) {
   const icoEscolas = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg>'
   const icoAvulsos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg>'
   const icoAlunos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg>'
-  wrap.innerHTML += `<div class="list">
-    <div class="list-item" onclick="_galRaiz='escolas';renderGaleriaAdmin()"><div class="nome">${icoEscolas}Escolas</div><div class="meta">${store.escolas.length} escola(s)</div></div>
-    <div class="list-item" onclick="_galRaiz='avulsos';renderGaleriaAdmin()"><div class="nome">${icoAvulsos}Avulsos</div><div class="meta">${nEnsaios} ensaio(s) avulso(s)</div></div>
-    <div class="list-item" onclick="_galRaiz='alunos';renderGaleriaAdmin()"><div class="nome">${icoAlunos}Alunos</div><div class="meta">${store.alunos.length} aluno(s)</div></div>
-  </div>`
+  // pílulas horizontais no mobile (pedido do mockup) navegam pros
+  // mesmos 3 ramos da árvore que a lista vertical do desktop — não são
+  // um filtro que troca conteúdo na mesma tela, porque Escolas/Avulsos/
+  // Alunos são 3 sub-árvores de navegação bem diferentes entre si, não
+  // um recorte do mesmo grid de álbuns. Lista continua igual no desktop.
+  const itens = [
+    { raiz: 'escolas', ico: icoEscolas, label: 'Escolas', meta: `${store.escolas.length} escola(s)` },
+    { raiz: 'avulsos', ico: icoAvulsos, label: 'Avulsos', meta: `${nEnsaios} ensaio(s) avulso(s)` },
+    { raiz: 'alunos', ico: icoAlunos, label: 'Alunos', meta: `${store.alunos.length} aluno(s)` },
+  ]
+  wrap.innerHTML += `
+    <div class="chip-row gal-chip-row gal-raiz-pills">
+      ${itens.map(it => `<span class="chip" onclick="_galRaiz='${it.raiz}';renderGaleriaAdmin()">${it.ico}${it.label}</span>`).join('')}
+    </div>
+    <div class="list gal-raiz-lista">
+      ${itens.map(it => `<div class="list-item" onclick="_galRaiz='${it.raiz}';renderGaleriaAdmin()"><div class="nome">${it.ico}${it.label}</div><div class="meta">${it.meta}</div></div>`).join('')}
+    </div>`
 }
 
 // ── caminho Escolas: Escola → Ano → Álbum(evento) → Fotos ─────────
@@ -8571,7 +8620,7 @@ function renderGaleriaAlbunsDaEscola(wrap) {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
     return `
     <div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
-      ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), contagem, _galCapaEvento(ev.id))}
+      ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), contagem, _galCapaEvento(ev.id), ev.categoria)}
       <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${contagem} foto(s)</div>
     </div>`
   }
@@ -8622,12 +8671,15 @@ function _galCapaSubpasta(eventoId, subpasta) {
   const f = store.fotos.find(x => x.evento_id === eventoId && x.subpasta === subpasta)
   return f ? _fotoPreviewPath(f) : null
 }
-function _galPastaCardHTML(nome, count, capaPath) {
+function _galPastaCardHTML(nome, count, capaPath, subtitulo) {
   return `
     <div class="pasta-capa">
       ${capaPath ? _imgTagCache(capaPath, 'class="pasta-capa-img" alt=""') : ''}
       <span class="pasta-badge">${count} foto(s)</span>
-      <div class="pasta-nome-overlay">📁 ${esc(nome)}</div>
+      <div class="pasta-nome-overlay">
+        <div class="pasta-nome">📁 ${esc(nome)}</div>
+        ${subtitulo ? `<div class="pasta-sub">${esc(subtitulo)}</div>` : ''}
+      </div>
     </div>`
 }
 function _galSubpastasListHTML(eventoId) {
@@ -8708,7 +8760,7 @@ function renderGaleriaListaAvulsos(wrap) {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
     return `
     <div class="list-item pasta-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
-      ${_galPastaCardHTML(ev.nome, contagem, _galCapaEvento(ev.id))}
+      ${_galPastaCardHTML(ev.nome, contagem, _galCapaEvento(ev.id), ev.categoria || (ev.data ? fmtData(ev.data) : ''))}
       <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${contagem} foto(s)</div>
     </div>`
   }).join('') : '<div class="empty">Nenhum ensaio avulso encontrado.</div>'
