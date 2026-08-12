@@ -7886,7 +7886,7 @@ function _galSubpastasListHTML(eventoId) {
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="list">
-    ${subs.map(s => `<div class="list-item" onclick="_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()"><div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+    ${subs.map(s => `<div class="list-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'><div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
     <div class="list-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()"><div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
   </div>`
 }
