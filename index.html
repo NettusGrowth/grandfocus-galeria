@@ -1965,11 +1965,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </select>
     </div>
     <div class="field" id="preview-upload-marcar-wrap" style="display:none;">
-      <label>Marcação automática</label>
-      <div style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#DBC9A8;">
-        <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;"><input type="radio" name="preview-upload-marcar" value="todos" checked> Marcar todo mundo selecionado</label>
-        <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;"><input type="radio" name="preview-upload-marcar" value="nenhum"> Não marcar ninguém agora</label>
-      </div>
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;cursor:pointer;color:#DBC9A8;">
+        <input type="checkbox" id="preview-upload-marcar-master" checked onchange="_toggleMarcarTodasPreview(this.checked)">
+        Selecionar tudo / Desmarcar tudo
+      </label>
+      <div class="hint" style="margin-top:8px;margin-bottom:0;">Marque quais fotos já entram com a marcação automática (clique na foto ou no ✓) — dá pra ajustar depois, foto a foto.</div>
     </div>
     <div class="foto-grid" id="preview-upload-grid" style="max-height:340px;overflow-y:auto;margin-bottom:6px;"></div>
     <div class="modal-actions">
@@ -5691,14 +5691,23 @@ async function _recarregarFotosEvento(eventoId) {
 // escolhidas, com opção de tirar alguma antes de confirmar.
 let _previewUploadFiles = null
 let _previewUploadDestino = null
-// mostra o radio "marcar automaticamente" só quando existe alguém no
-// roster do evento/ensaio pra marcar — sem isso a pergunta não faz
-// sentido nenhum (não tem ninguém selecionado ainda).
+// marcação agora é por foto (Set de File — identidade estável mesmo
+// quando uma foto é removida do meio da lista, sem precisar reindexar
+// nada), não mais um radio global "todos"/"nenhum". Só existe quando
+// há roster (alunos/pessoas selecionados no evento/ensaio) — sem isso
+// a marcação não faz sentido (não tem ninguém pra marcar ainda).
+let _previewUploadMarcados = new Set()
+let _previewUploadTemRoster = false
 function _atualizarPreviewUploadMarcarWrap(temRoster) {
   const wrap = document.getElementById('preview-upload-marcar-wrap')
   wrap.style.display = temRoster ? 'block' : 'none'
-  const radioTodos = wrap.querySelector('input[value="todos"]')
-  if (radioTodos) radioTodos.checked = true
+  _previewUploadTemRoster = temRoster
+  // default: tudo marcado (equivalente ao antigo "Marcar todo mundo
+  // selecionado", que já vinha marcado por padrão) — o usuário
+  // desmarca foto a foto ou usa o master toggle se quiser o inverso.
+  _previewUploadMarcados = temRoster ? new Set(_previewUploadFiles) : new Set()
+  const master = document.getElementById('preview-upload-marcar-master')
+  if (master) { master.checked = temRoster; master.indeterminate = false }
 }
 
 function _prepararUploadEvento(files) {
@@ -5731,23 +5740,63 @@ function _prepararUploadEnsaio(files) {
 }
 function _renderPreviewUploadGrid() {
   const grid = document.getElementById('preview-upload-grid')
-  grid.innerHTML = _previewUploadFiles.map((f, i) => `
-    <div class="foto-item" style="cursor:default;">
+  grid.innerHTML = _previewUploadFiles.map((f, i) => {
+    const marcado = _previewUploadMarcados.has(f)
+    const clicavel = _previewUploadTemRoster ? ` onclick="_toggleMarcarFotoPreview(${i})"` : ''
+    return `
+    <div class="foto-item${marcado ? ' sel' : ''}" style="cursor:${_previewUploadTemRoster ? 'pointer' : 'default'};"${clicavel}>
+      ${_previewUploadTemRoster ? `<span class="ck">${marcado ? '✓' : ''}</span>` : ''}
       <img src="${URL.createObjectURL(f)}" alt="">
-      <button class="foto-expand" style="opacity:1;" title="Tirar essa foto do envio" onclick="_removerDoPreviewUpload(${i})">
+      <button class="foto-expand" style="opacity:1;" title="Tirar essa foto do envio" onclick="event.stopPropagation();_removerDoPreviewUpload(${i})">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
       </button>
     </div>
-  `).join('')
+  `}).join('')
+  _atualizarMasterCheckboxPreview()
+}
+// clique numa foto ou no seu ✓ — mutação direta do DOM (sem
+// re-render/sem recriar <img>/sem novo URL.createObjectURL), pra ficar
+// instantâneo (UI otimista) e não vazar blob URL a cada toggle.
+function _toggleMarcarFotoPreview(idx) {
+  const f = _previewUploadFiles[idx]
+  const marcarAgora = !_previewUploadMarcados.has(f)
+  if (marcarAgora) _previewUploadMarcados.add(f); else _previewUploadMarcados.delete(f)
+  const item = document.getElementById('preview-upload-grid').children[idx]
+  if (item) {
+    item.classList.toggle('sel', marcarAgora)
+    const ck = item.querySelector('.ck')
+    if (ck) ck.textContent = marcarAgora ? '✓' : ''
+  }
+  _atualizarMasterCheckboxPreview()
+}
+function _toggleMarcarTodasPreview(marcarTudo) {
+  _previewUploadMarcados = marcarTudo ? new Set(_previewUploadFiles) : new Set()
+  Array.from(document.getElementById('preview-upload-grid').children).forEach(item => {
+    item.classList.toggle('sel', marcarTudo)
+    const ck = item.querySelector('.ck')
+    if (ck) ck.textContent = marcarTudo ? '✓' : ''
+  })
+  _atualizarMasterCheckboxPreview()
+}
+// reflete no master se está tudo/nada/parte marcado (estado
+// indeterminate = "misto", padrão nativo de checkbox pra isso).
+function _atualizarMasterCheckboxPreview() {
+  const master = document.getElementById('preview-upload-marcar-master')
+  if (!master || !_previewUploadTemRoster) return
+  const total = _previewUploadFiles.length
+  const marcados = _previewUploadFiles.filter(f => _previewUploadMarcados.has(f)).length
+  master.checked = total > 0 && marcados === total
+  master.indeterminate = marcados > 0 && marcados < total
 }
 function _removerDoPreviewUpload(idx) {
+  _previewUploadMarcados.delete(_previewUploadFiles[idx])
   _previewUploadFiles.splice(idx, 1)
   if (!_previewUploadFiles.length) { _cancelarPreviewUpload(); return }
   _renderPreviewUploadGrid()
 }
 function _cancelarPreviewUpload() {
   fecharModal('modal-preview-upload')
-  _previewUploadFiles = null; _previewUploadDestino = null
+  _previewUploadFiles = null; _previewUploadDestino = null; _previewUploadMarcados = new Set()
   const i1 = document.getElementById('evt-upload-input'); if (i1) i1.value = ''
   const i2 = document.getElementById('ens-upload-input'); if (i2) i2.value = ''
 }
@@ -5755,11 +5804,13 @@ async function _confirmarPreviewUpload() {
   const files = _previewUploadFiles
   const destino = _previewUploadDestino
   const subpasta = document.getElementById('preview-upload-subpasta')?.value || null
-  const marcar = document.querySelector('input[name="preview-upload-marcar"]:checked')?.value !== 'nenhum'
+  // array paralelo a "files", na mesma ordem — marcarPorFoto[i] diz se
+  // a foto i entra com a marcação automática do roster ou não.
+  const marcarPorFoto = files.map(f => _previewUploadMarcados.has(f))
   fecharModal('modal-preview-upload')
-  _previewUploadFiles = null; _previewUploadDestino = null
-  if (destino === 'evento') await uploadFotosEvento(files, subpasta, marcar)
-  else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta, marcar)
+  _previewUploadFiles = null; _previewUploadDestino = null; _previewUploadMarcados = new Set()
+  if (destino === 'evento') await uploadFotosEvento(files, subpasta, marcarPorFoto)
+  else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta, marcarPorFoto)
 }
 
 // fila de upload com progresso por arquivo (estado discreto: aguardando
@@ -5788,7 +5839,7 @@ function _renderFilaUpload(prefixo, files, estados) {
   `
 }
 
-async function uploadFotosEvento(files, subpasta, marcar) {
+async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_eventoAtual) return
   // captura o evento/roster no início — o upload continua rodando em
   // segundo plano se o admin trocar de evento (ou sair da aba) no meio
@@ -5796,13 +5847,19 @@ async function uploadFotosEvento(files, subpasta, marcar) {
   // arquivos ia parar registrado no evento errado.
   const eventoId = _eventoAtual.id
   const eventoNome = _eventoAtual.nome || ''
-  const rosterAlunos = marcar === false ? [] : (_eventoAtual.alunos_selecionados || [])
-  const rosterPessoas = marcar === false ? [] : (_eventoAtual.pessoas_selecionadas || [])
+  const alunosRoster = _eventoAtual.alunos_selecionados || []
+  const pessoasRoster = _eventoAtual.pessoas_selecionadas || []
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('evt', files, estados)
   let ok = 0
+  let totalMarcados = 0
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
+    // marcarPorFoto vem alinhado com "files" na mesma ordem (um
+    // booleano por foto, escolhido no modal "Conferir antes de
+    // enviar") — sem array (chamada antiga/defensiva), assume marcar
+    // todo mundo, igual ao comportamento padrão de antes.
+    const marcarEssaFoto = marcarPorFoto ? marcarPorFoto[i] !== false : true
     estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
@@ -5817,22 +5874,23 @@ async function uploadFotosEvento(files, subpasta, marcar) {
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
     // pra ajustar foto a foto depois (desmarcar quem não aparece nela).
-    // "Não marcar ninguém agora" (marcar===false) pula isso de propósito.
+    // fotos desmarcadas no modal de conferência pulam isso de propósito.
+    const rosterAlunos = marcarEssaFoto ? alunosRoster : []
+    const rosterPessoas = marcarEssaFoto ? pessoasRoster : []
     if (rosterAlunos.length) {
       const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (!tagErr) store.fotoAluno.push(...tags)
+      if (!tagErr) { store.fotoAluno.push(...tags); totalMarcados += tags.length }
     }
     if (rosterPessoas.length) {
       const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
       const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (!tagErr) store.fotoPessoa.push(...tags)
+      if (!tagErr) { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
     }
     estados[i] = 'ok'; _renderFilaUpload('evt', files, estados)
     ok++
   }
-  const total = rosterAlunos.length + rosterPessoas.length
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`)
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}`)
   const inputEl = document.getElementById('evt-upload-input')
   if (inputEl) inputEl.value = ''
   if (_eventoAtual?.id === eventoId) renderFotosEventoAdmin()
@@ -8509,20 +8567,22 @@ async function _recarregarFotosEnsaio(ensaioId) {
   renderFotosEnsaioAdmin()
 }
 
-async function uploadFotosEnsaio(files, subpasta, marcar) {
+async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_ensaioAtual) return
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
   // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
   // o envio ainda está rolando em segundo plano.
   const ensaioId = _ensaioAtual.id
   const ensaioNome = _ensaioAtual.nome || ''
-  const rosterAlunos = marcar === false ? [] : (_ensaioAtual.alunos_selecionados || [])
-  const rosterPessoas = marcar === false ? [] : (_ensaioAtual.pessoas_selecionadas || [])
+  const alunosRoster = _ensaioAtual.alunos_selecionados || []
+  const pessoasRoster = _ensaioAtual.pessoas_selecionadas || []
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('ens', files, estados)
   let ok = 0
+  let totalMarcados = 0
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
+    const marcarEssaFoto = marcarPorFoto ? marcarPorFoto[i] !== false : true
     estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
@@ -8533,21 +8593,22 @@ async function uploadFotosEnsaio(files, subpasta, marcar) {
     const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
+    const rosterAlunos = marcarEssaFoto ? alunosRoster : []
+    const rosterPessoas = marcarEssaFoto ? pessoasRoster : []
     if (rosterAlunos.length) {
       const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (!tagErr) store.fotoAluno.push(...tags)
+      if (!tagErr) { store.fotoAluno.push(...tags); totalMarcados += tags.length }
     }
     if (rosterPessoas.length) {
       const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
       const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (!tagErr) store.fotoPessoa.push(...tags)
+      if (!tagErr) { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
     }
     estados[i] = 'ok'; _renderFilaUpload('ens', files, estados)
     ok++
   }
-  const total = rosterAlunos.length + rosterPessoas.length
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${total ? ` — marcadas pra ${total} destinatário(s) automaticamente` : ''}`)
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}`)
   const inputEl = document.getElementById('ens-upload-input')
   if (inputEl) inputEl.value = ''
   if (_ensaioAtual?.id === ensaioId) renderFotosEnsaioAdmin()
