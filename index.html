@@ -224,7 +224,14 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 
 /* régua de desconto progressivo */
 .selpub-badge-expira{display:inline-block;font-size:11.5px;font-weight:600;color:#8A5A00;background:#FFF3D6;border:1px solid rgba(138,90,0,.25);border-radius:99px;padding:5px 12px;margin-bottom:14px;}
-.selpub-regua{margin:6px 0 20px;padding:16px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;}
+/* sticky: a régua tinha a dica de "faltam N fotos pro desconto" só no
+   topo da página — ao rolar a grade (que pode ter dezenas de fotos)
+   pra selecionar, ela sumia e a pessoa ficava escolhendo sem saber o
+   que falta pro próximo degrau. Fixada logo abaixo do cabeçalho da
+   logo (que já é sticky em top:0/56px de altura — ver
+   #view-selecao .publica-topo), a régua acompanha o scroll junto com
+   ele em vez de rolar pra fora. */
+.selpub-regua{margin:6px 0 20px;padding:16px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:12px;position:sticky;top:56px;z-index:14;box-shadow:0 4px 12px -6px rgba(0,0,0,.12);}
 .selpub-regua-track{position:relative;height:6px;background:#eee;border-radius:99px;margin:24px 4px 54px;}
 .selpub-regua-fill{position:absolute;top:0;left:0;height:100%;background:var(--gf-verde-vivo);border-radius:99px;transition:width .3s;}
 .selpub-regua-ponto{position:absolute;top:50%;transform:translate(-50%,-50%);width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid #ccc;transition:all .2s;}
@@ -913,9 +920,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(prefers-reduced-motion:reduce){.foto-item img:not([src]),.foto-item img[src=""]{animation:none;}}
 .foto-item img,.lightbox-img-wrap img,.post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
 .foto-item .ck{
-  position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:5px;background:rgba(26,10,14,.7);
-  border:1px solid rgba(200,175,127,.5);display:grid;place-items:center;font-size:12px;color:var(--ouro-luz);
-  cursor:pointer;z-index:2;
+  position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:6px;background:rgba(26,10,14,.75);
+  border:1.5px solid rgba(200,175,127,.6);display:grid;place-items:center;font-size:14px;color:var(--ouro-luz);
+  cursor:pointer;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.35);
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
 /* checkbox redondo só no mobile (desktop mantém o quadrado, sem
@@ -8307,11 +8314,39 @@ let _galFiltroEscolaAlunos = ''
 let _galFiltroPessoaAlbum = null
 let _galSelecao = new Set()
 
+// cache de nome pra gente marcada em fotos (professor/diretor/
+// responsável) fora do alcance normal da RLS de perfis pra quem tá
+// olhando — ver nomes_por_id() (052_nomes_por_id.sql). Resolve pelo
+// menos o nome do próprio usuário sem nenhuma query.
+let _nomesPessoasCache = {}
+async function _garantirNomesPessoas(ids) {
+  const faltando = [...new Set(ids)].filter(id => !_nomesPessoasCache[id])
+  if (!faltando.length) return false
+  const { data, error } = await db.rpc('nomes_por_id', { ids: faltando })
+  if (error || !data) return false
+  data.forEach(r => { _nomesPessoasCache[r.id] = r.nome })
+  return data.length > 0
+}
+function _nomePessoaMarcada(id) {
+  if (id === currentUser?.id && meuPerfil?.nome) return meuPerfil.nome
+  return store.professores.find(p => p.user_id === id)?.nome
+    || store.responsaveis.find(r => r.user_id === id)?.nome
+    || _nomesPessoasCache[id]
+    || '?'
+}
+
 async function iniciarGaleriaAdmin() {
   _galRole = 'admin'
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
   _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
   _galFiltroEscolaAlunos = ''; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  // eventos (com o embed fotos(count)) SEMPRE recarrega ao entrar na
+  // aba — diferente de fotos/foto_aluno/foto_pessoa abaixo, esse dado
+  // fica velho rápido: criar um álbum e subir fotos nele acontece fora
+  // da Galeria (aba Eventos/Ensaios), então o card só mostrava "0
+  // fotos" até um F5 forçar um fetch novo.
+  const { data: eventos } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
+  if (eventos) store.eventos = eventos
   if (!store.fotos.length) {
     const { data } = await db.from('fotos').select('*')
     store.fotos = data || []
@@ -8535,7 +8570,7 @@ function renderGaleriaAlbunsDaEscola(wrap) {
   const itemHTML = ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
     return `
-    <div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
+    <div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
       ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), contagem, _galCapaEvento(ev.id))}
       <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${contagem} foto(s)</div>
     </div>`
@@ -8600,8 +8635,8 @@ function _galSubpastasListHTML(eventoId) {
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="pasta-grid" style="margin-bottom:12px;">
-    <div class="list-item pasta-item" onclick="_galSubpasta='__todas__';renderGaleriaAdmin()">${_galPastaCardHTML('Todas as fotos', soltas + subs.length, _galCapaEvento(eventoId))}<div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
-    ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+    <div class="list-item pasta-item" onclick="_galSubpasta='__todas__';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">${_galPastaCardHTML('Todas as fotos', soltas + subs.length, _galCapaEvento(eventoId))}<div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
+    ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};_galFiltroPessoaAlbum=null;renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
   </div>`
 }
 function renderGaleriaSubpastasDoAlbum(wrap) {
@@ -8625,7 +8660,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
     ...new Set(store.fotoAluno.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.aluno_id)),
   ].map(id => ({ tipo: 'aluno', id, nome: store.alunos.find(a => a.id === id)?.nome || '?' }))
     .concat([...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id))]
-      .map(id => ({ tipo: 'pessoa', id, nome: store.professores.find(p => p.user_id === id)?.nome || store.responsaveis.find(r => r.user_id === id)?.nome || '?' })))
+      .map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) })))
   const fotos = _galFiltroPessoaAlbum
     ? todasFotos.filter(f => (_galFiltroPessoaAlbum.tipo === 'aluno'
       ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === _galFiltroPessoaAlbum.id)
@@ -8649,6 +8684,17 @@ function renderGaleriaFotosDoAlbum(wrap) {
     <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
   `
   _hidratarImgCache(wrap)
+  // nomes que vieram "?" (fora do alcance normal de store.professores/
+  // store.responsaveis pra esse papel) tentam resolver via RPC — se
+  // achar algo novo, re-renderiza pra trocar o "?" pelo nome de
+  // verdade nos chips.
+  const idsPendentes = pessoasNoAlbum.filter(p => p.tipo === 'pessoa' && p.nome === '?').map(p => p.id)
+  if (idsPendentes.length) {
+    const albumIdNoMomento = _galAlbumId
+    _garantirNomesPessoas(idsPendentes).then(achouAlgo => {
+      if (achouAlgo && _galAlbumId === albumIdNoMomento) renderGaleriaAdmin()
+    })
+  }
 }
 
 // ── caminho Avulsos: lista de ensaios (busca) → Fotos (sem filtro) ─
@@ -8661,7 +8707,7 @@ function renderGaleriaListaAvulsos(wrap) {
   el.innerHTML = ensaios.length ? ensaios.map(ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
     return `
-    <div class="list-item pasta-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;renderGaleriaAdmin()">
+    <div class="list-item pasta-item" onclick="_galAvulsoId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
       ${_galPastaCardHTML(ev.nome, contagem, _galCapaEvento(ev.id))}
       <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${contagem} foto(s)</div>
     </div>`
