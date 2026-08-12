@@ -578,10 +578,27 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mkpi-spark-path{stroke-dasharray:500;stroke-dashoffset:500;animation:mkpi-draw 1.1s ease-out forwards;}
 @keyframes mkpi-draw{to{stroke-dashoffset:0;}}
 @media(prefers-reduced-motion:reduce){.mkpi-spark-path{animation:none;stroke-dashoffset:0;}}
-.mkpi-fotos{display:flex;gap:8px;margin-top:10px;height:64px;overflow-x:auto;scroll-snap-type:x proximity;cursor:grab;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
+.mkpi-fotos-wrap{position:relative;margin-top:10px;}
+.mkpi-fotos{display:flex;gap:6px;height:64px;overflow-x:auto;scroll-snap-type:x proximity;cursor:grab;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
 .mkpi-fotos::-webkit-scrollbar{display:none;}
 .mkpi-fotos.arrastando{cursor:grabbing;scroll-snap-type:none;}
-.mkpi-fotos img{flex:0 0 auto;width:72px;height:100%;object-fit:cover;border-radius:8px;background:#2A1018;scroll-snap-align:start;pointer-events:none;}
+.mkpi-fotos img{flex:0 0 auto;width:72px;height:100%;object-fit:cover;border-radius:10px;background:#2A1018;scroll-snap-align:start;pointer-events:none;}
+/* primeira foto vira "hero" (bem mais larga), a segunda fica em
+   tamanho médio, e a terceira em diante ficam no tamanho padrão — como
+   a soma das duas primeiras já passa da largura visível do card, a
+   terceira aparece só parcialmente cortada na borda ("peek"), sinal
+   visual de que dá pra arrastar (mesmo efeito que o spec pediu, só que
+   via largura em vez de crescer a altura do card inteiro). */
+.mkpi-fotos img:first-child{width:58%;min-width:96px;}
+.mkpi-fotos img:nth-child(2){width:34%;min-width:60px;}
+.mkpi-fotos-nav{
+  position:absolute;right:2px;top:50%;transform:translateY(-50%);
+  width:22px;height:22px;border-radius:50%;border:1px solid rgba(212,175,55,.4);
+  background:rgba(26,10,14,.75);color:var(--ouro-luz);display:grid;place-items:center;
+  cursor:pointer;opacity:0;transition:opacity .15s;pointer-events:none;
+}
+.mkpi-fotos-wrap:hover .mkpi-fotos-nav{opacity:1;pointer-events:auto;}
+.mkpi-fotos-nav svg{width:13px;height:13px;}
 .mkpi-vazio{font-size:12px;color:#8A7461;margin-top:8px;}
 .mkpi-proximos{margin-top:10px;display:flex;flex-direction:column;gap:8px;}
 .mkpi-proximos .pe-item{display:flex;align-items:center;gap:8px;font-size:12px;}
@@ -1258,7 +1275,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             </div>
             <div class="mn">Galeria de Fotos</div>
             <div><span class="mv num" id="dash-mod-fotos">—</span><span class="ms">no acervo</span></div>
-            <div class="mkpi-fotos" id="dash-mod-fotos-preview"></div>
+            <div class="mkpi-fotos-wrap">
+              <div class="mkpi-fotos" id="dash-mod-fotos-preview"></div>
+              <button class="mkpi-fotos-nav" type="button" onclick="event.stopPropagation();_avancarCarrosselFotosDash()" title="Ver mais fotos" aria-label="Ver mais fotos">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
           </div>
           <div class="modulo-card t-grafite" onclick="setAdminTab('eventos')">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/></svg></div>
@@ -3383,6 +3405,13 @@ function _fotosCarrosselBindDrag(el) {
   }
   el.addEventListener('pointerup', soltar)
   el.addEventListener('pointercancel', soltar)
+}
+// botão flutuante discreto (só aparece no hover do card) — avança
+// "uma tela" do carrossel do KPI de Galeria de Fotos, mesma ideia de
+// paginação suave de um slider comum.
+function _avancarCarrosselFotosDash() {
+  const el = document.getElementById('dash-mod-fotos-preview')
+  if (el) el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'smooth' })
 }
 
 // Próximos Eventos — substitui a contagem seca do card "Eventos &
