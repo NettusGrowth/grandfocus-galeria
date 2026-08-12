@@ -503,7 +503,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* .card genérica é usada no app inteiro (7+ telas) — glass mais forte
    fica escopado só ao Dashboard, pra não vazar pro resto do app. */
 #admintab-dashboard .card{
-  background:rgba(28,9,15,.45);
+  background:rgba(28,9,15,.35);
   backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);
   border-color:rgba(212,175,55,.22);
 }
@@ -514,7 +514,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    resto da tela (cards, listas) continua opaco por cima, sem precisar
    de z-index explícito neles (chegam depois no fluxo normal). */
 #admintab-dashboard{position:relative;}
-#admintab-dashboard .section-h{padding-top:32px;}
+#admintab-dashboard .section-h{padding-top:12px;}
+/* linha neon fina entre os atalhos e a grade de KPIs — dá o respiro
+   pedido sem empurrar o texto da saudação pra baixo (isso fica perto
+   do topo); some nas pontas pra não competir com a foto de fundo. */
+.dash-divider{
+  height:1px;margin:36px 0 26px;border:none;position:relative;z-index:1;
+  background:linear-gradient(90deg,transparent,rgba(212,175,55,.55) 50%,transparent);
+  box-shadow:0 0 8px rgba(212,175,55,.4);
+}
 .dash-hero-bg{
   position:absolute;top:-28px;left:-28px;right:-28px;height:680px;
   background-image:url('/assets/dashboard-hero.jpg');background-size:cover;background-position:center 70%;
@@ -526,12 +534,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(max-width:700px){.dash-hero-bg{height:420px;opacity:.4;}}
 
 /* ── grade de módulos: bento grid tom-sobre-tom, uma única cor de marca ── */
-.modulos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:26px;}
+.modulos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:26px;}
 @media(max-width:900px){.modulos-grid{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:560px){.modulos-grid{grid-template-columns:1fr;}}
 .modulo-card{
-  border-radius:18px;padding:20px;cursor:pointer;border:1px solid rgba(212,175,55,.22);
-  background:linear-gradient(155deg,rgba(30,8,16,.55),rgba(37,10,20,.55));
+  border-radius:16px;padding:16px;cursor:pointer;border:1px solid rgba(212,175,55,.22);
+  background:linear-gradient(155deg,rgba(30,8,16,.4),rgba(37,10,20,.4));
   backdrop-filter:blur(16px) saturate(180%);-webkit-backdrop-filter:blur(16px) saturate(180%);
   transition:transform .15s,border-color .15s,box-shadow .15s;position:relative;overflow:hidden;
 }
@@ -1198,7 +1206,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="admin-tab" id="admintab-dashboard">
         <div class="dash-hero-bg" aria-hidden="true"></div>
         <div class="section-h" style="position:relative;z-index:1;">
-          <div><h2 id="dash-saudacao">Olá</h2><div id="dash-data" style="margin-top:4px;font-size:12.5px;color:#B39F86;"></div></div>
+          <div><h2 id="dash-saudacao" style="font-size:32px;">Olá</h2><div id="dash-data" style="margin-top:6px;font-size:13.5px;color:#B39F86;"></div></div>
         </div>
         <div class="quick-row" style="position:relative;z-index:1;">
             <button class="quick-btn" type="button" onclick="setAdminTab('escolas');abrirModalEscola()">
@@ -1217,6 +1225,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
               <svg class="qc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
             </button>
         </div>
+        <hr class="dash-divider">
         <div class="modulos-grid" id="dash-modulos">
           <div class="modulo-card t-vinho" onclick="setAdminTab('escolas')">
             <div class="mkpi-topo">
