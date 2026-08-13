@@ -1015,14 +1015,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* pílulas de filtro da Galeria (Eventos & Álbuns/Alunos, pessoas do
    álbum) — no mobile rolam na horizontal em vez de quebrar linha e
    empurrar o conteúdo pra baixo. Desktop mantém o wrap normal. */
-.gal-raiz-pills{display:none;}
 @media(max-width:900px){
   .gal-chip-row{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;}
   .gal-chip-row::-webkit-scrollbar{display:none;}
   .gal-chip-row .chip{flex:0 0 auto;}
-  .gal-raiz-pills{display:flex;margin-bottom:18px;}
-  .gal-raiz-pills .chip{padding:.65em 1.3em;}
-  .gal-raiz-lista{display:none;}
 }
 
 .galeria-secao{margin-bottom:34px;}
@@ -8573,28 +8569,30 @@ function renderGaleriaAdmin() {
   }
 }
 
+// raiz do admin (Escolas/Avulsos/Alunos) — mesmo tratamento em
+// mosaico da tela de anos da escola única (renderGaleriaAnosDaEscola),
+// só que cada card representa um RAMO inteiro da árvore, não um ano
+// só. A amostra de fotos de cada card vem de um recorte diferente:
+// Escolas = fotos de eventos com escola vinculada, Avulsos = fotos de
+// ensaios avulsos, Alunos = fotos com algum aluno marcado.
 function renderGaleriaRaiz(wrap) {
   const nEnsaios = store.eventos.filter(e => e.tipo === 'ensaio').length
-  const icoEscolas = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg>'
-  const icoAvulsos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg>'
-  const icoAlunos = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:8px;"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg>'
-  // pílulas horizontais no mobile (pedido do mockup) navegam pros
-  // mesmos 3 ramos da árvore que a lista vertical do desktop — não são
-  // um filtro que troca conteúdo na mesma tela, porque Escolas/Avulsos/
-  // Alunos são 3 sub-árvores de navegação bem diferentes entre si, não
-  // um recorte do mesmo grid de álbuns. Lista continua igual no desktop.
+  const eventosEscolasIds = new Set(store.eventos.filter(e => e.escola_id).map(e => e.id))
+  const fotosEscolas = store.fotos.filter(f => eventosEscolasIds.has(f.evento_id))
+  const eventosAvulsosIds = new Set(store.eventos.filter(e => e.tipo === 'ensaio').map(e => e.id))
+  const fotosAvulsos = store.fotos.filter(f => eventosAvulsosIds.has(f.evento_id))
+  const fotoIdsComAluno = new Set(store.fotoAluno.map(x => x.foto_id))
+  const fotosAlunos = store.fotos.filter(f => fotoIdsComAluno.has(f.id))
   const itens = [
-    { raiz: 'escolas', ico: icoEscolas, label: 'Escolas', meta: `${store.escolas.length} escola(s)` },
-    { raiz: 'avulsos', ico: icoAvulsos, label: 'Avulsos', meta: `${nEnsaios} ensaio(s) avulso(s)` },
-    { raiz: 'alunos', ico: icoAlunos, label: 'Alunos', meta: `${store.alunos.length} aluno(s)` },
+    { raiz: 'escolas', label: 'Escolas', meta: `${store.escolas.length} escola(s)`, fotos: fotosEscolas },
+    { raiz: 'avulsos', label: 'Avulsos', meta: `${nEnsaios} ensaio(s) avulso(s)`, fotos: fotosAvulsos },
+    { raiz: 'alunos', label: 'Alunos', meta: `${store.alunos.length} aluno(s)`, fotos: fotosAlunos },
   ]
-  wrap.innerHTML += `
-    <div class="chip-row gal-chip-row gal-raiz-pills">
-      ${itens.map(it => `<span class="chip" onclick="_galRaiz='${it.raiz}';renderGaleriaAdmin()">${it.ico}${it.label}</span>`).join('')}
-    </div>
-    <div class="list gal-raiz-lista">
-      ${itens.map(it => `<div class="list-item" onclick="_galRaiz='${it.raiz}';renderGaleriaAdmin()"><div class="nome">${it.ico}${it.label}</div><div class="meta">${it.meta}</div></div>`).join('')}
-    </div>`
+  wrap.innerHTML += `<div class="pasta-grid">${itens.map(it => `
+    <div class="list-item pasta-item" onclick="_galRaiz='${it.raiz}';renderGaleriaAdmin()">
+      ${_galMosaicoCardHTML(it.label, it.fotos.length, it.fotos, it.meta)}
+    </div>`).join('')}</div>`
+  _hidratarImgCache(wrap)
 }
 
 // ── caminho Escolas: Escola → Ano → Álbum(evento) → Fotos ─────────
