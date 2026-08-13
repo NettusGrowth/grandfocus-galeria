@@ -5541,7 +5541,10 @@ async function excluirProfessor(userId) {
   if (donoDeEscola.length) msg += `\n\n⚠ Está definido(a) como proprietário(a) de: ${donoDeEscola.map(e => e.nome).join(', ')} — o campo ficará vazio lá.`
   const ok = await confirmModal(msg, { titulo: 'Apagar acesso', okLabel: 'Apagar', danger: true })
   if (!ok) return
-  const { error } = await db.from('perfis').delete().eq('user_id', userId)
+  // apaga o perfil E a conta de autenticação (auth.users) — só o
+  // perfil deixava um usuário "fantasma" no Supabase Auth, e criar de
+  // novo com o mesmo e-mail/usuário dava "User already registered".
+  const { error } = await db.rpc('apagar_conta_completa', { alvo_user_id: userId })
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   store.professores = store.professores.filter(x => x.user_id !== userId)
   store.escolas.forEach(e => { if (e.proprietario_user_id === userId) e.proprietario_user_id = null })
@@ -5737,7 +5740,9 @@ async function excluirResponsavel(userId) {
   if (filhos.length) msg += `\n\n⚠ Vai perder o vínculo com ${filhos.length} filho(s) — eles continuam cadastrados, só esse responsável deixa de vê-los.`
   const ok = await confirmModal(msg, { titulo: 'Apagar responsável', okLabel: 'Apagar', danger: true })
   if (!ok) return
-  const { error } = await db.from('perfis').delete().eq('user_id', userId)
+  // apaga o perfil E a conta de autenticação (auth.users) — ver
+  // comentário equivalente em excluirProfessor.
+  const { error } = await db.rpc('apagar_conta_completa', { alvo_user_id: userId })
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   store.responsaveis = store.responsaveis.filter(x => x.user_id !== userId)
   store.vinculosResponsaveis = store.vinculosResponsaveis.filter(v => v.user_id !== userId)
