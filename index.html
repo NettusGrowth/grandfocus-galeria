@@ -595,6 +595,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   font-size:11px;color:rgba(246,240,230,.72);margin-top:2px;text-shadow:0 1px 4px rgba(0,0,0,.6);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
+/* mosaico: grade 2x2 de fotos reais em vez de uma capa só — tela de
+   pouso de quem só tem uma escola (lista de anos). Sem badge de
+   contagem no canto (a contagem já vira o próprio subtítulo, ter os
+   dois juntos ficava redundante), então o texto usa a largura toda
+   em vez de reservar espaço como .pasta-capa faz pro badge. */
+.pasta-mosaico{position:relative;width:100%;aspect-ratio:4/3;overflow:hidden;background:linear-gradient(155deg,rgba(75,4,22,.55),rgba(37,10,20,.7));}
+.pasta-mosaico-grid{position:absolute;inset:0;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:2px;}
+.pasta-mosaico-img{width:100%;height:100%;object-fit:cover;display:block;}
+.pasta-mosaico-vazio{width:100%;height:100%;background:rgba(255,255,255,.04);}
+.pasta-mosaico::after{content:'';position:absolute;inset:0;background:linear-gradient(to top,rgba(10,4,7,.92) 0%,transparent 55%);}
+.pasta-mosaico .pasta-badge-novo{
+  position:absolute;top:8px;left:8px;z-index:1;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--tinta);background:var(--ouro);border-radius:99px;padding:3px 10px;
+}
+.pasta-mosaico .pasta-nome-overlay{right:12px;}
+.pasta-mosaico .pasta-nome{font-size:20px;}
 /* header "boas-vindas" da Galeria (mobile, só na raiz do módulo) —
    ver _galHeroMobileHTML(). Mesma saudação do Dashboard
    (_saudacaoTexto), avatar reaproveita .who-avatar. */
@@ -8352,6 +8368,7 @@ let _galAlbumId = null
 let _galAvulsoId = null
 let _galSubpasta = null
 let _galEscolaModo = null // null = "Eventos & Álbuns" | 'alunos' — só usado por diretor/proprietário/professor no nível Ano
+let _galEscolaFiltro = 'todos' // 'todos' | 'eventos' | 'avulsos' — pílulas da tela de pouso (lista de anos) de quem só tem uma escola
 let _galFiltroTexto = ''
 let _galFiltroAvulso = ''
 let _galFiltroEscolaAlunos = ''
@@ -8603,17 +8620,32 @@ function _eventosDaEscola(escolaId) {
 }
 
 function renderGaleriaAnosDaEscola(wrap) {
-  const eventos = _eventosDaEscola(_galEscolaId)
+  const eventosTodos = _eventosDaEscola(_galEscolaId)
+  const avulsosTodos = _galEventosAvulsosDeAlunosDaEscola(_galEscolaId)
+  const fonte = _galEscolaFiltro === 'eventos' ? eventosTodos
+    : _galEscolaFiltro === 'avulsos' ? avulsosTodos
+    : [...eventosTodos, ...avulsosTodos]
   const anos = new Map()
-  eventos.forEach(ev => {
+  fonte.forEach(ev => {
     const ano = ev.data ? ev.data.slice(0, 4) : 'Sem data'
-    anos.set(ano, (anos.get(ano) || 0) + (ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length))
+    if (!anos.has(ano)) anos.set(ano, [])
+    anos.get(ano).push(ev)
   })
   const anosOrdenados = [...anos.keys()].sort().reverse()
-  wrap.innerHTML += `<div class="list">${anosOrdenados.length ? anosOrdenados.map(ano => `
-    <div class="list-item" onclick="_galAno='${ano}';_galEscolaModo=null;renderGaleriaAdmin()">
-      <div class="nome">${ano}</div><div class="meta">${anos.get(ano)} foto(s)</div>
-    </div>`).join('') : '<div class="empty">Nenhum álbum/evento dessa escola ainda.</div>'}</div>`
+  wrap.innerHTML += `
+    <div class="chip-row gal-chip-row" style="margin-bottom:14px;">
+      <span class="chip${_galEscolaFiltro === 'todos' ? ' on' : ''}" onclick="_galEscolaFiltro='todos';renderGaleriaAdmin()">Todos</span>
+      <span class="chip${_galEscolaFiltro === 'eventos' ? ' on' : ''}" onclick="_galEscolaFiltro='eventos';renderGaleriaAdmin()">Eventos</span>
+      <span class="chip${_galEscolaFiltro === 'avulsos' ? ' on' : ''}" onclick="_galEscolaFiltro='avulsos';renderGaleriaAdmin()">Avulsos</span>
+    </div>
+    <div class="pasta-grid">${anosOrdenados.length ? anosOrdenados.map(ano => {
+      const eventosDoAno = anos.get(ano)
+      const fotosDoAno = eventosDoAno.flatMap(ev => store.fotos.filter(f => f.evento_id === ev.id))
+      return `<div class="list-item pasta-item" onclick="_galAno='${ano}';_galEscolaModo=null;renderGaleriaAdmin()">
+        ${_galMosaicoCardHTML(ano, fotosDoAno.length, fotosDoAno, `${fotosDoAno.length} foto(s)`)}
+      </div>`
+    }).join('') : '<div class="empty">Nenhum álbum/evento dessa escola ainda.</div>'}</div>`
+  _hidratarImgCache(wrap)
 }
 
 // ensaios avulsos onde algum aluno DESSA escola está marcado — é assim
@@ -8704,6 +8736,47 @@ function _galPastaCardHTML(nome, count, capaPath, subtitulo) {
       <div class="pasta-nome-overlay">
         <div class="pasta-nome">📁 ${esc(nome)}</div>
         ${subtitulo ? `<div class="pasta-sub">${esc(subtitulo)}</div>` : ''}
+      </div>
+    </div>`
+}
+
+// pega até N fotos DE EVENTOS DIFERENTES antes de repetir evento —
+// round-robin pelos grupos, não pega as 4 primeiras da lista (que
+// quase sempre seriam do mesmo álbum e o mosaico ficava repetitivo).
+function _galAmostraFotos(fotos, n) {
+  const porEvento = new Map()
+  fotos.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
+  const grupos = [...porEvento.values()]
+  const amostra = []
+  let i = 0
+  while (amostra.length < n && grupos.some(g => g.length)) {
+    const g = grupos[i % grupos.length]
+    if (g.length) amostra.push(g.shift())
+    i++
+  }
+  return amostra
+}
+
+// card em mosaico (grade 2x2 de fotos reais em vez de uma capa só) —
+// usado na tela de pouso de quem só tem uma escola (lista de anos),
+// pedido explícito pra parecer receptivo/personalizado. Badge "Novo
+// upload" só aparece se alguma foto do grupo foi enviada recentemente
+// (ver GAL_NOVO_UPLOAD_MS abaixo).
+const GAL_NOVO_UPLOAD_MS = 7 * 24 * 60 * 60 * 1000 // 7 dias
+function _galMosaicoCardHTML(nome, count, fotos, subtitulo) {
+  const amostra = _galAmostraFotos(fotos, 4)
+  const celulas = [...amostra]
+  while (celulas.length < 4) celulas.push(null)
+  const temNovo = fotos.some(f => f.criado_em && (Date.now() - new Date(f.criado_em).getTime()) < GAL_NOVO_UPLOAD_MS)
+  return `
+    <div class="pasta-mosaico">
+      <div class="pasta-mosaico-grid">
+        ${celulas.map(f => f ? _imgTagCache(_fotoPreviewPath(f), 'class="pasta-mosaico-img" alt=""') : '<div class="pasta-mosaico-vazio"></div>').join('')}
+      </div>
+      ${temNovo ? '<span class="pasta-badge-novo">Novo upload</span>' : ''}
+      <div class="pasta-nome-overlay">
+        <div class="pasta-nome">${esc(nome)}</div>
+        <div class="pasta-sub">${subtitulo || `${count} foto(s)`}</div>
       </div>
     </div>`
 }
@@ -9800,6 +9873,7 @@ async function iniciarViewEscola() {
   _galRole = meuPerfil.role
   _galRaiz = 'escolas'; _galEscolaId = meuPerfil.escola_id; _galAno = null; _galAlbumId = null
   _galAvulsoId = null; _galAlunoId = null; _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  _galEscolaFiltro = 'todos'
   renderGaleriaAdmin()
   if (meuPerfil.role === 'professor') {
     document.getElementById('tab-dashboard-prof').style.display = 'flex'
