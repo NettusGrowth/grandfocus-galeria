@@ -1775,7 +1775,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="escola-tab" id="escolatab-equipe" style="display:none;">
         <div class="section-h"><h2>Equipe</h2></div>
         <div class="hint">Professores, diretores e responsáveis vinculados à sua escola. Esqueceu a senha? Peça pra alguém aqui redefinir a sua.</div>
-        <h3 style="font-size:15px;margin:18px 0 10px;">Professores &amp; Diretores</h3>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:18px 0 10px;">
+          <h3 style="font-size:15px;margin:0;">Professores &amp; Diretores</h3>
+          <button class="btn btn-primary btn-sm" id="equipe-btn-novo-professor" onclick="abrirModalProfessor()">+ Novo Professor/Diretor</button>
+        </div>
         <div class="list" id="equipe-lista-professores"></div>
         <div id="equipe-secao-pais">
           <div style="display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px;">
@@ -2200,8 +2203,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </select>
     </div>
     <div class="field"><label>Nome completo</label><input type="text" id="prof-nome" placeholder="Nome"></div>
-    <div class="field"><label>Escola principal</label><select id="prof-escola"></select></div>
-    <div class="field">
+    <div class="field" id="prof-escola-wrap"><label>Escola principal</label><select id="prof-escola"></select></div>
+    <div class="field" id="prof-escolas-extra-wrap">
       <label>Também dá aula em <span style="text-transform:none;font-weight:400;color:#B39F86;">(opcional)</span></label>
       <div class="tag-picker" id="prof-escolas-extra-lista" style="max-height:110px;overflow-y:auto;"></div>
     </div>
@@ -5442,12 +5445,32 @@ function abrirModalProfessor(userId) {
 
   document.getElementById('prof-id').value = p?.user_id || ''
   document.getElementById('prof-modal-titulo').textContent = p ? 'Editar professor/diretor' : 'Novo professor/diretor'
-  document.getElementById('prof-cargo').value = p?.role || 'professor'
+
+  // proprietario/diretor só gerenciam a PRÓPRIA escola: nunca podem
+  // criar/promover outro "Proprietário" nem escolher escola de fora —
+  // a RLS (057) já trava isso no banco, isso aqui é só não oferecer a
+  // opção na UI. Preserva o cargo atual ao editar alguém que já é
+  // proprietário (não deixa cair silenciosamente pra "Professor" só
+  // porque a opção sumiu do dropdown).
+  const souAdmin = ['admin', 'super_admin'].includes(meuPerfil?.role)
+  const cargoSel = document.getElementById('prof-cargo')
+  const podeSerProprietario = souAdmin || p?.role === 'proprietario'
+  cargoSel.innerHTML = '<option value="professor">Professor</option><option value="diretor">Diretor</option>' + (podeSerProprietario ? '<option value="proprietario">Proprietário</option>' : '')
+  cargoSel.value = p?.role || 'professor'
+  cargoSel.disabled = !souAdmin && p?.role === 'proprietario'
+
   document.getElementById('prof-nome').value = p?.nome || ''
 
   const selEsc = document.getElementById('prof-escola')
-  selEsc.innerHTML = '<option value="">— nenhuma —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
-  selEsc.value = p?.escola_id || ''
+  document.getElementById('prof-escola-wrap').style.display = souAdmin ? 'block' : 'none'
+  document.getElementById('prof-escolas-extra-wrap').style.display = souAdmin ? 'block' : 'none'
+  if (souAdmin) {
+    selEsc.innerHTML = '<option value="">— nenhuma —</option>' + store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+    selEsc.value = p?.escola_id || ''
+  } else {
+    selEsc.innerHTML = `<option value="${meuPerfil.escola_id}">${esc(nomeEscola(meuPerfil.escola_id))}</option>`
+    selEsc.value = meuPerfil.escola_id
+  }
 
   _profEscolasExtra = new Set(p ? store.professorEscolas.filter(pe => pe.user_id === p.user_id).map(pe => pe.escola_id) : [])
   _renderProfEscolasExtra()
@@ -10232,6 +10255,8 @@ function renderEquipeEscola() {
   // proprietário/diretor tinham essa visibilidade, e não abri essa
   // porta a mais.
   const souProfessor = meuPerfil.role === 'professor'
+  const btnNovoProf = document.getElementById('equipe-btn-novo-professor')
+  if (btnNovoProf) btnNovoProf.style.display = souProfessor ? 'none' : 'block'
   const elProf = document.getElementById('equipe-lista-professores')
   if (elProf) {
     elProf.innerHTML = store.professores.length ? store.professores.map(p => `
