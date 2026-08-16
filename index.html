@@ -5439,16 +5439,27 @@ function _profCapaSelecionada(inputEl) {
 
 // auth.signUp() troca a sessão ativa do client pro usuário recém-criado
 // (é assim que o Supabase Auth funciona no SDK client-side) — sem isso,
-// criar um professor/acesso deslogava o admin no meio da tela. Guarda o
-// token da sessão de quem está criando ANTES de chamar signUp e restaura
-// logo em seguida, sem precisar de Service Role Key nem Edge Function.
-async function _criarContaAuth(email, senha, fullName) {
-  const { data: { session: sessaoAtual } } = await db.auth.getSession()
-  const resultado = await db.auth.signUp({ email, password: senha, options: { data: { full_name: fullName } } })
-  if (sessaoAtual) {
-    await db.auth.setSession({ access_token: sessaoAtual.access_token, refresh_token: sessaoAtual.refresh_token })
+// criar um professor/acesso deslogava o admin no meio da tela. Uma
+// primeira correção guardava/restaurava a sessão do "db" logo depois do
+// signUp, mas isso deixava uma janela real: em criações mais lentas
+// (upload de foto, insert de perfil e vínculo ainda rodando), a troca de
+// sessão do signUp podia disparar DEPOIS da restauração, derrubando o
+// admin pra conta nova de novo (relatado ao vivo). Correção definitiva:
+// signUp roda num client Supabase SEPARADO, isolado (própria storageKey,
+// sem persistir sessão, sem auto-refresh) — o "db" principal nunca é
+// tocado, então não existe mais corrida nenhuma pra restaurar.
+let _authClienteCriacao = null
+function _clienteCriacaoConta() {
+  if (!_authClienteCriacao) {
+    _authClienteCriacao = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      auth: { storageKey: 'gf-criacao-conta', persistSession: false, autoRefreshToken: false, detectSessionInUrl: false }
+    })
   }
-  return resultado
+  return _authClienteCriacao
+}
+async function _criarContaAuth(email, senha, fullName) {
+  const cliente = _clienteCriacaoConta()
+  return await cliente.auth.signUp({ email, password: senha, options: { data: { full_name: fullName } } })
 }
 
 async function _sincronizarEscolasExtra(userId) {
@@ -5738,7 +5749,16 @@ async function salvarPai() {
   const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
   if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
 
-  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert({ user_id: suData.user?.id, role: 'responsavel', nome, username, email }).select().single()
+  let foto_url
+  if (_paiFotoArquivo) {
+    const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
+    const path = `perfis/${suData.user?.id}/foto.${ext}`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
+    if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
+  }
+  const perfilPayload = { user_id: suData.user?.id, role: 'responsavel', nome, username, email }
+  if (foto_url) { perfilPayload.foto_url = foto_url; perfilPayload.foto_pos = _posValor('pai-foto-preview') }
+  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert(perfilPayload).select().single()
   if (!perfilErr) await _sincronizarFilhosPai(suData.user?.id)
   btn.disabled = false; btn.textContent = 'Salvar'
 
