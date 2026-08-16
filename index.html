@@ -965,18 +965,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(prefers-reduced-motion:reduce){.foto-item img:not([src]),.foto-item img[src=""]{animation:none;}}
 .foto-item img,.lightbox-img-wrap img,.post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
 .foto-item .ck{
-  position:absolute;top:8px;left:8px;width:26px;height:26px;border-radius:6px;background:rgba(26,10,14,.75);
-  border:1.5px solid rgba(200,175,127,.6);display:grid;place-items:center;font-size:14px;color:var(--ouro-luz);
+  position:absolute;top:8px;left:8px;width:32px;height:32px;border-radius:7px;background:rgba(26,10,14,.75);
+  border:1.5px solid rgba(200,175,127,.6);display:grid;place-items:center;font-size:16px;color:var(--ouro-luz);
   cursor:pointer;z-index:2;box-shadow:0 1px 4px rgba(0,0,0,.35);
 }
 .foto-item.sel .ck{background:var(--ouro);color:var(--tinta);}
 /* checkbox redondo só no mobile (desktop mantém o quadrado, sem
-   mudar o fluxo de gestão em massa que já funciona bem lá). Um pouco
-   maior que antes porque agora é o único jeito de selecionar (o card
-   inteiro abre o lightbox) — precisa de alvo de toque confortável. */
+   mudar o fluxo de gestão em massa que já funciona bem lá). Maior que
+   o desktop porque agora é o único jeito de selecionar (o card inteiro
+   abre o lightbox) — precisa de alvo de toque confortável, clique
+   errado nele era queixa recorrente. */
 @media(max-width:900px){
   .foto-item .ck{
-    width:26px;height:26px;top:8px;left:8px;border-radius:50%;background:rgba(20,8,15,.55);
+    width:34px;height:34px;top:8px;left:8px;border-radius:50%;background:rgba(20,8,15,.55);
     border:1.5px solid rgba(255,255,255,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
   }
   .foto-item.sel .ck{background:var(--dourado);border-color:var(--dourado);color:#1A0A0E;}
@@ -9353,7 +9354,9 @@ function renderGaleriaFotosDoAlbum(wrap) {
     </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="_galSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_galLimparSelecao()">Nenhuma</button>
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
@@ -9402,7 +9405,9 @@ function renderGaleriaFotosAvulso(wrap) {
     <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="_galSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_galLimparSelecao()">Nenhuma</button>
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
@@ -9506,7 +9511,9 @@ function renderGaleriaFotosDoAno(wrap) {
     </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="_galSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_galLimparSelecao()">Nenhuma</button>
         <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
@@ -9557,6 +9564,37 @@ function _galToggleSelecao(fotoId) {
   if (_galSelecao.has(fotoId)) _galSelecao.delete(fotoId); else _galSelecao.add(fotoId)
   const item = document.getElementById('gal-fg-' + fotoId)
   if (item) { item.classList.toggle('sel', _galSelecao.has(fotoId)); item.querySelector('.ck').textContent = _galSelecao.has(fotoId) ? '✓' : '' }
+  const btnBaixar = document.getElementById('gal-btn-baixar')
+  const btnApagar = document.getElementById('gal-btn-apagar')
+  if (btnBaixar) { btnBaixar.disabled = _galSelecao.size === 0; btnBaixar.textContent = `Baixar selecionadas (${_galSelecao.size})` }
+  if (btnApagar) btnApagar.disabled = _galSelecao.size === 0
+  _galSyncDock()
+}
+// "selecionar todas"/"nenhuma" — marca/desmarca tudo que está na tela
+// atual (_lightboxFotos, sempre setado por quem renderiza cada
+// caminho) direto no _galSelecao + DOM, sem passar por
+// renderGaleriaAdmin() (que ZERA a seleção de propósito ao trocar de
+// tela — reaproveitar esse caminho aqui apagaria a seleção que acabou
+// de marcar). Seletor por atributo (não por um id de grid fixo) porque
+// o caminho "Aluno → Ano" agrupa em vários .foto-grid por evento, sem
+// um container único; com paginação (álbuns grandes), os lotes ainda
+// não renderizados nascem já marcados porque _galFotoItemHTML lê
+// _galSelecao no momento em que cada lote é criado.
+function _galSelecionarTodas() {
+  _lightboxFotos.forEach(f => _galSelecao.add(f.id))
+  _galAtualizarSelecaoUI()
+}
+function _galLimparSelecao() {
+  _galSelecao.clear()
+  _galAtualizarSelecaoUI()
+}
+function _galAtualizarSelecaoUI() {
+  document.querySelectorAll('.foto-item[id^="gal-fg-"]').forEach(item => {
+    const sel = _galSelecao.has(item.id.slice('gal-fg-'.length))
+    item.classList.toggle('sel', sel)
+    const ck = item.querySelector('.ck')
+    if (ck) ck.textContent = sel ? '✓' : ''
+  })
   const btnBaixar = document.getElementById('gal-btn-baixar')
   const btnApagar = document.getElementById('gal-btn-apagar')
   if (btnBaixar) { btnBaixar.disabled = _galSelecao.size === 0; btnBaixar.textContent = `Baixar selecionadas (${_galSelecao.size})` }
