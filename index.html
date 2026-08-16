@@ -2067,6 +2067,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <select id="acesso-tipo" onchange="atualizarAcessoAlvo()">
         <option value="escola">Escola de dança</option>
         <option value="responsavel">Responsável (pai/mãe)</option>
+        <option value="aluno">Aluno (login próprio, sem passar pelo responsável)</option>
         <option value="avulso">Avulso (colaborador ou cliente sem vínculo)</option>
       </select>
     </div>
@@ -2075,7 +2076,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <select id="acesso-alvo"></select>
     </div>
     <div class="field" id="acesso-alvo-filhos-wrap" style="display:none;">
-      <label>Filho(s) deste responsável</label>
+      <label id="acesso-filhos-label">Filho(s) deste responsável</label>
       <div class="tag-picker" id="acesso-filhos-lista"></div>
     </div>
     <div class="field" id="acesso-nome-avulso-wrap" style="display:none;">
@@ -3297,8 +3298,19 @@ async function iniciarSinoNotificacoes() {
         }))
     }
   } else {
-    const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
-    if (!error) itens = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: meuPerfil.role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` }))
+    // escola/proprietario/diretor/professor/responsavel: além dos posts
+    // da Comunidade, avisa de fotos novas — fotos_visiveis() (RLS) já
+    // filtra sozinha pra só trazer o que cada papel pode mesmo ver (a
+    // escola dele, ou os filhos vinculados no caso do responsável), sem
+    // precisar filtrar escola_id na mão aqui.
+    const onClickGaleria = role === 'responsavel' ? `setRespTab('fotos');_galInit('responsavel')` : `setEscolaTab('eventos');_galInit(meuPerfil.role)`
+    const [{ data: posts, error: errPosts }, { data: fotos, error: errFotos }] = await Promise.all([
+      db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8),
+      db.from('fotos').select('id, criado_em, eventos(nome)').order('criado_em', { ascending: false }).limit(8),
+    ])
+    const itensPosts = !errPosts ? (posts || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` })) : []
+    const itensFotos = !errFotos ? (fotos || []).map(f => ({ texto: 'Fotos novas em ' + (f.eventos?.nome || 'um álbum'), sub: fmtDataHora(f.criado_em), quando: f.criado_em, onClick: onClickGaleria })) : []
+    itens = [...itensPosts, ...itensFotos].sort((a, b) => (b.quando || '').localeCompare(a.quando || '')).slice(0, 15)
   }
   itens = _notifAgrupar(itens)
   const lidasAte = _notifLidasAte()
@@ -9820,9 +9832,11 @@ let _acessoFilhosSel = new Set()
 function atualizarAcessoAlvo() {
   const tipo = document.getElementById('acesso-tipo').value
   document.getElementById('acesso-alvo-escola-wrap').style.display = tipo === 'escola' ? 'block' : 'none'
-  document.getElementById('acesso-alvo-filhos-wrap').style.display = tipo === 'responsavel' ? 'block' : 'none'
+  document.getElementById('acesso-alvo-filhos-wrap').style.display = (tipo === 'responsavel' || tipo === 'aluno') ? 'block' : 'none'
   document.getElementById('acesso-permissoes-wrap').style.display = tipo === 'avulso' ? 'block' : 'none'
   document.getElementById('acesso-nome-avulso-wrap').style.display = tipo === 'avulso' ? 'block' : 'none'
+  const lblFilhos = document.getElementById('acesso-filhos-label')
+  if (lblFilhos) lblFilhos.textContent = tipo === 'aluno' ? 'Qual aluno vai ter esse login?' : 'Filho(s) deste responsável'
   if (tipo === 'avulso') document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
   if (tipo === 'escola') {
     const sel = document.getElementById('acesso-alvo')
@@ -9866,7 +9880,8 @@ async function criarAcesso() {
     permissoes = [...document.querySelectorAll('#acesso-permissoes-lista .tag-opt.on')].map(el => el.dataset.perm)
   } else {
     filhoIds = [..._acessoFilhosSel]
-    if (!filhoIds.length) { toast('Selecione pelo menos um filho'); return }
+    if (!filhoIds.length) { toast(tipo === 'aluno' ? 'Selecione o aluno' : 'Selecione pelo menos um filho'); return }
+    if (tipo === 'aluno' && filhoIds.length > 1) { toast('Login de aluno é pra uma pessoa só — selecione um aluno'); return }
     nomeAlvo = filhoIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean).join(' e ')
   }
 
@@ -9885,12 +9900,17 @@ async function criarAcesso() {
     const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nomeAlvo)
     if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
 
-    const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo, username }
+    // "aluno" (login próprio, sem passar pelo responsável) reaproveita
+    // 100% do mecanismo já existente de responsavel_alunos — o próprio
+    // aluno vira "responsável" de si mesmo. Sem isso role='aluno' cairia
+    // sem nenhuma tela (mostrarApp não tem esse branch, ver comentário).
+    const roleReal = tipo === 'aluno' ? 'responsavel' : tipo
+    const perfilPayload = { user_id: suData.user?.id, role: roleReal, nome: nomeAlvo, username }
     if (tipo === 'escola') perfilPayload.escola_id = alvoId
     const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
 
     let vinculoErr = null
-    if (!perfilErr && tipo === 'responsavel') {
+    if (!perfilErr && (tipo === 'responsavel' || tipo === 'aluno')) {
       const rows = filhoIds.map(aluno_id => ({ user_id: suData.user.id, aluno_id }))
       const { error } = await db.from('responsavel_alunos').insert(rows)
       vinculoErr = error
@@ -9922,7 +9942,7 @@ async function criarAcesso() {
     document.getElementById('acesso-nome-avulso').value = ''
     document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
     registrarAuditoria('criou acesso (' + tipo + ')', 'perfis', suData.user?.id, `usuário ${username} — ${nomeAlvo}`)
-    if (tipo === 'responsavel') {
+    if (tipo === 'responsavel' || tipo === 'aluno') {
       _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
       store.responsaveis.push({ user_id: suData.user.id, role: 'responsavel', nome: nomeAlvo })
       store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
