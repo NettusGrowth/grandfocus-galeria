@@ -6489,9 +6489,11 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-sm" onclick="_eventoSelecionarTodas()">Selecionar todas</button>
         <button class="btn btn-sm" onclick="_eventoLimparSelecao()">Nenhuma</button>
+        <button class="btn btn-sm" id="evt-otimizar-btn" style="display:none;" onclick="_eventoOtimizarFotos()" title="Gera uma prévia mais leve das fotos enviadas antes dessa otimização existir — deixa a grade bem mais rápida.">🖼️ Otimizar fotos antigas</button>
+        <span class="meta" id="evt-otimizar-status"></span>
       </div>
       <button class="btn btn-sm" onclick="_abrirNovaPastaEvento()">📁 Nova Pasta / Ato</button>
     </div>
@@ -6735,9 +6737,18 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // marca d'água só faz sentido na Seleção de Fotos (onde protege
     // contra baixar antes de pagar) — na Galeria/Álbuns quem vê já tem
-    // vínculo/acesso liberado por RLS, então mostra o arquivo original
-    // direto (thumb_path fica null, _urlPreview já cai pro storage_path).
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, subpasta: subpasta || null }).select().single()
+    // vínculo/acesso liberado por RLS, então a prévia é o arquivo
+    // original só redimensionado, sem marca d'água nenhuma. Gera aqui
+    // (best-effort — se falhar por algum motivo, thumb_path fica null e
+    // cai pro storage_path original, igual sempre foi).
+    let thumbPath = null
+    try {
+      const thumbBlob = await _gerarThumbGaleria(file)
+      thumbPath = _thumbPathDe(path)
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg' })
+      if (thumbErr) thumbPath = null
+    } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -6970,7 +6981,11 @@ function _hidratarImgCache(escopo) {
 // mais conforme o usuário rola (mesmo padrão de infinite scroll usado
 // em qualquer app de fotos grande).
 const GAL_LOTE_FOTOS = 60
-function _renderGridFotosPaginado(gridEl, fotos) {
+// itemHtmlFn: como renderizar cada foto — cada grade tem seu próprio HTML
+// por item (Galeria é simples, Eventos/Ensaios têm botões extra de marcar
+// pessoas/apagar/mover) — default cobre o caso da Galeria, quem chama com
+// item mais complexo passa a própria função.
+function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) {
   if (!gridEl) return
   let renderizados = 0
   let sentinel = null
@@ -6978,7 +6993,7 @@ function _renderGridFotosPaginado(gridEl, fotos) {
   function carregarLote() {
     const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
     if (!lote.length) return
-    const html = lote.map(f => _galFotoItemHTML(f)).join('')
+    const html = lote.map(f => itemHtmlFn(f)).join('')
     if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html)
     else gridEl.insertAdjacentHTML('beforeend', html)
     _hidratarImgCache(gridEl)
@@ -7095,6 +7110,78 @@ async function _gerarThumbWatermark(file) {
     img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Falha ao ler a imagem')) }
     img.src = objUrl
   })
+}
+
+// versão SEM marca d'água, pra Eventos/Ensaios (Galeria normal) — quem vê
+// essas fotos já tem acesso liberado via RLS, marca d'água não faz
+// sentido aí. Mas sem NENHUMA prévia redimensionada, thumb_path ficava
+// sempre null e _fotoPreviewPath caía pro storage_path original —
+// significa que toda miniatura de grade (e até o lightbox "ampliado")
+// carregava o arquivo cru da câmera/celular, muitas vezes vários MB. Era
+// isso, não quantas fotos apareciam de uma vez (já resolvido com
+// paginação/lazy-load), que travava scroll/seleção em álbuns com fotos
+// "de qualidade" — o gargalo era o TAMANHO de cada imagem decodificada.
+// 1920px é generoso o bastante pra continuar nítido no lightbox em
+// qualquer tela; download sempre busca o storage_path original em
+// resolução total, essa prévia nunca substitui o arquivo de verdade.
+async function _gerarThumbGaleria(fileOuBlob) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const objUrl = URL.createObjectURL(fileOuBlob)
+    img.onload = () => {
+      URL.revokeObjectURL(objUrl)
+      const MAX = 1920
+      let w = img.width, h = img.height
+      if (w >= h && w > MAX) { h = Math.round(h * MAX / w); w = MAX }
+      else if (h > w && h > MAX) { w = Math.round(w * MAX / h); h = MAX }
+      const canvas = document.createElement('canvas')
+      canvas.width = w; canvas.height = h
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { reject(new Error('Canvas indisponível')); return }
+      ctx.drawImage(img, 0, 0, w, h)
+      canvas.toBlob(blob => { if (!blob) reject(new Error('Falha ao gerar prévia')); else resolve(blob) }, 'image/jpeg', 0.82)
+    }
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Falha ao ler a imagem')) }
+    img.src = objUrl
+  })
+}
+// deriva o caminho da prévia a partir do caminho original — mesma pasta,
+// sufixo "_thumb.jpg" antes da extensão (a prévia é sempre JPEG,
+// independente do formato original).
+function _thumbPathDe(path) { return path.replace(/\.[^./]+$/, '') + '_thumb.jpg' }
+
+// backfill pra fotos enviadas ANTES dessa prévia existir (thumb_path
+// null) — sem isso, um álbum só ficava rápido depois de reenviar tudo
+// do zero. Baixa o original, gera a prévia redimensionada e grava
+// thumb_path, uma foto de cada vez (mesmo padrão de
+// _selecaoReprocessarMarcaDagua). Idempotente por construção: só entra
+// nas fotos que ainda não têm prévia, pode rodar de novo sem custo.
+async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
+  const pendentes = fotos.filter(f => !f.thumb_path)
+  if (!pendentes.length) { toast('Todas as fotos já estão otimizadas.'); return }
+  const status = document.getElementById(statusElId)
+  let feitas = 0, falhas = 0
+  for (const f of pendentes) {
+    if (status) status.textContent = `Otimizando ${feitas + falhas + 1} de ${pendentes.length}…`
+    try {
+      const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(f.storage_path)
+      if (dlErr || !blob) throw dlErr || new Error('download vazio')
+      const thumbBlob = await _gerarThumbGaleria(blob)
+      const thumbPath = _thumbPathDe(f.storage_path)
+      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg', upsert: true })
+      if (upErr) throw upErr
+      const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath }).eq('id', f.id)
+      if (dbErr) throw dbErr
+      f.thumb_path = thumbPath
+      feitas++
+    } catch (e) {
+      console.error('otimizar foto falhou', f.id, e)
+      falhas++
+    }
+  }
+  if (status) status.textContent = ''
+  toast(`${feitas} foto(s) otimizada(s)${falhas ? `, ${falhas} falharam` : ''}.`)
+  if (aoTerminar) aoTerminar()
 }
 
 // ── visualizador de foto ampliada (identidade Grand Focus, não o
@@ -8478,9 +8565,28 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
     </div>`
 }
 
+function _eventoAtualizarBotaoOtimizar(fotos) {
+  const btn = document.getElementById('evt-otimizar-btn')
+  if (!btn) return
+  const pendentes = fotos.filter(f => !f.thumb_path).length
+  btn.style.display = pendentes ? '' : 'none'
+  btn.textContent = `🖼️ Otimizar ${pendentes} foto(s) antiga(s)`
+}
+async function _eventoOtimizarFotos() {
+  if (!_eventoAtual) return
+  const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
+  const ok = await confirmModal(
+    'Isso baixa e gera uma prévia mais leve das fotos enviadas antes dessa otimização existir — deixa a grade bem mais rápida pra carregar e rolar. Pode demorar um pouco dependendo de quantas fotos faltam. Continuar?',
+    { titulo: 'Otimizar fotos', okLabel: 'Otimizar' }
+  )
+  if (!ok) return
+  await _otimizarThumbsFotos(fotos, 'evt-otimizar-status', () => renderFotosEventoAdmin())
+}
+
 async function renderFotosEventoAdmin() {
   const wrap = document.getElementById('evt-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
+  _eventoAtualizarBotaoOtimizar(fotos)
   const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
   const contagemMarcacoes = _contagemMarcacoesPorFoto()
   _lightboxFotos = fotos
@@ -8492,13 +8598,21 @@ async function renderFotosEventoAdmin() {
   _eventoSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
   if (!fotos.length && !_eventoSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
-  wrap.innerHTML = ordemGrupos.map(nome => `
+  // cada subpasta pagina a própria grade (mesmo padrão de
+  // _renderGridFotosPaginado da Galeria) — sem isso, um álbum grande
+  // jogava TODAS as fotos de TODAS as pastas no DOM de uma vez, o que
+  // deixava até selecionar/rolar pesado mesmo depois de carregado.
+  wrap.innerHTML = ordemGrupos.map((nome, i) => `
     <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
+      ${grupos.get(nome).length ? `<div class="foto-grid" id="evt-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
   `).join('')
-  _hidratarImgCache(wrap)
+  ordemGrupos.forEach((nome, i) => {
+    const fotosGrupo = grupos.get(nome)
+    if (!fotosGrupo.length) return
+    _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes))
+  })
   _atualizarToolbarEvento()
 }
 
@@ -9829,9 +9943,11 @@ async function abrirEnsaioAdmin(ensaioId) {
       </div>
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
-      <div style="display:flex;gap:8px;">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <button class="btn btn-sm" onclick="_ensaioSelecionarTodas()">Selecionar todas</button>
         <button class="btn btn-sm" onclick="_ensaioLimparSelecao()">Nenhuma</button>
+        <button class="btn btn-sm" id="ens-otimizar-btn" style="display:none;" onclick="_ensaioOtimizarFotos()" title="Gera uma prévia mais leve das fotos enviadas antes dessa otimização existir — deixa a grade bem mais rápida.">🖼️ Otimizar fotos antigas</button>
+        <span class="meta" id="ens-otimizar-status"></span>
       </div>
       <button class="btn btn-sm" onclick="_abrirNovaPastaEnsaio()">📁 Nova Pasta / Ato</button>
     </div>
@@ -9914,8 +10030,15 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // mesmo motivo do uploadFotosEvento: marca d'água só existe na
-    // Seleção de Fotos, aqui mostra o arquivo original direto.
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, subpasta: subpasta || null }).select().single()
+    // Seleção de Fotos, aqui a prévia é só redimensionada.
+    let thumbPath = null
+    try {
+      const thumbBlob = await _gerarThumbGaleria(file)
+      thumbPath = _thumbPathDe(path)
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg' })
+      if (thumbErr) thumbPath = null
+    } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     const rosterAlunos = marcarEssaFoto ? alunosRoster : []
@@ -9960,9 +10083,28 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
     </div>`
 }
 
+function _ensaioAtualizarBotaoOtimizar(fotos) {
+  const btn = document.getElementById('ens-otimizar-btn')
+  if (!btn) return
+  const pendentes = fotos.filter(f => !f.thumb_path).length
+  btn.style.display = pendentes ? '' : 'none'
+  btn.textContent = `🖼️ Otimizar ${pendentes} foto(s) antiga(s)`
+}
+async function _ensaioOtimizarFotos() {
+  if (!_ensaioAtual) return
+  const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
+  const ok = await confirmModal(
+    'Isso baixa e gera uma prévia mais leve das fotos enviadas antes dessa otimização existir — deixa a grade bem mais rápida pra carregar e rolar. Pode demorar um pouco dependendo de quantas fotos faltam. Continuar?',
+    { titulo: 'Otimizar fotos', okLabel: 'Otimizar' }
+  )
+  if (!ok) return
+  await _otimizarThumbsFotos(fotos, 'ens-otimizar-status', () => renderFotosEnsaioAdmin())
+}
+
 async function renderFotosEnsaioAdmin() {
   const wrap = document.getElementById('ens-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
+  _ensaioAtualizarBotaoOtimizar(fotos)
   const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
   const contagemMarcacoes = _contagemMarcacoesPorFoto()
   _lightboxFotos = fotos
@@ -9971,13 +10113,17 @@ async function renderFotosEnsaioAdmin() {
   _ensaioSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
   if (!fotos.length && !_ensaioSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEnsaio(); return }
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
-  wrap.innerHTML = ordemGrupos.map(nome => `
+  wrap.innerHTML = ordemGrupos.map((nome, i) => `
     <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
+      ${grupos.get(nome).length ? `<div class="foto-grid" id="ens-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
   `).join('')
-  _hidratarImgCache(wrap)
+  ordemGrupos.forEach((nome, i) => {
+    const fotosGrupo = grupos.get(nome)
+    if (!fotosGrupo.length) return
+    _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes))
+  })
   _atualizarToolbarEnsaio()
 }
 
