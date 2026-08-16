@@ -687,6 +687,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 .dash-cols{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;}
 @media(max-width:760px){.dash-cols{grid-template-columns:1fr;}}
+
+/* "Fotos mais populares" — só desktop (pedido explícito). Hover
+   expande o card na hora, mesmo espírito de galeria "expandable" —
+   feito com :has() puro (sem framer-motion/React, esse app é
+   vanilla JS de arquivo único), zero JS rodando durante o hover. */
+.dash-desktop-only{display:block;}
+@media(max-width:900px){.dash-desktop-only{display:none !important;}}
+.dash-fotos-populares{display:flex;gap:8px;height:210px;}
+.dfp-item{position:relative;flex:1;overflow:hidden;border-radius:10px;cursor:pointer;background:rgba(75,4,22,.3);transition:flex .4s ease;}
+.dash-fotos-populares:has(.dfp-item:hover) .dfp-item{flex:0.55;}
+.dash-fotos-populares:has(.dfp-item:hover) .dfp-item:hover{flex:2.6;}
+.dfp-item img{width:100%;height:100%;object-fit:cover;display:block;}
+.dfp-badge{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 8px;background:linear-gradient(to top,rgba(10,4,6,.88),transparent);display:flex;gap:10px;font-size:11px;color:var(--ouro-luz);white-space:nowrap;overflow:hidden;}
 .dash-activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
 .dash-activity li{padding:11px 0;border-top:1px solid rgba(200,175,127,.12);font-size:13px;color:#EADFCF;}
 .dash-activity li:first-child{border-top:0;}
@@ -1549,6 +1562,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             <h3 style="font-size:16px;margin-bottom:14px;">Últimos acessos</h3>
             <ul class="dash-acessos" id="dash-acessos"><li class="empty" style="border:0;">Carregando…</li></ul>
           </div>
+        </div>
+        <div class="card dash-desktop-only" id="dash-fotos-populares-card" style="margin-top:16px;display:none;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+            <h3 style="font-size:16px;margin:0;">Fotos mais populares</h3>
+            <div class="chip-row" style="margin:0;">
+              <span class="chip on" onclick="_dashTrocarMetricaPopulares('downloads', this)">Mais baixadas</span>
+              <span class="chip" onclick="_dashTrocarMetricaPopulares('visualizacoes', this)">Mais vistas</span>
+            </div>
+          </div>
+          <div class="dash-fotos-populares" id="dash-fotos-populares"></div>
         </div>
       </div>
 
@@ -3787,7 +3810,51 @@ async function iniciarDashboardAdmin() {
   _dashRenderProximosEventos()
   _dashRenderGanhosRecentes()
   _dashRenderAlertaCritico()
+  _dashCarregarFotosPopulares()
   _dashBindParallax()
+}
+
+// "Fotos mais populares" — só desktop (a CSS .dash-desktop-only já
+// esconde no celular; aqui só evita gastar a chamada à toa quando o
+// card nem vai aparecer). Busca um POOL (até 40 fotos com pelo menos
+// 1 view/download) uma vez só; alternar "mais baixadas"/"mais vistas"
+// depois é só reordenar esse array na memória, sem chamada nova.
+let _dashFotosPopularesDados = []
+let _dashMetricaPopulares = 'downloads'
+async function _dashCarregarFotosPopulares() {
+  const card = document.getElementById('dash-fotos-populares-card')
+  if (!card || window.innerWidth < 900) return
+  const { data, error } = await db.rpc('fotos_mais_populares', { p_limite: 40 })
+  if (error || !data || !data.length) { card.style.display = 'none'; return }
+  _dashFotosPopularesDados = data
+  card.style.display = 'block'
+  _dashRenderFotosPopulares()
+}
+function _dashTrocarMetricaPopulares(metrica, el) {
+  _dashMetricaPopulares = metrica
+  el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === el))
+  _dashRenderFotosPopulares()
+}
+function _dashRenderFotosPopulares() {
+  const wrap = document.getElementById('dash-fotos-populares')
+  if (!wrap) return
+  const chave = _dashMetricaPopulares === 'visualizacoes' ? 'qtd_visualizacoes' : 'qtd_downloads'
+  const top8 = [..._dashFotosPopularesDados].sort((a, b) => b[chave] - a[chave]).slice(0, 8)
+  _dashFotosPopularesAtuais = top8
+  wrap.innerHTML = top8.map(f => `
+    <div class="dfp-item" onclick="_dashAbrirFotoPopular('${f.foto_id}')" title="${esc(f.evento_nome || '')}">
+      ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
+      <div class="dfp-badge">
+        <span>⬇ ${f.qtd_downloads}</span>
+        <span>👁 ${f.qtd_visualizacoes}</span>
+      </div>
+    </div>`).join('')
+  _hidratarImgCache(wrap)
+}
+let _dashFotosPopularesAtuais = []
+function _dashAbrirFotoPopular(fotoId) {
+  _lightboxFotos = _dashFotosPopularesAtuais.map(f => ({ id: f.foto_id, storage_path: f.storage_path, thumb_path: f.thumb_path, evento_id: f.evento_id }))
+  abrirLightbox(fotoId)
 }
 
 // parallax sutil do fundo — liga o listener uma única vez (main não é
@@ -7045,6 +7112,15 @@ function abrirLightbox(fotoId) {
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   _travarScrollFundo()
+  // conta como "visualização de verdade" pro Dashboard de Fotos mais
+  // populares — best-effort (não trava nada se falhar) e não conta
+  // clique do próprio admin/super_admin testando a galeria, pra não
+  // sujar a estatística de "o que o público realmente olha". Não
+  // conta post da Comunidade (id começa com "post-") nem foto pública
+  // sem login — só faz sentido pra foto de verdade da tabela fotos.
+  if (!fotoId.startsWith('post-') && !['admin', 'super_admin'].includes(meuPerfil?.role)) {
+    db.rpc('marcar_visualizacao_foto', { p_foto_id: fotoId }).catch(() => {})
+  }
 }
 function fecharLightbox() {
   const lb = document.getElementById('lightbox')
