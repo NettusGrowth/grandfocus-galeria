@@ -934,6 +934,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-item{
   position:relative;aspect-ratio:1;border-radius:6px;overflow:hidden;background:rgba(75,4,22,.3);
   border:2px solid transparent;cursor:pointer;
+  /* pula layout/paint de fotos fora da tela — sem isso, um álbum com
+     centenas de fotos custa o mesmo pro navegador esteja o item visível
+     ou não, e isso é o que trava o scroll ("arrastar pra baixo") em
+     álbuns grandes. contain-intrinsic-size evita salto de altura
+     enquanto o item ainda não foi medido de verdade. Navegador sem
+     suporte (raro) simplesmente ignora, sem quebrar nada. */
+  content-visibility:auto;contain-intrinsic-size:0 220px;
 }
 .foto-item.sel{border-color:var(--ouro);}
 .foto-item img{width:100%;height:100%;object-fit:cover;}
@@ -6809,9 +6816,16 @@ function _invalidarImgCache(path) {
 // com o src certo (zero flash); senão nasce com data-path pro
 // _hidratarImgCache preencher depois. Uso: em qualquer template que
 // hoje faz `<img data-path="...">` + hidratação manual.
+//
+// decoding="async" tira o decode da imagem de cima da thread principal
+// — sem isso, cada foto que entra na tela durante um scroll rápido
+// (arrastar pra baixo num álbum grande) decodifica de forma síncrona
+// bem na hora do layout/paint, e é exatamente isso que trava o scroll
+// quando tem muita foto pesada. Efeito colateral zero: suportado em
+// todo navegador relevante, só muda QUANDO o decode acontece.
 function _imgTagCache(path, attrs = '') {
   const cache = _imgCache(path)
-  return cache ? `<img src="${cache}" ${attrs}>` : `<img data-path="${esc(path)}" ${attrs}>`
+  return cache ? `<img src="${cache}" decoding="async" ${attrs}>` : `<img data-path="${esc(path)}" decoding="async" ${attrs}>`
 }
 
 // roda depois de jogar HTML com _imgTagCache() no DOM — hidrata só os
