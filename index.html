@@ -8025,6 +8025,22 @@ function _marcarPessoasContagem(fotoId) {
   return store.fotoAluno.filter(x => x.foto_id === fotoId).length + store.fotoPessoa.filter(x => x.foto_id === fotoId).length
 }
 
+// versão em lote pra grades com muitas fotos: _marcarPessoasContagem
+// faz 2 filter() na array INTEIRA de marcações do sistema por foto —
+// chamado uma vez por item dentro de renderFotosEventoAdmin/
+// renderFotosEnsaioAdmin, isso virava O(fotos do álbum × marcações
+// totais do estúdio) e travava o navegador em álbuns grandes depois de
+// meses de uso (mais marcações acumuladas = mais lento, mesmo em
+// álbuns pequenos nesse ponto). Essa função varre as duas arrays UMA
+// vez só (O(M)) e devolve um Map pronto pra consulta O(1) por foto.
+function _contagemMarcacoesPorFoto() {
+  const mapa = new Map()
+  const soma = x => mapa.set(x.foto_id, (mapa.get(x.foto_id) || 0) + 1)
+  store.fotoAluno.forEach(soma)
+  store.fotoPessoa.forEach(soma)
+  return mapa
+}
+
 function _abrirMarcarPessoas(fotoId, pool) {
   _marcarPessoasFotoId = fotoId
   _marcarPessoasPool = pool
@@ -8065,7 +8081,7 @@ async function _marcarPessoaToggle(tipo, id) {
   if (badge) badge.textContent = _marcarPessoasContagem(fotoId)
 }
 
-function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
+function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
   const sel = _eventoFotoSelecao.has(f.id)
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
@@ -8080,7 +8096,7 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado) {
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEventoAdmin)">${ICON_LIXEIRA}</button>
       <button class="btn-marcar-pessoas" onclick="event.stopPropagation();_abrirMarcarPessoas('${f.id}', _eventoQuemPodeSerMarcado())">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg>
-        <span id="marcar-count-${f.id}">${_marcarPessoasContagem(f.id)}</span>
+        <span id="marcar-count-${f.id}">${contagemMarcacoes.get(f.id) || 0}</span>
       </button>
     </div>`
 }
@@ -8089,6 +8105,7 @@ async function renderFotosEventoAdmin() {
   const wrap = document.getElementById('evt-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _eventoAtual.id)
   const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
+  const contagemMarcacoes = _contagemMarcacoesPorFoto()
   _lightboxFotos = fotos
   const grupos = new Map()
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
@@ -8101,7 +8118,7 @@ async function renderFotosEventoAdmin() {
   wrap.innerHTML = ordemGrupos.map(nome => `
     <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
   _hidratarImgCache(wrap)
@@ -9532,7 +9549,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   if (ok) registrarAuditoria('fez upload de fotos', 'eventos', ensaioId, `${ok} de ${files.length} foto(s) — ${ensaioNome}`)
 }
 
-function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis) {
+function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
   const sel = _ensaioFotoSelecao.has(f.id)
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" onclick="_ensaioToggleSelecaoFoto('${f.id}')">
@@ -9547,7 +9564,7 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis) {
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEnsaioAdmin)">${ICON_LIXEIRA}</button>
       <button class="btn-marcar-pessoas" onclick="event.stopPropagation();_abrirMarcarPessoas('${f.id}', _ensaioQuemPodeSerMarcado())">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/></svg>
-        <span id="marcar-count-${f.id}">${_marcarPessoasContagem(f.id)}</span>
+        <span id="marcar-count-${f.id}">${contagemMarcacoes.get(f.id) || 0}</span>
       </button>
     </div>`
 }
@@ -9556,6 +9573,7 @@ async function renderFotosEnsaioAdmin() {
   const wrap = document.getElementById('ens-fotos-por-subpasta')
   const fotos = store.fotos.filter(f => f.evento_id === _ensaioAtual.id)
   const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
+  const contagemMarcacoes = _contagemMarcacoesPorFoto()
   _lightboxFotos = fotos
   const grupos = new Map()
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
@@ -9565,7 +9583,7 @@ async function renderFotosEnsaioAdmin() {
   wrap.innerHTML = ordemGrupos.map(nome => `
     <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
       ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
+      <div class="foto-grid">${grupos.get(nome).length ? grupos.get(nome).map(f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes)).join('') : (nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : '')}</div>
     </div>
   `).join('')
   _hidratarImgCache(wrap)
