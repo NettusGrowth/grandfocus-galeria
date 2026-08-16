@@ -1745,7 +1745,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <h3 style="font-size:15px;margin:18px 0 10px;">Professores &amp; Diretores</h3>
         <div class="list" id="equipe-lista-professores"></div>
         <div id="equipe-secao-pais">
-          <h3 style="font-size:15px;margin:22px 0 10px;">Pais &amp; Responsáveis</h3>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin:22px 0 10px;">
+            <h3 style="font-size:15px;margin:0;">Pais &amp; Responsáveis</h3>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button>
+          </div>
           <div class="list" id="equipe-lista-pais"></div>
         </div>
       </div>
@@ -2212,8 +2215,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>Nome completo</label><input type="text" id="pai-nome" placeholder="Nome"></div>
     <div class="field"><label>E-mail (opcional)</label><input type="email" id="pai-email" placeholder="email@exemplo.com"></div>
     <div class="field"><label>Telefone/WhatsApp (opcional)</label><input type="text" id="pai-telefone" placeholder="(00) 00000-0000"></div>
+    <div class="field" id="pai-eh-aluno-wrap">
+      <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" id="pai-eh-aluno" onchange="_toggleModalPaiEhAluno()" style="width:auto;"> Essa conta é do próprio aluno (login direto, sem passar por um responsável)</label>
+    </div>
     <div class="field">
-      <label>Alunos vinculados (filhos)</label>
+      <label id="pai-filhos-label">Alunos vinculados (filhos)</label>
       <input type="text" id="pai-filhos-busca" placeholder="Buscar aluno…" oninput="_renderPaiFilhosLista()">
       <div class="tag-picker" id="pai-filhos-lista" style="max-height:140px;overflow-y:auto;margin-top:6px;"></div>
     </div>
@@ -3304,12 +3310,19 @@ async function iniciarSinoNotificacoes() {
     // escola dele, ou os filhos vinculados no caso do responsável), sem
     // precisar filtrar escola_id na mão aqui.
     const onClickGaleria = role === 'responsavel' ? `setRespTab('fotos');_galInit('responsavel')` : `setEscolaTab('eventos');_galInit(meuPerfil.role)`
-    const [{ data: posts, error: errPosts }, { data: fotos, error: errFotos }] = await Promise.all([
-      db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8),
-      db.from('fotos').select('id, criado_em, eventos(nome)').order('criado_em', { ascending: false }).limit(8),
-    ])
-    const itensPosts = !errPosts ? (posts || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` })) : []
-    const itensFotos = !errFotos ? (fotos || []).map(f => ({ texto: 'Fotos novas em ' + (f.eventos?.nome || 'um álbum'), sub: fmtDataHora(f.criado_em), quando: f.criado_em, onClick: onClickGaleria })) : []
+    // cada busca isolada no seu try/catch — uma falhando (ex: embed de
+    // fotos->eventos rejeitando por algum motivo de rede/RLS) não pode
+    // derrubar a outra nem deixar o sino inteiro em branco sem cair no
+    // "Nada por aqui" (Promise.all propagaria a rejeição das duas juntas).
+    let itensPosts = [], itensFotos = []
+    try {
+      const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
+      if (!error) itensPosts = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` }))
+    } catch (e) { /* best-effort */ }
+    try {
+      const { data, error } = await db.from('fotos').select('id, criado_em, eventos(nome)').order('criado_em', { ascending: false }).limit(8)
+      if (!error) itensFotos = (data || []).map(f => ({ texto: 'Fotos novas em ' + (f.eventos?.nome || 'um álbum'), sub: fmtDataHora(f.criado_em), quando: f.criado_em, onClick: onClickGaleria }))
+    } catch (e) { /* best-effort */ }
     itens = [...itensPosts, ...itensFotos].sort((a, b) => (b.quando || '').localeCompare(a.quando || '')).slice(0, 15)
   }
   itens = _notifAgrupar(itens)
@@ -4795,14 +4808,28 @@ function _paisDoAluno(alunoId) {
   return store.vinculosResponsaveis.filter(v => v.aluno_id === alunoId).map(v => store.responsaveis.find(r => r.user_id === v.user_id)).filter(Boolean)
 }
 
-function _miniAvataresHTML(pessoas, max = 3) {
+// id único por (dono da linha + pessoa) — o mesmo responsável pode
+// aparecer em várias linhas de aluno (mais de um filho), então o id
+// não pode depender só do user_id dele.
+function _miniAvataresHTML(pessoas, donoId, max = 3) {
   if (!pessoas.length) return ''
   const visiveis = pessoas.slice(0, max)
   const resto = pessoas.length - visiveis.length
   return `<div class="mini-avatares">` +
-    visiveis.map(p => `<span class="mini-avatar" title="${esc(p.nome || '')}">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</span>`).join('') +
+    visiveis.map(p => `<span class="mini-avatar" id="mini-av-${donoId}-${p.user_id}" title="${esc(p.nome || '')}">${esc((p.nome || '?').trim().charAt(0).toUpperCase())}</span>`).join('') +
     (resto > 0 ? `<span class="mini-avatar mais">+${resto}</span>` : '') +
     `</div>`
+}
+// carrega a foto de verdade por cima da letra — _miniAvataresHTML só
+// desenha o esqueleto (letra), essa função busca cada foto async depois
+// que o HTML já está no DOM, igual ao padrão do avatar grande do aluno.
+function _hidratarMiniAvatares(pessoas, donoId) {
+  pessoas.forEach(async p => {
+    if (!p.foto_url) return
+    const url = await _carregarImgCache(p.foto_url)
+    const el = document.getElementById(`mini-av-${donoId}-${p.user_id}`)
+    if (url && el) el.innerHTML = `<img src="${url}" alt="">`
+  })
 }
 
 function _popularFiltroCidades() {
@@ -4926,7 +4953,7 @@ function renderAlunos() {
         </div>
       </div>
       <div class="actions">
-        ${_miniAvataresHTML(pais)}
+        ${_miniAvataresHTML(pais, a.id)}
         <div class="icon-btn" title="Editar" onclick="event.stopPropagation();abrirModalAluno('${a.id}')">${ICON_LAPIS}</div>
         <div class="icon-btn danger" title="Apagar" onclick="event.stopPropagation();excluirAluno('${a.id}')">${ICON_LIXEIRA}</div>
       </div>
@@ -4938,6 +4965,7 @@ function renderAlunos() {
     const el2 = document.getElementById(`alu-av-${a.id}`)
     if (url && el2) el2.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
   })
+  alunos.forEach(a => _hidratarMiniAvatares(_paisDoAluno(a.id), a.id))
 }
 
 const CATEGORIAS_EVENTO = ['Espetáculo', 'Recital', 'Ensaio', 'Festival']
@@ -5664,6 +5692,11 @@ function abrirModalPai(userId) {
   document.getElementById('pai-resultado').style.display = 'none'
   document.getElementById('pai-usuario').value = ''
   document.getElementById('pai-filhos-busca').value = ''
+  // "é o próprio aluno" só faz sentido na criação — depois de criada a
+  // conta já é 'responsavel' de si mesma, não tem o que alternar.
+  document.getElementById('pai-eh-aluno-wrap').style.display = r ? 'none' : 'block'
+  document.getElementById('pai-eh-aluno').checked = false
+  _toggleModalPaiEhAluno()
 
   _paiFilhosSelecionados = new Set(r ? store.vinculosResponsaveis.filter(v => v.user_id === userId).map(v => v.aluno_id) : [])
   _renderPaiFilhosLista()
@@ -5674,6 +5707,12 @@ function abrirModalPai(userId) {
   else _posAplicar('pai-foto-preview', null)
 
   abrirModal('modal-pai')
+}
+
+function _toggleModalPaiEhAluno() {
+  const eh = document.getElementById('pai-eh-aluno')?.checked
+  const lbl = document.getElementById('pai-filhos-label')
+  if (lbl) lbl.textContent = eh ? 'Qual aluno vai ter esse login?' : 'Alunos vinculados (filhos)'
 }
 
 function _renderPaiFilhosLista() {
@@ -5723,6 +5762,8 @@ async function salvarPai() {
   const email = document.getElementById('pai-email').value.trim() || null
   const telefone = document.getElementById('pai-telefone').value.trim() || null
   if (!nome) { toast('Informe o nome'); return }
+  const ehAluno = !id && document.getElementById('pai-eh-aluno')?.checked
+  if (ehAluno && _paiFilhosSelecionados.size > 1) { toast('Login de aluno é pra uma pessoa só — selecione um aluno'); return }
 
   const btn = document.getElementById('pai-salvar-btn')
   btn.disabled = true; btn.textContent = 'Salvando…'
@@ -6907,13 +6948,20 @@ async function _baixarUrl(url, nomeArquivo) {
   }
 }
 
-// download em massa SEM zip: no celular, tenta o compartilhamento
-// nativo (abre o menu do sistema com "Salvar imagens"/"Salvar N fotos"
-// — cai direto no app de Fotos/Galeria do aparelho). Zip cai na pasta
-// Arquivos, que pai/mãe mais velho ou proprietário sem intimidade com
-// celular não acha. Sem suporte a isso (desktop, navegador antigo, ou
-// se a pessoa cancelar o menu do sistema), cai pra baixar cada foto
-// separada em sequência — nunca mais gera um .zip.
+// download em massa SEM zip. iOS: usa o compartilhamento nativo — lá o
+// menu do sistema tem "Salvar N Imagens" de verdade, que grava direto
+// no app Fotos (testado e confirmado). Android: NÃO usa — testado ao
+// vivo e o menu do Android ali não tem opção nenhuma de salvar na
+// Galeria (só apps tipo Instagram/Gmail + Copiar/Captura/QR code), e
+// cancelar o menu dava a falsa impressão de "não baixa nada". No
+// Android o download individual direto (que já era o fallback aqui)
+// funciona melhor: cai na pasta Downloads e o Google Fotos/Galeria
+// indexa esse album automaticamente — diferente do .zip antigo (que
+// não é imagem, então nunca era indexado). Desktop cai no mesmo
+// fallback de download individual.
+function _ehIOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
@@ -6928,7 +6976,7 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!prontos.length) { toast('Não foi possível preparar as fotos.'); return }
 
   const arquivos = prontos.map(p => p.file)
-  if (navigator.canShare && navigator.canShare({ files: arquivos })) {
+  if (_ehIOS() && navigator.canShare && navigator.canShare({ files: arquivos })) {
     try {
       await navigator.share({ files: arquivos, title: nomeBase || 'Fotos' })
       toast('Pronto ✓')
