@@ -10232,7 +10232,6 @@ function _galInit(role) {
 // aba Equipe (só proprietário/diretor) — a RLS de perfis (014) já
 // filtra sozinha pra só devolver gente da própria escola; aqui é só
 // carregar e reaproveitar resetarSenhaUsuario() que já existe.
-let _equipeEscolaVinculos = []
 async function iniciarEquipeEscola() {
   const [{ data: professores, error: e1 }, { data: responsaveis, error: e2 }] = await Promise.all([
     db.from('perfis').select('*').in('role', ['proprietario', 'diretor', 'professor']).order('nome'),
@@ -10245,7 +10244,14 @@ async function iniciarEquipeEscola() {
   const { data: vinc } = idsResp.length
     ? await db.from('responsavel_alunos').select('user_id, aluno_id').in('user_id', idsResp)
     : { data: [] }
-  _equipeEscolaVinculos = vinc || []
+  // usa store.vinculosResponsaveis (a MESMA variável que abrirModalPai/
+  // _sincronizarFilhosPai leem) — antes gravava numa variável separada
+  // (_equipeEscolaVinculos), e editar um responsável pela aba Equipe
+  // abria o modal com essa lista vazia/desatualizada; salvar ali
+  // comparava contra o vazio e desvinculava os filhos que na verdade
+  // continuavam marcados na tela — risco real de apagar vínculo por
+  // engano.
+  store.vinculosResponsaveis = vinc || []
   renderEquipeEscola()
 }
 function renderEquipeEscola() {
@@ -10262,7 +10268,7 @@ function renderEquipeEscola() {
     elProf.innerHTML = store.professores.length ? store.professores.map(p => `
       <div class="list-item" style="cursor:default;">
         <div><div class="nome">${esc(p.nome || '(sem nome)')}</div><div class="meta">${esc(ROLE_LABEL[p.role] || p.role)} · Acesso: ${fmtUltimoAcesso(p.ultimo_acesso)}</div></div>
-        ${souProfessor ? '' : `<div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div></div>`}
+        ${souProfessor ? '' : `<div class="actions"><div class="icon-btn" title="Editar" onclick="abrirModalProfessor('${p.user_id}')">${ICON_LAPIS}</div><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${p.user_id}','professor')">${ICON_CHAVE}</div></div>`}
       </div>
     `).join('') : '<div class="empty">Nenhum outro professor/diretor por aqui ainda.</div>'
   }
@@ -10271,12 +10277,12 @@ function renderEquipeEscola() {
   const elPais = document.getElementById('equipe-lista-pais')
   if (elPais && !souProfessor) {
     elPais.innerHTML = store.responsaveis.length ? store.responsaveis.map(r => {
-      const filhosIds = _equipeEscolaVinculos.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
+      const filhosIds = store.vinculosResponsaveis.filter(v => v.user_id === r.user_id).map(v => v.aluno_id)
       const nomesFilhos = filhosIds.map(id => store.alunos.find(a => a.id === id)?.nome).filter(Boolean)
       return `
       <div class="list-item" style="cursor:default;">
         <div><div class="nome">${esc(r.nome || '(sem nome)')}</div><div class="meta">${nomesFilhos.length ? esc(nomesFilhos.join(', ')) : 'sem filhos vinculados'} · Acesso: ${fmtUltimoAcesso(r.ultimo_acesso)}</div></div>
-        <div class="actions"><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${r.user_id}','responsavel')">${ICON_CHAVE}</div></div>
+        <div class="actions"><div class="icon-btn" title="Editar" onclick="abrirModalPai('${r.user_id}')">${ICON_LAPIS}</div><div class="icon-btn" title="Resetar senha" onclick="resetarSenhaUsuario('${r.user_id}','responsavel')">${ICON_CHAVE}</div></div>
       </div>`
     }).join('') : '<div class="empty">Nenhum responsável vinculado ainda.</div>'
   }
