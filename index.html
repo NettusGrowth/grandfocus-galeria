@@ -6870,7 +6870,7 @@ function _hidratarImgCache(escopo) {
   const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
   if (!imgs.length) return
   if (!('IntersectionObserver' in window)) {
-    imgs.forEach(img => { _carregarImgCache(img.dataset.path).then(url => { if (url) img.src = url }) })
+    imgs.forEach(img => { _carregarImgCache(img.dataset.path).then(url => { if (url) img.src = url }); img.removeAttribute('data-path') })
     return
   }
   let restantes = imgs.length
@@ -6881,11 +6881,56 @@ function _hidratarImgCache(escopo) {
       obs.unobserve(img)
       restantes--
       const path = img.dataset.path
+      // tira o data-path assim que processa — sem isso, uma segunda
+      // chamada de _hidratarImgCache no MESMO container (grade que vai
+      // crescendo aos poucos, ver _renderGridFotosPaginado) reobservaria
+      // as imagens já tratadas de novo, uma pra cada lote novo.
+      img.removeAttribute('data-path')
       if (path) _carregarImgCache(path).then(url => { if (url) img.src = url })
       if (restantes <= 0) obs.disconnect()
     })
   }, { rootMargin: '600px 0px' })
   imgs.forEach(img => obs.observe(img))
+}
+
+// pagina a grade de fotos em lotes — sem isso, um álbum com centenas/
+// milhares de fotos jogava TODO mundo no DOM de uma vez só. Mesmo com
+// content-visibility (que já ajuda o scroll a não pagar layout/paint
+// de item fora da tela), o navegador ainda paga o custo de CRIAR e
+// gerenciar milhares de nós de uma table só — era isso que fazia CADA
+// "arrastar pra baixo" ficar pesado num álbum grande. Agora só cria o
+// que cabe na tela + uma folga, e um sentinel no fim vai acrescentando
+// mais conforme o usuário rola (mesmo padrão de infinite scroll usado
+// em qualquer app de fotos grande).
+const GAL_LOTE_FOTOS = 60
+function _renderGridFotosPaginado(gridEl, fotos) {
+  if (!gridEl) return
+  let renderizados = 0
+  let sentinel = null
+  let obs = null
+  function carregarLote() {
+    const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
+    if (!lote.length) return
+    const html = lote.map(f => _galFotoItemHTML(f)).join('')
+    if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html)
+    else gridEl.insertAdjacentHTML('beforeend', html)
+    _hidratarImgCache(gridEl)
+    renderizados += lote.length
+    if (renderizados >= fotos.length && obs) { obs.disconnect(); sentinel?.remove(); sentinel = null }
+  }
+  if (!('IntersectionObserver' in window)) {
+    while (renderizados < fotos.length) carregarLote()
+    return
+  }
+  carregarLote()
+  if (renderizados < fotos.length) {
+    sentinel = document.createElement('div')
+    sentinel.setAttribute('aria-hidden', 'true')
+    sentinel.style.cssText = 'grid-column:1/-1;height:1px;'
+    gridEl.appendChild(sentinel)
+    obs = new IntersectionObserver(entries => { if (entries[0].isIntersecting) carregarLote() }, { rootMargin: '1000px 0px' })
+    obs.observe(sentinel)
+  }
 }
 
 // prévia (com marca d'água) quando existir; fotos de antes do Estágio E
@@ -9123,9 +9168,9 @@ function renderGaleriaFotosDoAlbum(wrap) {
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
-    <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
+    <div class="${_galGridClass()}" id="gal-fotos-grid"></div>
   `
-  _hidratarImgCache(wrap)
+  _renderGridFotosPaginado(document.getElementById('gal-fotos-grid'), fotos)
   // nomes que vieram "?" (fora do alcance normal de store.professores/
   // store.responsaveis pra esse papel) tentam resolver via RPC — se
   // achar algo novo, re-renderiza pra trocar o "?" pelo nome de
@@ -9172,9 +9217,9 @@ function renderGaleriaFotosAvulso(wrap) {
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
-    <div class="${_galGridClass()}">${fotos.map(f => _galFotoItemHTML(f)).join('')}</div>
+    <div class="${_galGridClass()}" id="gal-fotos-grid"></div>
   `
-  _hidratarImgCache(wrap)
+  _renderGridFotosPaginado(document.getElementById('gal-fotos-grid'), fotos)
 }
 
 // ── caminho Alunos: lista de TODOS os alunos (busca + filtro por
