@@ -9122,24 +9122,38 @@ function renderGaleriaAnosDoAluno(wrap) {
   fotos.forEach(f => {
     const ev = store.eventos.find(e => e.id === f.evento_id)
     const ano = ev?.data ? ev.data.slice(0, 4) : 'Sem data'
-    anos.set(ano, (anos.get(ano) || 0) + 1)
+    if (!anos.has(ano)) anos.set(ano, [])
+    anos.get(ano).push(f)
   })
   const anosOrdenados = [...anos.keys()].sort().reverse()
   // upload é admin-only — os outros perfis só navegam/consomem, sobem
   // fotos apenas em Álbuns & Eventos / Ensaios Avulsos.
   wrap.innerHTML += `${_galRole === 'admin' ? `<div class="section-h"><button class="btn btn-sm" onclick="abrirUploadRapidoAluno()">📤 Fazer upload pra este aluno</button></div>` : ''}
-    <div class="list">${anosOrdenados.length ? anosOrdenados.map(ano => `
-      <div class="list-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
-        <div class="nome">${ano}</div><div class="meta">${anos.get(ano)} foto(s)</div>
-      </div>`).join('') : '<div class="empty">Nenhuma foto marcada pra esse aluno ainda.</div>'}</div>`
+    <div class="pasta-grid">${anosOrdenados.length ? anosOrdenados.map(ano => {
+      const fotosDoAno = anos.get(ano)
+      return `<div class="list-item pasta-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
+        ${_galMosaicoCardHTML(ano, fotosDoAno.length, fotosDoAno, `${fotosDoAno.length} foto(s)`)}
+      </div>`
+    }).join('') : '<div class="empty">Nenhuma foto marcada pra esse aluno ainda.</div>'}</div>`
+  _hidratarImgCache(wrap)
 }
 
 function renderGaleriaFotosDoAno(wrap) {
-  const fotos = _fotosDoAluno(_galAlunoId).filter(f => {
+  const fotosDoAno = _fotosDoAluno(_galAlunoId).filter(f => {
     const ev = store.eventos.find(e => e.id === f.evento_id)
     const ano = ev?.data ? ev.data.slice(0, 4) : 'Sem data'
     return ano === _galAno
   })
+  // filtro por pessoa marcada (professor/diretor/proprietário também
+  // aparecem em fotos onde esse aluno está) — mesmo padrão de chips já
+  // usado no caminho Escolas (renderGaleriaFotosDoAlbum), só que aqui
+  // não precisa do tipo "aluno" (o aluno já é fixo, é o próprio nível).
+  const pessoasNoAno = [
+    ...new Set(store.fotoPessoa.filter(x => fotosDoAno.some(f => f.id === x.foto_id)).map(x => x.user_id)),
+  ].map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) }))
+  const fotos = _galFiltroPessoaAlbum
+    ? fotosDoAno.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
+    : fotosDoAno
   _lightboxFotos = fotos
   _galSelecao = new Set()
 
@@ -9147,6 +9161,10 @@ function renderGaleriaFotosDoAno(wrap) {
   fotos.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
 
   wrap.innerHTML += `
+    ${pessoasNoAno.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
+      <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
+      ${pessoasNoAno.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
+    </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;">
@@ -9163,6 +9181,13 @@ function renderGaleriaFotosDoAno(wrap) {
     }).join('')}
   `
   _hidratarImgCache(wrap)
+  const idsPendentes = pessoasNoAno.filter(p => p.nome === '?').map(p => p.id)
+  if (idsPendentes.length) {
+    const alunoIdNoMomento = _galAlunoId
+    _garantirNomesPessoas(idsPendentes).then(achouAlgo => {
+      if (achouAlgo && _galAlunoId === alunoIdNoMomento) renderGaleriaAdmin()
+    })
+  }
 }
 
 // mesma condição do card (_galRole !== 'admin') aplicada ao container —
@@ -10422,19 +10447,13 @@ async function iniciarViewResponsavel() {
 // ── caminho Filhos (responsável): lista dos próprios filhos, sem
 // escola aparecendo → reaproveita Ano/Fotos do caminho Alunos ────────
 function renderGaleriaListaFilhos(wrap) {
-  wrap.innerHTML += `<div class="list">${store.alunos.length ? store.alunos.map(a => `
-    <div class="list-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
-      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <div class="list-avatar" id="gal-filho-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
-        <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
-      </div>
-    </div>`).join('') : '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
-  store.alunos.forEach(async a => {
-    if (!a.foto_url) return
-    const url = await _carregarImgCache(a.foto_url)
-    const el = document.getElementById(`gal-filho-${a.id}`)
-    if (url && el) el.innerHTML = `<img src="${url}" alt="" style="object-position:${a.foto_pos || POS_PADRAO};">`
-  })
+  wrap.innerHTML += `<div class="pasta-grid">${store.alunos.length ? store.alunos.map(a => {
+    const fotosDoAluno = _fotosDoAluno(a.id)
+    return `<div class="list-item pasta-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
+      ${_galMosaicoCardHTML(a.nome, fotosDoAluno.length, fotosDoAluno, `${fotosDoAluno.length} foto(s)`)}
+    </div>`
+  }).join('') : '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
+  _hidratarImgCache(wrap)
 }
 
 // ── galeria pública (link privado, sem login) ─────────────────────
