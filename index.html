@@ -6785,11 +6785,37 @@ function _imgTagCache(path, attrs = '') {
 // que sobraram sem src (os que já nasceram prontos do cache nem
 // entram no seletor). Pode passar um container pra não varrer a
 // página inteira.
+//
+// Antes disso disparava _carregarImgCache pra TODA <img data-path> da
+// tela de uma vez só — num álbum com muita foto pesada, isso baixava
+// dezenas/centenas de fotos em paralelo mesmo as que nunca chegavam a
+// aparecer na tela (era a "listra" travando o carregamento, tanto no
+// celular quanto no PC). Agora só carrega quando a foto está prestes a
+// entrar na tela (IntersectionObserver, rootMargin de 600px — começa
+// um pouco antes de aparecer, pra rolar suave sem esperar). Cada
+// chamada usa um observer PRÓPRIO, que se desliga sozinho assim que
+// termina de hidratar o que observava — não fica um observer global
+// vivo acumulando referência de tela em tela.
 function _hidratarImgCache(escopo) {
-  ;(escopo || document).querySelectorAll('img[data-path]').forEach(img => {
-    const path = img.dataset.path
-    _carregarImgCache(path).then(url => { if (url) img.src = url })
-  })
+  const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
+  if (!imgs.length) return
+  if (!('IntersectionObserver' in window)) {
+    imgs.forEach(img => { _carregarImgCache(img.dataset.path).then(url => { if (url) img.src = url }) })
+    return
+  }
+  let restantes = imgs.length
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return
+      const img = entry.target
+      obs.unobserve(img)
+      restantes--
+      const path = img.dataset.path
+      if (path) _carregarImgCache(path).then(url => { if (url) img.src = url })
+      if (restantes <= 0) obs.disconnect()
+    })
+  }, { rootMargin: '600px 0px' })
+  imgs.forEach(img => obs.observe(img))
 }
 
 // prévia (com marca d'água) quando existir; fotos de antes do Estágio E
