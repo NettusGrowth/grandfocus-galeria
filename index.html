@@ -1009,6 +1009,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-item:hover .foto-expand{opacity:1;}
 .foto-expand:hover{background:var(--ouro);color:var(--tinta);}
 .foto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+/* Comunidade desativada temporariamente pra todo mundo (pedido
+   explícito) — só esconde o botão da aba (admin/escola/responsável),
+   não apaga nada; tirar essa regra liga tudo de volta na hora. */
+[data-tab="comunidade"]{display:none !important;}
 .chip-row{display:flex;gap:8px;flex-wrap:wrap;}
 .chip{font-size:12px;padding:.4em 1em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#DBC9A8;cursor:pointer;}
 .chip.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
@@ -2850,8 +2854,16 @@ async function _galAtualizarDados() {
 }
 
 // ── auth ────────────────────────────────────────────────────────
+// true durante toda a janela de criar uma conta nova (signUp até o
+// perfil ser inserido) — signUp() troca a sessão ativa do cliente pra
+// a conta nova por uma fração de segundo, disparando esse listener
+// pra ela; como o perfil dela ainda não existe nesse instante,
+// mostrarApp() cairia no "sem perfil -> signOut()" e derrubava a
+// sessão de quem está criando a conta no meio do processo.
+let _criandoConta = false
 function iniciarAuth() {
   db.auth.onAuthStateChange((_event, session) => {
+    if (_criandoConta) return
     if (session?.user) mostrarApp(session.user)
     else mostrarLogin()
   })
@@ -5506,31 +5518,46 @@ async function salvarProfessor() {
 
   const senha = gerarSenha()
   const emailAuth = emailContato || `${username}@login.grandfocus.internal`
-  const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
-  if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
+  // _criandoConta trava o listener de auth (ver iniciarAuth) durante
+  // toda essa janela — signUp() troca a sessão ativa pra conta nova
+  // por uma fração de segundo, e o listener reagia a isso chamando
+  // mostrarApp() pra ela; como o perfil dela ainda não existe, caía no
+  // "sem perfil -> signOut()" e derrubava a sessão do admin no meio do
+  // caminho (o insert de perfis seguinte ia como anon = "permission
+  // denied for table perfis"). Sem isso o bug só não aparecia nos
+  // fluxos mais curtos (ex. criar responsável) porque a corrida era
+  // vencida por sorte — aqui, com upload de foto no meio, quase sempre
+  // perdia.
+  _criandoConta = true
+  try {
+    const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nome)
+    if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Salvar'; return }
 
-  const { foto_url, capa_url } = await _uploadFotoCapaProfessor(suData.user?.id)
-  const perfilPayload = { user_id: suData.user?.id, role: cargo, nome, escola_id, username, email: emailContato || null }
-  if (foto_url) { perfilPayload.foto_url = foto_url; perfilPayload.foto_pos = _posValor('prof-foto-preview') }
-  if (capa_url) { perfilPayload.capa_url = capa_url; perfilPayload.capa_pos = _posValor('prof-capa-preview') }
-  const { data: perfilData, error: perfilErr } = await db.from('perfis').insert(perfilPayload).select().single()
-  if (!perfilErr) await _sincronizarEscolasExtra(suData.user?.id)
-  btn.disabled = false; btn.textContent = 'Salvar'
+    const { foto_url, capa_url } = await _uploadFotoCapaProfessor(suData.user?.id)
+    const perfilPayload = { user_id: suData.user?.id, role: cargo, nome, escola_id, username, email: emailContato || null }
+    if (foto_url) { perfilPayload.foto_url = foto_url; perfilPayload.foto_pos = _posValor('prof-foto-preview') }
+    if (capa_url) { perfilPayload.capa_url = capa_url; perfilPayload.capa_pos = _posValor('prof-capa-preview') }
+    const { data: perfilData, error: perfilErr } = await db.from('perfis').insert(perfilPayload).select().single()
+    if (!perfilErr) await _sincronizarEscolasExtra(suData.user?.id)
+    btn.disabled = false; btn.textContent = 'Salvar'
 
-  if (perfilErr) {
-    const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
-    toast(msg)
-    return
+    if (perfilErr) {
+      const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
+      toast(msg)
+      return
+    }
+
+    store.professores.push(perfilData)
+    store.professores.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+    renderProfessores()
+
+    document.getElementById('prof-resultado').style.display = 'block'
+    document.getElementById('prof-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email: emailContato })
+    registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
+    toast('Professor/diretor criado ✓')
+  } finally {
+    _criandoConta = false
   }
-
-  store.professores.push(perfilData)
-  store.professores.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-  renderProfessores()
-
-  document.getElementById('prof-resultado').style.display = 'block'
-  document.getElementById('prof-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email: emailContato })
-  registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
-  toast('Professor/diretor criado ✓')
 }
 
 async function excluirProfessor(userId) {
@@ -9778,53 +9805,60 @@ async function criarAcesso() {
   // "e-mail"; usa o de contato se foi informado, senão sintetiza um
   // interno que nunca é mostrado nem usado pra login de verdade.
   const emailAuth = emailContato || `${username}@login.grandfocus.internal`
-  const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nomeAlvo)
-  if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
+  // _criandoConta ver comentário em iniciarAuth — mesma corrida que
+  // afetava criar professor/diretor também rondava aqui.
+  _criandoConta = true
+  try {
+    const { data: suData, error: suErr } = await _criarContaAuth(emailAuth, senha, nomeAlvo)
+    if (suErr) { toast('Erro ao criar conta: ' + suErr.message); btn.disabled = false; btn.textContent = 'Gerar acesso'; return }
 
-  const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo, username }
-  if (tipo === 'escola') perfilPayload.escola_id = alvoId
-  const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
+    const perfilPayload = { user_id: suData.user?.id, role: tipo, nome: nomeAlvo, username }
+    if (tipo === 'escola') perfilPayload.escola_id = alvoId
+    const { error: perfilErr } = await db.from('perfis').insert(perfilPayload)
 
-  let vinculoErr = null
-  if (!perfilErr && tipo === 'responsavel') {
-    const rows = filhoIds.map(aluno_id => ({ user_id: suData.user.id, aluno_id }))
-    const { error } = await db.from('responsavel_alunos').insert(rows)
-    vinculoErr = error
-  }
-  if (!perfilErr && tipo === 'avulso' && permissoes.length) {
-    const rows = permissoes.map(chave => ({ user_id: suData.user.id, chave, valor: true }))
-    const { error } = await db.from('permissoes_extra').insert(rows)
-    vinculoErr = error
-  }
+    let vinculoErr = null
+    if (!perfilErr && tipo === 'responsavel') {
+      const rows = filhoIds.map(aluno_id => ({ user_id: suData.user.id, aluno_id }))
+      const { error } = await db.from('responsavel_alunos').insert(rows)
+      vinculoErr = error
+    }
+    if (!perfilErr && tipo === 'avulso' && permissoes.length) {
+      const rows = permissoes.map(chave => ({ user_id: suData.user.id, chave, valor: true }))
+      const { error } = await db.from('permissoes_extra').insert(rows)
+      vinculoErr = error
+    }
 
-  btn.disabled = false; btn.textContent = 'Gerar acesso'
-  if (perfilErr) {
-    const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
-    toast(msg)
-    return
-  }
-  if (vinculoErr) {
-    const msgVinc = tipo === 'avulso'
-      ? 'Conta criada, mas as permissões falharam: ' + vinculoErr.message
-      : 'Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho existente" na aba Pais pra corrigir.'
-    toast(msgVinc)
-    return
-  }
+    btn.disabled = false; btn.textContent = 'Gerar acesso'
+    if (perfilErr) {
+      const msg = /username/i.test(perfilErr.message || '') ? 'Esse nome de usuário já existe — escolha outro.' : 'Conta criada, mas o perfil falhou: ' + perfilErr.message
+      toast(msg)
+      return
+    }
+    if (vinculoErr) {
+      const msgVinc = tipo === 'avulso'
+        ? 'Conta criada, mas as permissões falharam: ' + vinculoErr.message
+        : 'Perfil criado, mas o vínculo com os filhos falhou: ' + vinculoErr.message + ' — use "Vincular filho existente" na aba Pais pra corrigir.'
+      toast(msgVinc)
+      return
+    }
 
-  document.getElementById('acesso-resultado').style.display = 'block'
-  document.getElementById('acesso-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nomeAlvo}.`, { email: emailContato })
-  document.getElementById('acesso-usuario').value = ''
-  document.getElementById('acesso-email').value = ''
-  document.getElementById('acesso-nome-avulso').value = ''
-  document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
-  registrarAuditoria('criou acesso (' + tipo + ')', 'perfis', suData.user?.id, `usuário ${username} — ${nomeAlvo}`)
-  if (tipo === 'responsavel') {
-    _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
-    store.responsaveis.push({ user_id: suData.user.id, role: 'responsavel', nome: nomeAlvo })
-    store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
-    popularVinculoSelects()
+    document.getElementById('acesso-resultado').style.display = 'block'
+    document.getElementById('acesso-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nomeAlvo}.`, { email: emailContato })
+    document.getElementById('acesso-usuario').value = ''
+    document.getElementById('acesso-email').value = ''
+    document.getElementById('acesso-nome-avulso').value = ''
+    document.querySelectorAll('#acesso-permissoes-lista .tag-opt').forEach(el => el.classList.remove('on'))
+    registrarAuditoria('criou acesso (' + tipo + ')', 'perfis', suData.user?.id, `usuário ${username} — ${nomeAlvo}`)
+    if (tipo === 'responsavel') {
+      _acessoFilhosSel = new Set(); renderAcessoFilhosLista()
+      store.responsaveis.push({ user_id: suData.user.id, role: 'responsavel', nome: nomeAlvo })
+      store.responsaveis.sort((a, b) => (a.nome || '').localeCompare(b.nome || ''))
+      popularVinculoSelects()
+    }
+    toast('Acesso criado ✓')
+  } finally {
+    _criandoConta = false
   }
-  toast('Acesso criado ✓')
 }
 
 // ── vincular filho a um responsável que já tem conta ──────────────
