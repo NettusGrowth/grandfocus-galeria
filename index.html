@@ -1256,6 +1256,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .tabela-auditoria tr{border-bottom:1px solid rgba(200,175,127,.1);}
 .tabela-auditoria tr:hover{background:rgba(75,4,22,.25);}
 .tabela-auditoria td{padding:9px 8px;vertical-align:middle;}
+.tabela-auditoria th{padding:9px 8px;text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--ouro-luz);font-weight:600;border-bottom:1px solid rgba(200,175,127,.25);}
 .tabela-auditoria .aud-thumb{width:32px;height:32px;border-radius:6px;object-fit:cover;flex-shrink:0;}
 .aud-badge{font-size:10px;letter-spacing:.03em;text-transform:uppercase;padding:.25em .6em;border-radius:99px;white-space:nowrap;font-weight:600;}
 .aud-badge.criacao{background:rgba(61,207,142,.15);color:var(--verde);}
@@ -1434,6 +1435,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" data-bn-primary data-bn-label="Social" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="navgroup-label">Sistema</div>
         <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
+        <div class="tab" data-tab="usabilidade" data-tip="Usabilidade" onclick="setAdminTab('usabilidade');iniciarUsabilidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-7M20 19V9" stroke-linecap="round"/></svg><span>Usabilidade</span></div>
         <div class="navgroup-label" id="navgroup-financeiro" style="display:none;">Financeiro</div>
         <div class="tab" data-tab="gold-reserve" id="tab-gold-reserve" style="display:none;" data-tip="Gold Reserve" onclick="setAdminTab('gold-reserve');iniciarGoldReserveAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1 3 2.3c0 3-6 1.4-6 4.3 0 1.4 1.3 2.4 3 2.4s3-1 3-2.4"/></svg><span>Gold Reserve</span></div>
         <div class="sidebar-social">
@@ -1663,6 +1665,30 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div style="text-align:center;margin-top:16px;">
           <button class="btn btn-sm" id="auditoria-carregar-mais" onclick="carregarMaisAuditoria()">Carregar mais</button>
         </div>
+      </div>
+
+      <div class="admin-tab" id="admintab-usabilidade" style="display:none;">
+        <div class="section-h">
+          <h2>Usabilidade</h2>
+        </div>
+        <div class="hint" style="margin-bottom:14px;">Acesso e downloads de todo mundo — qualquer papel (proprietário, diretor, professor, responsável, avulso) — pra medir se cada tipo de usuário está de fato usando a galeria.</div>
+        <div class="filtro-row">
+          <input type="text" id="usab-busca" placeholder="Buscar por nome…" oninput="renderUsabilidade()">
+          <select id="usab-papel" onchange="renderUsabilidade()">
+            <option value="">Todos os papéis</option>
+            <option value="admin">Admin</option>
+            <option value="super_admin">Super admin</option>
+            <option value="proprietario">Proprietário</option>
+            <option value="diretor">Diretor</option>
+            <option value="professor">Professor</option>
+            <option value="responsavel">Responsável</option>
+            <option value="avulso">Avulso</option>
+          </select>
+        </div>
+        <table class="tabela-auditoria" id="tabela-usabilidade">
+          <thead><tr><th>Nome</th><th>Papel</th><th>Escola</th><th>Último acesso</th><th>Qtd. acessos</th><th>Downloads</th></tr></thead>
+          <tbody id="lista-usabilidade"></tbody>
+        </table>
       </div>
 
       <!-- Bloco 16: Gold Reserve — hub financeiro, só super_admin (trava
@@ -7969,6 +7995,40 @@ async function iniciarAuditoriaAdmin() {
   await _auditoriaPopularFiltroUsuarios()
   if (_auditoriaEntries.length) { renderAuditoria(); return }
   await carregarMaisAuditoria()
+}
+
+// tempo/quantidade de acesso + downloads de TODO mundo (qualquer
+// papel), pra medir usabilidade real. A agregação (soma de downloads
+// por usuário) roda dentro do Postgres via RPC — o navegador só recebe
+// uma linha por pessoa, não a auditoria inteira, mesmo com milhares de
+// downloads registrados. qtd_acessos incrementa no mesmo UPDATE que já
+// existia (marcar_acesso, uma vez por login) — não escreve nada a mais.
+let _usabilidadeDados = []
+async function iniciarUsabilidadeAdmin() {
+  if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
+  const { data, error } = await db.rpc('usabilidade_por_usuario')
+  if (error) { toast('Erro ao carregar usabilidade: ' + error.message); return }
+  _usabilidadeDados = data || []
+  renderUsabilidade()
+}
+function renderUsabilidade() {
+  const el = document.getElementById('lista-usabilidade')
+  if (!el) return
+  const busca = (document.getElementById('usab-busca')?.value || '').trim().toLowerCase()
+  const papel = document.getElementById('usab-papel')?.value || ''
+  const itens = _usabilidadeDados.filter(u =>
+    (!busca || (u.nome || '').toLowerCase().includes(busca)) &&
+    (!papel || u.role === papel)
+  )
+  el.innerHTML = itens.length ? itens.map(u => `
+    <tr>
+      <td>${esc(u.nome || '(sem nome)')}</td>
+      <td>${esc(ROLE_LABEL[u.role] || u.role)}</td>
+      <td>${u.escola_id ? esc(nomeEscola(u.escola_id)) : '—'}</td>
+      <td>${fmtUltimoAcesso(u.ultimo_acesso)}</td>
+      <td>${u.qtd_acessos || 0}</td>
+      <td>${u.qtd_downloads || 0}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="empty">Nenhum usuário encontrado.</td></tr>'
 }
 
 // período (de/até) é filtro de verdade no banco — reseta a paginação e
