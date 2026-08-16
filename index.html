@@ -8778,7 +8778,7 @@ function _galCapaSubpasta(eventoId, subpasta) {
 function _galPastaCardHTML(nome, count, capaPath, subtitulo) {
   return `
     <div class="pasta-capa">
-      ${capaPath ? _imgTagCache(capaPath, 'class="pasta-capa-img" alt=""') : ''}
+      ${capaPath ? _imgTagCache(capaPath, 'class="pasta-capa-img" loading="lazy" alt=""') : ''}
       <span class="pasta-badge">${count} foto(s)</span>
       <div class="pasta-nome-overlay">
         <div class="pasta-nome">📁 ${esc(nome)}</div>
@@ -8818,7 +8818,7 @@ function _galMosaicoCardHTML(nome, count, fotos, subtitulo) {
   return `
     <div class="pasta-mosaico">
       <div class="pasta-mosaico-grid">
-        ${celulas.map(f => f ? _imgTagCache(_fotoPreviewPath(f), 'class="pasta-mosaico-img" alt=""') : '<div class="pasta-mosaico-vazio"></div>').join('')}
+        ${celulas.map(f => f ? _imgTagCache(_fotoPreviewPath(f), 'class="pasta-mosaico-img" loading="lazy" alt=""') : '<div class="pasta-mosaico-vazio"></div>').join('')}
       </div>
       ${temNovo ? '<span class="pasta-badge-novo">Novo upload</span>' : ''}
       <div class="pasta-nome-overlay">
@@ -9043,7 +9043,7 @@ function _galFotoItemHTML(f) {
   const boutique = _galRole !== 'admin' ? ' gal-boutique' : ''
   return `
     <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="abrirLightbox('${f.id}')">
-      ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
+      ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
       <div class="ck" onclick="event.stopPropagation();_galToggleSelecao('${f.id}')">${_galSelecao.has(f.id) ? '✓' : ''}</div>
     </div>`
 }
