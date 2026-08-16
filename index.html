@@ -1919,6 +1919,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="tag-picker" id="alu-pais-lista" style="max-height:140px;overflow-y:auto;margin-top:6px;"></div>
     </div>
     <div class="field"><label>Observações (opcional)</label><textarea id="alu-observacoes" placeholder="Alergias, restrições, avisos gerais…" style="min-height:50px;"></textarea></div>
+    <button class="btn btn-sm" id="alu-criar-login-btn" type="button" style="display:none;width:100%;margin-bottom:6px;" onclick="_criarLoginParaEsteAluno()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></svg> Criar login de acesso pra esse aluno
+    </button>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
@@ -2241,11 +2244,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>Nome completo</label><input type="text" id="pai-nome" placeholder="Nome"></div>
     <div class="field"><label>E-mail (opcional)</label><input type="email" id="pai-email" placeholder="email@exemplo.com"></div>
     <div class="field"><label>Telefone/WhatsApp (opcional)</label><input type="text" id="pai-telefone" placeholder="(00) 00000-0000"></div>
-    <div class="field" id="pai-eh-aluno-wrap">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:400;"><input type="checkbox" id="pai-eh-aluno" onchange="_toggleModalPaiEhAluno()" style="width:auto;"> Essa conta é do próprio aluno (login direto, sem passar por um responsável)</label>
-    </div>
     <div class="field">
-      <label id="pai-filhos-label">Alunos vinculados (filhos)</label>
+      <label>Alunos vinculados (filhos)</label>
       <input type="text" id="pai-filhos-busca" placeholder="Buscar aluno…" oninput="_renderPaiFilhosLista()">
       <div class="tag-picker" id="pai-filhos-lista" style="max-height:140px;overflow-y:auto;margin-top:6px;"></div>
     </div>
@@ -5718,11 +5718,6 @@ function abrirModalPai(userId) {
   document.getElementById('pai-resultado').style.display = 'none'
   document.getElementById('pai-usuario').value = ''
   document.getElementById('pai-filhos-busca').value = ''
-  // "é o próprio aluno" só faz sentido na criação — depois de criada a
-  // conta já é 'responsavel' de si mesma, não tem o que alternar.
-  document.getElementById('pai-eh-aluno-wrap').style.display = r ? 'none' : 'block'
-  document.getElementById('pai-eh-aluno').checked = false
-  _toggleModalPaiEhAluno()
 
   _paiFilhosSelecionados = new Set(r ? store.vinculosResponsaveis.filter(v => v.user_id === userId).map(v => v.aluno_id) : [])
   _renderPaiFilhosLista()
@@ -5733,12 +5728,6 @@ function abrirModalPai(userId) {
   else _posAplicar('pai-foto-preview', null)
 
   abrirModal('modal-pai')
-}
-
-function _toggleModalPaiEhAluno() {
-  const eh = document.getElementById('pai-eh-aluno')?.checked
-  const lbl = document.getElementById('pai-filhos-label')
-  if (lbl) lbl.textContent = eh ? 'Qual aluno vai ter esse login?' : 'Alunos vinculados (filhos)'
 }
 
 function _renderPaiFilhosLista() {
@@ -5788,8 +5777,6 @@ async function salvarPai() {
   const email = document.getElementById('pai-email').value.trim() || null
   const telefone = document.getElementById('pai-telefone').value.trim() || null
   if (!nome) { toast('Informe o nome'); return }
-  const ehAluno = !id && document.getElementById('pai-eh-aluno')?.checked
-  if (ehAluno && _paiFilhosSelecionados.size > 1) { toast('Login de aluno é pra uma pessoa só — selecione um aluno'); return }
 
   const btn = document.getElementById('pai-salvar-btn')
   btn.disabled = true; btn.textContent = 'Salvando…'
@@ -5935,6 +5922,9 @@ function abrirModalAluno(alunoId, escolaIdPreset) {
   document.getElementById('alu-turma').value = a?.turma || ''
   document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
   document.getElementById('alu-observacoes').value = a?.observacoes || ''
+  // login próprio só faz sentido pra um aluno que já existe (precisa
+  // vincular a alguém já cadastrado) — em "Novo aluno" fica escondido.
+  document.getElementById('alu-criar-login-btn').style.display = a ? 'block' : 'none'
 
   const fotoEl = document.getElementById('alu-foto-preview')
   fotoEl.innerHTML = `<span class="letra-fallback">${esc((a?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('alu-foto-input').click()">Trocar foto</div><input type="file" id="alu-foto-input" accept="image/*" style="display:none;" onchange="_alunoFotoSelecionada(this)">`
@@ -5946,6 +5936,23 @@ function abrirModalAluno(alunoId, escolaIdPreset) {
   _renderAlunoPaisLista()
 
   abrirModal('modal-aluno')
+}
+
+// atalho de dentro do modal do aluno pro fluxo de "Criar acesso" já
+// existente — não duplica lógica nenhuma de signUp/perfil/vínculo, só
+// abre o modal certo (tipo aluno) já com esse aluno pré-selecionado.
+// Mora aqui (Alunos) e não no modal de Pai/Responsável porque um
+// login de aluno não é a mesma coisa que cadastrar um pai — ficava
+// contraintuitivo procurar isso em "Novo Pai/Responsável".
+function _criarLoginParaEsteAluno() {
+  const id = document.getElementById('alu-id').value
+  if (!id) return
+  fecharModal('modal-aluno')
+  abrirModal('modal-acesso')
+  document.getElementById('acesso-tipo').value = 'aluno'
+  atualizarAcessoAlvo()
+  _acessoFilhosSel = new Set([id])
+  renderAcessoFilhosLista()
 }
 
 let _alunoPaisSelecionados = new Set()
