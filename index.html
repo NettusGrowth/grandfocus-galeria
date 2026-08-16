@@ -6894,6 +6894,52 @@ async function _baixarUrl(url, nomeArquivo) {
     toast('Erro ao baixar: ' + e.message)
   }
 }
+
+// download em massa SEM zip: no celular, tenta o compartilhamento
+// nativo (abre o menu do sistema com "Salvar imagens"/"Salvar N fotos"
+// — cai direto no app de Fotos/Galeria do aparelho). Zip cai na pasta
+// Arquivos, que pai/mãe mais velho ou proprietário sem intimidade com
+// celular não acha. Sem suporte a isso (desktop, navegador antigo, ou
+// se a pessoa cancelar o menu do sistema), cai pra baixar cada foto
+// separada em sequência — nunca mais gera um .zip.
+async function _baixarFotosEmMassa(itens, nomeBase) {
+  if (!itens.length) return
+  toast(`Preparando ${itens.length} foto(s)…`)
+  const prontos = []
+  for (const it of itens) {
+    try {
+      const resp = await fetch(it.url)
+      const blob = await resp.blob()
+      prontos.push({ blob, file: new File([blob], it.nome, { type: blob.type || 'image/jpeg' }) })
+    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+  }
+  if (!prontos.length) { toast('Não foi possível preparar as fotos.'); return }
+
+  const arquivos = prontos.map(p => p.file)
+  if (navigator.canShare && navigator.canShare({ files: arquivos })) {
+    try {
+      await navigator.share({ files: arquivos, title: nomeBase || 'Fotos' })
+      toast('Pronto ✓')
+      return
+    } catch (e) {
+      if (e.name === 'AbortError') return // cancelou o menu do sistema — não força download por baixo
+      // qualquer outro erro do share cai no fallback abaixo
+    }
+  }
+
+  for (const p of prontos) {
+    const blobUrl = URL.createObjectURL(p.blob)
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = p.file.name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    await new Promise(r => setTimeout(r, 350))
+  }
+  toast('Download pronto ✓')
+}
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
   let url, nomeArquivo, fotoId
@@ -8373,29 +8419,18 @@ async function excluirFotosEmMassa(fotoIds, aposApagar) {
   if (typeof aposApagar === 'function') aposApagar()
 }
 
-// baixa uma lista de storage_paths como .zip (JSZip via CDN)
+// baixa uma lista de storage_paths em massa — ver _baixarFotosEmMassa
+// (nome mantido por compatibilidade com o único call site existente,
+// mas não gera mais .zip nenhum)
 async function baixarComoZip(paths, nomeArquivo) {
   if (!paths.length) return
-  toast(`Preparando ${paths.length} foto(s)…`)
-  const zip = new JSZip()
+  const itens = []
   for (const path of paths) {
     const url = await _urlAssinada(path)
-    if (!url) continue
-    try {
-      const resp = await fetch(url)
-      const blob = await resp.blob()
-      zip.file(path.split('/').pop(), blob)
-    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+    if (url) itens.push({ url, nome: path.split('/').pop() })
   }
-  const blob = await zip.generateAsync({ type: 'blob' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = nomeArquivo || 'fotos-grandfocus.zip'
-  document.body.appendChild(a)
-  a.click()
-  a.remove()
-  toast('Download pronto ✓')
-  registrarAuditoria('baixou fotos em zip', 'fotos', null, `${paths.length} foto(s) — ${nomeArquivo || ''}`)
+  await _baixarFotosEmMassa(itens, (nomeArquivo || 'fotos').replace(/\.zip$/i, ''))
+  registrarAuditoria('baixou fotos em massa', 'fotos', null, `${paths.length} foto(s) — ${nomeArquivo || ''}`)
 }
 
 // gera um link de download temporário (~24h) pra compartilhar por fora
@@ -11704,12 +11739,12 @@ function _renderSelPubLiberadoConteudo() {
   }
 }
 
-// baixa em lotes (chunks) em vez de um zip gigante só — pedidos grandes
-// (centenas de fotos em alta) em memória ao mesmo tempo derrubavam o
-// navegador no celular; cada lote fecha e baixa o próprio .zip antes do
-// próximo começar, então o pico de memória fica limitado ao tamanho de
-// UM lote, não do pedido inteiro. Pedido pequeno (≤ TAMANHO_LOTE)
-// continua saindo num .zip só, sem "parte 1 de 1" confuso.
+// baixa em lotes (chunks) — pedidos grandes (centenas de fotos em alta)
+// em memória ao mesmo tempo derrubavam o navegador no celular; cada
+// lote processa e libera a própria memória antes do próximo começar,
+// então o pico fica limitado ao tamanho de UM lote, não do pedido
+// inteiro. Cada lote vai pra _baixarFotosEmMassa (compartilhamento
+// nativo → Salvar em Fotos; sem zip nenhum, ver comentário lá).
 async function _selPubBaixarTodas(tipo) {
   const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   if (!fotos.length) return
@@ -11720,25 +11755,9 @@ async function _selPubBaixarTodas(tipo) {
   const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
 
   for (let lote = 0; lote < lotes.length; lote++) {
-    toast(lotes.length > 1 ? `Preparando lote ${lote + 1} de ${lotes.length}…` : `Preparando ${fotos.length} foto(s)…`)
-    const zip = new JSZip()
-    for (let i = 0; i < lotes[lote].length; i++) {
-      const idxGlobal = lote * TAMANHO_LOTE + i
-      try {
-        const resp = await fetch(lotes[lote][i].url)
-        const blob = await resp.blob()
-        zip.file(`foto-${idxGlobal + 1}.jpg`, blob)
-      } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
-    }
-    const blob = await zip.generateAsync({ type: 'blob' })
-    const a = document.createElement('a')
-    const url = URL.createObjectURL(blob)
-    a.href = url
-    a.download = lotes.length > 1 ? `${nomeBase}-parte-${lote + 1}-de-${lotes.length}.zip` : `${nomeBase}.zip`
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 1000) // dá tempo do navegador iniciar o download antes de liberar a memória
+    const itens = lotes[lote].map((f, i) => ({ url: f.url, nome: `foto-${lote * TAMANHO_LOTE + i + 1}.jpg` }))
+    const nomeLote = lotes.length > 1 ? `${nomeBase}-parte-${lote + 1}-de-${lotes.length}` : nomeBase
+    await _baixarFotosEmMassa(itens, nomeLote)
     // pausa curta entre lotes — sem isso, disparar vários downloads em
     // sequência muito rápida faz o navegador bloquear como "pop-up".
     if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
