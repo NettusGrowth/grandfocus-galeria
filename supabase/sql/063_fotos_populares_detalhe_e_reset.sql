@@ -70,6 +70,10 @@ end;
 $$;
 grant execute on function zerar_fotos_populares() to authenticated;
 
+-- qtd_visualizacoes muda de integer (060) pra bigint (count() devolve
+-- bigint) -- Postgres não deixa "create or replace" trocar o tipo de
+-- uma coluna do RETURNS TABLE, precisa dropar a versão antiga antes.
+drop function if exists fotos_mais_populares(int);
 create or replace function fotos_mais_populares(p_limite int default 40)
 returns table (
   foto_id uuid, storage_path text, thumb_path text, evento_id uuid, evento_nome text,
