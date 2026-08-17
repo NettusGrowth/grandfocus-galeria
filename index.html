@@ -4347,62 +4347,115 @@ function setGrSubTab(sub) {
 // seleção com o pedido (se existir) e o evento/preço de sessão
 // vinculado (se existir), e devolve uma lista já pronta pra qualquer
 // sub-aba filtrar/agrupar — nenhuma sub-aba refaz essa busca.
+//
+// FIX (revisão pós-lançamento): antes essa query partia de
+// selecao_galerias — qualquer evento/ensaio que NUNCA teve uma
+// galeria de Seleção de Fotos criada ficava 100% invisível aqui,
+// mesmo tendo preço de sessão cadastrado (eventos_financeiro é
+// preenchido pra TODO evento/ensaio salvo, via upsert incondicional
+// em salvarEvento()/salvarEnsaio() — ver index.html). Pra uma escola
+// de dança isso é a maioria dos casos: o cachê da sessão em si não
+// depende de o cliente ter comprado fotos extras. Agora parte de
+// `eventos` (o universo real de tudo que já foi fotografado) com LEFT
+// JOIN pra financeiro e pra seleção — nada mais fica de fora.
 // ══════════════════════════════════════════════════════════════
 let _grDados = []
 let _grEquipamentos = []
 let _grMarketing = []
 
 async function _grConsolidar() {
-  const { data, error } = await db.from('selecao_galerias')
-    .select('id, titulo, cliente_nome, criado_em, evento_id, eventos(nome, categoria, data, eventos_financeiro(preco_sessao)), selecao_pedidos(status, valor_total, valor_pago, qtd_extra, criado_em, enviado_em, liberado_em, pago_automaticamente)')
+  const { data, error } = await db.from('eventos')
+    .select('id, nome, categoria, data, criado_em, eventos_financeiro(preco_sessao), clientes_avulsos(nome), selecao_galerias(id, titulo, cliente_nome, criado_em, selecao_pedidos(status, valor_total, valor_pago, qtd_extra, criado_em, enviado_em, liberado_em, pago_automaticamente))')
   if (error) { console.error('_grConsolidar: falha ao carregar', error.message); return [] }
 
-  return (data || []).map(g => {
-    // PostgREST devolve o lado "um" de uma relação 1:1 (FK unique) ora
-    // como objeto, ora como array de 1 — trata os dois formatos.
-    const pedido = Array.isArray(g.selecao_pedidos) ? g.selecao_pedidos[0] : g.selecao_pedidos
-    const evento = Array.isArray(g.eventos) ? g.eventos[0] : g.eventos
-    const finRaw = evento?.eventos_financeiro
+  const linhas = []
+  for (const evento of (data || [])) {
+    const finRaw = evento.eventos_financeiro
     const financeiro = Array.isArray(finRaw) ? finRaw[0] : finRaw
     const precoSessao = financeiro?.preco_sessao || 0
+    const galerias = evento.selecao_galerias || []
+    // ensaio avulso tem cadastro de cliente próprio (035) — sem isso,
+    // um ensaio cobrado que nunca virou uma Seleção de Fotos ficava
+    // sem NENHUM nome de cliente pra agrupar em CLV/CAC (Pilar 2).
+    const clienteAvRaw = evento.clientes_avulsos
+    const clienteAvulso = (Array.isArray(clienteAvRaw) ? clienteAvRaw[0] : clienteAvRaw)?.nome || null
 
-    const statusPedido = pedido?.status || null
-    const pago = statusPedido === 'liberado'
-    const receitaExtras = pago ? (pedido.valor_total || 0) : 0
-    // pedido liberado manualmente (Confirmar Pagamento, PIX visto a
-    // olho) nunca passou pelo payment_check da InfinitePay — valor_pago
-    // fica null nesse caso. Trata como igual ao valor_total (sem
-    // diferença fantasma) em vez de mostrar NaN ou 0 enganoso.
-    const valorPago = pago ? (pedido.pago_automaticamente ? (pedido.valor_pago ?? pedido.valor_total) : pedido.valor_total) : 0
-    const diferenca = pago ? (valorPago - receitaExtras) : 0
-
-    return {
-      galeriaId: g.id,
-      titulo: g.titulo,
-      cliente: g.cliente_nome,
-      categoria: evento?.categoria || null,
-      eventoNome: evento?.nome || null,
-      eventoData: evento?.data || null,
-      eventoId: g.evento_id,
-      temEventoVinculado: !!g.evento_id,
-      precoSessao,
-      receitaExtras,
-      valorPago,
-      diferenca,
-      qtdExtra: pago ? (pedido.qtd_extra || 0) : 0,
-      // valor do carrinho independente de status — receitaExtras só
-      // conta dinheiro já realizado (liberado); isso aqui é pro
-      // "carrinho parado" (Pilar 5), onde o pedido ainda não foi pago.
-      valorPedidoTotal: pedido?.valor_total || 0,
-      receitaTotal: precoSessao + receitaExtras,
-      statusPedido,
-      pagoAutomaticamente: !!pedido?.pago_automaticamente,
-      criadoEmGaleria: g.criado_em,
-      criadoEmPedido: pedido?.criado_em || null,
-      enviadoEm: pedido?.enviado_em || null,
-      liberadoEm: pedido?.liberado_em || null,
+    // sem galeria de seleção nenhuma: o evento ainda existe e pode ter
+    // preço de sessão — vira 1 linha "só sessão, sem upsell" (em vez
+    // de sumir do relatório inteiro, como acontecia antes).
+    if (!galerias.length) {
+      linhas.push({
+        galeriaId: null,
+        titulo: evento.nome,
+        cliente: clienteAvulso,
+        categoria: evento.categoria || null,
+        eventoNome: evento.nome,
+        eventoData: evento.data || null,
+        eventoId: evento.id,
+        temEventoVinculado: true,
+        precoSessao,
+        receitaExtras: 0,
+        valorPago: 0,
+        diferenca: 0,
+        qtdExtra: 0,
+        valorPedidoTotal: 0,
+        receitaTotal: precoSessao,
+        statusPedido: null,
+        pagoAutomaticamente: false,
+        criadoEmGaleria: evento.criado_em,
+        criadoEmPedido: null,
+        enviadoEm: null,
+        liberadoEm: null,
+      })
+      continue
     }
-  })
+
+    // com 1+ galerias: uma linha por galeria (mesmo formato de antes).
+    // precoSessao só entra na PRIMEIRA linha do evento — senão um
+    // evento com 2 galerias contaria o cachê da sessão em dobro em
+    // qualquer soma feita em cima de _grDados.
+    galerias.forEach((g, i) => {
+      const pedido = Array.isArray(g.selecao_pedidos) ? g.selecao_pedidos[0] : g.selecao_pedidos
+      const statusPedido = pedido?.status || null
+      const pago = statusPedido === 'liberado'
+      const receitaExtras = pago ? (pedido.valor_total || 0) : 0
+      // pedido liberado manualmente (Confirmar Pagamento, PIX visto a
+      // olho) nunca passou pelo payment_check da InfinitePay — valor_pago
+      // fica null nesse caso. Trata como igual ao valor_total (sem
+      // diferença fantasma) em vez de mostrar NaN ou 0 enganoso.
+      const valorPago = pago ? (pedido.pago_automaticamente ? (pedido.valor_pago ?? pedido.valor_total) : pedido.valor_total) : 0
+      const diferenca = pago ? (valorPago - receitaExtras) : 0
+      const precoSessaoDaLinha = i === 0 ? precoSessao : 0
+
+      linhas.push({
+        galeriaId: g.id,
+        titulo: g.titulo,
+        cliente: g.cliente_nome || clienteAvulso,
+        categoria: evento.categoria || null,
+        eventoNome: evento.nome,
+        eventoData: evento.data || null,
+        eventoId: evento.id,
+        temEventoVinculado: true,
+        precoSessao: precoSessaoDaLinha,
+        receitaExtras,
+        valorPago,
+        diferenca,
+        qtdExtra: pago ? (pedido.qtd_extra || 0) : 0,
+        // valor do carrinho independente de status — receitaExtras só
+        // conta dinheiro já realizado (liberado); isso aqui é pro
+        // "carrinho parado" (Pilar 5), onde o pedido ainda não foi pago.
+        valorPedidoTotal: pedido?.valor_total || 0,
+        receitaTotal: precoSessaoDaLinha + receitaExtras,
+        statusPedido,
+        pagoAutomaticamente: !!pedido?.pago_automaticamente,
+        criadoEmGaleria: g.criado_em,
+        criadoEmPedido: pedido?.criado_em || null,
+        enviadoEm: pedido?.enviado_em || null,
+        liberadoEm: pedido?.liberado_em || null,
+      })
+    })
+  }
+  return linhas
 }
 
 async function iniciarGoldReserveAdmin() {
@@ -4464,9 +4517,15 @@ const GR_MIN_MESES_SAZONALIDADE = 6
 
 function _grEstimativaSazonalidadeHTML() {
   const porMes = new Map()
-  _grDados.filter(g => g.statusPedido === 'liberado' && g.liberadoEm).forEach(g => {
-    const mes = g.liberadoEm.slice(0, 7)
-    porMes.set(mes, (porMes.get(mes) || 0) + g.receitaTotal)
+  const soma = (data, valor) => { if (!data || !valor) return; const mes = data.slice(0, 7); porMes.set(mes, (porMes.get(mes) || 0) + valor) }
+  // cachê da sessão entra no mês do EVENTO (é quando o trabalho foi
+  // feito/cobrado) — extras de seleção entram no mês em que o pedido
+  // foi de fato liberado/pago. Misturar os dois num único "mês do
+  // pedido" (como era antes) deixava a sazonalidade quase vazia pra
+  // quem fatura principalmente com sessão, não com upsell.
+  _grDados.forEach(g => {
+    soma(g.eventoData, g.precoSessao)
+    if (g.statusPedido === 'liberado') soma(g.liberadoEm, g.receitaExtras)
   })
   const meses = [...porMes.entries()].sort((a, b) => a[0].localeCompare(b[0]))
   if (meses.length < GR_MIN_MESES_SAZONALIDADE) {
@@ -4573,7 +4632,7 @@ function _grCustoOperacionalMensal() {
 
 function _grRenderVisaoGeral() {
   const el = document.getElementById('gr-sub-visao-geral')
-  if (!_grDados.length) { el.innerHTML = '<div class="empty">Nenhuma galeria de seleção criada ainda — sem dado pra mostrar.</div>'; return }
+  if (!_grDados.length) { el.innerHTML = '<div class="empty">Nenhum evento ou ensaio cadastrado ainda — sem dado pra mostrar.</div>'; return }
 
   const receitaSessoes = _grDados.reduce((s, g) => s + g.precoSessao, 0)
   const receitaExtras = _grDados.reduce((s, g) => s + g.receitaExtras, 0)
@@ -4588,9 +4647,9 @@ function _grRenderVisaoGeral() {
   const custoOperacionalMensal = _grCustoOperacionalMensal()
   const ganhoLiquido = receitaBruta + diferencaParcelamento - custoOperacionalMensal
 
-  const totalGalerias = _grDados.length
+  const totalEventos = _grDados.length
   const totalPagas = _grDados.filter(g => g.statusPedido === 'liberado').length
-  const taxaConversao = totalGalerias ? (totalPagas / totalGalerias * 100) : 0
+  const taxaConversao = totalEventos ? (totalPagas / totalEventos * 100) : 0
 
   el.innerHTML = `
     <div class="gr-kpi-grid">
@@ -4612,7 +4671,7 @@ function _grRenderVisaoGeral() {
       <div class="gr-kpi-card ouro">
         <div class="gr-kpi-label">Taxa de Conversão da Seleção</div>
         <div class="gr-kpi-valor">${taxaConversao.toFixed(0)}%</div>
-        <div class="gr-kpi-meta">${totalPagas} de ${totalGalerias} galeria(s) viraram venda de extras</div>
+        <div class="gr-kpi-meta">${totalPagas} de ${totalEventos} evento(s)/ensaio(s) viraram venda de extras</div>
       </div>
     </div>
 
@@ -4758,31 +4817,31 @@ async function _grSalvarMarketing() {
 }
 
 // ── Pilar 3: funil de conversão + atraso médio ──
-// só considera galerias com evento/ensaio vinculado — sem esse elo não
-// dá pra saber quando o ensaio de verdade aconteceu, e misturar
-// inflaria o funil com um "ensaio realizado" que não existe nos dados.
+// mede, de todo evento/ensaio já cadastrado, quantos viraram uma
+// seleção de fotos aberta/enviada e quantos disso viraram compra —
+// o funil de upsell, não o de sessão em si (sessão em si já é receita
+// garantida, contada na Visão Geral).
 function _grRenderConversao() {
   const el = document.getElementById('gr-sub-conversao')
-  const comEvento = _grDados.filter(g => g.temEventoVinculado)
-  if (!comEvento.length) { el.innerHTML = '<div class="empty">Nenhuma galeria vinculada a um ensaio/evento ainda — vincule no modal da Seleção de Fotos pra o funil aparecer aqui.</div>'; return }
+  if (!_grDados.length) { el.innerHTML = '<div class="empty">Nenhum evento ou ensaio cadastrado ainda — sem dado pra mostrar.</div>'; return }
 
-  const totalEnsaios = comEvento.length
-  const abriuSelecao = comEvento.filter(g => g.statusPedido).length
-  const comprou = comEvento.filter(g => g.statusPedido === 'liberado').length
+  const totalEnsaios = _grDados.length
+  const abriuSelecao = _grDados.filter(g => g.statusPedido).length
+  const comprou = _grDados.filter(g => g.statusPedido === 'liberado').length
 
   const media = arr => arr.length ? arr.reduce((s, v) => s + v, 0) / arr.length : null
   const diasEntre = (a, b) => (new Date(b).getTime() - new Date(a).getTime()) / 86400000
-  const atrasoAbertura = media(comEvento.filter(g => g.enviadoEm).map(g => diasEntre(g.criadoEmGaleria, g.enviadoEm)))
-  const atrasoPagamento = media(comEvento.filter(g => g.enviadoEm && g.liberadoEm).map(g => diasEntre(g.enviadoEm, g.liberadoEm)))
+  const atrasoAbertura = media(_grDados.filter(g => g.enviadoEm).map(g => diasEntre(g.criadoEmGaleria, g.enviadoEm)))
+  const atrasoPagamento = media(_grDados.filter(g => g.enviadoEm && g.liberadoEm).map(g => diasEntre(g.enviadoEm, g.liberadoEm)))
 
   el.innerHTML = `
     <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Funil de Conversão</h3>
     <div class="gr-waterfall" style="margin-bottom:8px;">
-      ${_grWaterfallPasso('Ensaios com seleção vinculada', totalEnsaios, totalEnsaios, 'subtotal', 'numero')}
-      ${_grWaterfallPasso('Seleção aberta/enviada', abriuSelecao, totalEnsaios, '', 'numero')}
-      ${_grWaterfallPasso('Compra concluída', comprou, totalEnsaios, 'positivo', 'numero')}
+      ${_grWaterfallPasso('Eventos/ensaios cadastrados', totalEnsaios, totalEnsaios, 'subtotal', 'numero')}
+      ${_grWaterfallPasso('Seleção de fotos aberta/enviada', abriuSelecao, totalEnsaios, '', 'numero')}
+      ${_grWaterfallPasso('Compra de extras concluída', comprou, totalEnsaios, 'positivo', 'numero')}
     </div>
-    <div class="meta" style="margin-bottom:26px;">Considera só galerias com ensaio vinculado (${totalEnsaios} de ${_grDados.length} no total) — histórico sem esse elo fica de fora pra não inflar o funil.</div>
+    <div class="meta" style="margin-bottom:26px;">Funil de upsell (venda de fotos extras) sobre todo evento/ensaio cadastrado — não mede a receita da sessão em si, essa já está garantida e entra na Visão Geral.</div>
 
     <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Atraso Médio</h3>
     <div class="gr-kpi-grid" style="grid-template-columns:repeat(2,1fr);">
