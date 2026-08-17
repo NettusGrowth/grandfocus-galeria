@@ -113,30 +113,40 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
-/* ── galeria pública (link privado) ── */
-#view-publica{min-height:100vh;min-height:100dvh;background:var(--palco);}
-.publica-topo{display:flex;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid rgba(200,175,127,.16);}
+/* ── galeria pública (link privado, ?g=TOKEN) — mesmo canvas boutique
+   claro usado na Seleção de Fotos (#view-selecao): a grade/cards
+   reaproveitam .selpub-grid/.selpub-col/.selpub-card (definidos mais
+   abaixo, junto da Seleção) sem duplicar CSS — só sem nenhuma lógica
+   de compra/pagamento. Nenhuma lógica de dados, permissão ou
+   navegação foi tocada aqui, só visual. ── */
+#view-publica{min-height:100vh;min-height:100dvh;background:#F9F9F9;color:#1A1A1A;}
+.publica-topo{display:flex;align-items:center;gap:10px;padding:16px 24px;border-bottom:1px solid rgba(0,0,0,.08);}
 .publica-topo img{height:36px;width:auto;max-width:110px;object-fit:contain;flex-shrink:0;display:block;}
-.publica-topo span{font-family:var(--serif);font-size:17px;color:var(--ouro-luz);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.publica-conteudo{max-width:1100px;margin:0 auto;padding:28px;}
+.publica-topo span{font-family:var(--serif);font-size:17px;color:#1A1A1A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.publica-conteudo{max-width:1100px;margin:0 auto;padding:20px 16px 110px;}
+@media(min-width:720px){.publica-conteudo{padding:28px 32px 120px;}}
+@media(min-width:1300px){.publica-conteudo{max-width:1500px;}}
 .publica-senha-card{max-width:360px;margin:60px auto;text-align:center;}
-.publica-capa{width:100%;height:220px;border-radius:14px;object-fit:cover;margin-bottom:18px;}
 
-/* ── galeria pública (?g=TOKEN) — mesmo canvas boutique claro da
-   Seleção (#view-selecao), só visual: nenhuma lógica de dados, permissão
-   ou navegação foi tocada, só o CSS escopado aqui dentro. ── */
-#view-publica{background:#F9F9F9;color:#1A1A1A;}
-#view-publica .publica-topo{border-bottom:1px solid rgba(0,0,0,.08);}
-#view-publica .publica-topo span{color:#1A1A1A;}
-#view-publica h2{color:#1A1A1A;font-size:22px;}
-#view-publica .meta{color:#6B6B6B;}
-#view-publica .publica-conteudo{padding:20px 16px 16px;}
-@media(min-width:720px){#view-publica .publica-conteudo{padding:28px 32px;}}
-#view-publica .publica-capa{border-radius:16px;box-shadow:0 16px 40px -16px rgba(0,0,0,.25);}
-#view-publica .foto-grid{gap:6px;}
-@media(min-width:720px){#view-publica .foto-grid{gap:14px;}}
-#view-publica .foto-item{border-radius:10px;border:1px solid rgba(0,0,0,.06);background:#eee;transition:transform .15s,box-shadow .15s;}
-#view-publica .foto-item:hover{transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(0,0,0,.25);}
+.publica-capa-wrap{position:relative;width:100%;height:260px;border-radius:18px;overflow:hidden;margin-bottom:22px;box-shadow:0 20px 50px -18px rgba(0,0,0,.3);}
+@media(min-width:720px){.publica-capa-wrap{height:340px;}}
+.publica-capa{width:100%;height:100%;object-fit:cover;display:block;}
+.publica-cabecalho{margin-bottom:18px;}
+#view-publica h2{color:#1A1A1A;font-size:26px;font-family:var(--serif);margin-bottom:4px;}
+#view-publica .meta{color:#8A8A8A;font-size:13.5px;}
+
+/* dock flutuante (vidro fosco + dourado) — substitui o botão bege
+   utilitário de antes. Sempre visível quando há foto: "Baixar todas"
+   por padrão, vira "Baixar N selecionada(s)" ao marcar alguma no
+   .check dos cards (mesmo círculo de seleção da Seleção de Fotos,
+   reaproveitado aqui só como "incluir no download", sem preço). */
+.publica-dock{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:20;display:flex;align-items:center;gap:8px;padding:8px;border-radius:99px;background:rgba(26,10,14,.85);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(212,175,55,.35);box-shadow:0 14px 40px -12px rgba(0,0,0,.5);}
+.publica-dock-baixar{display:flex;align-items:center;gap:8px;background:var(--dourado);color:#1A0A0E;border:0;border-radius:99px;padding:.75em 1.3em;font-weight:600;font-size:14px;cursor:pointer;transition:filter .15s;white-space:nowrap;}
+.publica-dock-baixar:hover{filter:brightness(1.08);}
+.publica-dock-baixar svg{width:16px;height:16px;flex-shrink:0;}
+.publica-dock-compartilhar{width:42px;height:42px;flex-shrink:0;border-radius:50%;background:rgba(255,255,255,.08);border:1px solid rgba(212,175,55,.3);color:#EFD7A7;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;padding:0;}
+.publica-dock-compartilhar:hover{background:rgba(255,255,255,.16);}
+.publica-dock-compartilhar svg{width:17px;height:17px;}
 
 /* ── seleção de fotos & extras (Bloco 8/11) — tela do cliente ──
    Canvas próprio, boutique/e-commerce: claro, a foto é a protagonista,
@@ -1361,6 +1371,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span>Grand Focus</span>
   </div>
   <div id="publica-conteudo" class="publica-conteudo"></div>
+  <div class="publica-dock" id="publica-dock" style="display:none;">
+    <button class="publica-dock-baixar" id="publica-dock-baixar" onclick="_publicaBaixarSelecionadasOuTodas()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
+      <span id="publica-dock-texto">Baixar todas</span>
+    </button>
+    <button class="publica-dock-compartilhar" onclick="_publicaCompartilhar()" title="Compartilhar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9"/></svg>
+    </button>
+  </div>
   <div class="publica-rodape-contato">
     <a href="https://wa.me/5534992632922" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg> Falar com o fotógrafo</a>
     <a href="https://www.instagram.com/grandfocus_" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r=".6" fill="currentColor" stroke="none"/></svg> Instagram</a>
@@ -7429,7 +7448,15 @@ async function _lightboxBaixar() {
 // gerar link assinado (só o link público em si já cumpre esse papel).
 function _lightboxCompartilhar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
-  if (publico) return
+  if (publico) {
+    // antes era um no-op de propósito (visitante sem login não tinha
+    // como gerar link assinado via db.storage como o admin) — agora
+    // reaproveita a URL que a Edge Function já assinou, via o mesmo
+    // caminho de compartilhamento nativo do dock (_publicaCompartilhar).
+    const f = _publicaFotos[_lightboxIdx]
+    if (f) _publicaCompartilhar([f])
+    return
+  }
   const f = _lightboxFotos[_lightboxIdx]
   if (f) compartilharFoto(f.id)
 }
@@ -11046,9 +11073,13 @@ function renderGaleriaListaFilhos(wrap) {
 // Quem realmente trava o acesso é a validação de token/senha lá dentro
 // da função (via galeria_publica_dados(), rodando com service role).
 let _publicaFotos = []
+let _publicaSelecionados = new Set()
+let _publicaEvento = null
 async function _carregarGaleriaPublica(token, senha) {
   const conteudo = document.getElementById('publica-conteudo')
   conteudo.innerHTML = '<div class="empty">Carregando…</div>'
+  const dock = document.getElementById('publica-dock')
+  if (dock) dock.style.display = 'none'
   let resp
   try {
     resp = await fetch(`${SUPABASE_URL}/functions/v1/galeria-publica`, {
@@ -11067,19 +11098,75 @@ async function _carregarGaleriaPublica(token, senha) {
     return
   }
   _publicaFotos = data.fotos || []
+  _publicaSelecionados = new Set()
+  _publicaEvento = data.evento || null
+  // capaPos: mesma posição de enquadramento que o admin ajusta no
+  // "arrastar pra reposicionar" do painel (eventos.capa_pos) — sem
+  // isso a capa sempre cortava no centro aqui, mesmo com o admin já
+  // tendo enquadrado certo lá dentro.
   conteudo.innerHTML = `
-    ${data.evento?.capaUrl ? `<img class="publica-capa" src="${data.evento.capaUrl}" loading="lazy" alt="">` : ''}
-    <h2>${esc(data.evento?.nome || 'Galeria')}</h2>
-    <div class="meta" style="margin-bottom:12px;">${data.evento?.data ? fmtData(data.evento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
-    ${_publicaFotos.length ? `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="_publicaBaixarTodas()">⬇ Baixar todas (${_publicaFotos.length})</button>` : ''}
-    ${_publicaFotos.length ? '<div class="foto-grid" id="publica-grid"></div>' : '<div class="empty">📷<br>Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
+    ${_publicaEvento?.capaUrl ? `<div class="publica-capa-wrap"><img class="publica-capa" src="${_publicaEvento.capaUrl}" style="object-position:${esc(_publicaEvento.capaPos || '50% 50%')};" loading="lazy" alt=""></div>` : ''}
+    <div class="publica-cabecalho">
+      <h2>${esc(_publicaEvento?.nome || 'Galeria')}</h2>
+      <div class="meta">${_publicaEvento?.data ? fmtData(_publicaEvento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
+    </div>
+    ${_publicaFotos.length ? '<div class="selpub-grid" id="publica-grid"></div>' : '<div class="empty">📷<br>Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
   `
+  _publicaRenderGrid()
+  _publicaAtualizarDock()
+}
+
+// mesmo padrão de colunas em JS já usado na Seleção de Fotos
+// (_selPubRenderGrid) — round-robin em vez de CSS column-count (bug
+// conhecido do Safari mobile que faz TODA a grade repintar/piscar
+// quando um card muda de classe, ver comentário original em
+// .selpub-grid). Reaproveita as mesmas classes .selpub-*, então o
+// card fica IDÊNTICO ao da Seleção — é literalmente o mesmo visual.
+function _publicaNumColunas() { return window.innerWidth >= 900 ? 3 : 2 }
+let _publicaNumColunasAtual = null
+window.addEventListener('resize', () => {
+  if (!document.getElementById('publica-grid')) return
+  const n = _publicaNumColunas()
+  if (n !== _publicaNumColunasAtual) { _publicaNumColunasAtual = n; _publicaRenderGrid() }
+})
+function _publicaRenderGrid() {
   const grid = document.getElementById('publica-grid')
-  if (grid) {
-    grid.innerHTML = _publicaFotos.map((f, i) => `
-      <div class="foto-item" style="cursor:pointer;" onclick="_publicaAbrirLightbox(${i})"><img src="${f.url}" loading="lazy" alt=""></div>
-    `).join('')
-  }
+  if (!grid) return
+  const numCols = _publicaNumColunas()
+  _publicaNumColunasAtual = numCols
+  const cols = Array.from({ length: numCols }, () => [])
+  _publicaFotos.forEach((f, i) => {
+    const lazy = i < 6 ? '' : 'loading="lazy"'
+    const html = `
+    <div class="selpub-card${_publicaSelecionados.has(f.id) ? ' on' : ''}" id="publica-card-${f.id}" onclick="_publicaToggle('${f.id}')">
+      <img src="${f.url}" ${lazy} alt="">
+      <button class="selpub-zoom" onclick="event.stopPropagation();_publicaAbrirLightbox(${i})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
+    </div>`
+    cols[i % numCols].push(html)
+  })
+  grid.innerHTML = cols.map(c => `<div class="selpub-col">${c.join('')}</div>`).join('')
+}
+
+// seleção unitária: marca fotos específicas pra incluir no download em
+// lote — não é "comprar" (não tem preço nem pedido), só "eu quero
+// exatamente essas". Sem nenhuma marcada, o dock volta pro padrão de
+// "baixar todas".
+function _publicaToggle(fotoId) {
+  if (_publicaSelecionados.has(fotoId)) _publicaSelecionados.delete(fotoId)
+  else _publicaSelecionados.add(fotoId)
+  const card = document.getElementById('publica-card-' + fotoId)
+  if (card) card.classList.toggle('on', _publicaSelecionados.has(fotoId))
+  _publicaAtualizarDock()
+}
+
+function _publicaAtualizarDock() {
+  const dock = document.getElementById('publica-dock')
+  if (!dock) return
+  if (!_publicaFotos.length) { dock.style.display = 'none'; return }
+  dock.style.display = 'flex'
+  const n = _publicaSelecionados.size
+  document.getElementById('publica-dock-texto').textContent = n > 0 ? `Baixar ${n} selecionada${n > 1 ? 's' : ''}` : `Baixar todas (${_publicaFotos.length})`
 }
 
 // token inexistente/malformado — mesmo padrão visual do card de senha,
@@ -11126,16 +11213,61 @@ function _renderPublicaLightboxAtual() {
 // padrão em lotes de 25 já usado na Seleção pública
 // (_selPubBaixarTodas) — evita o navegador bloquear como "pop-up" ao
 // disparar downloads demais de uma vez.
-async function _publicaBaixarTodas() {
-  if (!_publicaFotos.length) return
+async function _publicaBaixarLista(fotos) {
+  if (!fotos.length) return
   const TAMANHO_LOTE = 25
   const lotes = []
-  for (let i = 0; i < _publicaFotos.length; i += TAMANHO_LOTE) lotes.push(_publicaFotos.slice(i, i + TAMANHO_LOTE))
+  for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
   for (let lote = 0; lote < lotes.length; lote++) {
     const itens = lotes[lote].map((f, i) => ({ url: f.url, nome: `foto-${lote * TAMANHO_LOTE + i + 1}.jpg` }))
     const nomeLote = lotes.length > 1 ? `fotos-parte-${lote + 1}-de-${lotes.length}` : 'fotos'
     await _baixarFotosEmMassa(itens, nomeLote)
     if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
+  }
+}
+// botão único do dock: baixa só o que estiver marcado nos cards, ou
+// tudo se nada estiver marcado (mesmo comportamento "óbvio" de
+// qualquer app de fotos — selecionar é opcional, não obrigatório).
+function _publicaBaixarSelecionadasOuTodas() {
+  const fotos = _publicaSelecionados.size ? _publicaFotos.filter(f => _publicaSelecionados.has(f.id)) : _publicaFotos
+  _publicaBaixarLista(fotos)
+}
+
+// compartilhamento direto (Instagram/WhatsApp aparecem como opção no
+// menu nativo do celular via Web Share API com arquivo anexado — é a
+// única forma real de "compartilhar direto pro Instagram" a partir de
+// um navegador, não existe link/URL scheme pra isso). fotosForcadas
+// vem preenchido quando chamado de dentro do lightbox (uma foto só);
+// sem argumento (clique no dock), usa a seleção atual ou tudo.
+// Limite de 10 arquivos no share nativo: reunir o álbum inteiro antes
+// de abrir o menu (a API não aceita incremental) é o mesmo risco de
+// memória do download em massa, e o menu de compartilhar do
+// SO não foi pensado pra dezenas de fotos de uma vez.
+async function _publicaCompartilhar(fotosForcadas) {
+  const fotos = fotosForcadas || (_publicaSelecionados.size ? _publicaFotos.filter(f => _publicaSelecionados.has(f.id)) : _publicaFotos)
+  if (!fotos.length) return
+  if (navigator.share && navigator.canShare) {
+    try {
+      const alvo = fotos.slice(0, 10)
+      const arquivos = await Promise.all(alvo.map(async (f, i) => {
+        const resp = await fetch(f.url)
+        const blob = await resp.blob()
+        return new File([blob], `foto-${i + 1}.jpg`, { type: blob.type || 'image/jpeg' })
+      }))
+      if (navigator.canShare({ files: arquivos })) {
+        await navigator.share({ files: arquivos, title: _publicaEvento?.nome || 'Fotos' })
+        return
+      }
+    } catch (e) {
+      if (e.name === 'AbortError') return // cancelou o menu do sistema — não força nenhum fallback
+      // qualquer outro erro (ex: desktop sem suporte de verdade a arquivo) cai no link abaixo
+    }
+  }
+  try {
+    await navigator.clipboard.writeText(location.href)
+    toast('Link copiado ✓ — cola no Instagram ou WhatsApp')
+  } catch (e) {
+    toast('Não consegui copiar o link automaticamente.')
   }
 }
 

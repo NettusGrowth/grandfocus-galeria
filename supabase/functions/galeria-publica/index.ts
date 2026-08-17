@@ -73,7 +73,7 @@ Deno.serve(async (req) => {
   }))
 
   return json({
-    evento: primeira ? { nome: primeira.evento_nome, data: primeira.evento_data, capaUrl } : null,
+    evento: primeira ? { nome: primeira.evento_nome, data: primeira.evento_data, capaUrl, capaPos: primeira.capa_pos || null } : null,
     fotos: fotos.filter(f => f.url),
   })
 })
