@@ -2039,10 +2039,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field" id="ens-link-wrap" style="display:none;">
       <label>Link privado (sem precisar de login)</label>
       <div class="hint" style="margin-bottom:8px;">Ideal pra mandar por WhatsApp. Senha é opcional.</div>
-      <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
         <input type="text" id="ens-link-senha" placeholder="Senha (opcional)">
         <button class="btn btn-sm" type="button" onclick="_gerarLinkPublicoEnsaio()">Gerar/Atualizar link</button>
         <button class="btn btn-sm" type="button" title="Copiar link" onclick="_copiarLinkPrivado(document.getElementById('ens-id').value)">📋</button>
+        <button class="btn btn-sm btn-danger" type="button" title="Invalida o link atual (quem já tinha o link antigo perde o acesso) e gera um novo" onclick="_revogarLinkPublicoEnsaio()">🔄 Revogar e gerar novo</button>
       </div>
       <div class="credencial-box" id="ens-link-resultado" style="display:none;"></div>
     </div>
@@ -6778,8 +6779,25 @@ function _renderFilaUpload(prefixo, files, estados) {
   `
 }
 
+// evita 2 lotes de upload rodando ao mesmo tempo pro mesmo destino
+// (admin reabre o seletor de arquivo por impaciência no meio de um
+// lote grande) — os dois terminariam certos no banco, mas a barra de
+// progresso vira uma bagunça ilegível com dois loops escrevendo nela.
+// Também vira o gatilho do aviso de "não feche a aba", que sem isso
+// não existia em lugar nenhum — fechar no meio de um lote de
+// centenas de fotos deixa o resto simplesmente sem subir, sem
+// nenhum jeito de retomar de onde parou.
+let _evtUploadAtivo = false
+let _ensUploadAtivo = false
+window.addEventListener('beforeunload', e => {
+  if (_evtUploadAtivo || _ensUploadAtivo) { e.preventDefault(); e.returnValue = '' }
+})
+
 async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_eventoAtual) return
+  if (_evtUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
+  _evtUploadAtivo = true
+  try {
   // captura o evento/roster no início — o upload continua rodando em
   // segundo plano se o admin trocar de evento (ou sair da aba) no meio
   // do envio, e _eventoAtual muda de baixo; sem isso, o resto dos
@@ -6792,6 +6810,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
   _renderFilaUpload('evt', files, estados)
   let ok = 0
   let totalMarcados = 0
+  let falhasMarcacao = 0
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     // marcarPorFoto vem alinhado com "files" na mesma ordem (um
@@ -6828,17 +6847,19 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     if (rosterAlunos.length) {
       const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (!tagErr) { store.fotoAluno.push(...tags); totalMarcados += tags.length }
+      if (tagErr) { console.error('marcar alunos na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
+      else { store.fotoAluno.push(...tags); totalMarcados += tags.length }
     }
     if (rosterPessoas.length) {
       const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
       const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (!tagErr) { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
+      if (tagErr) { console.error('marcar pessoas na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
+      else { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
     }
     estados[i] = 'ok'; _renderFilaUpload('evt', files, estados)
     ok++
   }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}`)
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}${falhasMarcacao ? ` — ⚠ ${falhasMarcacao} marcação(ões) falharam, confira manualmente` : ''}`)
   const inputEl = document.getElementById('evt-upload-input')
   if (inputEl) inputEl.value = ''
   if (_eventoAtual?.id === eventoId) renderFotosEventoAdmin()
@@ -6846,6 +6867,9 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
   // upload em massa aparecer no sino de notificações mesmo que ninguém
   // estivesse olhando a tela quando o envio terminou.
   if (ok) registrarAuditoria('fez upload de fotos', 'eventos', eventoId, `${ok} de ${files.length} foto(s) — ${eventoNome}`)
+  } finally {
+    _evtUploadAtivo = false
+  }
 }
 
 // signed URL dura 300s no servidor — cachear evita gerar uma nova (round
@@ -7326,43 +7350,62 @@ async function _baixarUrl(url, nomeArquivo) {
 function _ehIOS() {
   return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 }
+// LOTE_MAX_SHARE_IOS: o menu nativo "Salvar N Imagens" do iOS só
+// existe se TODOS os arquivos forem reunidos ANTES de chamar
+// navigator.share (a API não aceita ir entregando arquivo por
+// arquivo) — compensa pra um lote razoável, mas reunir centenas de
+// fotos originais (várias MB cada) na memória da aba ANTES de
+// começar a baixar é exatamente o tipo de coisa que trava a aba num
+// celular, ainda mais depois do "Selecionar todas" (ver
+// _galSelecionarTodas). Acima do limite, cai direto no download
+// individual sequencial de baixo — mais cliques, mas nunca acumula
+// mais de 1 foto na memória de cada vez.
+const LOTE_MAX_SHARE_IOS = 30
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
-  const prontos = []
+  if (_ehIOS() && navigator.canShare && itens.length <= LOTE_MAX_SHARE_IOS) {
+    const prontos = []
+    for (const it of itens) {
+      try {
+        const resp = await fetch(it.url)
+        const blob = await resp.blob()
+        prontos.push(new File([blob], it.nome, { type: blob.type || 'image/jpeg' }))
+      } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
+    }
+    if (prontos.length && navigator.canShare({ files: prontos })) {
+      try {
+        await navigator.share({ files: prontos, title: nomeBase || 'Fotos' })
+        toast('Pronto ✓')
+        return
+      } catch (e) {
+        if (e.name === 'AbortError') return // cancelou o menu do sistema — não força download por baixo
+        // qualquer outro erro do share cai no fallback abaixo
+      }
+    }
+  }
+
+  // baixa e libera cada foto uma de cada vez — nunca segura mais de
+  // um blob por vez na memória (diferente do caminho do iOS acima,
+  // que precisa reunir tudo antes por causa da própria API do
+  // navigator.share).
+  let falhas = 0
   for (const it of itens) {
     try {
       const resp = await fetch(it.url)
       const blob = await resp.blob()
-      prontos.push({ blob, file: new File([blob], it.nome, { type: blob.type || 'image/jpeg' }) })
-    } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
-  }
-  if (!prontos.length) { toast('Não foi possível preparar as fotos.'); return }
-
-  const arquivos = prontos.map(p => p.file)
-  if (_ehIOS() && navigator.canShare && navigator.canShare({ files: arquivos })) {
-    try {
-      await navigator.share({ files: arquivos, title: nomeBase || 'Fotos' })
-      toast('Pronto ✓')
-      return
-    } catch (e) {
-      if (e.name === 'AbortError') return // cancelou o menu do sistema — não força download por baixo
-      // qualquer outro erro do share cai no fallback abaixo
-    }
-  }
-
-  for (const p of prontos) {
-    const blobUrl = URL.createObjectURL(p.blob)
-    const a = document.createElement('a')
-    a.href = blobUrl
-    a.download = p.file.name
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+      const blobUrl = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = it.nome
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+    } catch (e) { falhas++ }
     await new Promise(r => setTimeout(r, 350))
   }
-  toast('Download pronto ✓')
+  toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
 }
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
@@ -9864,6 +9907,36 @@ async function _gerarLinkPublicoEnsaio() {
   _copiarLinkPrivado(id) // já copia pra área de transferência e avisa por toast
 }
 
+// diferente de _gerarLinkPublicoEnsaio() (que só cria um token na
+// PRIMEIRA vez — clicar de novo com um link já existente não muda
+// nada, só reexibe o mesmo link) — isso aqui força um token NOVO,
+// derrubando o link antigo na hora (qualquer um com o link velho
+// passa a cair em "link inválido"). Único jeito de revogar acesso
+// depois de mandar o link por engano/pra pessoa errada, ou depois que
+// o ensaio já foi totalmente entregue.
+async function _revogarLinkPublicoEnsaio() {
+  const id = document.getElementById('ens-id').value
+  if (!id) { toast('Salve o ensaio primeiro'); return }
+  const ev = store.eventos.find(x => x.id === id)
+  if (!ev?.link_token) { toast('Esse ensaio ainda não tem link pra revogar.'); return }
+  const ok = await confirmModal(
+    'Isso invalida o link atual na hora — quem já tinha esse link (mesmo sem ter baixado nada ainda) perde o acesso e vai ver "link inválido". Um link novo é gerado em seguida. Continuar?',
+    { titulo: 'Revogar link', okLabel: 'Revogar e gerar novo' }
+  )
+  if (!ok) return
+  const novoToken = crypto.randomUUID().replace(/-/g, '')
+  const { error } = await db.from('eventos').update({ link_token: novoToken }).eq('id', id)
+  if (error) { toast('Erro ao revogar: ' + error.message); return }
+  ev.link_token = novoToken
+  const senha = document.getElementById('ens-link-senha').value.trim()
+  const resEl = document.getElementById('ens-link-resultado')
+  resEl.style.display = 'block'
+  resEl.textContent = _urlLinkPublico(novoToken, ev?.nome) + (senha ? `\nSenha: ${senha}` : '')
+  registrarAuditoria('revogou e gerou novo link privado', 'eventos', id, ev?.nome || '')
+  _copiarLinkPrivado(id)
+  toast('Link antigo revogado — novo link copiado ✓')
+}
+
 function _ensaioCapaSelecionada(inputEl) {
   const file = inputEl.files?.[0]
   if (!file) return
@@ -10124,6 +10197,9 @@ async function _recarregarFotosEnsaio(ensaioId) {
 
 async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_ensaioAtual) return
+  if (_ensUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
+  _ensUploadAtivo = true
+  try {
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
   // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
   // o envio ainda está rolando em segundo plano.
@@ -10135,6 +10211,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   _renderFilaUpload('ens', files, estados)
   let ok = 0
   let totalMarcados = 0
+  let falhasMarcacao = 0
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     const marcarEssaFoto = marcarPorFoto ? marcarPorFoto[i] !== false : true
@@ -10160,21 +10237,26 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     if (rosterAlunos.length) {
       const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
       const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (!tagErr) { store.fotoAluno.push(...tags); totalMarcados += tags.length }
+      if (tagErr) { console.error('marcar alunos na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
+      else { store.fotoAluno.push(...tags); totalMarcados += tags.length }
     }
     if (rosterPessoas.length) {
       const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
       const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (!tagErr) { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
+      if (tagErr) { console.error('marcar pessoas na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
+      else { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
     }
     estados[i] = 'ok'; _renderFilaUpload('ens', files, estados)
     ok++
   }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}`)
+  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}${falhasMarcacao ? ` — ⚠ ${falhasMarcacao} marcação(ões) falharam, confira manualmente` : ''}`)
   const inputEl = document.getElementById('ens-upload-input')
   if (inputEl) inputEl.value = ''
   if (_ensaioAtual?.id === ensaioId) renderFotosEnsaioAdmin()
   if (ok) registrarAuditoria('fez upload de fotos', 'eventos', ensaioId, `${ok} de ${files.length} foto(s) — ${ensaioNome}`)
+  } finally {
+    _ensUploadAtivo = false
+  }
 }
 
 function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
@@ -10357,8 +10439,9 @@ async function _criarSubpastaEnsaio() {
   registrarAuditoria('criou pasta/Ato no ensaio', 'eventos', _ensaioAtual.id, nome)
   if (_novaPastaMoverSelecao && _ensaioFotoSelecao.size) {
     const fotoIds = [..._ensaioFotoSelecao]
-    await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
-    store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
+    const { error: moverErr } = await db.from('fotos').update({ subpasta: nome }).in('id', fotoIds)
+    if (moverErr) { toast('Pasta criada, mas falhou ao mover as fotos selecionadas: ' + moverErr.message) }
+    else store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = nome })
     _ensaioFotoSelecao = new Set()
   } else {
     toast(`Pasta "${nome}" criada ✓ — já pode escolher ela no próximo upload`)
@@ -10373,7 +10456,8 @@ async function _ensaioApagarPasta(nome) {
   if (resultado === 'mover') {
     if (fotos.length) {
       const fotoIds = fotos.map(f => f.id)
-      await db.from('fotos').update({ subpasta: null }).in('id', fotoIds)
+      const { error: moverErr } = await db.from('fotos').update({ subpasta: null }).in('id', fotoIds)
+      if (moverErr) { toast('Erro ao mover as fotos pra fora da pasta: ' + moverErr.message); return }
       store.fotos.forEach(f => { if (fotoIds.includes(f.id)) f.subpasta = null })
     }
   } else {
@@ -10986,7 +11070,8 @@ async function _carregarGaleriaPublica(token, senha) {
   conteudo.innerHTML = `
     ${data.evento?.capaUrl ? `<img class="publica-capa" src="${data.evento.capaUrl}" loading="lazy" alt="">` : ''}
     <h2>${esc(data.evento?.nome || 'Galeria')}</h2>
-    <div class="meta" style="margin-bottom:20px;">${data.evento?.data ? fmtData(data.evento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
+    <div class="meta" style="margin-bottom:12px;">${data.evento?.data ? fmtData(data.evento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
+    ${_publicaFotos.length ? `<button class="btn btn-primary" style="margin-bottom:16px;" onclick="_publicaBaixarTodas()">⬇ Baixar todas (${_publicaFotos.length})</button>` : ''}
     ${_publicaFotos.length ? '<div class="foto-grid" id="publica-grid"></div>' : '<div class="empty">📷<br>Nenhuma foto publicada por aqui ainda — volte mais tarde.</div>'}
   `
   const grid = document.getElementById('publica-grid')
@@ -11032,6 +11117,26 @@ function _renderPublicaLightboxAtual() {
   if (!f) return
   document.getElementById('lightbox-img').src = f.url
   document.getElementById('lightbox-caption').textContent = `${_lightboxIdx + 1} de ${_publicaFotos.length}`
+}
+// antes só dava pra baixar 1 foto de cada vez aqui (a única forma de
+// baixar era abrir o lightbox foto a foto) — quem recebe o link
+// privado é justamente quem NÃO tem conta no sistema (cliente avulso,
+// ensaio de mascote/pessoa sem login) e ia ter que repetir isso
+// dezenas/centenas de vezes pra levar tudo pras redes sociais. Mesmo
+// padrão em lotes de 25 já usado na Seleção pública
+// (_selPubBaixarTodas) — evita o navegador bloquear como "pop-up" ao
+// disparar downloads demais de uma vez.
+async function _publicaBaixarTodas() {
+  if (!_publicaFotos.length) return
+  const TAMANHO_LOTE = 25
+  const lotes = []
+  for (let i = 0; i < _publicaFotos.length; i += TAMANHO_LOTE) lotes.push(_publicaFotos.slice(i, i + TAMANHO_LOTE))
+  for (let lote = 0; lote < lotes.length; lote++) {
+    const itens = lotes[lote].map((f, i) => ({ url: f.url, nome: `foto-${lote * TAMANHO_LOTE + i + 1}.jpg` }))
+    const nomeLote = lotes.length > 1 ? `fotos-parte-${lote + 1}-de-${lotes.length}` : 'fotos'
+    await _baixarFotosEmMassa(itens, nomeLote)
+    if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
+  }
 }
 
 function _iniciarModoPublico(token) {
