@@ -208,8 +208,16 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-col{display:flex;flex-direction:column;flex:1;min-width:0;gap:4px;}
 @media(min-width:600px){.selpub-grid{gap:12px;}.selpub-col{gap:8px;}}
 @media(min-width:900px){.selpub-grid{gap:16px;}}
-.selpub-card{position:relative;display:block;width:100%;border-radius:4px;overflow:hidden;cursor:pointer;background:#eee;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
-.selpub-card img{width:100%;height:auto;display:block;}
+.selpub-card{position:relative;display:block;width:100%;border-radius:4px;overflow:hidden;cursor:pointer;background:linear-gradient(100deg,#eee 30%,#f4ecda 50%,#eee 70%);background-size:200% 100%;animation:gf-shine-claro 1.6s linear infinite;border:3px solid transparent;transition:border-color .15s,transform .12s,box-shadow .15s;}
+/* a imagem some (opacity 0) até decodificar de verdade — assim quem
+   vê a tela nunca pega o "meio-carregado" (listras/banding de jpeg
+   progressivo), só o brilho sutil dourado da marca e depois a foto
+   já pronta. onload troca pra .gf-loaded (ver _publicaRenderGrid/
+   _selPubRenderGrid). */
+.selpub-card img{width:100%;height:auto;display:block;opacity:0;transition:opacity .25s ease;}
+.selpub-card img.gf-loaded{opacity:1;}
+@keyframes gf-shine-claro{to{background-position:-200% 0;}}
+@media(prefers-reduced-motion:reduce){.selpub-card{animation:none;}.selpub-card img{transition:none;}}
 .selpub-card .check{position:absolute;bottom:8px;right:8px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.9);border:1.5px solid rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;transition:all .15s;box-shadow:0 2px 6px rgba(0,0,0,.15);}
 .selpub-zoom{position:absolute;top:2px;left:2px;width:44px;height:44px;border-radius:50%;background:transparent;border:0;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;}
 .selpub-zoom::before{content:'';position:absolute;inset:7px;border-radius:50%;background:rgba(0,0,0,.45);}
@@ -1476,7 +1484,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="escolas" data-tip="Escolas" data-bn-primary onclick="setAdminTab('escolas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg><span>Escolas</span></div>
         <div class="tab" data-tab="alunos" data-tip="Alunos" onclick="setAdminTab('alunos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg><span>Alunos</span></div>
         <div class="tab" data-tab="professores" data-tip="Professores &amp; Diretores" onclick="setAdminTab('professores')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Professores &amp; Diretores</span></div>
-        <div class="tab" data-tab="pais" data-tip="Pais" onclick="setAdminTab('pais')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-9.3-8.8C1.3 8.8 3 5.5 6.2 5.2c1.8-.2 3.3.8 3.8 2 .5-1.2 2-2.2 3.8-2 3.2.3 4.9 3.6 3.5 7C20 16.6 12 21 12 21Z"/></svg><span>Pais</span></div>
+        <div class="tab" data-tab="pais" data-tip="Pais" onclick="setAdminTab('pais')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 4.8 6v5.4c0 5.1 3.1 8.9 7.2 10.4 4.1-1.5 7.2-5.3 7.2-10.4V6L12 3.2Z"/><path d="m9.2 12 2 2 3.6-4"/></svg><span>Pais</span></div>
         <div class="navgroup-label">Mídias</div>
         <div class="tab" data-tab="eventos" data-tip="Álbuns &amp; Eventos" onclick="setAdminTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Álbuns &amp; Eventos</span></div>
         <div class="tab" data-tab="ensaios" data-tip="Ensaios Avulsos" onclick="setAdminTab('ensaios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg><span>Ensaios Avulsos</span></div>
@@ -6449,6 +6457,46 @@ function _eventoSelecionarTodosAlunos() {
   _renderEventoSeletorAlunos()
 }
 
+// o auto-tag (foto_aluno/foto_pessoa) só roda em uploads futuros — sem
+// isso, adicionar alguém no roster "quem pode ver" de um evento/ensaio
+// que já tem fotos não dá acesso nenhum a ele, porque o RLS de quem não
+// é dono da escola (ex: proprietário de ensaio avulso) depende só dessas
+// tags por foto. Chamado por salvarEvento/salvarEnsaio comparando o
+// roster antigo com o novo, só pra quem entrou agora.
+async function _sincronizarTagsRosterEmFotosExistentes(eventoId, alunosNovos, pessoasNovas) {
+  if (!alunosNovos.length && !pessoasNovas.length) return
+  const fotoIds = store.fotos.filter(f => f.evento_id === eventoId).map(f => f.id)
+  if (!fotoIds.length) return
+  let totalMarcados = 0
+  if (alunosNovos.length) {
+    const rows = []
+    for (const aluno_id of alunosNovos) {
+      for (const foto_id of fotoIds) {
+        if (!store.fotoAluno.some(x => x.foto_id === foto_id && x.aluno_id === aluno_id)) rows.push({ foto_id, aluno_id })
+      }
+    }
+    if (rows.length) {
+      const { error } = await db.from('foto_aluno').insert(rows)
+      if (error) console.error('sincronizar roster: falha ao marcar aluno em fotos existentes', error.message)
+      else { store.fotoAluno.push(...rows); totalMarcados += rows.length }
+    }
+  }
+  if (pessoasNovas.length) {
+    const rows = []
+    for (const user_id of pessoasNovas) {
+      for (const foto_id of fotoIds) {
+        if (!store.fotoPessoa.some(x => x.foto_id === foto_id && x.user_id === user_id)) rows.push({ foto_id, user_id })
+      }
+    }
+    if (rows.length) {
+      const { error } = await db.from('foto_pessoa').insert(rows)
+      if (error) console.error('sincronizar roster: falha ao marcar pessoa em fotos existentes', error.message)
+      else { store.fotoPessoa.push(...rows); totalMarcados += rows.length }
+    }
+  }
+  if (totalMarcados) toast(`Acesso liberado nas fotos já existentes ✓ (${totalMarcados} marcação(ões))`)
+}
+
 async function salvarEvento() {
   const id = document.getElementById('evt-id').value || null
   const nome = document.getElementById('evt-nome').value.trim()
@@ -6457,6 +6505,9 @@ async function salvarEvento() {
   const escola_id = document.getElementById('evt-escola').value || null
   const categoria = document.getElementById('evt-categoria').value || null
   const eventoId = id || crypto.randomUUID()
+  const rosterAntigo = id ? store.eventos.find(e => e.id === id) : null
+  const alunosAntigos = rosterAntigo?.alunos_selecionados || []
+  const pessoasAntigas = rosterAntigo?.pessoas_selecionadas || []
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
   if (_eventoCapaArquivo) {
@@ -6483,6 +6534,10 @@ async function salvarEvento() {
   fecharModal('modal-evento')
   toast(id ? 'Evento atualizado ✓' : 'Evento criado ✓')
   registrarAuditoria(id ? 'editou evento' : 'criou evento', 'eventos', data.id, nome)
+
+  const alunosNovos = [..._eventoAlunosSelecionados].filter(aid => !alunosAntigos.includes(aid))
+  const pessoasNovas = [..._eventoPessoasSelecionadas].filter(pid => !pessoasAntigas.includes(pid))
+  if (alunosNovos.length || pessoasNovas.length) await _sincronizarTagsRosterEmFotosExistentes(data.id, alunosNovos, pessoasNovas)
 
   // preço da sessão vive numa tabela separada (eventos_financeiro, só
   // admin/super_admin) — não em `eventos`, que tem SELECT aberto pra
@@ -7355,59 +7410,19 @@ async function _baixarUrl(url, nomeArquivo) {
   }
 }
 
-// download em massa SEM zip. iOS: usa o compartilhamento nativo — lá o
-// menu do sistema tem "Salvar N Imagens" de verdade, que grava direto
-// no app Fotos (testado e confirmado). Android: NÃO usa — testado ao
-// vivo e o menu do Android ali não tem opção nenhuma de salvar na
-// Galeria (só apps tipo Instagram/Gmail + Copiar/Captura/QR code), e
-// cancelar o menu dava a falsa impressão de "não baixa nada". No
-// Android o download individual direto (que já era o fallback aqui)
-// funciona melhor: cai na pasta Downloads e o Google Fotos/Galeria
-// indexa esse album automaticamente — diferente do .zip antigo (que
-// não é imagem, então nunca era indexado). Desktop cai no mesmo
-// fallback de download individual.
-function _ehIOS() {
-  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-}
-// LOTE_MAX_SHARE_IOS: o menu nativo "Salvar N Imagens" do iOS só
-// existe se TODOS os arquivos forem reunidos ANTES de chamar
-// navigator.share (a API não aceita ir entregando arquivo por
-// arquivo) — compensa pra um lote razoável, mas reunir centenas de
-// fotos originais (várias MB cada) na memória da aba ANTES de
-// começar a baixar é exatamente o tipo de coisa que trava a aba num
-// celular, ainda mais depois do "Selecionar todas" (ver
-// _galSelecionarTodas). Acima do limite, cai direto no download
-// individual sequencial de baixo — mais cliques, mas nunca acumula
-// mais de 1 foto na memória de cada vez.
-const LOTE_MAX_SHARE_IOS = 30
+// download em massa SEM zip — direto pra pasta de Fotos/Downloads do
+// dispositivo, igual no desktop. Chegou a usar o menu de
+// compartilhamento nativo do iOS (navigator.share) pra tentar cair no
+// "Salvar N Imagens" do sistema, mas na prática o usuário via isso
+// como uma tela extra de escolha no meio do caminho em vez de um
+// download direto — trocado pelo mesmo caminho de baixo (blob + <a
+// download>) em todo dispositivo, sem diálogo do sistema no meio.
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
-  if (_ehIOS() && navigator.canShare && itens.length <= LOTE_MAX_SHARE_IOS) {
-    const prontos = []
-    for (const it of itens) {
-      try {
-        const resp = await fetch(it.url)
-        const blob = await resp.blob()
-        prontos.push(new File([blob], it.nome, { type: blob.type || 'image/jpeg' }))
-      } catch (e) { /* pula essa foto se falhar, segue com o resto */ }
-    }
-    if (prontos.length && navigator.canShare({ files: prontos })) {
-      try {
-        await navigator.share({ files: prontos, title: nomeBase || 'Fotos' })
-        toast('Pronto ✓')
-        return
-      } catch (e) {
-        if (e.name === 'AbortError') return // cancelou o menu do sistema — não força download por baixo
-        // qualquer outro erro do share cai no fallback abaixo
-      }
-    }
-  }
 
   // baixa e libera cada foto uma de cada vez — nunca segura mais de
-  // um blob por vez na memória (diferente do caminho do iOS acima,
-  // que precisa reunir tudo antes por causa da própria API do
-  // navigator.share).
+  // um blob por vez na memória.
   let falhas = 0
   for (const it of itens) {
     try {
@@ -10000,6 +10015,9 @@ async function salvarEnsaio() {
   const data_ = document.getElementById('ens-data').value || null
   const categoria = document.getElementById('ens-categoria').value || null
   const ensaioId = id || crypto.randomUUID()
+  const rosterAntigo = id ? store.eventos.find(e => e.id === id) : null
+  const alunosAntigos = rosterAntigo?.alunos_selecionados || []
+  const pessoasAntigas = rosterAntigo?.pessoas_selecionadas || []
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
   if (_ensaioCapaArquivo) {
@@ -10034,6 +10052,10 @@ async function salvarEnsaio() {
   renderEnsaios()
   fecharModal('modal-ensaio')
   registrarAuditoria(id ? 'editou ensaio avulso' : 'criou ensaio avulso', 'eventos', data.id, nome)
+
+  const alunosNovos = [..._ensaioAlunosSel].filter(aid => !alunosAntigos.includes(aid))
+  const pessoasNovas = [..._ensaioPessoasSel].filter(pid => !pessoasAntigas.includes(pid))
+  if (alunosNovos.length || pessoasNovas.length) await _sincronizarTagsRosterEmFotosExistentes(data.id, alunosNovos, pessoasNovas)
 
   const precoSessao = parseFloat(document.getElementById('ens-preco-sessao').value) || 0
   db.from('eventos_financeiro').upsert({ evento_id: data.id, preco_sessao: precoSessao, atualizado_em: new Date().toISOString(), atualizado_por: meuPerfil.user_id }).then(({ error: eFin }) => {
@@ -11139,7 +11161,7 @@ function _publicaRenderGrid() {
     const lazy = i < 6 ? '' : 'loading="lazy"'
     const html = `
     <div class="selpub-card${_publicaSelecionados.has(f.id) ? ' on' : ''}" id="publica-card-${f.id}" onclick="_publicaToggle('${f.id}')">
-      <img src="${f.url}" ${lazy} alt="">
+      <img src="${f.url}" ${lazy} alt="" onload="this.classList.add('gf-loaded')">
       <button class="selpub-zoom" onclick="event.stopPropagation();_publicaAbrirLightbox(${i})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
@@ -12180,7 +12202,7 @@ function _selPubRenderGrid() {
     const lazy = i < 6 ? '' : 'loading="lazy"'
     const html = `
     <div class="selpub-card${_selPub.selecionados.has(f.id) ? ' on' : ''}" id="selpub-card-${f.id}" onclick="_selPubToggle('${f.id}')">
-      <img src="${f.url}" ${lazy} alt="">
+      <img src="${f.url}" ${lazy} alt="" onload="this.classList.add('gf-loaded')">
       <button class="selpub-zoom" onclick="event.stopPropagation();_selPubAbrirLightbox(${idxGlobal})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
@@ -12577,13 +12599,13 @@ function _renderSelPubLiberadoConteudo() {
   const grid = document.getElementById('selpub-liberado-grid')
   grid.innerHTML = _selPubFotosLiberadas.length ? _selPubFotosLiberadas.map((f, i) => `
     <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
-      <img src="${f.url}" loading="lazy" alt="">
+      <img src="${f.url}" loading="lazy" alt="" onload="this.classList.add('gf-loaded')">
     </div>`).join('') : '<div class="empty">Nenhuma foto por aqui.</div>'
   if (temBastidores) {
     const gridB = document.getElementById('selpub-bastidores-grid')
     gridB.innerHTML = _selPubBastidoresLiberados.map((f, i) => `
       <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','bastidor-${i + 1}.jpg')" title="Baixar essa foto">
-        <img src="${f.url}" loading="lazy" alt="">
+        <img src="${f.url}" loading="lazy" alt="" onload="this.classList.add('gf-loaded')">
       </div>`).join('')
   }
 }
