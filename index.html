@@ -852,14 +852,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .mkpi-alerta{display:flex;align-items:center;gap:8px;margin-top:10px;}
 .mkpi-alerta svg{width:22px;height:22px;color:var(--vermelho);flex-shrink:0;}
 
-/* ── Gold Reserve: sub-nav local dentro da aba (Visão Geral/Vendas/…) ── */
-.gr-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
-.gr-subnav-item{
+/* ── sub-nav local dentro de uma aba (Gold Reserve: Visão Geral/
+   Vendas/…; CRM: Pipeline/Leads/Atividades/Dashboard) — mesmo
+   componente visual, classes .gr-* e .crm-* deliberadamente
+   compartilham a regra pra não duplicar CSS. ── */
+.gr-subnav,.crm-subnav{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:22px;}
+.gr-subnav-item,.crm-subnav-item{
   padding:8px 16px;border-radius:999px;border:1px solid rgba(212,175,55,.25);background:transparent;
   color:#C9AF87;font-family:var(--sans);font-size:13px;cursor:pointer;transition:all .15s;
 }
-.gr-subnav-item:hover{border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
-.gr-subnav-item.on{background:var(--dourado);border-color:var(--dourado);color:#1E0810;font-weight:600;}
+.gr-subnav-item:hover,.crm-subnav-item:hover{border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
+.gr-subnav-item.on,.crm-subnav-item.on{background:var(--dourado);border-color:var(--dourado);color:#1E0810;font-weight:600;}
 
 .gr-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:26px;}
 @media(max-width:1000px){.gr-kpi-grid{grid-template-columns:repeat(2,1fr);}}
@@ -936,6 +939,56 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   .agenda-cal-dia{min-height:56px;padding:4px;}
   .agenda-cal-dia .acd-chip{display:none;}
   .agenda-cal-dia.tem-item .acd-num::after{content:'•';color:var(--dourado);margin-left:4px;}
+}
+
+/* ── CRM GrandFocus: kanban de pipeline, card de lead, modal de detalhe ── */
+.crm-board{display:flex;gap:14px;overflow-x:auto;padding-bottom:14px;align-items:flex-start;}
+.crm-coluna{flex:0 0 264px;display:flex;flex-direction:column;background:rgba(255,255,255,.02);border-radius:14px;border:1px solid rgba(212,175,55,.12);max-height:calc(100vh - 260px);}
+.crm-coluna-h{padding:12px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(212,175,55,.12);flex-shrink:0;}
+.crm-coluna-titulo{font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:#C9AF87;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.crm-coluna-count{font-size:11px;color:#8A7461;background:rgba(212,175,55,.1);padding:1px 8px;border-radius:999px;flex-shrink:0;margin-left:6px;}
+.crm-coluna-body{flex:1;padding:10px;display:flex;flex-direction:column;gap:8px;min-height:80px;overflow-y:auto;}
+.crm-coluna-body.dragover{background:rgba(212,175,55,.07);outline:1px dashed rgba(212,175,55,.4);outline-offset:-4px;}
+.crm-card{background:linear-gradient(155deg,var(--vinho-nobre),#250A14);border:1px solid rgba(212,175,55,.15);border-radius:12px;padding:10px 12px;cursor:grab;transition:border-color .15s;}
+.crm-card:hover{border-color:rgba(212,175,55,.4);}
+.crm-card.dragging{opacity:.35;}
+.crm-card .cc-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:6px;}
+.crm-card .cc-nome{font-size:13.5px;font-weight:600;color:var(--papel,#F6F0E6);}
+.crm-card .cc-estrela{color:var(--dourado);flex-shrink:0;font-size:13px;}
+.crm-card .cc-sub{font-size:11.5px;color:#9C8874;margin-top:2px;}
+.crm-card .cc-meta{font-size:10.5px;color:#8A7461;display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.crm-card .cc-chip{border:1px solid rgba(212,175,55,.18);padding:1px 7px;border-radius:999px;}
+.crm-card .cc-aging{font-size:10px;padding:2px 8px;border-radius:999px;margin-top:8px;display:inline-block;font-weight:600;}
+.crm-card .cc-aging.leve{background:rgba(255,255,255,.06);color:#B39F86;}
+.crm-card .cc-aging.medio{background:rgba(224,169,74,.16);color:#E0A94A;}
+.crm-card .cc-aging.forte{background:rgba(214,72,72,.18);color:var(--vermelho);}
+.crm-add-coluna{flex:0 0 200px;display:flex;align-items:center;justify-content:center;border:1px dashed rgba(212,175,55,.25);border-radius:14px;color:#8A7461;cursor:pointer;font-size:13px;min-height:80px;transition:border-color .15s,color .15s;}
+.crm-add-coluna:hover{border-color:rgba(212,175,55,.5);color:var(--ouro-luz);}
+
+.crm-lead-header{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px;}
+.crm-lead-acoes{display:flex;gap:8px;flex-wrap:wrap;}
+.crm-lead-tabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid rgba(212,175,55,.15);}
+.crm-lead-tab{padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#9C8874;font-family:var(--sans);font-size:13px;cursor:pointer;margin-right:14px;}
+.crm-lead-tab.on{color:var(--ouro-luz);border-bottom-color:var(--dourado);}
+.crm-feed-item{border-left:2px solid rgba(212,175,55,.2);padding:4px 0 14px 14px;margin-left:4px;position:relative;}
+.crm-feed-item::before{content:'';position:absolute;left:-5px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--dourado);}
+.crm-feed-item .cf-topo{display:flex;justify-content:space-between;font-size:12px;color:#B39F86;margin-bottom:3px;}
+.crm-feed-item .cf-texto{font-size:13px;color:var(--papel,#F6F0E6);white-space:pre-wrap;}
+.crm-feed-item.concluida .cf-texto{opacity:.55;text-decoration:line-through;}
+
+.crm-leads-tabela{width:100%;border-collapse:collapse;font-size:12.5px;}
+.crm-leads-tabela th{text-align:left;padding:8px 10px;color:#8A7461;font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.02em;border-bottom:1px solid rgba(212,175,55,.15);}
+.crm-leads-tabela td{padding:9px 10px;border-bottom:1px solid rgba(212,175,55,.08);color:#DBC9A8;}
+.crm-leads-tabela tr{cursor:pointer;}
+.crm-leads-tabela tr:hover td{background:rgba(212,175,55,.04);}
+
+.crm-import-linha{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:8px;font-size:12px;}
+.crm-import-linha.erro{background:rgba(214,72,72,.1);color:#E39A9A;}
+.crm-import-linha.ok{color:#B39F86;}
+
+@media(max-width:700px){
+  .crm-coluna{flex-basis:82vw;}
+  .crm-add-coluna{flex-basis:60vw;}
 }
 
 /* ── barra de busca/filtro (Escolas, Alunos, Pais) ── */
@@ -1541,6 +1594,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="selecao" data-tip="Seleção de Fotos" onclick="setAdminTab('selecao');iniciarSelecaoAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8l2.4 5.1 5.6.6-4.1 3.9 1.1 5.6-4.9-2.8-4.9 2.8 1.1-5.6-4.1-3.9 5.6-.6Z"/></svg><span>Seleção de Fotos</span></div>
         <div class="navgroup-label">Social</div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" data-bn-primary data-bn-label="Social" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="navgroup-label">Vendas</div>
+        <div class="tab" data-tab="crm" data-tip="CRM GrandFocus" onclick="setAdminTab('crm');iniciarCrmAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16l-6.2 7.4v6.1l-3.6 1.8v-7.9L4 4Z"/></svg><span>CRM GrandFocus</span></div>
         <div class="navgroup-label">Sistema</div>
         <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
         <div class="tab" data-tab="usabilidade" data-tip="Usabilidade" onclick="setAdminTab('usabilidade');iniciarUsabilidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-7M20 19V9" stroke-linecap="round"/></svg><span>Usabilidade</span></div>
@@ -1707,6 +1762,72 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           </div>
           <div class="agenda-cal-grid" id="agenda-cal-dow"></div>
           <div class="agenda-cal-grid" id="agenda-cal-grid"></div>
+        </div>
+      </div>
+
+      <div class="admin-tab" id="admintab-crm" style="display:none;">
+        <div class="section-h">
+          <h2>CRM GrandFocus</h2>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalCrmLead()">+ Novo Lead</button>
+        </div>
+        <div class="crm-subnav">
+          <span class="crm-subnav-item on" data-crm-sub="kanban" onclick="setCrmSubTab('kanban')">Pipeline</span>
+          <span class="crm-subnav-item" data-crm-sub="leads" onclick="setCrmSubTab('leads')">Leads</span>
+          <span class="crm-subnav-item" data-crm-sub="atividades" onclick="setCrmSubTab('atividades')">Atividades</span>
+          <span class="crm-subnav-item" data-crm-sub="dashboard" onclick="setCrmSubTab('dashboard')">Dashboard</span>
+        </div>
+
+        <div class="crm-section" data-sub="kanban" id="crm-sub-kanban">
+          <div class="filtro-row" style="align-items:center;">
+            <select id="crm-pipeline-select" onchange="_crmTrocarPipeline()"></select>
+            <button class="btn btn-sm" onclick="abrirModalCrmEtapas()">Gerenciar etapas</button>
+            <button class="btn btn-sm" onclick="abrirModalCrmPipeline()">+ Novo pipeline</button>
+            <input type="text" id="crm-busca-kanban" placeholder="Buscar lead…" oninput="_crmRenderKanban()">
+            <select id="crm-filtro-responsavel-kanban" onchange="_crmRenderKanban()"><option value="">Todos os responsáveis</option></select>
+            <select id="crm-filtro-tipo-kanban" onchange="_crmRenderKanban()">
+              <option value="">Todos os tipos</option>
+              <option value="outbound">Outbound</option>
+              <option value="inbound">Inbound</option>
+              <option value="indicacao">Indicação</option>
+            </select>
+          </div>
+          <div class="crm-board" id="crm-board"></div>
+        </div>
+
+        <div class="crm-section" data-sub="leads" id="crm-sub-leads" style="display:none;">
+          <div class="filtro-row">
+            <input type="text" id="crm-busca-leads" placeholder="Buscar por nome, escola, telefone, email…" oninput="_crmRenderLeadsLista()">
+            <select id="crm-filtro-etapa" onchange="_crmRenderLeadsLista()"><option value="">Todas as etapas</option></select>
+            <button class="btn btn-sm" onclick="document.getElementById('crm-import-input').click()">📥 Importar planilha</button>
+            <input type="file" id="crm-import-input" accept=".xlsx,.xls,.csv" style="display:none;" onchange="processarPlanilhaCrm(this.files[0])">
+            <button class="btn btn-sm" onclick="baixarModeloCrm()">Baixar modelo</button>
+            <button class="btn btn-sm" onclick="exportarCrmLeadsCSV()">Exportar CSV</button>
+          </div>
+          <div id="crm-import-preview" style="display:none;margin-bottom:16px;">
+            <div class="hint" id="crm-import-resumo" style="margin-bottom:8px;"></div>
+            <div id="crm-import-linhas" style="max-height:240px;overflow-y:auto;margin-bottom:10px;"></div>
+            <div class="modal-actions" style="justify-content:flex-start;">
+              <button class="btn btn-primary btn-sm" onclick="_crmConfirmarImport()">Importar válidas</button>
+              <button class="btn btn-sm" onclick="document.getElementById('crm-import-preview').style.display='none'">Cancelar</button>
+            </div>
+          </div>
+          <div style="overflow-x:auto;"><table class="crm-leads-tabela"><thead><tr><th>Nome</th><th>Tipo</th><th>Contato</th><th>Etapa</th><th>Responsável</th><th>Valor potencial</th><th>Próximo follow-up</th></tr></thead><tbody id="crm-leads-tbody"></tbody></table></div>
+        </div>
+
+        <div class="crm-section" data-sub="atividades" id="crm-sub-atividades" style="display:none;">
+          <div class="filtro-row">
+            <select id="crm-ativ-filtro" onchange="_crmRenderAtividadesGeral()">
+              <option value="atrasadas">Atrasadas</option>
+              <option value="hoje">Hoje</option>
+              <option value="pendente">Todas pendentes</option>
+              <option value="concluida">Concluídas</option>
+            </select>
+          </div>
+          <div id="crm-atividades-lista"></div>
+        </div>
+
+        <div class="crm-section" data-sub="dashboard" id="crm-sub-dashboard" style="display:none;">
+          <div id="crm-dashboard-conteudo"></div>
         </div>
       </div>
 
@@ -2093,6 +2214,146 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: lead do CRM (informações/atividades&notas/histórico) -->
+<div class="modal-overlay" id="modal-crm-lead">
+  <div class="modal" style="max-width:640px;">
+    <input type="hidden" id="crml-id">
+    <div class="crm-lead-header">
+      <h3 id="crml-titulo" style="margin:0;">Novo Lead</h3>
+      <div class="crm-lead-acoes" id="crml-acoes-status" style="display:none;">
+        <button class="btn btn-sm" onclick="_crmMarcarGanho()">✓ Ganho</button>
+        <button class="btn btn-sm" onclick="abrirModalCrmPerda()">✗ Perdido</button>
+      </div>
+    </div>
+    <div class="crm-lead-tabs">
+      <button class="crm-lead-tab on" data-crml-tab="info" onclick="_crmLeadSetTab('info')">Informações</button>
+      <button class="crm-lead-tab" data-crml-tab="feed" onclick="_crmLeadSetTab('feed')" id="crml-tab-feed-btn" style="display:none;">Atividades &amp; Notas</button>
+      <button class="crm-lead-tab" data-crml-tab="hist" onclick="_crmLeadSetTab('hist')" id="crml-tab-hist-btn" style="display:none;">Histórico</button>
+    </div>
+
+    <div class="crml-secao" data-crml-tab="info">
+      <div class="field"><label>Nome</label><input type="text" id="crml-nome" placeholder="Nome da pessoa de contato"></div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Tipo de contato</label>
+          <select id="crml-tipo-contato" onchange="_crmLeadTipoContatoMudou()">
+            <option value="escola">Escola de dança</option>
+            <option value="avulso">Cliente avulso</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1;" id="crml-escola-wrap"><label>Nome da escola</label><input type="text" id="crml-escola-nome" placeholder="Opcional"></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Telefone</label><input type="text" id="crml-telefone" placeholder="(00) 00000-0000"></div>
+        <div class="field" style="flex:1;"><label>E-mail</label><input type="text" id="crml-email"></div>
+        <div class="field" style="flex:1;"><label>Cidade</label><input type="text" id="crml-cidade"></div>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Tipo de lead</label>
+          <select id="crml-tipo-lead">
+            <option value="outbound">Outbound (fui atrás)</option>
+            <option value="inbound">Inbound (veio até mim)</option>
+            <option value="indicacao">Indicação</option>
+          </select>
+        </div>
+        <div class="field" style="flex:1;"><label>Canal</label><input type="text" id="crml-canal" placeholder="Instagram, WhatsApp, Google…"></div>
+      </div>
+      <div class="field"><label>Onde conheceu o trabalho (opcional)</label><input type="text" id="crml-origem-evento" placeholder="Ex: viu as fotos do Festival de Dança X"></div>
+      <div style="display:flex;gap:10px;">
+        <div class="field" style="flex:1;"><label>Responsável</label><select id="crml-responsavel"><option value="">— ninguém —</option></select></div>
+        <div class="field" style="flex:1;"><label>Valor potencial (R$)</label><input type="number" id="crml-valor-potencial" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="field" style="flex:1;"><label>Próximo follow-up</label><input type="date" id="crml-follow-up"></div>
+      </div>
+      <div class="field"><label style="display:flex;align-items:center;gap:8px;font-weight:400;text-transform:none;"><input type="checkbox" id="crml-prioridade" style="width:auto;"> Marcar como prioridade ⭐</label></div>
+      <div class="field"><label>Observações</label><textarea id="crml-observacoes" rows="3"></textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-sm" onclick="fecharModal('modal-crm-lead')">Cancelar</button>
+        <button class="btn btn-primary btn-sm" onclick="_crmSalvarLead()">Salvar</button>
+      </div>
+    </div>
+
+    <div class="crml-secao" data-crml-tab="feed" style="display:none;">
+      <div class="field">
+        <textarea id="crml-nova-nota" rows="2" placeholder="Escreva uma anotação e Enter pra salvar…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();_crmSalvarNota();}"></textarea>
+      </div>
+      <div class="filtro-row" style="margin:-4px 0 14px;">
+        <select id="crmat-tipo" style="max-width:130px;">
+          <option value="ligacao">Ligação</option>
+          <option value="whatsapp">WhatsApp</option>
+          <option value="email">E-mail</option>
+          <option value="visita">Visita</option>
+          <option value="reuniao">Reunião</option>
+          <option value="outro">Outro</option>
+        </select>
+        <input type="date" id="crmat-data" style="max-width:150px;">
+        <input type="time" id="crmat-hora" style="max-width:110px;">
+        <input type="text" id="crmat-obs" placeholder="O que fazer…" style="max-width:220px;">
+        <button class="btn btn-sm" onclick="_crmAgendarAtividade()">+ Agendar atividade</button>
+      </div>
+      <div id="crml-feed-lista"></div>
+    </div>
+
+    <div class="crml-secao" data-crml-tab="hist" style="display:none;">
+      <div id="crml-historico-lista"></div>
+    </div>
+  </div>
+</div>
+
+<!-- modal: marcar lead como ganho -->
+<div class="modal-overlay" id="modal-crm-ganho">
+  <div class="modal" style="max-width:380px;">
+    <h3>Marcar como Ganho 🎉</h3>
+    <div class="field"><label>Valor fechado (R$)</label><input type="number" id="crmg-valor" step="0.01" min="0"></div>
+    <div class="field"><label>Data de fechamento</label><input type="date" id="crmg-data"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-crm-ganho')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_crmConfirmarGanho()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: marcar lead como perdido -->
+<div class="modal-overlay" id="modal-crm-perda">
+  <div class="modal" style="max-width:400px;">
+    <h3>Marcar como Perdido</h3>
+    <div class="field"><label>Motivo</label><div class="tag-picker" id="crm-perda-lista"></div></div>
+    <div class="field"><label>Observação (opcional)</label><textarea id="crmp-obs" rows="2"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-crm-perda')">Cancelar</button>
+      <button class="btn btn-danger btn-sm" onclick="_crmConfirmarPerda()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: gerenciar etapas do pipeline atual -->
+<div class="modal-overlay" id="modal-crm-etapas">
+  <div class="modal" style="max-width:460px;">
+    <h3>Gerenciar etapas</h3>
+    <div id="crm-etapas-lista" style="margin-bottom:14px;"></div>
+    <div style="display:flex;gap:8px;">
+      <input type="text" id="crm-etapa-nova" placeholder="Nome da nova etapa" style="flex:1;">
+      <button class="btn btn-sm" onclick="_crmAdicionarEtapa()">+ Adicionar</button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-crm-etapas')">Fechar</button>
+      <button class="btn btn-primary btn-sm" onclick="_crmSalvarEtapas()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: novo pipeline -->
+<div class="modal-overlay" id="modal-crm-pipeline">
+  <div class="modal" style="max-width:380px;">
+    <h3>Novo pipeline</h3>
+    <div class="field"><label>Nome</label><input type="text" id="crmp-pipeline-nome" placeholder="Ex: Escolas Parceiras"></div>
+    <div class="hint" style="margin-bottom:8px;">Começa com as etapas padrão (Novo Lead → Fechado/Perdido) — edite depois em "Gerenciar etapas".</div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-crm-pipeline')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_crmSalvarPipeline()">Criar</button>
     </div>
   </div>
 </div>
@@ -2884,7 +3145,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [], crmPipelines: [], crmEtapas: [], crmLeads: [], crmMotivosPerda: [] }
 // config global chave/valor (tabela app_config), carregada no login —
 // hoje só guarda hero_bg_path (foto de fundo do Dashboard, opcional,
 // ver _aplicarHeroBg). Ver Ctrl+Shift+B (só admin/super_admin).
@@ -4942,6 +5203,701 @@ async function _agendaConfirmarCancelar() {
   registrarAuditoria('cancelou compromisso da agenda', 'agenda_compromissos', id, c?.titulo || '')
   _agendaRenderLista()
   if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+}
+
+// ══════════════════════════════════════════════════════════════
+// CRM GRANDFOCUS — cadastro de leads, pipeline de vendas com etapas
+// customizáveis, atividades/anotações/histórico por lead, ganho/
+// perdido com motivo, import em massa, dashboard de KPIs. Baseado no
+// CRM da Nettus, adaptado pro cenário misto de uma fotógrafa de
+// escolas de dança (parceria recorrente) + ensaios avulsos (venda
+// única) — ver comentário completo em 068_crm_grandfocus.sql.
+// ══════════════════════════════════════════════════════════════
+let _crmPipelineAtualId = null
+let _crmLeadAtualId = null
+let _crmMotivoPerdaSelecionado = null
+let _crmTransicaoPendente = null
+let _crmEtapasBuffer = []
+let _crmImportLinhas = []
+let _crmDragLeadId = null
+
+function _crmAutorNome() { return meuPerfil?.nome || currentUser?.email || 'admin' }
+const CRM_TIPO_LEAD_LABEL = { outbound: 'Outbound', inbound: 'Inbound', indicacao: 'Indicação' }
+const CRM_TIPO_ATIV_LABEL = { ligacao: 'Ligação', whatsapp: 'WhatsApp', email: 'E-mail', visita: 'Visita', reuniao: 'Reunião', outro: 'Outro' }
+
+async function iniciarCrmAdmin() {
+  const [pRes, eRes, mRes, lRes] = await Promise.all([
+    db.from('crm_pipelines').select('*').order('ordem'),
+    db.from('crm_etapas').select('*').order('ordem'),
+    db.from('crm_motivos_perda').select('*').order('ordem'),
+    db.from('crm_leads').select('*').order('ordem'),
+  ])
+  store.crmPipelines = pRes.error ? [] : (pRes.data || [])
+  store.crmEtapas = eRes.error ? [] : (eRes.data || [])
+  store.crmMotivosPerda = mRes.error ? [] : (mRes.data || [])
+  store.crmLeads = lRes.error ? [] : (lRes.data || [])
+  await _agendaCarregarEquipeDisponivel() // reaproveita a mesma lista de admin/super_admin da Agenda pro seletor de Responsável
+  if (!_crmPipelineAtualId || !store.crmPipelines.some(p => p.id === _crmPipelineAtualId)) {
+    _crmPipelineAtualId = store.crmPipelines[0]?.id || null
+  }
+  _crmPopularPipelineSelect()
+  _crmPopularResponsavelSelects()
+  setCrmSubTab('kanban')
+}
+
+function setCrmSubTab(sub) {
+  document.querySelectorAll('#admintab-crm .crm-subnav-item').forEach(el => el.classList.toggle('on', el.dataset.crmSub === sub))
+  document.querySelectorAll('#admintab-crm .crm-section').forEach(el => el.style.display = el.dataset.sub === sub ? 'block' : 'none')
+  if (sub === 'kanban') _crmRenderKanban()
+  else if (sub === 'leads') _crmRenderLeadsLista()
+  else if (sub === 'atividades') _crmRenderAtividadesGeral()
+  else if (sub === 'dashboard') _crmRenderDashboard()
+}
+
+function _crmPopularPipelineSelect() {
+  const sel = document.getElementById('crm-pipeline-select')
+  sel.innerHTML = store.crmPipelines.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')
+  sel.value = _crmPipelineAtualId || ''
+}
+function _crmTrocarPipeline() {
+  _crmPipelineAtualId = document.getElementById('crm-pipeline-select').value
+  _crmRenderKanban()
+}
+function _crmPopularResponsavelSelects() {
+  const opts = '<option value="">— ninguém —</option>' + store.agendaEquipeDisponivel.map(u => `<option value="${u.user_id}">${esc(u.nome)}</option>`).join('')
+  const selKanban = document.getElementById('crm-filtro-responsavel-kanban')
+  if (selKanban) selKanban.innerHTML = '<option value="">Todos os responsáveis</option>' + store.agendaEquipeDisponivel.map(u => `<option value="${u.user_id}">${esc(u.nome)}</option>`).join('')
+  const selLead = document.getElementById('crml-responsavel')
+  if (selLead) selLead.innerHTML = opts
+}
+function _crmNomeResponsavel(userId) {
+  return store.agendaEquipeDisponivel.find(u => u.user_id === userId)?.nome || null
+}
+function _crmEtapasDoPipeline(pipelineId) {
+  return store.crmEtapas.filter(e => e.pipeline_id === pipelineId).sort((a, b) => a.ordem - b.ordem)
+}
+
+// ── aging: dias desde que o lead está na etapa atual — mesmo raciocínio
+// da Nettus (leve <3d, médio 3-6d, forte 7d+), avisa quando um lead
+// tá "parado" sem precisar abrir cada card.
+function _crmAgingInfo(etapaDesde) {
+  const dias = Math.floor((Date.now() - new Date(etapaDesde).getTime()) / 86400000)
+  const nivel = dias >= 7 ? 'forte' : dias >= 3 ? 'medio' : 'leve'
+  return { dias, nivel }
+}
+
+// ══ Kanban ══
+function _crmLeadsFiltradosKanban() {
+  const busca = (document.getElementById('crm-busca-kanban')?.value || '').toLowerCase()
+  const responsavel = document.getElementById('crm-filtro-responsavel-kanban')?.value || ''
+  const tipo = document.getElementById('crm-filtro-tipo-kanban')?.value || ''
+  return store.crmLeads.filter(l => {
+    if (l.pipeline_id !== _crmPipelineAtualId) return false
+    if (responsavel && l.responsavel_id !== responsavel) return false
+    if (tipo && l.tipo_lead !== tipo) return false
+    if (busca) {
+      const alvo = [l.nome, l.escola_nome, l.telefone, l.email, l.cidade].filter(Boolean).join(' ').toLowerCase()
+      if (!alvo.includes(busca)) return false
+    }
+    return true
+  })
+}
+function _crmRenderKanban() {
+  const board = document.getElementById('crm-board')
+  if (!board || !_crmPipelineAtualId) { if (board) board.innerHTML = '<div class="empty">Crie um pipeline pra começar.</div>'; return }
+  const etapas = _crmEtapasDoPipeline(_crmPipelineAtualId)
+  const leads = _crmLeadsFiltradosKanban()
+  board.innerHTML = etapas.map(etapa => {
+    const doColuna = leads.filter(l => l.etapa_id === etapa.id).sort((a, b) => a.ordem - b.ordem)
+    return `
+    <div class="crm-coluna">
+      <div class="crm-coluna-h">
+        <span class="crm-coluna-titulo">${esc(etapa.nome)}</span>
+        <span class="crm-coluna-count">${doColuna.length}</span>
+      </div>
+      <div class="crm-coluna-body" ondragover="_crmColDragOver(event)" ondragleave="_crmColDragLeave(event)" ondrop="_crmColDrop(event,'${etapa.id}')">
+        ${doColuna.map(_crmCardHTML).join('')}
+      </div>
+    </div>`
+  }).join('') + `<div class="crm-add-coluna" onclick="abrirModalCrmEtapas()">+ Etapa</div>`
+}
+function _crmCardHTML(l) {
+  const aging = _crmAgingInfo(l.etapa_desde)
+  const sub = l.tipo_contato === 'escola' ? (l.escola_nome || 'Escola') : (l.cidade || '—')
+  const resp = _crmNomeResponsavel(l.responsavel_id)
+  return `
+  <div class="crm-card" draggable="true" ondragstart="_crmCardDragStart(event,'${l.id}')" ondragend="_crmCardDragEnd(event)" onclick="abrirModalCrmLead('${l.id}')">
+    <div class="cc-topo">
+      <span class="cc-nome">${esc(l.nome)}</span>
+      ${l.prioridade ? '<span class="cc-estrela">⭐</span>' : ''}
+    </div>
+    <div class="cc-sub">${esc(sub)}</div>
+    <div class="cc-meta">
+      ${l.canal ? `<span class="cc-chip">${esc(l.canal)}</span>` : ''}
+      <span class="cc-chip">${CRM_TIPO_LEAD_LABEL[l.tipo_lead] || l.tipo_lead}</span>
+      ${resp ? `<span class="cc-chip">👤 ${esc(resp)}</span>` : ''}
+    </div>
+    <span class="cc-aging ${aging.nivel}">${aging.dias === 0 ? 'hoje' : aging.dias + 'd nessa etapa'}</span>
+  </div>`
+}
+function _crmCardDragStart(e, leadId) {
+  _crmDragLeadId = leadId
+  e.currentTarget.classList.add('dragging')
+  e.dataTransfer.effectAllowed = 'move'
+}
+function _crmCardDragEnd(e) { e.currentTarget.classList.remove('dragging') }
+function _crmColDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover') }
+function _crmColDragLeave(e) { e.currentTarget.classList.remove('dragover') }
+function _crmColDrop(e, etapaId) {
+  e.preventDefault()
+  e.currentTarget.classList.remove('dragover')
+  if (!_crmDragLeadId) return
+  const lead = store.crmLeads.find(l => l.id === _crmDragLeadId)
+  _crmDragLeadId = null
+  if (!lead || lead.etapa_id === etapaId) return
+  _crmIniciarTransicao(lead.id, etapaId)
+}
+
+// etapa "final" (ganho/perdido) pede dado extra antes de mover — mesma
+// ideia do REQS da Nettus (não deixa "Fechado" sem valor, "Perdido"
+// sem motivo).
+function _crmIniciarTransicao(leadId, etapaId) {
+  const etapa = store.crmEtapas.find(e => e.id === etapaId)
+  _crmTransicaoPendente = { leadId, etapaId }
+  if (etapa?.tipo_final === 'ganho') abrirModalCrmGanho()
+  else if (etapa?.tipo_final === 'perdido') abrirModalCrmPerda()
+  else _crmMoverEtapa(leadId, etapaId)
+}
+async function _crmMoverEtapa(leadId, etapaId, extra) {
+  const lead = store.crmLeads.find(l => l.id === leadId)
+  const etapaNova = store.crmEtapas.find(e => e.id === etapaId)
+  if (!lead || !etapaNova) return
+  const etapaAnterior = store.crmEtapas.find(e => e.id === lead.etapa_id)
+  const payload = { etapa_id: etapaId, etapa_desde: new Date().toISOString(), atualizado_em: new Date().toISOString(), ...(extra || {}) }
+  const { error } = await db.from('crm_leads').update(payload).eq('id', leadId)
+  if (error) { toast('Erro: ' + error.message); return }
+  Object.assign(lead, payload)
+  await db.from('crm_historico').insert({ lead_id: leadId, tipo: 'estagio', etapa_anterior_nome: etapaAnterior?.nome || null, etapa_nova_nome: etapaNova.nome, autor_nome: _crmAutorNome() })
+  registrarAuditoria('moveu lead no CRM', 'crm_leads', leadId, `${lead.nome} → ${etapaNova.nome}`)
+  toast(`Movido para "${etapaNova.nome}" ✓`)
+  _crmRenderKanban()
+  if (document.getElementById('crm-sub-leads')?.style.display !== 'none') _crmRenderLeadsLista()
+  if (_crmLeadAtualId === leadId && document.getElementById('modal-crm-lead').classList.contains('show')) {
+    _crmAtualizarAcoesStatus(lead)
+    _crmRenderHistorico(leadId)
+  }
+}
+
+// ── gerenciar etapas ──
+function abrirModalCrmEtapas() {
+  if (!_crmPipelineAtualId) { toast('Crie um pipeline primeiro'); return }
+  _crmEtapasBuffer = _crmEtapasDoPipeline(_crmPipelineAtualId).map(e => ({ ...e }))
+  _crmRenderEtapasBuffer()
+  document.getElementById('crm-etapa-nova').value = ''
+  abrirModal('modal-crm-etapas')
+}
+function _crmRenderEtapasBuffer() {
+  const el = document.getElementById('crm-etapas-lista')
+  el.innerHTML = _crmEtapasBuffer.map((e, i) => `
+    <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+      <input type="text" value="${esc(e.nome)}" oninput="_crmEtapasBuffer[${i}].nome=this.value" style="flex:1;">
+      <select onchange="_crmEtapasBuffer[${i}].tipo_final=this.value||null" style="max-width:110px;">
+        <option value="" ${!e.tipo_final ? 'selected' : ''}>—</option>
+        <option value="ganho" ${e.tipo_final === 'ganho' ? 'selected' : ''}>Ganho</option>
+        <option value="perdido" ${e.tipo_final === 'perdido' ? 'selected' : ''}>Perdido</option>
+      </select>
+      <button class="btn btn-sm" type="button" onclick="_crmEtapaMover(${i},-1)" ${i === 0 ? 'disabled' : ''}>▲</button>
+      <button class="btn btn-sm" type="button" onclick="_crmEtapaMover(${i},1)" ${i === _crmEtapasBuffer.length - 1 ? 'disabled' : ''}>▼</button>
+      <button class="btn btn-sm" type="button" onclick="_crmEtapaRemover(${i})">✕</button>
+    </div>`).join('')
+}
+function _crmEtapaMover(i, delta) {
+  const j = i + delta
+  if (j < 0 || j >= _crmEtapasBuffer.length) return
+  [_crmEtapasBuffer[i], _crmEtapasBuffer[j]] = [_crmEtapasBuffer[j], _crmEtapasBuffer[i]]
+  _crmRenderEtapasBuffer()
+}
+function _crmEtapaRemover(i) {
+  const etapa = _crmEtapasBuffer[i]
+  if (etapa.id && store.crmLeads.some(l => l.etapa_id === etapa.id)) { toast(`Mova os leads da etapa "${etapa.nome}" antes de apagar`); return }
+  _crmEtapasBuffer.splice(i, 1)
+  _crmRenderEtapasBuffer()
+}
+function _crmAdicionarEtapa() {
+  const nome = document.getElementById('crm-etapa-nova').value.trim()
+  if (!nome) return
+  _crmEtapasBuffer.push({ id: null, nome, tipo_final: null })
+  document.getElementById('crm-etapa-nova').value = ''
+  _crmRenderEtapasBuffer()
+}
+async function _crmSalvarEtapas() {
+  const origIds = _crmEtapasDoPipeline(_crmPipelineAtualId).map(e => e.id)
+  const novosIds = _crmEtapasBuffer.filter(e => e.id).map(e => e.id)
+  const apagarIds = origIds.filter(id => !novosIds.includes(id))
+  if (apagarIds.some(id => store.crmLeads.some(l => l.etapa_id === id))) { toast('Alguma etapa marcada pra apagar ainda tem lead — mova antes de salvar'); return }
+
+  const upserts = _crmEtapasBuffer.map((e, i) => ({ id: e.id || crypto.randomUUID(), pipeline_id: _crmPipelineAtualId, nome: e.nome, ordem: i, tipo_final: e.tipo_final || null }))
+  const { error: upErr } = await db.from('crm_etapas').upsert(upserts)
+  if (upErr) { toast('Erro: ' + upErr.message); return }
+  if (apagarIds.length) {
+    const { error: delErr } = await db.from('crm_etapas').delete().in('id', apagarIds)
+    if (delErr) { toast('Erro ao apagar etapas: ' + delErr.message); return }
+  }
+  store.crmEtapas = store.crmEtapas.filter(e => e.pipeline_id !== _crmPipelineAtualId).concat(upserts)
+  fecharModal('modal-crm-etapas')
+  toast('Etapas salvas ✓')
+  _crmRenderKanban()
+}
+
+// ── pipelines ──
+function abrirModalCrmPipeline() {
+  document.getElementById('crmp-pipeline-nome').value = ''
+  abrirModal('modal-crm-pipeline')
+}
+async function _crmSalvarPipeline() {
+  const nome = document.getElementById('crmp-pipeline-nome').value.trim()
+  if (!nome) { toast('Informe o nome'); return }
+  const { data, error } = await db.from('crm_pipelines').insert({ nome, ordem: store.crmPipelines.length }).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  const etapasPadrao = [
+    { pipeline_id: data.id, nome: 'Novo Lead', ordem: 0, tipo_final: null },
+    { pipeline_id: data.id, nome: 'Em Contato', ordem: 1, tipo_final: null },
+    { pipeline_id: data.id, nome: 'Fechado', ordem: 2, tipo_final: 'ganho' },
+    { pipeline_id: data.id, nome: 'Perdido', ordem: 3, tipo_final: 'perdido' },
+  ]
+  const { data: etapasData, error: eErr } = await db.from('crm_etapas').insert(etapasPadrao).select()
+  if (eErr) { toast('Pipeline criado, mas as etapas padrão falharam: ' + eErr.message); }
+  store.crmPipelines.push(data)
+  store.crmEtapas.push(...(etapasData || []))
+  _crmPipelineAtualId = data.id
+  _crmPopularPipelineSelect()
+  fecharModal('modal-crm-pipeline')
+  toast('Pipeline criado ✓')
+  _crmRenderKanban()
+}
+
+// ══ Lead: modal criar/editar + tabs ══
+function _crmLeadSetTab(tab) {
+  document.querySelectorAll('#modal-crm-lead .crm-lead-tab').forEach(el => el.classList.toggle('on', el.dataset.crmlTab === tab))
+  document.querySelectorAll('#modal-crm-lead .crml-secao').forEach(el => el.style.display = el.dataset.crmlTab === tab ? 'block' : 'none')
+}
+function _crmLeadTipoContatoMudou() {
+  document.getElementById('crml-escola-wrap').style.display = document.getElementById('crml-tipo-contato').value === 'escola' ? 'block' : 'none'
+}
+async function abrirModalCrmLead(id, etapaIdPreenchida) {
+  _crmLeadAtualId = id || null
+  const l = id ? store.crmLeads.find(x => x.id === id) : null
+  document.getElementById('crml-id').value = id || ''
+  document.getElementById('crml-titulo').textContent = id ? 'Editar Lead' : 'Novo Lead'
+  document.getElementById('crml-nome').value = l?.nome || ''
+  document.getElementById('crml-tipo-contato').value = l?.tipo_contato || 'avulso'
+  document.getElementById('crml-escola-nome').value = l?.escola_nome || ''
+  document.getElementById('crml-telefone').value = l?.telefone || ''
+  document.getElementById('crml-email').value = l?.email || ''
+  document.getElementById('crml-cidade').value = l?.cidade || ''
+  document.getElementById('crml-tipo-lead').value = l?.tipo_lead || 'outbound'
+  document.getElementById('crml-canal').value = l?.canal || ''
+  document.getElementById('crml-origem-evento').value = l?.origem_evento_nome || ''
+  document.getElementById('crml-valor-potencial').value = l?.valor_potencial || ''
+  document.getElementById('crml-follow-up').value = l?.proximo_follow_up || ''
+  document.getElementById('crml-prioridade').checked = !!l?.prioridade
+  document.getElementById('crml-observacoes').value = l?.observacoes || ''
+  _crmPopularResponsavelSelects()
+  document.getElementById('crml-responsavel').value = l?.responsavel_id || ''
+  _crmLeadTipoContatoMudou()
+
+  const tabFeed = document.getElementById('crml-tab-feed-btn')
+  const tabHist = document.getElementById('crml-tab-hist-btn')
+  tabFeed.style.display = id ? 'block' : 'none'
+  tabHist.style.display = id ? 'block' : 'none'
+  _crmLeadSetTab('info')
+  _crmAtualizarAcoesStatus(l)
+  if (id) { await _crmRenderFeed(id); _crmRenderHistorico(id) }
+  abrirModal('modal-crm-lead')
+  setTimeout(() => document.getElementById('crml-nome')?.focus(), 50)
+}
+function _crmAtualizarAcoesStatus(l) {
+  const el = document.getElementById('crml-acoes-status')
+  const etapa = l ? store.crmEtapas.find(e => e.id === l.etapa_id) : null
+  el.style.display = (l && !etapa?.tipo_final) ? 'flex' : 'none'
+}
+async function _crmSalvarLead() {
+  const id = document.getElementById('crml-id').value || null
+  const nome = document.getElementById('crml-nome').value.trim()
+  if (!nome) { toast('Informe o nome'); return }
+  const payload = {
+    nome,
+    tipo_contato: document.getElementById('crml-tipo-contato').value,
+    escola_nome: document.getElementById('crml-escola-nome').value.trim() || null,
+    telefone: document.getElementById('crml-telefone').value.trim() || null,
+    email: document.getElementById('crml-email').value.trim() || null,
+    cidade: document.getElementById('crml-cidade').value.trim() || null,
+    tipo_lead: document.getElementById('crml-tipo-lead').value,
+    canal: document.getElementById('crml-canal').value.trim() || null,
+    origem_evento_nome: document.getElementById('crml-origem-evento').value.trim() || null,
+    responsavel_id: document.getElementById('crml-responsavel').value || null,
+    valor_potencial: parseFloat(document.getElementById('crml-valor-potencial').value) || 0,
+    proximo_follow_up: document.getElementById('crml-follow-up').value || null,
+    prioridade: document.getElementById('crml-prioridade').checked,
+    observacoes: document.getElementById('crml-observacoes').value.trim() || null,
+    atualizado_em: new Date().toISOString(),
+  }
+  let data, error
+  if (id) ({ data, error } = await db.from('crm_leads').update(payload).eq('id', id).select().single())
+  else {
+    const etapaInicial = _crmEtapasDoPipeline(_crmPipelineAtualId)[0]
+    if (!etapaInicial) { toast('Crie um pipeline com etapas primeiro'); return }
+    ;({ data, error } = await db.from('crm_leads').insert({ ...payload, pipeline_id: _crmPipelineAtualId, etapa_id: etapaInicial.id, criado_por: meuPerfil.user_id }).select().single())
+  }
+  if (error) { toast('Erro: ' + error.message); return }
+  const idx = store.crmLeads.findIndex(l => l.id === data.id)
+  if (idx >= 0) store.crmLeads[idx] = data; else store.crmLeads.push(data)
+  fecharModal('modal-crm-lead')
+  toast(id ? 'Lead atualizado ✓' : 'Lead criado ✓')
+  registrarAuditoria(id ? 'editou lead do CRM' : 'criou lead no CRM', 'crm_leads', data.id, nome)
+  _crmRenderKanban()
+  if (document.getElementById('crm-sub-leads')?.style.display !== 'none') _crmRenderLeadsLista()
+}
+
+// ── ganho/perdido ──
+function abrirModalCrmGanho() {
+  document.getElementById('crmg-valor').value = ''
+  document.getElementById('crmg-data').value = new Date().toISOString().slice(0, 10)
+  abrirModal('modal-crm-ganho')
+}
+async function _crmConfirmarGanho() {
+  const { leadId, etapaId } = _crmTransicaoPendente || {}
+  if (!leadId) return
+  const valor_fechado = parseFloat(document.getElementById('crmg-valor').value) || 0
+  const data_fechamento = document.getElementById('crmg-data').value || new Date().toISOString().slice(0, 10)
+  await _crmMoverEtapa(leadId, etapaId, { valor_fechado, data_fechamento, motivo_perda: null })
+  fecharModal('modal-crm-ganho')
+}
+function abrirModalCrmPerda() {
+  if (!_crmTransicaoPendente && _crmLeadAtualId) {
+    const l = store.crmLeads.find(x => x.id === _crmLeadAtualId)
+    const etapaPerdido = store.crmEtapas.find(e => e.pipeline_id === l?.pipeline_id && e.tipo_final === 'perdido')
+    if (!etapaPerdido) { toast('Esse pipeline não tem etapa de Perdido configurada'); return }
+    _crmTransicaoPendente = { leadId: _crmLeadAtualId, etapaId: etapaPerdido.id }
+  }
+  _crmMotivoPerdaSelecionado = null
+  document.getElementById('crmp-obs').value = ''
+  document.getElementById('crm-perda-lista').innerHTML = store.crmMotivosPerda.map(m =>
+    `<span class="tag-opt" onclick="_crmSelecionarMotivoPerda('${esc(m.texto)}',this)">${esc(m.texto)}</span>`).join('')
+  abrirModal('modal-crm-perda')
+}
+function _crmSelecionarMotivoPerda(texto, el) {
+  _crmMotivoPerdaSelecionado = texto
+  el.parentElement.querySelectorAll('.tag-opt').forEach(c => c.classList.toggle('on', c === el))
+}
+async function _crmConfirmarPerda() {
+  const { leadId, etapaId } = _crmTransicaoPendente || {}
+  if (!leadId || !_crmMotivoPerdaSelecionado) { toast('Escolha um motivo'); return }
+  const obs = document.getElementById('crmp-obs').value.trim()
+  const motivo_perda = _crmMotivoPerdaSelecionado + (obs ? ' — ' + obs : '')
+  await _crmMoverEtapa(leadId, etapaId, { motivo_perda })
+  fecharModal('modal-crm-perda')
+}
+function _crmMarcarGanho() {
+  const l = store.crmLeads.find(x => x.id === _crmLeadAtualId)
+  const etapa = store.crmEtapas.find(e => e.pipeline_id === l?.pipeline_id && e.tipo_final === 'ganho')
+  if (!etapa) { toast('Esse pipeline não tem etapa de Ganho configurada'); return }
+  _crmIniciarTransicao(_crmLeadAtualId, etapa.id)
+}
+
+// ── feed (atividades + anotações), unificado por ordem cronológica ──
+async function _crmRenderFeed(leadId) {
+  const [notasRes, ativRes] = await Promise.all([
+    db.from('crm_anotacoes').select('*').eq('lead_id', leadId).order('criado_em', { ascending: false }),
+    db.from('crm_atividades').select('*').eq('lead_id', leadId).order('data_prevista', { ascending: false }),
+  ])
+  const notas = (notasRes.data || []).map(n => ({ kind: 'nota', when: n.criado_em, item: n }))
+  const ativs = (ativRes.data || []).map(a => ({ kind: 'ativ', when: a.data_prevista + 'T' + (a.hora_prevista || '23:59'), item: a }))
+  const feed = [...notas, ...ativs].sort((a, b) => b.when.localeCompare(a.when))
+  const el = document.getElementById('crml-feed-lista')
+  el.innerHTML = feed.length ? feed.map(f => f.kind === 'nota' ? _crmNotaHTML(f.item) : _crmAtivHTML(f.item)).join('') : '<div class="empty">Nenhuma atividade ou anotação ainda.</div>'
+}
+function _crmNotaHTML(n) {
+  return `
+  <div class="crm-feed-item">
+    <div class="cf-topo"><span>📝 ${esc(n.autor_nome || 'Anônimo')} · ${fmtDataHora(n.criado_em)}</span><span style="cursor:pointer;" onclick="_crmApagarNota('${n.id}')">🗑</span></div>
+    <div class="cf-texto">${esc(n.texto)}</div>
+  </div>`
+}
+function _crmAtivHTML(a) {
+  const atrasada = a.status === 'pendente' && a.data_prevista < new Date().toISOString().slice(0, 10)
+  return `
+  <div class="crm-feed-item${a.status === 'concluida' ? ' concluida' : ''}">
+    <div class="cf-topo">
+      <span>${atrasada ? '⚠️' : '📅'} ${CRM_TIPO_ATIV_LABEL[a.tipo] || a.tipo} · ${fmtData(a.data_prevista)}${a.hora_prevista ? ' ' + _agHora(a.hora_prevista) : ''}</span>
+      ${a.status !== 'concluida' ? `<span style="cursor:pointer;" onclick="_crmConcluirAtividade('${a.id}')">✓ Concluir</span>` : ''}
+    </div>
+    <div class="cf-texto">${esc(a.obs || '')}</div>
+  </div>`
+}
+async function _crmSalvarNota() {
+  const texto = document.getElementById('crml-nova-nota').value.trim()
+  if (!texto || !_crmLeadAtualId) return
+  const { data, error } = await db.from('crm_anotacoes').insert({ lead_id: _crmLeadAtualId, texto, autor_id: meuPerfil.user_id, autor_nome: _crmAutorNome() }).select().single()
+  if (error) { toast('Erro: ' + error.message); return }
+  document.getElementById('crml-nova-nota').value = ''
+  toast('Anotação salva ✓')
+  _crmRenderFeed(_crmLeadAtualId)
+}
+async function _crmApagarNota(id) {
+  const ok = await confirmModal('Apagar essa anotação?', { titulo: 'Apagar anotação', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('crm_anotacoes').delete().eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  toast('Anotação apagada')
+  _crmRenderFeed(_crmLeadAtualId)
+}
+async function _crmAgendarAtividade() {
+  if (!_crmLeadAtualId) return
+  const tipo = document.getElementById('crmat-tipo').value
+  const data_prevista = document.getElementById('crmat-data').value
+  if (!data_prevista) { toast('Escolha a data'); return }
+  const hora_prevista = document.getElementById('crmat-hora').value || null
+  const obs = document.getElementById('crmat-obs').value.trim() || null
+  const l = store.crmLeads.find(x => x.id === _crmLeadAtualId)
+  const { error } = await db.from('crm_atividades').insert({ lead_id: _crmLeadAtualId, tipo, data_prevista, hora_prevista, obs, responsavel_id: l?.responsavel_id || meuPerfil.user_id, criado_por: meuPerfil.user_id })
+  if (error) { toast('Erro: ' + error.message); return }
+  document.getElementById('crmat-obs').value = ''
+  toast('Atividade agendada ✓')
+  _crmRenderFeed(_crmLeadAtualId)
+}
+async function _crmConcluirAtividade(id) {
+  const { error } = await db.from('crm_atividades').update({ status: 'concluida' }).eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  toast('Concluída ✓')
+  if (_crmLeadAtualId) _crmRenderFeed(_crmLeadAtualId)
+  if (document.getElementById('crm-sub-atividades')?.style.display !== 'none') _crmRenderAtividadesGeral()
+}
+
+function _crmRenderHistorico(leadId) {
+  db.from('crm_historico').select('*').eq('lead_id', leadId).order('criado_em', { ascending: false }).then(({ data, error }) => {
+    const el = document.getElementById('crml-historico-lista')
+    if (error || !data?.length) { el.innerHTML = '<div class="empty">Sem histórico ainda.</div>'; return }
+    el.innerHTML = data.map(h => `
+      <div class="crm-feed-item">
+        <div class="cf-topo"><span>${esc(h.autor_nome || '—')} · ${fmtDataHora(h.criado_em)}</span></div>
+        <div class="cf-texto">${h.tipo === 'estagio' ? `${esc(h.etapa_anterior_nome || '(novo)')} → ${esc(h.etapa_nova_nome)}` : esc(h.obs || '')}</div>
+      </div>`).join('')
+  })
+}
+
+// ══ Leads: lista/tabela + filtros + import + export ══
+function _crmFiltrarLeadsLista() {
+  const busca = (document.getElementById('crm-busca-leads')?.value || '').toLowerCase()
+  const etapaId = document.getElementById('crm-filtro-etapa')?.value || ''
+  return store.crmLeads.filter(l => {
+    if (etapaId && l.etapa_id !== etapaId) return false
+    if (busca) {
+      const alvo = [l.nome, l.escola_nome, l.telefone, l.email, l.cidade].filter(Boolean).join(' ').toLowerCase()
+      if (!alvo.includes(busca)) return false
+    }
+    return true
+  }).sort((a, b) => (b.criado_em || '').localeCompare(a.criado_em || ''))
+}
+function _crmRenderLeadsLista() {
+  const selEtapa = document.getElementById('crm-filtro-etapa')
+  selEtapa.innerHTML = '<option value="">Todas as etapas</option>' + store.crmEtapas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  const leads = _crmFiltrarLeadsLista()
+  const tbody = document.getElementById('crm-leads-tbody')
+  tbody.innerHTML = leads.length ? leads.map(l => {
+    const etapa = store.crmEtapas.find(e => e.id === l.etapa_id)
+    const contato = [l.telefone, l.email].filter(Boolean).join(' · ') || '—'
+    return `<tr onclick="abrirModalCrmLead('${l.id}')">
+      <td>${l.prioridade ? '⭐ ' : ''}${esc(l.nome)}</td>
+      <td>${CRM_TIPO_LEAD_LABEL[l.tipo_lead] || l.tipo_lead}</td>
+      <td>${esc(contato)}</td>
+      <td>${esc(etapa?.nome || '—')}</td>
+      <td>${esc(_crmNomeResponsavel(l.responsavel_id) || '—')}</td>
+      <td>${fmtBRL(l.valor_potencial || 0)}</td>
+      <td>${l.proximo_follow_up ? fmtData(l.proximo_follow_up) : '—'}</td>
+    </tr>`
+  }).join('') : '<tr><td colspan="7" class="empty">Nenhum lead encontrado.</td></tr>'
+}
+
+function baixarModeloCrm() {
+  const ws = XLSX.utils.aoa_to_sheet([
+    ['Nome', 'Tipo de Contato', 'Escola', 'Telefone', 'Email', 'Cidade', 'Tipo de Lead', 'Canal'],
+    ['Ex: Marina Duarte', 'escola', 'Studio Passos de Ouro', '(11) 98888-7777', 'marina@exemplo.com', 'São Paulo', 'outbound', 'Instagram'],
+    ['Ex: Fernanda Alves (deixe Escola em branco pra avulso)', 'avulso', '', '(11) 97777-6666', '', 'Campinas', 'indicacao', 'Indicação'],
+  ])
+  ws['!cols'] = [{ wch: 30 }, { wch: 14 }, { wch: 24 }, { wch: 16 }, { wch: 24 }, { wch: 16 }, { wch: 14 }, { wch: 14 }]
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Leads')
+  XLSX.writeFile(wb, 'modelo-leads-crm-grandfocus.xlsx')
+}
+async function processarPlanilhaCrm(file) {
+  if (!file) return
+  const buf = await file.arrayBuffer()
+  const wb = XLSX.read(buf, { type: 'array' })
+  const ws = wb.Sheets[wb.SheetNames[0]]
+  const linhas = XLSX.utils.sheet_to_json(ws, { defval: '' })
+  document.getElementById('crm-import-input').value = ''
+
+  const tiposContatoValidos = ['escola', 'avulso', 'outro']
+  const tiposLeadValidos = ['outbound', 'inbound', 'indicacao']
+  _crmImportLinhas = linhas.map((linha, i) => {
+    const nome = String(linha['Nome'] || '').trim()
+    let erro = null
+    if (!nome) erro = 'Nome vazio'
+    else if (/^ex:/i.test(nome)) erro = 'Linha de exemplo — apague antes de importar'
+    let tipo_contato = String(linha['Tipo de Contato'] || 'avulso').trim().toLowerCase()
+    if (!tiposContatoValidos.includes(tipo_contato)) tipo_contato = 'avulso'
+    let tipo_lead = String(linha['Tipo de Lead'] || 'outbound').trim().toLowerCase()
+    if (!tiposLeadValidos.includes(tipo_lead)) tipo_lead = 'outbound'
+    if (!erro) {
+      const dupIdx = linhas.findIndex((l2, j) => j < i && String(l2['Nome'] || '').trim().toLowerCase() === nome.toLowerCase())
+      if (dupIdx !== -1) erro = `Linha duplicada (igual à linha ${dupIdx + 2})`
+    }
+    return {
+      linha: i + 2, erro, nome, tipo_contato,
+      escola_nome: String(linha['Escola'] || '').trim() || null,
+      telefone: String(linha['Telefone'] || '').trim() || null,
+      email: String(linha['Email'] || '').trim() || null,
+      cidade: String(linha['Cidade'] || '').trim() || null,
+      tipo_lead,
+      canal: String(linha['Canal'] || '').trim() || null,
+    }
+  })
+  const validas = _crmImportLinhas.filter(l => !l.erro).length
+  const comErro = _crmImportLinhas.length - validas
+  document.getElementById('crm-import-resumo').textContent = `${_crmImportLinhas.length} linha(s) lida(s) — ${validas} pronta(s) pra importar${comErro ? `, ${comErro} com erro` : ''}.`
+  document.getElementById('crm-import-linhas').innerHTML = _crmImportLinhas.map(l =>
+    `<div class="crm-import-linha ${l.erro ? 'erro' : 'ok'}">Linha ${l.linha}: ${esc(l.nome || '(sem nome)')} ${l.erro ? '— ' + esc(l.erro) : '✓'}</div>`).join('')
+  document.getElementById('crm-import-preview').style.display = 'block'
+}
+async function _crmConfirmarImport() {
+  const validas = _crmImportLinhas.filter(l => !l.erro)
+  if (!validas.length) { toast('Nenhuma linha válida pra importar'); return }
+  const etapaInicial = _crmEtapasDoPipeline(_crmPipelineAtualId)[0]
+  if (!etapaInicial) { toast('Selecione um pipeline com etapas antes de importar'); return }
+  const rows = validas.map(l => ({
+    nome: l.nome, tipo_contato: l.tipo_contato, escola_nome: l.escola_nome, telefone: l.telefone, email: l.email,
+    cidade: l.cidade, tipo_lead: l.tipo_lead, canal: l.canal, pipeline_id: _crmPipelineAtualId, etapa_id: etapaInicial.id,
+    criado_por: meuPerfil.user_id,
+  }))
+  const { data, error } = await db.from('crm_leads').insert(rows).select()
+  if (error) { toast('Erro ao importar: ' + error.message); return }
+  store.crmLeads.push(...(data || []))
+  document.getElementById('crm-import-preview').style.display = 'none'
+  _crmImportLinhas = []
+  toast(`${data?.length || 0} lead(s) importado(s) ✓`)
+  registrarAuditoria('importou leads em massa no CRM', 'crm_leads', null, `${data?.length || 0} lead(s)`)
+  _crmRenderLeadsLista()
+  _crmRenderKanban()
+}
+function exportarCrmLeadsCSV() {
+  const linhas = _crmFiltrarLeadsLista()
+  if (!linhas.length) { toast('Nada pra exportar'); return }
+  const cols = ['nome', 'tipo_contato', 'escola_nome', 'telefone', 'email', 'cidade', 'tipo_lead', 'canal', 'valor_potencial', 'proximo_follow_up']
+  const header = cols.join(',')
+  const body = linhas.map(l => cols.map(c => `"${String(l[c] ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob(['﻿' + header + '\n' + body], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url; a.download = `leads-crm-grandfocus_${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a); a.click(); a.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// ══ Atividades (visão geral, cross-lead) ══
+function _crmRenderAtividadesGeral() {
+  const filtro = document.getElementById('crm-ativ-filtro').value
+  db.from('crm_atividades').select('*, crm_leads(nome)').order('data_prevista').then(({ data, error }) => {
+    const el = document.getElementById('crm-atividades-lista')
+    if (error) { el.innerHTML = `<div class="empty">Erro: ${esc(error.message)}</div>`; return }
+    const hoje = new Date().toISOString().slice(0, 10)
+    let itens = data || []
+    if (filtro === 'atrasadas') itens = itens.filter(a => a.status === 'pendente' && a.data_prevista < hoje)
+    else if (filtro === 'hoje') itens = itens.filter(a => a.status === 'pendente' && a.data_prevista === hoje)
+    else if (filtro === 'pendente') itens = itens.filter(a => a.status === 'pendente')
+    else if (filtro === 'concluida') itens = itens.filter(a => a.status === 'concluida')
+    el.innerHTML = itens.length ? itens.map(a => {
+      const lead = Array.isArray(a.crm_leads) ? a.crm_leads[0] : a.crm_leads
+      const atrasada = a.status === 'pendente' && a.data_prevista < hoje
+      return `
+      <div class="agenda-card${atrasada ? ' status-remarcado' : ''}" onclick="abrirModalCrmLead('${a.lead_id}')" style="cursor:pointer;">
+        <div class="ac-hora">${fmtData(a.data_prevista)}</div>
+        <div class="ac-corpo">
+          <div class="ac-titulo-row"><span class="ac-titulo">${esc(lead?.nome || 'Lead')}</span><span class="agenda-badge-tipo">${CRM_TIPO_ATIV_LABEL[a.tipo] || a.tipo}</span></div>
+          <div class="ac-meta"><span>${esc(a.obs || '')}</span></div>
+          ${a.status !== 'concluida' ? `<div class="ac-acoes"><button class="btn btn-sm" onclick="event.stopPropagation();_crmConcluirAtividade('${a.id}')">✓ Concluir</button></div>` : ''}
+        </div>
+      </div>`
+    }).join('') : '<div class="empty">Nada por aqui.</div>'
+  })
+}
+
+// ══ Dashboard: KPIs + funil + motivo de perda + desempenho + canais ══
+function _crmRenderDashboard() {
+  const el = document.getElementById('crm-dashboard-conteudo')
+  const leads = store.crmLeads
+  if (!leads.length) { el.innerHTML = '<div class="empty">Nenhum lead cadastrado ainda.</div>'; return }
+
+  const etapasGanho = new Set(store.crmEtapas.filter(e => e.tipo_final === 'ganho').map(e => e.id))
+  const etapasPerdido = new Set(store.crmEtapas.filter(e => e.tipo_final === 'perdido').map(e => e.id))
+  const ganhos = leads.filter(l => etapasGanho.has(l.etapa_id))
+  const perdidos = leads.filter(l => etapasPerdido.has(l.etapa_id))
+  const abertos = leads.length - ganhos.length - perdidos.length
+  const receitaFechada = ganhos.reduce((s, l) => s + (l.valor_fechado || 0), 0)
+  const taxaConversao = leads.length ? (ganhos.length / leads.length * 100) : 0
+
+  const leadTimes = ganhos.filter(l => l.data_fechamento).map(l => (new Date(l.data_fechamento) - new Date(l.criado_em)) / 86400000)
+  const leadTimeMedio = leadTimes.length ? leadTimes.reduce((s, v) => s + v, 0) / leadTimes.length : null
+
+  const porMotivo = new Map()
+  perdidos.forEach(l => { const m = (l.motivo_perda || 'Sem motivo').split(' — ')[0]; porMotivo.set(m, (porMotivo.get(m) || 0) + 1) })
+  const motivosOrdenados = [...porMotivo.entries()].sort((a, b) => b[1] - a[1])
+
+  const porCanal = new Map()
+  leads.forEach(l => { const c = l.canal || '(sem canal)'; porCanal.set(c, (porCanal.get(c) || 0) + 1) })
+  const canaisOrdenados = [...porCanal.entries()].sort((a, b) => b[1] - a[1])
+
+  const porTipo = new Map()
+  leads.forEach(l => { const t = CRM_TIPO_LEAD_LABEL[l.tipo_lead] || l.tipo_lead; porTipo.set(t, (porTipo.get(t) || 0) + 1) })
+
+  const porResponsavel = new Map()
+  leads.forEach(l => {
+    if (!l.responsavel_id) return
+    const nome = _crmNomeResponsavel(l.responsavel_id) || '—'
+    const atual = porResponsavel.get(nome) || { total: 0, ganhos: 0 }
+    atual.total++
+    if (etapasGanho.has(l.etapa_id)) atual.ganhos++
+    porResponsavel.set(nome, atual)
+  })
+
+  el.innerHTML = `
+    <div class="gr-kpi-grid">
+      <div class="gr-kpi-card ouro"><div class="gr-kpi-label">Leads Ativos</div><div class="gr-kpi-valor">${abertos}</div><div class="gr-kpi-meta">${leads.length} no total</div></div>
+      <div class="gr-kpi-card liquido"><div class="gr-kpi-label">Receita Fechada</div><div class="gr-kpi-valor">${fmtBRL(receitaFechada)}</div><div class="gr-kpi-meta">${ganhos.length} venda(s)</div></div>
+      <div class="gr-kpi-card ouro"><div class="gr-kpi-label">Taxa de Conversão</div><div class="gr-kpi-valor">${taxaConversao.toFixed(0)}%</div><div class="gr-kpi-meta">${ganhos.length} de ${leads.length}</div></div>
+      <div class="gr-kpi-card perda"><div class="gr-kpi-label">Lead Time Médio</div><div class="gr-kpi-valor">${leadTimeMedio !== null ? leadTimeMedio.toFixed(0) + 'd' : '—'}</div><div class="gr-kpi-meta">do 1º contato ao fechamento</div></div>
+    </div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Origem dos Leads</h3>
+    <div class="gr-waterfall" style="margin-bottom:26px;">
+      ${[...porTipo.entries()].map(([t, n]) => _grWaterfallPasso(t, n, leads.length, '', 'numero')).join('')}
+    </div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Canais de Aquisição</h3>
+    <div class="gr-waterfall" style="margin-bottom:26px;">
+      ${canaisOrdenados.length ? canaisOrdenados.map(([c, n]) => _grWaterfallPasso(c, n, canaisOrdenados[0][1], '', 'numero')).join('') : '<div class="empty">Sem dado de canal ainda.</div>'}
+    </div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Motivos de Perda</h3>
+    <div class="gr-waterfall" style="margin-bottom:26px;">
+      ${motivosOrdenados.length ? motivosOrdenados.map(([m, n]) => _grWaterfallPasso(m, n, motivosOrdenados[0][1], 'negativo', 'numero')).join('') : '<div class="empty">Nenhum lead perdido ainda.</div>'}
+    </div>
+
+    <h3 style="font-size:15px;margin-bottom:12px;color:var(--papel,#F6F0E6);">Desempenho por Responsável</h3>
+    <table class="crm-leads-tabela"><thead><tr><th>Responsável</th><th>Leads</th><th>Ganhos</th><th>Conversão</th></tr></thead><tbody>
+      ${[...porResponsavel.entries()].map(([nome, r]) => `<tr><td>${esc(nome)}</td><td>${r.total}</td><td>${r.ganhos}</td><td>${(r.ganhos / r.total * 100).toFixed(0)}%</td></tr>`).join('') || '<tr><td colspan="4" class="empty">Nenhum lead com responsável definido.</td></tr>'}
+    </tbody></table>
+  `
 }
 
 // ══════════════════════════════════════════════════════════════
