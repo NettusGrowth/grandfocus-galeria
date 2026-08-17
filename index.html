@@ -694,7 +694,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    vanilla JS de arquivo único), zero JS rodando durante o hover. */
 .dash-desktop-only{display:block;}
 @media(max-width:900px){.dash-desktop-only{display:none !important;}}
-.dash-fotos-populares{display:flex;gap:10px;height:340px;}
+.dash-fotos-populares{display:flex;gap:10px;height:min(70vh,560px);}
 .dfp-item{position:relative;flex:1;overflow:hidden;border-radius:12px;cursor:pointer;background:rgba(75,4,22,.3);transition:flex .4s ease;}
 .dash-fotos-populares:has(.dfp-item:hover) .dfp-item{flex:0.5;}
 .dash-fotos-populares:has(.dfp-item:hover) .dfp-item:hover{flex:3;}
@@ -7371,7 +7371,12 @@ async function renderLightboxAtual() {
   // galeria (senão suja a estatística de "o que o público realmente
   // olha"), e não conta post da Comunidade (id começa com "post-").
   if (!f.id.startsWith('post-') && !['admin', 'super_admin'].includes(meuPerfil?.role)) {
-    db.rpc('marcar_visualizacao_foto', { p_foto_id: f.id }).catch(() => {})
+    // log em vez de engolir o erro em silêncio — se a RPC não existir
+    // no banco (migration 060 não rodada) ou faltar grant, antes isso
+    // ficava invisível pra sempre; agora aparece no console.
+    db.rpc('marcar_visualizacao_foto', { p_foto_id: f.id }).then(({ error }) => {
+      if (error) console.error('marcar_visualizacao_foto falhou', error)
+    })
   }
 }
 document.addEventListener('keydown', e => {
