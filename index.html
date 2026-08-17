@@ -890,6 +890,54 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .gr-equip-item .ge-topo{display:flex;justify-content:space-between;font-size:13px;color:#C9AF87;margin-bottom:5px;}
 .gr-equip-item .ge-nome{color:var(--papel,#F6F0E6);}
 
+/* ── Agenda: toggle Lista/Calendário, cards de dia, grade mensal ── */
+.agenda-view-toggle{display:flex;border:1px solid rgba(212,175,55,.25);border-radius:10px;overflow:hidden;}
+.agenda-vt-btn{padding:8px 14px;background:transparent;border:none;color:#C9AF87;font-family:var(--sans);font-size:12.5px;cursor:pointer;transition:all .15s;}
+.agenda-vt-btn.on{background:var(--dourado);color:#1E0810;font-weight:600;}
+.agenda-vt-btn:not(.on):hover{background:rgba(212,175,55,.1);}
+
+.agenda-dia-grupo{margin-bottom:22px;}
+.agenda-dia-titulo{font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;color:#B39F86;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.agenda-dia-titulo .hoje-badge{background:var(--dourado);color:#1E0810;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:none;letter-spacing:0;}
+
+.agenda-card{border-radius:14px;padding:14px 16px;border:1px solid rgba(212,175,55,.15);background:linear-gradient(155deg,var(--vinho-nobre),#250A14);margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s;}
+.agenda-card:hover{border-color:rgba(212,175,55,.4);}
+.agenda-card.status-cancelado{opacity:.55;}
+.agenda-card .ac-hora{font-family:var(--sans-num);font-variant-numeric:tabular-nums;font-weight:700;font-size:15px;color:var(--dourado);min-width:52px;}
+.agenda-card .ac-corpo{flex:1;min-width:0;}
+.agenda-card .ac-titulo-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
+.agenda-card .ac-titulo{font-size:14.5px;color:var(--papel,#F6F0E6);font-weight:600;}
+.agenda-card .ac-meta{font-size:12px;color:#9C8874;display:flex;gap:12px;flex-wrap:wrap;}
+.agenda-card .ac-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.agenda-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.02em;}
+.agenda-badge.agendado{background:rgba(201,175,135,.18);color:#C9AF87;}
+.agenda-badge.confirmado{background:rgba(46,166,110,.18);color:var(--verde);}
+.agenda-badge.remarcado{background:rgba(212,150,55,.2);color:#E0A94A;}
+.agenda-badge.cancelado{background:rgba(214,72,72,.18);color:var(--vermelho);}
+.agenda-badge.concluido{background:rgba(212,175,55,.2);color:var(--dourado);}
+.agenda-badge-tipo{font-size:10.5px;color:#8A7461;border:1px solid rgba(212,175,55,.2);padding:2px 8px;border-radius:999px;}
+
+.agenda-cal-header{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:16px;}
+.agenda-cal-header button{background:transparent;border:1px solid rgba(212,175,55,.25);color:var(--dourado);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px;}
+.agenda-cal-header button:hover{border-color:rgba(212,175,55,.5);}
+.agenda-cal-header span{font-family:var(--sans);font-size:15px;color:var(--papel,#F6F0E6);min-width:160px;text-align:center;text-transform:capitalize;}
+.agenda-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;}
+.agenda-cal-dow{font-size:10.5px;text-transform:uppercase;color:#8A7461;text-align:center;padding-bottom:6px;}
+.agenda-cal-dia{min-height:74px;border-radius:10px;border:1px solid rgba(212,175,55,.1);padding:6px;cursor:pointer;transition:border-color .15s,background .15s;background:rgba(255,255,255,.015);}
+.agenda-cal-dia:hover{border-color:rgba(212,175,55,.4);}
+.agenda-cal-dia.fora-mes{opacity:.3;}
+.agenda-cal-dia.hoje{border-color:var(--dourado);background:rgba(212,175,55,.08);}
+.agenda-cal-dia .acd-num{font-family:var(--sans-num);font-size:12px;color:#C9AF87;}
+.agenda-cal-dia .acd-itens{display:flex;flex-direction:column;gap:2px;margin-top:4px;}
+.agenda-cal-dia .acd-chip{font-size:9.5px;padding:1px 5px;border-radius:5px;background:rgba(212,175,55,.14);color:var(--ouro-luz);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agenda-cal-dia .acd-mais{font-size:9.5px;color:#8A7461;}
+@media(max-width:700px){
+  .agenda-cal-grid{gap:4px;}
+  .agenda-cal-dia{min-height:56px;padding:4px;}
+  .agenda-cal-dia .acd-chip{display:none;}
+  .agenda-cal-dia.tem-item .acd-num::after{content:'•';color:var(--dourado);margin-left:4px;}
+}
+
 /* ── barra de busca/filtro (Escolas, Alunos, Pais) ── */
 .filtro-row{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
 .filtro-row input[type="text"]{max-width:280px;}
@@ -1480,6 +1528,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="tabs">
         <div class="navgroup-label">Geral</div>
         <div class="tab on" data-tab="dashboard" data-tip="Dashboard" data-bn-primary onclick="setAdminTab('dashboard');iniciarDashboardAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></svg><span>Dashboard</span></div>
+        <div class="tab" data-tab="agenda" data-tip="Agenda" data-bn-primary onclick="setAdminTab('agenda');iniciarAgendaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="4.5" width="17" height="16" rx="2"/><line x1="3.5" y1="9" x2="20.5" y2="9"/><line x1="8" y1="3" x2="8" y2="6"/><line x1="16" y1="3" x2="16" y2="6"/><line x1="7" y1="13" x2="12" y2="13"/><line x1="7" y1="17" x2="15" y2="17"/></svg><span>Agenda</span></div>
         <div class="navgroup-label">Gestão</div>
         <div class="tab" data-tab="escolas" data-tip="Escolas" data-bn-primary onclick="setAdminTab('escolas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg><span>Escolas</span></div>
         <div class="tab" data-tab="alunos" data-tip="Alunos" onclick="setAdminTab('alunos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg><span>Alunos</span></div>
@@ -1616,6 +1665,48 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             </div>
           </div>
           <div class="dash-fotos-populares" id="dash-fotos-populares"></div>
+        </div>
+      </div>
+
+      <div class="admin-tab" id="admintab-agenda" style="display:none;">
+        <div class="section-h">
+          <h2>Agenda</h2>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <div class="agenda-view-toggle">
+              <button class="agenda-vt-btn on" id="agenda-vt-lista" onclick="_agendaSetView('lista')">Lista</button>
+              <button class="agenda-vt-btn" id="agenda-vt-calendario" onclick="_agendaSetView('calendario')">Calendário</button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalAgenda()">+ Novo compromisso</button>
+          </div>
+        </div>
+        <div class="filtro-row">
+          <input type="text" id="agenda-busca" placeholder="Buscar por título, local, cliente…" oninput="_agendaRenderLista()">
+          <select id="agenda-filtro-status" onchange="_agendaRenderLista()">
+            <option value="">Todos os status</option>
+            <option value="agendado">Agendado</option>
+            <option value="confirmado">Confirmado</option>
+            <option value="remarcado">Remarcado</option>
+            <option value="cancelado">Cancelado</option>
+            <option value="concluido">Concluído</option>
+          </select>
+          <select id="agenda-filtro-tipo" onchange="_agendaRenderLista()">
+            <option value="">Todos os tipos</option>
+            <option value="ensaio">Ensaio</option>
+            <option value="evento">Evento</option>
+            <option value="reuniao">Reunião</option>
+            <option value="entrega">Entrega</option>
+            <option value="outro">Outro</option>
+          </select>
+        </div>
+        <div id="agenda-lista-wrap"><div id="agenda-lista"></div></div>
+        <div id="agenda-calendario-wrap" style="display:none;">
+          <div class="agenda-cal-header">
+            <button onclick="_agendaCalMes(-1)">‹</button>
+            <span id="agenda-cal-titulo"></span>
+            <button onclick="_agendaCalMes(1)">›</button>
+          </div>
+          <div class="agenda-cal-grid" id="agenda-cal-dow"></div>
+          <div class="agenda-cal-grid" id="agenda-cal-grid"></div>
         </div>
       </div>
 
@@ -2007,6 +2098,93 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </div>
 
 <!-- modal: novo evento -->
+<!-- modal: novo/editar compromisso da Agenda -->
+<div class="modal-overlay" id="modal-agenda">
+  <div class="modal" style="max-width:520px;">
+    <input type="hidden" id="ag-id">
+    <h3 id="ag-modal-titulo">Novo compromisso</h3>
+    <div class="field"><label>Título</label><input type="text" id="ag-titulo" placeholder="Ex: Ensaio Turma Ballet Infantil"></div>
+    <div class="field"><label>Tipo</label>
+      <select id="ag-tipo">
+        <option value="ensaio">Ensaio</option>
+        <option value="evento">Evento</option>
+        <option value="reuniao">Reunião</option>
+        <option value="entrega">Entrega</option>
+        <option value="outro">Outro</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Data</label><input type="date" id="ag-data"></div>
+      <div class="field" style="flex:1;"><label>Início</label><input type="time" id="ag-hora-inicio"></div>
+      <div class="field" style="flex:1;"><label>Fim (opcional)</label><input type="time" id="ag-hora-fim"></div>
+    </div>
+    <div class="field"><label>Local</label><input type="text" id="ag-local" placeholder="Ex: Estúdio Grand Focus / nome da escola"></div>
+    <div class="field">
+      <label>Vincular a um evento/ensaio já cadastrado (opcional)</label>
+      <input type="text" id="ag-evento-busca" placeholder="Buscar…" style="margin-bottom:6px;" oninput="_agendaRenderEventoPicker()">
+      <div class="tag-picker" id="ag-evento-lista" style="max-height:130px;overflow-y:auto;"></div>
+      <div class="hint" id="ag-evento-selecionado-hint" style="display:none;margin-top:6px;"></div>
+    </div>
+    <div class="field">
+      <label>Cliente avulso (opcional)</label>
+      <select id="ag-cliente-avulso"><option value="">— nenhum —</option></select>
+    </div>
+    <div class="field"><label>Nome do cliente (se não tiver cadastro)</label><input type="text" id="ag-cliente-livre" placeholder="Opcional"></div>
+    <div class="field">
+      <label>Equipe (quem vai)</label>
+      <div class="tag-picker" id="ag-equipe-lista"></div>
+    </div>
+    <div class="field"><label>Lembrete (horas antes)</label><input type="number" id="ag-lembrete" value="24" min="1" step="1"></div>
+    <div class="field"><label>Notas</label><textarea id="ag-notas" rows="3" placeholder="Observações, o que levar, combinados…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-agenda')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_agendaSalvar()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: remarcar compromisso -->
+<div class="modal-overlay" id="modal-agenda-remarcar">
+  <div class="modal" style="max-width:400px;">
+    <input type="hidden" id="agr-id">
+    <h3>Remarcar compromisso</h3>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Nova data</label><input type="date" id="agr-data"></div>
+      <div class="field" style="flex:1;"><label>Novo horário</label><input type="time" id="agr-hora-inicio"></div>
+    </div>
+    <div class="field"><label>Motivo (opcional)</label><textarea id="agr-motivo" rows="2" placeholder="Ex: cliente pediu pra mudar, choveu, etc."></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-agenda-remarcar')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_agendaConfirmarRemarcar()">Remarcar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: cancelar compromisso -->
+<div class="modal-overlay" id="modal-agenda-cancelar">
+  <div class="modal" style="max-width:400px;">
+    <input type="hidden" id="agc-id">
+    <h3>Cancelar compromisso</h3>
+    <div class="field"><label>Motivo (opcional)</label><textarea id="agc-motivo" rows="2" placeholder="Ex: cliente desistiu, remarcado pra outro estúdio…"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-agenda-cancelar')">Voltar</button>
+      <button class="btn btn-danger btn-sm" onclick="_agendaConfirmarCancelar()">Cancelar compromisso</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: compromissos de um dia (visão calendário) -->
+<div class="modal-overlay" id="modal-agenda-dia">
+  <div class="modal" style="max-width:480px;">
+    <h3 id="ag-dia-titulo">Compromissos do dia</h3>
+    <div id="ag-dia-lista"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-agenda-dia')">Fechar</button>
+      <button class="btn btn-primary btn-sm" onclick="fecharModal('modal-agenda-dia');abrirModalAgenda(null,_agendaDiaAtual)">+ Novo nesse dia</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-evento">
   <div class="modal" style="max-width:520px;">
     <input type="hidden" id="evt-id">
@@ -2706,7 +2884,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [] }
 // config global chave/valor (tabela app_config), carregada no login —
 // hoje só guarda hero_bg_path (foto de fundo do Dashboard, opcional,
 // ver _aplicarHeroBg). Ver Ctrl+Shift+B (só admin/super_admin).
@@ -3374,6 +3552,8 @@ function _toggleSinoNotificacoes() {
 // privados gerados — não espelha toda ação de edição/rotina.
 const NOTIF_ALTO_VALOR = /criou (aluno|professor|escola|respons)|criou acesso|publicou na comunidade|gerou link privado|fez upload de fotos|enviou pedido de fotos extras|liberou pagamento automaticamente/i
 function _notifIcone(texto) {
+  if (/lembrete:|remarcado|já passou e ainda/i.test(texto)) return '📅'
+  if (/cancelado: "/i.test(texto)) return '🚫'
   if (/pedido de fotos extras/i.test(texto)) return '💰'
   if (/upload/i.test(texto)) return '📷'
   if (/publicou|comunidade|coment/i.test(texto)) return '💬'
@@ -3398,17 +3578,58 @@ function _notifAgrupar(itens) {
   return [...grupos.values()].map(g => ({ ...g, texto: g.n > 1 ? `${g.texto} (${g.n}×)` : g.texto }))
 }
 
+// Agenda: lembrete de compromisso chegando perto (respeitando o
+// lembrete_horas de cada um), aviso de compromisso vencido sem
+// conclusão, e aviso de remarcação/cancelamento recente — busca
+// direto no banco (não depende de store.agendaCompromissos, que só é
+// preenchido quando a aba Agenda já foi aberta nessa sessão).
+async function _agendaNotifItens() {
+  const itens = []
+  const agora = Date.now()
+  try {
+    const { data, error } = await db.from('agenda_compromissos').select('id,titulo,data,hora_inicio,status,lembrete_horas').in('status', ['agendado', 'confirmado', 'remarcado']).order('data').limit(60)
+    if (!error) {
+      (data || []).forEach(c => {
+        const dt = new Date(`${c.data}T${_agHora(c.hora_inicio) || '00:00'}`)
+        const horasAte = (dt.getTime() - agora) / 3600000
+        if (horasAte < 0) {
+          itens.push({ texto: `"${c.titulo}" já passou e ainda não foi marcado como concluído`, sub: fmtData(c.data) + ' às ' + _agHora(c.hora_inicio), quando: dt.toISOString(), onClick: `setAdminTab('agenda');iniciarAgendaAdmin()` })
+        } else if (horasAte <= (c.lembrete_horas || 24)) {
+          itens.push({ texto: `Lembrete: "${c.titulo}" ${horasAte < 1 ? 'em menos de 1 hora' : 'em ' + Math.round(horasAte) + 'h'}`, sub: fmtData(c.data) + ' às ' + _agHora(c.hora_inicio), quando: new Date().toISOString(), onClick: `setAdminTab('agenda');iniciarAgendaAdmin()` })
+        }
+      })
+    }
+  } catch (e) { /* best-effort */ }
+  try {
+    const { data, error } = await db.from('agenda_historico').select('*, agenda_compromissos(titulo)').in('acao', ['remarcado', 'cancelado']).order('criado_em', { ascending: false }).limit(10)
+    if (!error) {
+      (data || []).forEach(h => {
+        const rel = Array.isArray(h.agenda_compromissos) ? h.agenda_compromissos[0] : h.agenda_compromissos
+        const titulo = rel?.titulo || 'um compromisso'
+        itens.push({
+          texto: `${h.acao === 'remarcado' ? 'Remarcado' : 'Cancelado'}: "${titulo}"${h.motivo ? ' — ' + h.motivo : ''}`,
+          sub: fmtDataHora(h.criado_em), quando: h.criado_em, onClick: `setAdminTab('agenda');iniciarAgendaAdmin()`,
+        })
+      })
+    }
+  } catch (e) { /* best-effort */ }
+  return itens
+}
+
 async function iniciarSinoNotificacoes() {
   const role = meuPerfil?.role
   const wrap = document.getElementById('sino-lista')
   if (!wrap) return
   let itens = []
   if (['admin', 'super_admin'].includes(role)) {
-    const { data, error } = await db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(40)
-    if (!error) {
-      itens = (data || [])
+    const [auditRes, agendaItens] = await Promise.all([
+      db.from('auditoria').select('*').order('criado_em', { ascending: false }).limit(40),
+      _agendaNotifItens(),
+    ])
+    let itensAuditoria = []
+    if (!auditRes.error) {
+      itensAuditoria = (auditRes.data || [])
         .filter(a => NOTIF_ALTO_VALOR.test(a.acao || ''))
-        .slice(0, 15)
         .map(a => ({
           texto: a.acao, sub: (a.user_nome || '—') + ' · ' + fmtDataHora(a.criado_em), quando: a.criado_em,
           // pedido de seleção tem alvo próprio (o hub daquele pedido) —
@@ -3418,6 +3639,7 @@ async function iniciarSinoNotificacoes() {
             : `setAdminTab('auditoria');iniciarAuditoriaAdmin()`,
         }))
     }
+    itens = [...agendaItens, ...itensAuditoria].sort((a, b) => (b.quando || '').localeCompare(a.quando || '')).slice(0, 15)
   } else {
     // escola/proprietario/diretor/professor/responsavel: além dos posts
     // da Comunidade, avisa de fotos novas — fotos_visiveis() (RLS) já
@@ -4339,6 +4561,387 @@ function setGrSubTab(sub) {
   // trilha de webhook é pesada (pode crescer muito) — só busca na
   // primeira vez que essa sub-aba é aberta, não no load geral do tab.
   if (sub === 'auditoria' && !_grWebhookCarregado) _grCarregarWebhookEvents()
+}
+
+// ══════════════════════════════════════════════════════════════
+// AGENDA DE EVENTOS — onde o admin marca ensaio/evento/reunião/
+// entrega, acompanha o que já foi agendado, vincula equipe/local/
+// horário, remarca ou cancela sem perder o histórico
+// (agenda_historico). Independente de `eventos`: nem todo compromisso
+// já virou um álbum no sistema (reunião, entrega, ensaio ainda não
+// confirmado) — evento_id é só um elo opcional.
+// ══════════════════════════════════════════════════════════════
+let _agendaEquipeSelecionada = new Set()
+let _agendaEventoSelecionadoId = null
+let _agendaDiaAtual = null
+let _agendaCalAtual = null
+
+function _agHora(t) { return (t || '').slice(0, 5) }
+const AGENDA_STATUS_LABEL = { agendado: 'Agendado', confirmado: 'Confirmado', remarcado: 'Remarcado', cancelado: 'Cancelado', concluido: 'Concluído' }
+const AGENDA_TIPO_LABEL = { ensaio: 'Ensaio', evento: 'Evento', reuniao: 'Reunião', entrega: 'Entrega', outro: 'Outro' }
+function _agendaStatusLabel(s) { return AGENDA_STATUS_LABEL[s] || s }
+function _agendaTipoLabel(t) { return AGENDA_TIPO_LABEL[t] || t }
+
+// PostgREST devolve o lado "um" de um embed ora como objeto, ora como
+// array de 1 (mesma pegadinha já vista em _grConsolidar) — trata os
+// dois formatos nos dois helpers abaixo.
+function _agendaNomeCliente(c) {
+  const rel = Array.isArray(c.clientes_avulsos) ? c.clientes_avulsos[0] : c.clientes_avulsos
+  return rel?.nome || null
+}
+function _agendaNomeEvento(c) {
+  const rel = Array.isArray(c.eventos) ? c.eventos[0] : c.eventos
+  return rel?.nome || null
+}
+function _agendaNomeEquipe(userId) {
+  return store.agendaEquipeDisponivel.find(u => u.user_id === userId)?.nome || 'alguém'
+}
+
+async function _agendaCarregarEquipeDisponivel() {
+  if (store.agendaEquipeDisponivel.length) return
+  const { data, error } = await db.from('perfis').select('user_id, nome').in('role', ['admin', 'super_admin']).order('nome')
+  store.agendaEquipeDisponivel = error ? [] : (data || [])
+}
+
+async function iniciarAgendaAdmin() {
+  const { data, error } = await db.from('agenda_compromissos').select('*, eventos(nome), clientes_avulsos(nome)').order('data').order('hora_inicio')
+  if (error) { toast('Erro ao carregar agenda: ' + error.message); return }
+  store.agendaCompromissos = data || []
+  await _agendaCarregarEquipeDisponivel()
+  _agendaRenderLista()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+}
+
+function _agendaSetView(view) {
+  document.getElementById('agenda-vt-lista').classList.toggle('on', view === 'lista')
+  document.getElementById('agenda-vt-calendario').classList.toggle('on', view === 'calendario')
+  document.getElementById('agenda-lista-wrap').style.display = view === 'lista' ? 'block' : 'none'
+  document.getElementById('agenda-calendario-wrap').style.display = view === 'calendario' ? 'block' : 'none'
+  if (view === 'calendario') _agendaRenderCalendario()
+}
+
+function _agendaFiltrados() {
+  const busca = (document.getElementById('agenda-busca')?.value || '').toLowerCase()
+  const status = document.getElementById('agenda-filtro-status')?.value || ''
+  const tipo = document.getElementById('agenda-filtro-tipo')?.value || ''
+  return store.agendaCompromissos.filter(c => {
+    if (status && c.status !== status) return false
+    if (tipo && c.tipo !== tipo) return false
+    if (busca) {
+      const alvo = [c.titulo, c.local, c.cliente_nome_livre, _agendaNomeCliente(c), _agendaNomeEvento(c)].filter(Boolean).join(' ').toLowerCase()
+      if (!alvo.includes(busca)) return false
+    }
+    return true
+  }).sort((a, b) => (a.data + _agHora(a.hora_inicio)).localeCompare(b.data + _agHora(b.hora_inicio)))
+}
+
+function _agendaTituloDia(data_, hojeISO, amanhaISO) {
+  if (data_ === hojeISO) return `${fmtData(data_)} <span class="hoje-badge">Hoje</span>`
+  if (data_ === amanhaISO) return `${fmtData(data_)} <span class="hoje-badge">Amanhã</span>`
+  return fmtData(data_)
+}
+
+function _agendaRenderLista() {
+  const el = document.getElementById('agenda-lista')
+  if (!el) return
+  const itens = _agendaFiltrados()
+  if (!itens.length) { el.innerHTML = '<div class="empty">Nenhum compromisso encontrado.</div>'; return }
+  const hojeISO = new Date().toISOString().slice(0, 10)
+  const amanhaISO = new Date(Date.now() + 86400000).toISOString().slice(0, 10)
+  const grupos = new Map()
+  itens.forEach(c => { const arr = grupos.get(c.data) || []; arr.push(c); grupos.set(c.data, arr) })
+  el.innerHTML = [...grupos.entries()].map(([data_, lista]) => `
+    <div class="agenda-dia-grupo">
+      <div class="agenda-dia-titulo">${_agendaTituloDia(data_, hojeISO, amanhaISO)}</div>
+      ${lista.map(_agendaCardHTML).join('')}
+    </div>`).join('')
+}
+
+function _agendaCardHTML(c) {
+  const equipeNomes = (c.equipe || []).map(_agendaNomeEquipe).join(', ')
+  const clienteNome = c.cliente_nome_livre || _agendaNomeCliente(c)
+  const eventoNome = _agendaNomeEvento(c)
+  return `
+  <div class="agenda-card status-${c.status}">
+    <div class="ac-hora">${_agHora(c.hora_inicio)}${c.hora_fim ? '–' + _agHora(c.hora_fim) : ''}</div>
+    <div class="ac-corpo">
+      <div class="ac-titulo-row">
+        <span class="ac-titulo">${esc(c.titulo)}</span>
+        <span class="agenda-badge ${c.status}">${_agendaStatusLabel(c.status)}</span>
+        <span class="agenda-badge-tipo">${_agendaTipoLabel(c.tipo)}</span>
+      </div>
+      <div class="ac-meta">
+        ${c.local ? `<span>📍 ${esc(c.local)}</span>` : ''}
+        ${equipeNomes ? `<span>👤 ${esc(equipeNomes)}</span>` : ''}
+        ${clienteNome ? `<span>🙋 ${esc(clienteNome)}</span>` : ''}
+        ${eventoNome ? `<span>🔗 ${esc(eventoNome)}</span>` : ''}
+      </div>
+      <div class="ac-acoes">${_agendaAcoesHTML(c)}</div>
+    </div>
+  </div>`
+}
+
+function _agendaAcoesHTML(c) {
+  if (c.status === 'cancelado' || c.status === 'concluido') {
+    return `<button class="btn btn-sm" onclick="abrirModalAgenda('${c.id}')">Ver/editar</button>`
+  }
+  const btns = []
+  if (c.status !== 'confirmado') btns.push(`<button class="btn btn-sm" onclick="_agendaConfirmar('${c.id}')">✓ Confirmar</button>`)
+  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgendaRemarcar('${c.id}')">Remarcar</button>`)
+  btns.push(`<button class="btn btn-sm" onclick="_agendaConcluir('${c.id}')">Concluir</button>`)
+  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgenda('${c.id}')">Editar</button>`)
+  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgendaCancelar('${c.id}')">Cancelar</button>`)
+  return btns.join('')
+}
+
+// ── calendário mensal ──
+const AGENDA_DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
+const AGENDA_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
+function _agendaCalMes(delta) {
+  if (!_agendaCalAtual) { const d = new Date(); _agendaCalAtual = { ano: d.getFullYear(), mes: d.getMonth() } }
+  _agendaCalAtual.mes += delta
+  if (_agendaCalAtual.mes < 0) { _agendaCalAtual.mes = 11; _agendaCalAtual.ano-- }
+  if (_agendaCalAtual.mes > 11) { _agendaCalAtual.mes = 0; _agendaCalAtual.ano++ }
+  _agendaRenderCalendario()
+}
+function _agendaRenderCalendario() {
+  if (!_agendaCalAtual) { const d = new Date(); _agendaCalAtual = { ano: d.getFullYear(), mes: d.getMonth() } }
+  const { ano, mes } = _agendaCalAtual
+  document.getElementById('agenda-cal-titulo').textContent = `${AGENDA_MESES[mes]} de ${ano}`
+  document.getElementById('agenda-cal-dow').innerHTML = AGENDA_DOW.map(d => `<div class="agenda-cal-dow">${d}</div>`).join('')
+
+  const primeiroDia = new Date(ano, mes, 1)
+  const inicioGrade = new Date(primeiroDia)
+  inicioGrade.setDate(inicioGrade.getDate() - inicioGrade.getDay())
+  const hojeISO = new Date().toISOString().slice(0, 10)
+
+  const porDia = new Map()
+  store.agendaCompromissos.filter(c => c.status !== 'cancelado').forEach(c => {
+    const arr = porDia.get(c.data) || []; arr.push(c); porDia.set(c.data, arr)
+  })
+
+  const celulas = []
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(inicioGrade)
+    d.setDate(d.getDate() + i)
+    const iso = d.toISOString().slice(0, 10)
+    const itens = (porDia.get(iso) || []).sort((a, b) => _agHora(a.hora_inicio).localeCompare(_agHora(b.hora_inicio)))
+    const foraMes = d.getMonth() !== mes
+    celulas.push(`
+      <div class="agenda-cal-dia${foraMes ? ' fora-mes' : ''}${iso === hojeISO ? ' hoje' : ''}${itens.length ? ' tem-item' : ''}" onclick="_agendaAbrirDia('${iso}')">
+        <div class="acd-num">${d.getDate()}</div>
+        <div class="acd-itens">
+          ${itens.slice(0, 3).map(it => `<div class="acd-chip">${_agHora(it.hora_inicio)} ${esc(it.titulo)}</div>`).join('')}
+          ${itens.length > 3 ? `<div class="acd-mais">+${itens.length - 3}</div>` : ''}
+        </div>
+      </div>`)
+  }
+  document.getElementById('agenda-cal-grid').innerHTML = celulas.join('')
+}
+function _agendaAbrirDia(iso) {
+  _agendaDiaAtual = iso
+  document.getElementById('ag-dia-titulo').textContent = fmtData(iso)
+  const itens = store.agendaCompromissos.filter(c => c.data === iso).sort((a, b) => _agHora(a.hora_inicio).localeCompare(_agHora(b.hora_inicio)))
+  document.getElementById('ag-dia-lista').innerHTML = itens.length ? itens.map(_agendaCardHTML).join('') : '<div class="empty">Nenhum compromisso nesse dia.</div>'
+  abrirModal('modal-agenda-dia')
+}
+
+// ── modal criar/editar ──
+async function abrirModalAgenda(id, dataPreenchida) {
+  await _agendaCarregarEquipeDisponivel()
+  document.getElementById('ag-id').value = id || ''
+  const c = id ? store.agendaCompromissos.find(x => x.id === id) : null
+  document.getElementById('ag-modal-titulo').textContent = id ? 'Editar compromisso' : 'Novo compromisso'
+  document.getElementById('ag-titulo').value = c?.titulo || ''
+  document.getElementById('ag-tipo').value = c?.tipo || 'ensaio'
+  document.getElementById('ag-data').value = c?.data || dataPreenchida || ''
+  document.getElementById('ag-hora-inicio').value = _agHora(c?.hora_inicio)
+  document.getElementById('ag-hora-fim').value = _agHora(c?.hora_fim)
+  document.getElementById('ag-local').value = c?.local || ''
+  document.getElementById('ag-cliente-livre').value = c?.cliente_nome_livre || ''
+  document.getElementById('ag-notas').value = c?.notas || ''
+  document.getElementById('ag-lembrete').value = c?.lembrete_horas || 24
+
+  const selCliente = document.getElementById('ag-cliente-avulso')
+  selCliente.innerHTML = '<option value="">— nenhum —</option>' + store.clientesAvulsos.map(cl => `<option value="${cl.id}">${esc(cl.nome)}</option>`).join('')
+  selCliente.value = c?.cliente_avulso_id || ''
+
+  _agendaEquipeSelecionada = new Set(c?.equipe || [])
+  _agendaRenderEquipePicker()
+
+  _agendaEventoSelecionadoId = c?.evento_id || null
+  document.getElementById('ag-evento-busca').value = ''
+  _agendaRenderEventoPicker()
+
+  abrirModal('modal-agenda')
+  setTimeout(() => document.getElementById('ag-titulo')?.focus(), 50)
+}
+function _agendaRenderEquipePicker() {
+  const el = document.getElementById('ag-equipe-lista')
+  el.innerHTML = store.agendaEquipeDisponivel.length
+    ? store.agendaEquipeDisponivel.map(u => `<span class="tag-opt${_agendaEquipeSelecionada.has(u.user_id) ? ' on' : ''}" onclick="_agendaToggleEquipe('${u.user_id}',this)">${esc(u.nome)}</span>`).join('')
+    : '<span style="opacity:.6;font-size:12px;">Nenhum admin/super_admin cadastrado</span>'
+}
+function _agendaToggleEquipe(userId, el) {
+  if (_agendaEquipeSelecionada.has(userId)) _agendaEquipeSelecionada.delete(userId); else _agendaEquipeSelecionada.add(userId)
+  el.classList.toggle('on')
+}
+function _agendaRenderEventoPicker() {
+  const busca = document.getElementById('ag-evento-busca').value.toLowerCase()
+  const lista = store.eventos.filter(e => e.nome.toLowerCase().includes(busca)).slice(0, 40)
+  const el = document.getElementById('ag-evento-lista')
+  el.innerHTML = lista.length
+    ? lista.map(e => `<span class="tag-opt${_agendaEventoSelecionadoId === e.id ? ' on' : ''}" onclick="_agendaToggleEvento('${e.id}')">${esc(e.nome)}</span>`).join('')
+    : '<span style="opacity:.6;font-size:12px;">Nenhum evento encontrado</span>'
+  const hint = document.getElementById('ag-evento-selecionado-hint')
+  const ev = _agendaEventoSelecionadoId ? store.eventos.find(e => e.id === _agendaEventoSelecionadoId) : null
+  hint.style.display = ev ? 'block' : 'none'
+  if (ev) hint.textContent = `Vinculado a: ${ev.nome}`
+}
+function _agendaToggleEvento(id) {
+  _agendaEventoSelecionadoId = (_agendaEventoSelecionadoId === id) ? null : id
+  _agendaRenderEventoPicker()
+}
+
+// ── conflito de horário: mesmo dia + mesmo membro de equipe + faixas
+// de horário que se cruzam. Sem hora_fim, assume uma janela padrão de
+// 2h só pra alertar — nunca bloqueia o salvamento, só avisa.
+function _agendaSomaHoras(hhmm, horas) {
+  const [h, m] = hhmm.split(':').map(Number)
+  const total = h * 60 + m + horas * 60
+  return String(Math.floor((total % 1440) / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0')
+}
+function _agendaHorasSobrepoem(iniA, fimA, iniB, fimB) {
+  const a2 = fimA || _agendaSomaHoras(iniA, 2)
+  const b2 = fimB || _agendaSomaHoras(iniB, 2)
+  return iniA < b2 && iniB < a2
+}
+function _agendaChecarConflito(payload, idExcluir) {
+  const conflitos = []
+  for (const c of store.agendaCompromissos) {
+    if (c.id === idExcluir || c.status === 'cancelado' || c.data !== payload.data) continue
+    const membrosComuns = (c.equipe || []).filter(u => payload.equipe.includes(u))
+    if (!membrosComuns.length) continue
+    if (!_agendaHorasSobrepoem(payload.hora_inicio, payload.hora_fim, _agHora(c.hora_inicio), _agHora(c.hora_fim))) continue
+    conflitos.push({ compromisso: c, membros: membrosComuns })
+  }
+  return conflitos
+}
+async function _agendaConfirmarSeConflito(payload, idExcluir, okLabel) {
+  const conflitos = _agendaChecarConflito(payload, idExcluir)
+  if (!conflitos.length) return true
+  const nomes = new Set()
+  conflitos.forEach(cf => cf.membros.forEach(uid => nomes.add(_agendaNomeEquipe(uid))))
+  const lista = [...nomes].join(', ')
+  const titulos = conflitos.map(cf => cf.compromisso.titulo).join(', ')
+  return await confirmModal(`${lista} já ${nomes.size > 1 ? 'têm' : 'tem'} compromisso nesse horário (${titulos}). Quer continuar mesmo assim?`, { titulo: 'Conflito de horário', okLabel, danger: true })
+}
+
+async function _agendaSalvar() {
+  const id = document.getElementById('ag-id').value || null
+  const titulo = document.getElementById('ag-titulo').value.trim()
+  if (!titulo) { toast('Informe o título'); return }
+  const tipo = document.getElementById('ag-tipo').value
+  const data_ = document.getElementById('ag-data').value
+  if (!data_) { toast('Informe a data'); return }
+  const hora_inicio = document.getElementById('ag-hora-inicio').value
+  if (!hora_inicio) { toast('Informe o horário de início'); return }
+  const hora_fim = document.getElementById('ag-hora-fim').value || null
+  const local = document.getElementById('ag-local').value.trim() || null
+  const cliente_avulso_id = document.getElementById('ag-cliente-avulso').value || null
+  const cliente_nome_livre = document.getElementById('ag-cliente-livre').value.trim() || null
+  const notas = document.getElementById('ag-notas').value.trim() || null
+  const lembrete_horas = parseInt(document.getElementById('ag-lembrete').value, 10) || 24
+  const equipe = [..._agendaEquipeSelecionada]
+
+  if (!await _agendaConfirmarSeConflito({ data: data_, hora_inicio, hora_fim, equipe }, id, 'Salvar mesmo assim')) return
+
+  const payload = { titulo, tipo, data: data_, hora_inicio, hora_fim, local, evento_id: _agendaEventoSelecionadoId, cliente_avulso_id, cliente_nome_livre, equipe, notas, lembrete_horas, atualizado_em: new Date().toISOString() }
+  let data, error
+  const select = '*, eventos(nome), clientes_avulsos(nome)'
+  if (id) ({ data, error } = await db.from('agenda_compromissos').update(payload).eq('id', id).select(select).single())
+  else ({ data, error } = await db.from('agenda_compromissos').insert({ ...payload, criado_por: meuPerfil.user_id }).select(select).single())
+  if (error) { toast('Erro: ' + error.message); return }
+
+  await db.from('agenda_historico').insert({ compromisso_id: data.id, acao: id ? 'editado' : 'criado', criado_por: meuPerfil.user_id })
+  const idx = store.agendaCompromissos.findIndex(c => c.id === data.id)
+  if (idx >= 0) store.agendaCompromissos[idx] = data; else store.agendaCompromissos.push(data)
+  fecharModal('modal-agenda')
+  toast(id ? 'Compromisso atualizado ✓' : 'Compromisso criado ✓')
+  registrarAuditoria(id ? 'editou compromisso da agenda' : 'criou compromisso na agenda', 'agenda_compromissos', data.id, titulo)
+  _agendaRenderLista()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+}
+
+async function _agendaConfirmar(id) {
+  const { error } = await db.from('agenda_compromissos').update({ status: 'confirmado' }).eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  await db.from('agenda_historico').insert({ compromisso_id: id, acao: 'confirmado', criado_por: meuPerfil.user_id })
+  const c = store.agendaCompromissos.find(x => x.id === id)
+  if (c) c.status = 'confirmado'
+  toast('Confirmado ✓')
+  _agendaRenderLista()
+}
+async function _agendaConcluir(id) {
+  const { error } = await db.from('agenda_compromissos').update({ status: 'concluido' }).eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  await db.from('agenda_historico').insert({ compromisso_id: id, acao: 'concluido', criado_por: meuPerfil.user_id })
+  const c = store.agendaCompromissos.find(x => x.id === id)
+  if (c) c.status = 'concluido'
+  toast('Marcado como concluído ✓')
+  _agendaRenderLista()
+}
+
+function abrirModalAgendaRemarcar(id) {
+  const c = store.agendaCompromissos.find(x => x.id === id)
+  if (!c) return
+  document.getElementById('agr-id').value = id
+  document.getElementById('agr-data').value = c.data
+  document.getElementById('agr-hora-inicio').value = _agHora(c.hora_inicio)
+  document.getElementById('agr-motivo').value = ''
+  abrirModal('modal-agenda-remarcar')
+}
+async function _agendaConfirmarRemarcar() {
+  const id = document.getElementById('agr-id').value
+  const c = store.agendaCompromissos.find(x => x.id === id)
+  if (!c) return
+  const novaData = document.getElementById('agr-data').value
+  const novaHora = document.getElementById('agr-hora-inicio').value
+  if (!novaData || !novaHora) { toast('Informe data e horário'); return }
+  const motivo = document.getElementById('agr-motivo').value.trim() || null
+
+  if (!await _agendaConfirmarSeConflito({ data: novaData, hora_inicio: novaHora, hora_fim: null, equipe: c.equipe || [] }, id, 'Remarcar mesmo assim')) return
+
+  const dataAnterior = c.data, horaAnterior = c.hora_inicio
+  const { error } = await db.from('agenda_compromissos').update({ data: novaData, hora_inicio: novaHora, status: 'remarcado' }).eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  await db.from('agenda_historico').insert({ compromisso_id: id, acao: 'remarcado', data_anterior: dataAnterior, hora_inicio_anterior: horaAnterior, motivo, criado_por: meuPerfil.user_id })
+  c.data = novaData; c.hora_inicio = novaHora; c.status = 'remarcado'
+  fecharModal('modal-agenda-remarcar')
+  toast('Compromisso remarcado ✓')
+  registrarAuditoria('remarcou compromisso da agenda', 'agenda_compromissos', id, c.titulo)
+  _agendaRenderLista()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+}
+
+function abrirModalAgendaCancelar(id) {
+  document.getElementById('agc-id').value = id
+  document.getElementById('agc-motivo').value = ''
+  abrirModal('modal-agenda-cancelar')
+}
+async function _agendaConfirmarCancelar() {
+  const id = document.getElementById('agc-id').value
+  const motivo = document.getElementById('agc-motivo').value.trim() || null
+  const { error } = await db.from('agenda_compromissos').update({ status: 'cancelado' }).eq('id', id)
+  if (error) { toast('Erro: ' + error.message); return }
+  await db.from('agenda_historico').insert({ compromisso_id: id, acao: 'cancelado', motivo, criado_por: meuPerfil.user_id })
+  const c = store.agendaCompromissos.find(x => x.id === id)
+  if (c) c.status = 'cancelado'
+  fecharModal('modal-agenda-cancelar')
+  toast('Compromisso cancelado')
+  registrarAuditoria('cancelou compromisso da agenda', 'agenda_compromissos', id, c?.titulo || '')
+  _agendaRenderLista()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
 }
 
 // ══════════════════════════════════════════════════════════════
