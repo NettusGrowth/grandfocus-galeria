@@ -53,7 +53,7 @@ img{max-width:100%;display:block;}
 a{color:inherit;}
 h1,h2,h3{font-family:var(--serif);font-weight:500;color:var(--ouro-luz);margin:0;}
 input,select,textarea{
-  background:var(--surface,#3A0311);background:rgba(75,4,22,.4);border:1px solid rgba(200,175,127,.3);
+  background:var(--surface,#3A0311);background:rgba(90,10,28,.5);border:1px solid rgba(200,175,127,.45);
   color:#EADFCF;border-radius:6px;padding:.55em .8em;font-family:var(--sans);font-size:14px;width:100%;
 }
 /* input[type=date] some no tema escuro sem isso: o ícone do calendário
@@ -899,8 +899,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .agenda-vt-btn.on{background:var(--dourado);color:#1E0810;font-weight:600;}
 .agenda-vt-btn:not(.on):hover{background:rgba(212,175,55,.1);}
 
-.agenda-dia-grupo{margin-bottom:22px;}
-.agenda-dia-titulo{font-size:12.5px;letter-spacing:.03em;text-transform:uppercase;color:#B39F86;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.agenda-dia-grupo{margin-bottom:26px;}
+.agenda-dia-titulo{font-size:13.5px;font-weight:600;letter-spacing:.02em;color:var(--ouro-luz);margin-bottom:12px;display:flex;align-items:center;gap:10px;padding-bottom:8px;border-bottom:1px solid rgba(212,175,55,.15);}
 .agenda-dia-titulo .hoje-badge{background:var(--dourado);color:#1E0810;font-size:10px;font-weight:700;padding:2px 8px;border-radius:999px;text-transform:none;letter-spacing:0;}
 
 .agenda-card{border-radius:14px;padding:14px 16px;border:1px solid rgba(212,175,55,.15);background:linear-gradient(155deg,var(--vinho-nobre),#250A14);margin-bottom:10px;display:flex;gap:14px;align-items:flex-start;transition:border-color .15s;}
@@ -911,7 +911,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .agenda-card .ac-titulo-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;}
 .agenda-card .ac-titulo{font-size:14.5px;color:var(--papel,#F6F0E6);font-weight:600;}
 .agenda-card .ac-meta{font-size:12px;color:#9C8874;display:flex;gap:12px;flex-wrap:wrap;}
-.agenda-card .ac-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.agenda-card .ac-acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+/* menu "⋮" — 5 botões expostos de uma vez poluía o card; agora só a
+   ação principal fica visível, o resto entra num flutuante. */
+.ac-menu-wrap{position:relative;display:inline-block;}
+.ac-menu-btn{background:none;border:1px solid rgba(212,175,55,.2);color:#9C8874;cursor:pointer;font-size:15px;line-height:1;padding:4px 9px;border-radius:8px;transition:all .15s;}
+.ac-menu-btn:hover{background:rgba(212,175,55,.1);color:var(--ouro-luz);border-color:rgba(212,175,55,.4);}
+.ac-menu-drop{position:absolute;top:calc(100% + 4px);right:0;background:rgba(26,10,14,.98);backdrop-filter:blur(10px);border:1px solid rgba(212,175,55,.25);border-radius:10px;padding:5px;min-width:130px;box-shadow:0 12px 30px rgba(0,0,0,.45);z-index:30;display:none;}
+.ac-menu-drop.show{display:block;}
+.ac-menu-drop button{display:block;width:100%;text-align:left;background:none;border:none;color:#DBC9A8;padding:7px 10px;border-radius:6px;font-size:12.5px;cursor:pointer;font-family:var(--sans);white-space:nowrap;}
+.ac-menu-drop button:hover{background:rgba(212,175,55,.12);color:var(--ouro-luz);}
 .agenda-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:999px;text-transform:uppercase;letter-spacing:.02em;}
 .agenda-badge.agendado{background:rgba(201,175,135,.18);color:#C9AF87;}
 .agenda-badge.confirmado{background:rgba(46,166,110,.18);color:var(--verde);}
@@ -934,11 +943,67 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .agenda-cal-dia .acd-itens{display:flex;flex-direction:column;gap:2px;margin-top:4px;}
 .agenda-cal-dia .acd-chip{font-size:9.5px;padding:1px 5px;border-radius:5px;background:rgba(212,175,55,.14);color:var(--ouro-luz);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .agenda-cal-dia .acd-mais{font-size:9.5px;color:#8A7461;}
+/* campo unificado "Cliente / Evento" — substitui os 3 campos
+   redundantes que existiam antes (vincular evento, cliente avulso,
+   nome livre) por uma busca só, com autocomplete misto. */
+#ag-cliente-evento-wrap{position:relative;}
+.ag-ce-sugestoes{position:absolute;top:calc(100% + 4px);left:0;right:0;background:rgba(26,10,14,.98);backdrop-filter:blur(10px);border:1px solid rgba(212,175,55,.25);border-radius:10px;max-height:200px;overflow-y:auto;z-index:40;display:none;box-shadow:0 12px 30px rgba(0,0,0,.4);}
+.ag-ce-sugestoes.show{display:block;}
+.ag-ce-sugestoes .item{padding:9px 12px;cursor:pointer;font-size:13px;color:#DBC9A8;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+.ag-ce-sugestoes .item:hover{background:rgba(212,175,55,.1);}
+.ag-ce-sugestoes .item .tipo{font-size:10px;color:#8A7461;border:1px solid rgba(212,175,55,.2);padding:1px 7px;border-radius:999px;white-space:nowrap;}
+.ag-ce-selecionado{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-radius:8px;background:rgba(212,175,55,.08);border:1px solid rgba(212,175,55,.2);font-size:13px;color:var(--papel,#F6F0E6);margin-top:8px;}
+.ag-ce-selecionado button{background:none;border:none;color:#9C8874;cursor:pointer;font-size:14px;padding:0 4px;}
+.ag-ce-selecionado button:hover{color:var(--vermelho);}
+
+/* ── Agenda: toolbar do calendário (Mês/Semana/Dia + navegação) ── */
+.agenda-cal-toolbar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;}
+.agenda-cal-header{display:flex;align-items:center;gap:12px;}
+.agenda-cal-header button{background:transparent;border:1px solid rgba(212,175,55,.25);color:var(--dourado);height:32px;border-radius:8px;cursor:pointer;font-size:13px;padding:0 12px;}
+.agenda-cal-header button:hover{border-color:rgba(212,175,55,.5);}
+.agenda-cal-header span{font-family:var(--sans);font-size:15px;color:var(--papel,#F6F0E6);min-width:150px;text-align:center;text-transform:capitalize;}
+
+/* ── layout: grade + painel lateral fixo (resumo/filtros/mini-stats) ── */
+.agenda-cal-layout{display:flex;gap:18px;align-items:flex-start;}
+.agenda-cal-main{flex:1;min-width:0;}
+.agenda-cal-sidebar{flex:0 0 250px;position:sticky;top:0;display:flex;flex-direction:column;gap:16px;}
+.acs-bloco{border-radius:14px;padding:14px;border:1px solid rgba(212,175,55,.15);background:linear-gradient(155deg,var(--vinho-nobre),#250A14);}
+.acs-bloco h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#B39F86;margin:0 0 10px;}
+.acs-dia-item{font-size:12px;color:#DBC9A8;padding:6px 0;border-bottom:1px solid rgba(212,175,55,.08);}
+.acs-dia-item:last-child{border-bottom:none;}
+.acs-dia-item b{color:var(--ouro-luz);}
+.acs-stat{display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12.5px;color:#C9AF87;}
+.acs-stat b{font-family:var(--sans-num);font-size:16px;color:var(--dourado);}
+.acs-bloco select,.acs-bloco input{margin-bottom:8px;}
+@media(max-width:1000px){.agenda-cal-sidebar{display:none;}}
+
+/* ── grade horária (Semana/Dia) — estilo Google Agenda: eixo de horas
+   + colunas de dia, compromissos posicionados por horário real ── */
+.agenda-grade-wrap{display:flex;overflow-x:auto;}
+.agenda-grade-eixo{flex:0 0 46px;padding-top:34px;}
+.agenda-grade-hora{height:var(--ag-grade-h,50px);font-size:10.5px;color:#8A7461;text-align:right;padding-right:8px;transform:translateY(-6px);}
+.agenda-grade-dias{display:flex;flex:1;min-width:0;}
+.agenda-grade-col{flex:1;min-width:110px;border-left:1px solid rgba(212,175,55,.1);}
+.agenda-grade-col-header{height:34px;display:flex;align-items:center;justify-content:center;font-size:11.5px;color:#C9AF87;text-transform:uppercase;letter-spacing:.02em;position:sticky;top:0;background:var(--vinho-alto,#1a0a0e);z-index:5;}
+.agenda-grade-col-header.hoje{color:var(--dourado);font-weight:700;}
+.agenda-grade-col-body{position:relative;background-image:repeating-linear-gradient(to bottom,rgba(212,175,55,.07) 0,rgba(212,175,55,.07) 1px,transparent 1px,transparent var(--ag-grade-h,50px));cursor:pointer;}
+.agenda-grade-bloco{position:absolute;left:2px;right:2px;border-radius:6px;padding:3px 6px;font-size:10.5px;overflow:hidden;background:rgba(201,175,135,.22);border-left:3px solid #C9AF87;color:#F6F0E6;cursor:pointer;z-index:2;transition:filter .1s;}
+.agenda-grade-bloco:hover{filter:brightness(1.2);z-index:3;}
+.agenda-grade-bloco b{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.agenda-grade-bloco.confirmado{background:rgba(46,166,110,.22);border-left-color:var(--verde);}
+.agenda-grade-bloco.remarcado{background:rgba(212,150,55,.25);border-left-color:#E0A94A;}
+.agenda-grade-bloco.cancelado{background:rgba(214,72,72,.18);border-left-color:var(--vermelho);opacity:.6;}
+.agenda-grade-bloco.concluido{background:rgba(212,175,55,.22);border-left-color:var(--dourado);}
+.agenda-grade-agora{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--vermelho);z-index:4;pointer-events:none;}
+.agenda-grade-agora::before{content:'';position:absolute;left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:var(--vermelho);}
+
 @media(max-width:700px){
   .agenda-cal-grid{gap:4px;}
   .agenda-cal-dia{min-height:56px;padding:4px;}
   .agenda-cal-dia .acd-chip{display:none;}
   .agenda-cal-dia.tem-item .acd-num::after{content:'•';color:var(--dourado);margin-left:4px;}
+  .agenda-grade-eixo{flex-basis:36px;}
+  .agenda-grade-col{min-width:80px;}
 }
 
 /* ── CRM GrandFocus: kanban de pipeline, card de lead, modal de detalhe ── */
@@ -1258,7 +1323,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
+/* marcado deixa claro que dá pra clicar de novo pra tirar — sem esse
+   "×" o chip dourado parecia só um selo informativo, não um toggle. */
 .tag-opt.on{background:var(--ouro);border-color:var(--ouro);color:var(--tinta);}
+.tag-opt.on::after{content:' ×';font-weight:700;}
 
 .btn-marcar-pessoas{position:absolute;left:6px;bottom:6px;display:flex;align-items:center;gap:5px;background:rgba(20,14,10,.72);color:#DBC9A8;border:1px solid rgba(200,175,127,.3);border-radius:99px;padding:.3em .7em;font-size:11px;cursor:pointer;opacity:0;transition:opacity .15s;}
 .foto-item:hover .btn-marcar-pessoas,.foto-item.sel .btn-marcar-pessoas{opacity:1;}
@@ -1755,13 +1823,30 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         </div>
         <div id="agenda-lista-wrap"><div id="agenda-lista"></div></div>
         <div id="agenda-calendario-wrap" style="display:none;">
-          <div class="agenda-cal-header">
-            <button onclick="_agendaCalMes(-1)">‹</button>
-            <span id="agenda-cal-titulo"></span>
-            <button onclick="_agendaCalMes(1)">›</button>
+          <div class="agenda-cal-toolbar">
+            <div class="agenda-cal-header">
+              <button onclick="_agendaCalNav(-1)">‹</button>
+              <span id="agenda-cal-titulo"></span>
+              <button onclick="_agendaCalNav(1)">›</button>
+              <button class="btn btn-sm" onclick="_agendaCalIrHoje()">Hoje</button>
+            </div>
+            <div class="agenda-view-toggle">
+              <button class="agenda-vt-btn on" data-calview="mes" onclick="_agendaCalSetView('mes')">Mês</button>
+              <button class="agenda-vt-btn" data-calview="semana" onclick="_agendaCalSetView('semana')">Semana</button>
+              <button class="agenda-vt-btn" data-calview="dia" onclick="_agendaCalSetView('dia')">Dia</button>
+            </div>
           </div>
-          <div class="agenda-cal-grid" id="agenda-cal-dow"></div>
-          <div class="agenda-cal-grid" id="agenda-cal-grid"></div>
+          <div class="agenda-cal-layout">
+            <div class="agenda-cal-main">
+              <div id="agenda-cal-mes-view">
+                <div class="agenda-cal-grid" id="agenda-cal-dow"></div>
+                <div class="agenda-cal-grid" id="agenda-cal-grid"></div>
+              </div>
+              <div id="agenda-cal-semana-view" style="display:none;"></div>
+              <div id="agenda-cal-dia-view" style="display:none;"></div>
+            </div>
+            <div class="agenda-cal-sidebar" id="agenda-cal-sidebar"></div>
+          </div>
         </div>
       </div>
 
@@ -2381,16 +2466,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
     <div class="field"><label>Local</label><input type="text" id="ag-local" placeholder="Ex: Estúdio Grand Focus / nome da escola"></div>
     <div class="field">
-      <label>Vincular a um evento/ensaio já cadastrado (opcional)</label>
-      <input type="text" id="ag-evento-busca" placeholder="Buscar…" style="margin-bottom:6px;" oninput="_agendaRenderEventoPicker()">
-      <div class="tag-picker" id="ag-evento-lista" style="max-height:130px;overflow-y:auto;"></div>
-      <div class="hint" id="ag-evento-selecionado-hint" style="display:none;margin-top:6px;"></div>
+      <label>Cliente / Evento (opcional)</label>
+      <div id="ag-cliente-evento-wrap">
+        <input type="text" id="ag-cliente-evento-busca" placeholder="Buscar cliente ou evento/ensaio… ou digite um nome novo" oninput="_agendaBuscarClienteEvento()" onfocus="_agendaBuscarClienteEvento()">
+        <div class="ag-ce-sugestoes" id="ag-ce-sugestoes"></div>
+      </div>
+      <div class="ag-ce-selecionado" id="ag-ce-selecionado" style="display:none;"></div>
     </div>
-    <div class="field">
-      <label>Cliente avulso (opcional)</label>
-      <select id="ag-cliente-avulso"><option value="">— nenhum —</option></select>
-    </div>
-    <div class="field"><label>Nome do cliente (se não tiver cadastro)</label><input type="text" id="ag-cliente-livre" placeholder="Opcional"></div>
     <div class="field">
       <label>Equipe (quem vai)</label>
       <div class="tag-picker" id="ag-equipe-lista"></div>
@@ -4834,8 +4916,12 @@ function setGrSubTab(sub) {
 // ══════════════════════════════════════════════════════════════
 let _agendaEquipeSelecionada = new Set()
 let _agendaEventoSelecionadoId = null
+let _agendaClienteAvulsoId = null
 let _agendaDiaAtual = null
-let _agendaCalAtual = null
+let _agendaCalCursor = new Date()
+let _agendaCalView = 'mes'
+let _agendaFiltroFotografoCal = ''
+let _agendaFiltroLocalCal = ''
 
 function _agHora(t) { return (t || '').slice(0, 5) }
 const AGENDA_STATUS_LABEL = { agendado: 'Agendado', confirmado: 'Confirmado', remarcado: 'Remarcado', cancelado: 'Cancelado', concluido: 'Concluído' }
@@ -4870,7 +4956,7 @@ async function iniciarAgendaAdmin() {
   store.agendaCompromissos = data || []
   await _agendaCarregarEquipeDisponivel()
   _agendaRenderLista()
-  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendarioAtivo()
 }
 
 function _agendaSetView(view) {
@@ -4878,7 +4964,7 @@ function _agendaSetView(view) {
   document.getElementById('agenda-vt-calendario').classList.toggle('on', view === 'calendario')
   document.getElementById('agenda-lista-wrap').style.display = view === 'lista' ? 'block' : 'none'
   document.getElementById('agenda-calendario-wrap').style.display = view === 'calendario' ? 'block' : 'none'
-  if (view === 'calendario') _agendaRenderCalendario()
+  if (view === 'calendario') _agendaRenderCalendarioAtivo()
 }
 
 function _agendaFiltrados() {
@@ -4942,32 +5028,94 @@ function _agendaCardHTML(c) {
   </div>`
 }
 
+// só a ação principal (Confirmar/Concluir) fica exposta — o resto
+// (Remarcar/Editar/Cancelar) mora no menu "⋮" pra não poluir o card
+// com 5 botões de uma vez.
 function _agendaAcoesHTML(c) {
   if (c.status === 'cancelado' || c.status === 'concluido') {
     return `<button class="btn btn-sm" onclick="abrirModalAgenda('${c.id}')">Ver/editar</button>`
   }
-  const btns = []
-  if (c.status !== 'confirmado') btns.push(`<button class="btn btn-sm" onclick="_agendaConfirmar('${c.id}')">✓ Confirmar</button>`)
-  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgendaRemarcar('${c.id}')">Remarcar</button>`)
-  btns.push(`<button class="btn btn-sm" onclick="_agendaConcluir('${c.id}')">Concluir</button>`)
-  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgenda('${c.id}')">Editar</button>`)
-  btns.push(`<button class="btn btn-sm" onclick="abrirModalAgendaCancelar('${c.id}')">Cancelar</button>`)
-  return btns.join('')
+  const principal = c.status !== 'confirmado'
+    ? `<button class="btn btn-primary btn-sm" onclick="_agendaConfirmar('${c.id}')">✓ Confirmar</button>`
+    : `<button class="btn btn-primary btn-sm" onclick="_agendaConcluir('${c.id}')">Concluir</button>`
+  return `
+    ${principal}
+    <div class="ac-menu-wrap">
+      <button class="ac-menu-btn" onclick="_agendaToggleMenu(this,event)" title="Mais ações">⋮</button>
+      <div class="ac-menu-drop">
+        ${c.status !== 'confirmado' ? `<button onclick="_agendaConcluir('${c.id}')">Concluir</button>` : ''}
+        <button onclick="abrirModalAgendaRemarcar('${c.id}')">Remarcar</button>
+        <button onclick="abrirModalAgenda('${c.id}')">Editar</button>
+        <button onclick="abrirModalAgendaCancelar('${c.id}')">Cancelar</button>
+      </div>
+    </div>`
 }
+// menu flutuante genérico "⋮" dos cards da Agenda — um aberto por vez,
+// fecha ao clicar fora (mesmo padrão do sino de notificações).
+function _agendaToggleMenu(btn, e) {
+  e.stopPropagation()
+  const drop = btn.nextElementSibling
+  const jaAberto = drop.classList.contains('show')
+  document.querySelectorAll('.ac-menu-drop.show').forEach(d => d.classList.remove('show'))
+  if (!jaAberto) drop.classList.add('show')
+}
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ac-menu-wrap')) document.querySelectorAll('.ac-menu-drop.show').forEach(d => d.classList.remove('show'))
+  if (!e.target.closest('#ag-cliente-evento-wrap')) document.getElementById('ag-ce-sugestoes')?.classList.remove('show')
+})
 
-// ── calendário mensal ──
+// ── calendário: Mês / Semana / Dia, navegação unificada por um único
+// cursor de data + filtros rápidos (fotógrafo/local) compartilhados
+// pelas 3 visões e refletidos no painel lateral. ──
 const AGENDA_DOW = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb']
 const AGENDA_MESES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro']
-function _agendaCalMes(delta) {
-  if (!_agendaCalAtual) { const d = new Date(); _agendaCalAtual = { ano: d.getFullYear(), mes: d.getMonth() } }
-  _agendaCalAtual.mes += delta
-  if (_agendaCalAtual.mes < 0) { _agendaCalAtual.mes = 11; _agendaCalAtual.ano-- }
-  if (_agendaCalAtual.mes > 11) { _agendaCalAtual.mes = 0; _agendaCalAtual.ano++ }
-  _agendaRenderCalendario()
+const AGENDA_GRADE_H_INICIO = 8
+const AGENDA_GRADE_H_FIM = 22
+const AGENDA_GRADE_ALTURA_HORA = 50 // px por hora na grade Semana/Dia
+
+function _agendaCompromissosFiltradosCal() {
+  return store.agendaCompromissos.filter(c => {
+    if (c.status === 'cancelado') return false
+    if (_agendaFiltroFotografoCal && !(c.equipe || []).includes(_agendaFiltroFotografoCal)) return false
+    if (_agendaFiltroLocalCal && !(c.local || '').toLowerCase().includes(_agendaFiltroLocalCal.toLowerCase())) return false
+    return true
+  })
 }
+
+function _agendaCalNav(delta) {
+  const d = new Date(_agendaCalCursor)
+  if (_agendaCalView === 'mes') d.setMonth(d.getMonth() + delta)
+  else if (_agendaCalView === 'semana') d.setDate(d.getDate() + delta * 7)
+  else d.setDate(d.getDate() + delta)
+  _agendaCalCursor = d
+  _agendaRenderCalendarioAtivo()
+}
+function _agendaCalIrHoje() {
+  _agendaCalCursor = new Date()
+  _agendaRenderCalendarioAtivo()
+}
+function _agendaCalSetView(view) {
+  _agendaCalView = view
+  document.querySelectorAll('#admintab-crm [data-calview],#admintab-agenda [data-calview]').forEach(b => b.classList.toggle('on', b.dataset.calview === view))
+  document.getElementById('agenda-cal-mes-view').style.display = view === 'mes' ? 'block' : 'none'
+  document.getElementById('agenda-cal-semana-view').style.display = view === 'semana' ? 'block' : 'none'
+  document.getElementById('agenda-cal-dia-view').style.display = view === 'dia' ? 'block' : 'none'
+  _agendaRenderCalendarioAtivo()
+}
+// dispara sempre que algo muda o que deve aparecer (navegação, troca
+// de visão, filtro por seleção) — o filtro de LOCAL usa onchange (não
+// oninput) de propósito, senão re-renderizar o próprio campo de texto
+// a cada tecla derrubava o foco/cursor no meio da digitação.
+function _agendaRenderCalendarioAtivo() {
+  if (_agendaCalView === 'mes') _agendaRenderCalendario()
+  else if (_agendaCalView === 'semana') _agendaRenderSemana()
+  else _agendaRenderDia()
+  _agendaRenderSidebar()
+}
+
 function _agendaRenderCalendario() {
-  if (!_agendaCalAtual) { const d = new Date(); _agendaCalAtual = { ano: d.getFullYear(), mes: d.getMonth() } }
-  const { ano, mes } = _agendaCalAtual
+  const ano = _agendaCalCursor.getFullYear()
+  const mes = _agendaCalCursor.getMonth()
   document.getElementById('agenda-cal-titulo').textContent = `${AGENDA_MESES[mes]} de ${ano}`
   document.getElementById('agenda-cal-dow').innerHTML = AGENDA_DOW.map(d => `<div class="agenda-cal-dow">${d}</div>`).join('')
 
@@ -4977,7 +5125,7 @@ function _agendaRenderCalendario() {
   const hojeISO = new Date().toISOString().slice(0, 10)
 
   const porDia = new Map()
-  store.agendaCompromissos.filter(c => c.status !== 'cancelado').forEach(c => {
+  _agendaCompromissosFiltradosCal().forEach(c => {
     const arr = porDia.get(c.data) || []; arr.push(c); porDia.set(c.data, arr)
   })
 
@@ -4999,6 +5147,133 @@ function _agendaRenderCalendario() {
   }
   document.getElementById('agenda-cal-grid').innerHTML = celulas.join('')
 }
+
+// ── Semana/Dia: grade horária estilo Google Agenda — eixo de horas +
+// colunas de dia, compromissos posicionados/dimensionados pelo
+// horário real (sem hora_fim, assume 1h só de altura visual). ──
+function _agendaHoraParaDecimal(hhmm) {
+  const [h, m] = (hhmm || '00:00').split(':').map(Number)
+  return h + (m || 0) / 60
+}
+function _agendaRenderGradeHoraria(containerEl, dias) {
+  const horas = []
+  for (let h = AGENDA_GRADE_H_INICIO; h < AGENDA_GRADE_H_FIM; h++) horas.push(h)
+  const alturaTotal = (AGENDA_GRADE_H_FIM - AGENDA_GRADE_H_INICIO) * AGENDA_GRADE_ALTURA_HORA
+  const hojeISO = new Date().toISOString().slice(0, 10)
+  const agora = new Date()
+
+  const porDia = new Map()
+  _agendaCompromissosFiltradosCal().forEach(c => {
+    const arr = porDia.get(c.data) || []; arr.push(c); porDia.set(c.data, arr)
+  })
+
+  containerEl.innerHTML = `
+    <div class="agenda-grade-wrap">
+      <div class="agenda-grade-eixo">
+        ${horas.map(h => `<div class="agenda-grade-hora" style="--ag-grade-h:${AGENDA_GRADE_ALTURA_HORA}px;">${String(h).padStart(2, '0')}:00</div>`).join('')}
+      </div>
+      <div class="agenda-grade-dias">
+        ${dias.map(d => {
+    const itens = porDia.get(d.iso) || []
+    const blocos = itens.map(c => {
+      const inicio = _agendaHoraParaDecimal(_agHora(c.hora_inicio))
+      const fimBruto = c.hora_fim ? _agendaHoraParaDecimal(_agHora(c.hora_fim)) : inicio + 1
+      const fim = Math.max(fimBruto, inicio + 0.4)
+      const top = Math.max(0, inicio - AGENDA_GRADE_H_INICIO) * AGENDA_GRADE_ALTURA_HORA
+      const altura = Math.max(20, (fim - inicio) * AGENDA_GRADE_ALTURA_HORA)
+      return `<div class="agenda-grade-bloco ${c.status}" style="top:${top}px;height:${altura}px;" onclick="event.stopPropagation();abrirModalAgenda('${c.id}')" title="${esc(c.titulo)}"><b>${_agHora(c.hora_inicio)} ${esc(c.titulo)}</b></div>`
+    }).join('')
+    let linhaAgora = ''
+    if (d.iso === hojeISO) {
+      const h = agora.getHours() + agora.getMinutes() / 60
+      if (h >= AGENDA_GRADE_H_INICIO && h <= AGENDA_GRADE_H_FIM) {
+        linhaAgora = `<div class="agenda-grade-agora" style="top:${(h - AGENDA_GRADE_H_INICIO) * AGENDA_GRADE_ALTURA_HORA}px;"></div>`
+      }
+    }
+    return `
+          <div class="agenda-grade-col">
+            <div class="agenda-grade-col-header${d.iso === hojeISO ? ' hoje' : ''}">${esc(d.label)}</div>
+            <div class="agenda-grade-col-body" style="height:${alturaTotal}px;--ag-grade-h:${AGENDA_GRADE_ALTURA_HORA}px;" onclick="_agendaCliqueGrade(event,'${d.iso}')">
+              ${blocos}
+              ${linhaAgora}
+            </div>
+          </div>`
+  }).join('')}
+      </div>
+    </div>`
+}
+// clicar num espaço vazio da grade já abre o modal de criação com
+// data+hora pré-preenchidos (arredondado pros 15min mais próximos) —
+// clicar em cima de um bloco existente abre a edição (stopPropagation
+// no bloco impede que os dois cliques disparem juntos).
+function _agendaCliqueGrade(e, iso) {
+  const rect = e.currentTarget.getBoundingClientRect()
+  const horaDecimal = AGENDA_GRADE_H_INICIO + (e.clientY - rect.top) / AGENDA_GRADE_ALTURA_HORA
+  const h = Math.floor(horaDecimal)
+  let m = Math.round(((horaDecimal - h) * 60) / 15) * 15
+  let hh = h, mm = m
+  if (mm === 60) { mm = 0; hh++ }
+  abrirModalAgenda(null, iso, `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`)
+}
+function _agendaRenderSemana() {
+  const inicioSemana = new Date(_agendaCalCursor)
+  inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay())
+  const dias = []
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(inicioSemana)
+    d.setDate(d.getDate() + i)
+    dias.push({ iso: d.toISOString().slice(0, 10), label: `${AGENDA_DOW[d.getDay()]} ${d.getDate()}` })
+  }
+  document.getElementById('agenda-cal-titulo').textContent = `${fmtData(dias[0].iso)} – ${fmtData(dias[6].iso)}`
+  _agendaRenderGradeHoraria(document.getElementById('agenda-cal-semana-view'), dias)
+}
+function _agendaRenderDia() {
+  const iso = _agendaCalCursor.toISOString().slice(0, 10)
+  document.getElementById('agenda-cal-titulo').textContent = fmtData(iso)
+  _agendaRenderGradeHoraria(document.getElementById('agenda-cal-dia-view'), [{ iso, label: `${AGENDA_DOW[_agendaCalCursor.getDay()]} ${_agendaCalCursor.getDate()}` }])
+}
+
+// ── painel lateral: resumo do dia em foco + filtros rápidos +
+// mini-estatísticas — o calendário parava "solto" na tela sem
+// contexto nenhum ao lado; isso dá o mesmo apoio visual do Google
+// Agenda sem precisar abrir nada. ──
+function _agendaRenderSidebar() {
+  const el = document.getElementById('agenda-cal-sidebar')
+  if (!el) return
+  const hojeISO = new Date().toISOString().slice(0, 10)
+  const diaFoco = _agendaCalView === 'mes' ? hojeISO : _agendaCalCursor.toISOString().slice(0, 10)
+  const filtrados = _agendaCompromissosFiltradosCal()
+  const itens = filtrados.filter(c => c.data === diaFoco).sort((a, b) => _agHora(a.hora_inicio).localeCompare(_agHora(b.hora_inicio)))
+
+  const inicioSemana = new Date()
+  inicioSemana.setDate(inicioSemana.getDate() - inicioSemana.getDay())
+  const fimSemana = new Date(inicioSemana)
+  fimSemana.setDate(fimSemana.getDate() + 6)
+  const isoInicioSemana = inicioSemana.toISOString().slice(0, 10)
+  const isoFimSemana = fimSemana.toISOString().slice(0, 10)
+  const estaSemanaCount = filtrados.filter(c => c.data >= isoInicioSemana && c.data <= isoFimSemana).length
+  const hojeCount = filtrados.filter(c => c.data === hojeISO).length
+
+  el.innerHTML = `
+    <div class="acs-bloco">
+      <h4>${diaFoco === hojeISO ? 'Hoje' : fmtData(diaFoco)}</h4>
+      ${itens.length ? itens.map(c => `<div class="acs-dia-item"><b>${_agHora(c.hora_inicio)}</b> ${esc(c.titulo)}</div>`).join('') : '<div class="acs-dia-item" style="opacity:.6;">Nada marcado.</div>'}
+    </div>
+    <div class="acs-bloco">
+      <h4>Filtros rápidos</h4>
+      <select onchange="_agendaFiltroFotografoCal=this.value;_agendaRenderCalendarioAtivo()">
+        <option value="">Todos os fotógrafos</option>
+        ${store.agendaEquipeDisponivel.map(u => `<option value="${u.user_id}" ${_agendaFiltroFotografoCal === u.user_id ? 'selected' : ''}>${esc(u.nome)}</option>`).join('')}
+      </select>
+      <input type="text" placeholder="Filtrar por local…" value="${esc(_agendaFiltroLocalCal)}" onchange="_agendaFiltroLocalCal=this.value;_agendaRenderCalendarioAtivo()">
+    </div>
+    <div class="acs-bloco">
+      <h4>Mini-estatísticas</h4>
+      <div class="acs-stat"><span>Hoje</span><b>${hojeCount}</b></div>
+      <div class="acs-stat"><span>Essa semana</span><b>${estaSemanaCount}</b></div>
+    </div>
+  `
+}
 function _agendaAbrirDia(iso) {
   _agendaDiaAtual = iso
   document.getElementById('ag-dia-titulo').textContent = fmtData(iso)
@@ -5008,7 +5283,7 @@ function _agendaAbrirDia(iso) {
 }
 
 // ── modal criar/editar ──
-async function abrirModalAgenda(id, dataPreenchida) {
+async function abrirModalAgenda(id, dataPreenchida, horaPreenchida) {
   await _agendaCarregarEquipeDisponivel()
   document.getElementById('ag-id').value = id || ''
   const c = id ? store.agendaCompromissos.find(x => x.id === id) : null
@@ -5016,23 +5291,31 @@ async function abrirModalAgenda(id, dataPreenchida) {
   document.getElementById('ag-titulo').value = c?.titulo || ''
   document.getElementById('ag-tipo').value = c?.tipo || 'ensaio'
   document.getElementById('ag-data').value = c?.data || dataPreenchida || ''
-  document.getElementById('ag-hora-inicio').value = _agHora(c?.hora_inicio)
+  document.getElementById('ag-hora-inicio').value = _agHora(c?.hora_inicio) || horaPreenchida || ''
   document.getElementById('ag-hora-fim').value = _agHora(c?.hora_fim)
   document.getElementById('ag-local').value = c?.local || ''
-  document.getElementById('ag-cliente-livre').value = c?.cliente_nome_livre || ''
   document.getElementById('ag-notas').value = c?.notas || ''
   document.getElementById('ag-lembrete').value = c?.lembrete_horas || 24
-
-  const selCliente = document.getElementById('ag-cliente-avulso')
-  selCliente.innerHTML = '<option value="">— nenhum —</option>' + store.clientesAvulsos.map(cl => `<option value="${cl.id}">${esc(cl.nome)}</option>`).join('')
-  selCliente.value = c?.cliente_avulso_id || ''
 
   _agendaEquipeSelecionada = new Set(c?.equipe || [])
   _agendaRenderEquipePicker()
 
   _agendaEventoSelecionadoId = c?.evento_id || null
-  document.getElementById('ag-evento-busca').value = ''
-  _agendaRenderEventoPicker()
+  _agendaClienteAvulsoId = c?.cliente_avulso_id || null
+  document.getElementById('ag-cliente-evento-busca').value = ''
+  document.getElementById('ag-ce-sugestoes').classList.remove('show')
+  if (_agendaEventoSelecionadoId) {
+    const ev = store.eventos.find(e => e.id === _agendaEventoSelecionadoId)
+    _agendaRenderClienteEventoSelecionado(ev?.nome || null, 'evento')
+  } else if (_agendaClienteAvulsoId) {
+    const cl = store.clientesAvulsos.find(x => x.id === _agendaClienteAvulsoId)
+    _agendaRenderClienteEventoSelecionado(cl?.nome || null, 'avulso')
+  } else if (c?.cliente_nome_livre) {
+    document.getElementById('ag-cliente-evento-busca').value = c.cliente_nome_livre
+    _agendaRenderClienteEventoSelecionado(null)
+  } else {
+    _agendaRenderClienteEventoSelecionado(null)
+  }
 
   abrirModal('modal-agenda')
   setTimeout(() => document.getElementById('ag-titulo')?.focus(), 50)
@@ -5047,21 +5330,44 @@ function _agendaToggleEquipe(userId, el) {
   if (_agendaEquipeSelecionada.has(userId)) _agendaEquipeSelecionada.delete(userId); else _agendaEquipeSelecionada.add(userId)
   el.classList.toggle('on')
 }
-function _agendaRenderEventoPicker() {
-  const busca = document.getElementById('ag-evento-busca').value.toLowerCase()
-  const lista = store.eventos.filter(e => e.nome.toLowerCase().includes(busca)).slice(0, 40)
-  const el = document.getElementById('ag-evento-lista')
-  el.innerHTML = lista.length
-    ? lista.map(e => `<span class="tag-opt${_agendaEventoSelecionadoId === e.id ? ' on' : ''}" onclick="_agendaToggleEvento('${e.id}')">${esc(e.nome)}</span>`).join('')
-    : '<span style="opacity:.6;font-size:12px;">Nenhum evento encontrado</span>'
-  const hint = document.getElementById('ag-evento-selecionado-hint')
-  const ev = _agendaEventoSelecionadoId ? store.eventos.find(e => e.id === _agendaEventoSelecionadoId) : null
-  hint.style.display = ev ? 'block' : 'none'
-  if (ev) hint.textContent = `Vinculado a: ${ev.nome}`
+
+// campo único "Cliente / Evento": busca mista em eventos+clientes
+// avulsos; sem selecionar nada, o texto digitado vira nome livre no
+// salvar — substitui os 3 campos redundantes que existiam antes.
+function _agendaBuscarClienteEvento() {
+  const busca = document.getElementById('ag-cliente-evento-busca').value.trim().toLowerCase()
+  const el = document.getElementById('ag-ce-sugestoes')
+  if (!busca) { el.classList.remove('show'); el.innerHTML = ''; return }
+  const eventos = store.eventos.filter(e => e.nome.toLowerCase().includes(busca)).slice(0, 8)
+  const clientes = store.clientesAvulsos.filter(cl => cl.nome.toLowerCase().includes(busca)).slice(0, 8)
+  const itens = [
+    ...eventos.map(e => ({ tipo: 'evento', id: e.id, nome: e.nome })),
+    ...clientes.map(cl => ({ tipo: 'avulso', id: cl.id, nome: cl.nome })),
+  ]
+  el.innerHTML = itens.length
+    ? itens.map(it => `<div class="item" onclick="_agendaSelecionarClienteEvento('${it.tipo}','${it.id}')"><span>${esc(it.nome)}</span><span class="tipo">${it.tipo === 'evento' ? '📷 Evento' : '🙋 Cliente'}</span></div>`).join('')
+    : '<div class="item" style="opacity:.6;cursor:default;">Nenhum resultado — digite um nome novo e salve assim mesmo</div>'
+  el.classList.add('show')
 }
-function _agendaToggleEvento(id) {
-  _agendaEventoSelecionadoId = (_agendaEventoSelecionadoId === id) ? null : id
-  _agendaRenderEventoPicker()
+function _agendaSelecionarClienteEvento(tipo, id) {
+  const item = tipo === 'evento' ? store.eventos.find(e => e.id === id) : store.clientesAvulsos.find(cl => cl.id === id)
+  if (!item) return
+  if (tipo === 'evento') { _agendaEventoSelecionadoId = id; _agendaClienteAvulsoId = null }
+  else { _agendaClienteAvulsoId = id; _agendaEventoSelecionadoId = null }
+  document.getElementById('ag-cliente-evento-busca').value = ''
+  document.getElementById('ag-ce-sugestoes').classList.remove('show')
+  _agendaRenderClienteEventoSelecionado(item.nome, tipo)
+}
+function _agendaRenderClienteEventoSelecionado(nome, tipo) {
+  const wrap = document.getElementById('ag-ce-selecionado')
+  if (!nome) { wrap.style.display = 'none'; wrap.innerHTML = ''; return }
+  wrap.style.display = 'flex'
+  wrap.innerHTML = `<span>${tipo === 'evento' ? '📷' : '🙋'} ${esc(nome)}</span><button type="button" onclick="_agendaLimparClienteEvento()" title="Remover vínculo">✕</button>`
+}
+function _agendaLimparClienteEvento() {
+  _agendaEventoSelecionadoId = null
+  _agendaClienteAvulsoId = null
+  _agendaRenderClienteEventoSelecionado(null)
 }
 
 // ── conflito de horário: mesmo dia + mesmo membro de equipe + faixas
@@ -5109,8 +5415,11 @@ async function _agendaSalvar() {
   if (!hora_inicio) { toast('Informe o horário de início'); return }
   const hora_fim = document.getElementById('ag-hora-fim').value || null
   const local = document.getElementById('ag-local').value.trim() || null
-  const cliente_avulso_id = document.getElementById('ag-cliente-avulso').value || null
-  const cliente_nome_livre = document.getElementById('ag-cliente-livre').value.trim() || null
+  const cliente_avulso_id = _agendaClienteAvulsoId
+  // sem selecionar uma sugestão (evento ou cliente cadastrado), o que
+  // foi digitado no campo unificado vira nome livre.
+  const cliente_nome_livre = (!_agendaEventoSelecionadoId && !_agendaClienteAvulsoId)
+    ? (document.getElementById('ag-cliente-evento-busca').value.trim() || null) : null
   const notas = document.getElementById('ag-notas').value.trim() || null
   const lembrete_horas = parseInt(document.getElementById('ag-lembrete').value, 10) || 24
   const equipe = [..._agendaEquipeSelecionada]
@@ -5131,7 +5440,7 @@ async function _agendaSalvar() {
   toast(id ? 'Compromisso atualizado ✓' : 'Compromisso criado ✓')
   registrarAuditoria(id ? 'editou compromisso da agenda' : 'criou compromisso na agenda', 'agenda_compromissos', data.id, titulo)
   _agendaRenderLista()
-  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendarioAtivo()
 }
 
 async function _agendaConfirmar(id) {
@@ -5182,7 +5491,7 @@ async function _agendaConfirmarRemarcar() {
   toast('Compromisso remarcado ✓')
   registrarAuditoria('remarcou compromisso da agenda', 'agenda_compromissos', id, c.titulo)
   _agendaRenderLista()
-  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendarioAtivo()
 }
 
 function abrirModalAgendaCancelar(id) {
@@ -5202,7 +5511,7 @@ async function _agendaConfirmarCancelar() {
   toast('Compromisso cancelado')
   registrarAuditoria('cancelou compromisso da agenda', 'agenda_compromissos', id, c?.titulo || '')
   _agendaRenderLista()
-  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendario()
+  if (document.getElementById('agenda-calendario-wrap').style.display !== 'none') _agendaRenderCalendarioAtivo()
 }
 
 // ══════════════════════════════════════════════════════════════
