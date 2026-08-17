@@ -10492,7 +10492,13 @@ async function iniciarViewEscola() {
   const { data: eventos, error } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
   if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
   store.eventos = eventos || []
-  const { data: alunos } = await db.from('alunos').select('*').eq('escola_id', meuPerfil.escola_id).order('nome')
+  // sem filtro de escola aqui de propósito (mesmo motivo do "eventos"
+  // duas linhas acima) — RLS (alunos_select) já escopa pro que esse
+  // login pode ver. Filtrar client-side só por meuPerfil.escola_id
+  // (a escola PRINCIPAL) deixava a lista vazia/incompleta pra
+  // professor com vínculo só via escola adicional (professor_escolas)
+  // ou sem escola_id principal nenhuma.
+  const { data: alunos } = await db.from('alunos').select('*').order('nome')
   store.alunos = alunos || []
   // resto do que a árvore da Galeria precisa — RLS já escopa cada uma
   // dessas queries pro que esse login pode ver (a própria escola).
