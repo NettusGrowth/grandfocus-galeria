@@ -700,6 +700,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .dash-fotos-populares:has(.dfp-item:hover) .dfp-item:hover{flex:3;}
 .dfp-item img{width:100%;height:100%;object-fit:cover;display:block;}
 .dfp-rank{position:absolute;top:10px;left:10px;width:24px;height:24px;border-radius:50%;background:rgba(10,4,6,.7);border:1px solid rgba(212,175,55,.45);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ouro-luz);}
+.dfp-quem{position:absolute;top:10px;right:10px;width:26px;height:26px;border-radius:50%;background:rgba(10,4,6,.7);border:1px solid rgba(212,175,55,.35);display:grid;place-items:center;color:var(--ouro-luz);cursor:pointer;padding:0;}
+.dfp-quem:hover{background:rgba(212,175,55,.25);}
 /* ícones "⬇ 3"/"👁 12" sozinhos deixavam a pessoa sem saber o que
    cada número significa — a palavra some quando a coluna tá estreita
    (largura insuficiente, "overflow:hidden" corta) e só aparece quando
@@ -1576,9 +1578,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="card dash-desktop-only" id="dash-fotos-populares-card" style="margin-top:16px;display:none;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
             <h3 style="font-size:16px;margin:0;">Fotos mais populares</h3>
-            <div class="chip-row" style="margin:0;">
-              <span class="chip on" onclick="_dashTrocarMetricaPopulares('downloads', this)">Mais baixadas</span>
-              <span class="chip" onclick="_dashTrocarMetricaPopulares('visualizacoes', this)">Mais vistas</span>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+              <div class="chip-row" style="margin:0;">
+                <span class="chip on" onclick="_dashTrocarMetricaPopulares('downloads', this)">Mais baixadas</span>
+                <span class="chip" onclick="_dashTrocarMetricaPopulares('visualizacoes', this)">Mais vistas</span>
+              </div>
+              <button class="icon-btn" title="Zerar contagem — recomeça do zero a partir de agora, sem apagar o histórico da Auditoria" onclick="_dashZerarFotosPopulares()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 1 3 6.7M3 12v6h6"/></svg>
+              </button>
             </div>
           </div>
           <div class="dash-fotos-populares" id="dash-fotos-populares"></div>
@@ -2399,6 +2406,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div id="marcar-pessoas-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
     <div class="modal-actions">
       <button class="btn btn-sm btn-primary" onclick="fecharModal('modal-marcar-pessoas')">Pronto</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: quem visualizou/baixou uma foto (card "Fotos mais populares") -->
+<div class="modal-overlay" id="modal-detalhe-popularidade" onclick="if(event.target===this)fecharModal('modal-detalhe-popularidade')">
+  <div class="modal" style="max-width:420px;">
+    <h3 style="margin-bottom:10px;">Quem viu essa foto</h3>
+    <div id="detalhe-popularidade-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-primary" onclick="fecharModal('modal-detalhe-popularidade')">Fechar</button>
     </div>
   </div>
 </div>
@@ -3861,6 +3879,9 @@ function _dashRenderFotosPopulares() {
     <div class="dfp-item" onclick="_dashAbrirFotoPopular('${f.foto_id}')" title="${esc(f.evento_nome || '')}">
       ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
       <span class="dfp-rank">${i + 1}</span>
+      <button class="dfp-quem" title="Ver quem viu/baixou" onclick="event.stopPropagation();_dashAbrirDetalhePopularidade('${f.foto_id}')">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      </button>
       <div class="dfp-badge">
         <span class="dfp-stat">${ICON_DOWNLOAD_MINI}${f.qtd_downloads}<span class="dfp-label">&nbsp;download${f.qtd_downloads === 1 ? '' : 's'}</span></span>
         <span class="dfp-stat">${ICON_OLHO_MINI}${f.qtd_visualizacoes}<span class="dfp-label">&nbsp;visualiza${f.qtd_visualizacoes === 1 ? 'ção' : 'ções'}</span></span>
@@ -3872,6 +3893,32 @@ let _dashFotosPopularesAtuais = []
 function _dashAbrirFotoPopular(fotoId) {
   _lightboxFotos = _dashFotosPopularesAtuais.map(f => ({ id: f.foto_id, storage_path: f.storage_path, thumb_path: f.thumb_path, evento_id: f.evento_id }))
   abrirLightbox(fotoId)
+}
+async function _dashZerarFotosPopulares() {
+  const ok = await confirmModal(
+    'Isso zera o ranking de "Fotos mais populares" a partir de agora — visualizações e downloads de ANTES desse momento saem da contagem. O histórico completo continua intacto na Auditoria, só o ranking reinicia. Continuar?',
+    { titulo: 'Zerar contagem', okLabel: 'Zerar' }
+  )
+  if (!ok) return
+  const { error } = await db.rpc('zerar_fotos_populares')
+  if (error) { toast('Erro ao zerar: ' + error.message); return }
+  toast('Contagem zerada ✓')
+  _dashCarregarFotosPopulares()
+}
+async function _dashAbrirDetalhePopularidade(fotoId) {
+  abrirModal('modal-detalhe-popularidade')
+  const el = document.getElementById('detalhe-popularidade-lista')
+  el.innerHTML = '<div class="empty" style="border:0;">Carregando…</div>'
+  const { data, error } = await db.rpc('detalhe_popularidade_foto', { p_foto_id: fotoId })
+  if (error) { el.innerHTML = `<div class="empty" style="border:0;">Erro: ${esc(error.message)}</div>`; return }
+  if (!data || !data.length) { el.innerHTML = '<div class="empty" style="border:0;">Ninguém visualizou ou baixou essa foto ainda.</div>'; return }
+  el.innerHTML = data.map(d => `
+    <div class="list-item" style="cursor:default;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="list-avatar">${esc((d.nome || '?').trim().charAt(0).toUpperCase())}</span>
+        <div class="nome-sub"><span class="nome">${esc(d.nome)}</span><br><span class="sub">${d.tipo === 'download' ? 'baixou' : 'visualizou'} ${d.qtd}x — última vez ${fmtDataHora(d.ultima_em)}</span></div>
+      </div>
+    </div>`).join('')
 }
 
 // parallax sutil do fundo — liga o listener uma única vez (main não é
