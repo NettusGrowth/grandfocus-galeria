@@ -694,12 +694,21 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    vanilla JS de arquivo único), zero JS rodando durante o hover. */
 .dash-desktop-only{display:block;}
 @media(max-width:900px){.dash-desktop-only{display:none !important;}}
-.dash-fotos-populares{display:flex;gap:8px;height:210px;}
-.dfp-item{position:relative;flex:1;overflow:hidden;border-radius:10px;cursor:pointer;background:rgba(75,4,22,.3);transition:flex .4s ease;}
-.dash-fotos-populares:has(.dfp-item:hover) .dfp-item{flex:0.55;}
-.dash-fotos-populares:has(.dfp-item:hover) .dfp-item:hover{flex:2.6;}
+.dash-fotos-populares{display:flex;gap:10px;height:340px;}
+.dfp-item{position:relative;flex:1;overflow:hidden;border-radius:12px;cursor:pointer;background:rgba(75,4,22,.3);transition:flex .4s ease;}
+.dash-fotos-populares:has(.dfp-item:hover) .dfp-item{flex:0.5;}
+.dash-fotos-populares:has(.dfp-item:hover) .dfp-item:hover{flex:3;}
 .dfp-item img{width:100%;height:100%;object-fit:cover;display:block;}
-.dfp-badge{position:absolute;left:0;right:0;bottom:0;padding:16px 10px 8px;background:linear-gradient(to top,rgba(10,4,6,.88),transparent);display:flex;gap:10px;font-size:11px;color:var(--ouro-luz);white-space:nowrap;overflow:hidden;}
+.dfp-rank{position:absolute;top:10px;left:10px;width:24px;height:24px;border-radius:50%;background:rgba(10,4,6,.7);border:1px solid rgba(212,175,55,.45);display:grid;place-items:center;font-size:12px;font-weight:700;color:var(--ouro-luz);}
+/* ícones "⬇ 3"/"👁 12" sozinhos deixavam a pessoa sem saber o que
+   cada número significa — a palavra some quando a coluna tá estreita
+   (largura insuficiente, "overflow:hidden" corta) e só aparece quando
+   dá espaço de verdade (hover expande a coluna via o :has() acima). */
+.dfp-badge{position:absolute;left:0;right:0;bottom:0;padding:22px 12px 12px;background:linear-gradient(to top,rgba(10,4,6,.92),transparent);display:flex;flex-direction:column;gap:6px;overflow:hidden;}
+.dfp-stat{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--ouro-luz);white-space:nowrap;}
+.dfp-stat svg{width:14px;height:14px;flex-shrink:0;}
+.dfp-stat .dfp-label{opacity:0;max-width:0;overflow:hidden;transition:opacity .2s ease,max-width .3s ease;}
+.dfp-item:hover .dfp-stat .dfp-label{opacity:1;max-width:140px;}
 .dash-activity{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
 .dash-activity li{padding:11px 0;border-top:1px solid rgba(200,175,127,.12);font-size:13px;color:#EADFCF;}
 .dash-activity li:first-child{border-top:0;}
@@ -3822,6 +3831,10 @@ async function iniciarDashboardAdmin() {
 // depois é só reordenar esse array na memória, sem chamada nova.
 let _dashFotosPopularesDados = []
 let _dashMetricaPopulares = 'downloads'
+// top 5 (não o pool inteiro) — o card é uma vitrine rápida, não uma
+// lista; o pool de até 40 (abaixo) só existe pra poder trocar
+// "mais baixadas"/"mais vistas" sem uma chamada nova ao banco.
+const DASH_FOTOS_POPULARES_TOP = 5
 async function _dashCarregarFotosPopulares() {
   const card = document.getElementById('dash-fotos-populares-card')
   if (!card || window.innerWidth < 900) return
@@ -3836,18 +3849,21 @@ function _dashTrocarMetricaPopulares(metrica, el) {
   el.parentElement.querySelectorAll('.chip').forEach(c => c.classList.toggle('on', c === el))
   _dashRenderFotosPopulares()
 }
+const ICON_DOWNLOAD_MINI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>'
+const ICON_OLHO_MINI = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
 function _dashRenderFotosPopulares() {
   const wrap = document.getElementById('dash-fotos-populares')
   if (!wrap) return
   const chave = _dashMetricaPopulares === 'visualizacoes' ? 'qtd_visualizacoes' : 'qtd_downloads'
-  const top8 = [..._dashFotosPopularesDados].sort((a, b) => b[chave] - a[chave]).slice(0, 8)
-  _dashFotosPopularesAtuais = top8
-  wrap.innerHTML = top8.map(f => `
+  const top = [..._dashFotosPopularesDados].sort((a, b) => b[chave] - a[chave]).slice(0, DASH_FOTOS_POPULARES_TOP)
+  _dashFotosPopularesAtuais = top
+  wrap.innerHTML = top.map((f, i) => `
     <div class="dfp-item" onclick="_dashAbrirFotoPopular('${f.foto_id}')" title="${esc(f.evento_nome || '')}">
       ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
+      <span class="dfp-rank">${i + 1}</span>
       <div class="dfp-badge">
-        <span>⬇ ${f.qtd_downloads}</span>
-        <span>👁 ${f.qtd_visualizacoes}</span>
+        <span class="dfp-stat">${ICON_DOWNLOAD_MINI}${f.qtd_downloads}<span class="dfp-label">&nbsp;download${f.qtd_downloads === 1 ? '' : 's'}</span></span>
+        <span class="dfp-stat">${ICON_OLHO_MINI}${f.qtd_visualizacoes}<span class="dfp-label">&nbsp;visualiza${f.qtd_visualizacoes === 1 ? 'ção' : 'ções'}</span></span>
       </div>
     </div>`).join('')
   _hidratarImgCache(wrap)
@@ -4232,6 +4248,11 @@ function setAdminTab(tab) {
   document.getElementById('admintab-' + tab).style.display = 'block'
   document.querySelector('main').scrollTop = 0
   _bnSyncActive()
+  // "Fotos mais populares" só era buscado 1x (no login) e nunca mais —
+  // download/visualização acontecem em segundo plano (outra pessoa
+  // navegando a galeria), então reabrir a aba Dashboard é a deixa
+  // natural pra atualizar sem precisar de F5.
+  if (tab === 'dashboard') _dashCarregarFotosPopulares()
 }
 
 // sub-nav local do Gold Reserve (Visão Geral/Vendas/Conversão/…) — não
@@ -7200,15 +7221,6 @@ function abrirLightbox(fotoId) {
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   _travarScrollFundo()
-  // conta como "visualização de verdade" pro Dashboard de Fotos mais
-  // populares — best-effort (não trava nada se falhar) e não conta
-  // clique do próprio admin/super_admin testando a galeria, pra não
-  // sujar a estatística de "o que o público realmente olha". Não
-  // conta post da Comunidade (id começa com "post-") nem foto pública
-  // sem login — só faz sentido pra foto de verdade da tabela fotos.
-  if (!fotoId.startsWith('post-') && !['admin', 'super_admin'].includes(meuPerfil?.role)) {
-    db.rpc('marcar_visualizacao_foto', { p_foto_id: fotoId }).catch(() => {})
-  }
 }
 function fecharLightbox() {
   const lb = document.getElementById('lightbox')
@@ -7349,6 +7361,18 @@ async function renderLightboxAtual() {
   const evento = store.eventos.find(e => e.id === f.evento_id)
   document.getElementById('lightbox-caption').textContent =
     `${evento ? evento.nome : ''} — ${_lightboxIdx + 1} de ${_lightboxFotos.length}`
+  // conta como "visualização de verdade" pro Dashboard de Fotos mais
+  // populares — aqui, não em abrirLightbox(), porque navegar com as
+  // setas dentro do lightbox já aberto (lightboxNav) só chama esta
+  // função, nunca abrirLightbox() de novo; antes disso, só a PRIMEIRA
+  // foto de uma sessão de navegação era contada, todo o resto de
+  // "passar as fotos" ficava de fora. Best-effort (não trava nada se
+  // falhar), não conta clique do próprio admin/super_admin testando a
+  // galeria (senão suja a estatística de "o que o público realmente
+  // olha"), e não conta post da Comunidade (id começa com "post-").
+  if (!f.id.startsWith('post-') && !['admin', 'super_admin'].includes(meuPerfil?.role)) {
+    db.rpc('marcar_visualizacao_foto', { p_foto_id: f.id }).catch(() => {})
+  }
 }
 document.addEventListener('keydown', e => {
   const lb = document.getElementById('lightbox')
