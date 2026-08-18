@@ -9664,6 +9664,27 @@ function _lightboxToggleZoom() {
 function _dispositivoTocavel() {
   return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
 }
+// BUG REAL confirmado com vídeo do usuário testando num Samsung: no
+// Android, o menu do navigator.share() NUNCA mostra "salvar na
+// galeria" — só apps pra compartilhar (WhatsApp, Bluetooth...), porque
+// o Android não tem um botão de "Salvar imagem" embutido na própria
+// caixa do share() como o iOS tem. Ou seja: Web Share nunca foi o
+// caminho certo pro Android — só resolve mesmo no iOS (Safari e
+// qualquer navegador ali, todos rodam sobre o mesmo motor WebKit, que
+// é quem tem essa limitação de download direto). No Android, blob +
+// <a download> FUNCIONA de verdade (vai pra pasta Downloads, que o
+// Android indexa sozinho pra Galeria/Fotos — o mesmo standard que
+// "qualquer site" usa) — só no iOS que esse truque nunca salvou nada
+// (motivo original de existir o Web Share aqui). Por isso a decisão
+// agora é por PLATAFORMA, não só por toque: Web Share só entra pro
+// iOS tocável; Android tocável cai no mesmo caminho direto do desktop.
+function _iOS() {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent || '') ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) // iPad moderno se identifica como Mac
+}
+function _precisaWebShare() {
+  return _dispositivoTocavel() && _iOS()
+}
 // tenta o menu nativo de compartilhar/salvar do sistema — é o ÚNICO
 // jeito que REALMENTE salva na galeria em celular de verdade. O truque
 // de blob + <a download> que existia antes (ver _baixarUrl/
@@ -9697,7 +9718,7 @@ function _dispositivoTocavel() {
 // o usuário. Por isso: SEM timeout aqui — o await espera o tempo que
 // for preciso pra caixa nativa ser resolvida (salvar ou cancelar).
 async function _compartilharArquivos(arquivos, tituloCompartilhar) {
-  if (!_dispositivoTocavel() || !navigator.share || !navigator.canShare) return 'indisponivel'
+  if (!_precisaWebShare() || !navigator.share || !navigator.canShare) return 'indisponivel'
   try {
     if (!navigator.canShare({ files: arquivos })) return 'indisponivel'
     await navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' })
@@ -9711,19 +9732,24 @@ async function _compartilharArquivos(arquivos, tituloCompartilhar) {
 // pra URL cross-origin (o caso de toda signed URL do Supabase Storage,
 // que aponta pra outro domínio), então clicar só ABRIA a foto numa
 // aba nova em vez de baixar. blob: é same-origin, então funciona bem
-// em DESKTOP — em celular esse caminho NÃO salva nada de verdade (ver
-// comentário de _compartilharArquivos acima), então lá nem tenta: ou
-// o share funciona, ou conta como falha de verdade (fingir sucesso
-// com um fallback que não funciona seria pior que avisar o usuário).
+// em DESKTOP e também em ANDROID tocável (ver _iOS/_precisaWebShare
+// acima) — só no iOS que esse caminho não salva nada de verdade, por
+// isso só lá que entra o Web Share. Se mesmo assim o Web Share falhar
+// no iOS (ex: usuário cancelou sem querer, ou algo deu errado), o
+// fallback é abrir a foto numa aba nova pra "toque longo > Salvar
+// Imagem" — gesto nativo do iOS que sempre funciona, sem JS nenhum.
 async function _baixarUrl(url, nomeArquivo) {
   try {
     const resp = await fetch(url)
     if (!resp.ok) throw new Error('Falha ao buscar o arquivo')
     const blob = await resp.blob()
-    if (_dispositivoTocavel()) {
+    if (_precisaWebShare()) {
       const arquivo = new File([blob], nomeArquivo || 'arquivo', { type: blob.type || 'image/jpeg' })
       const status = await _compartilharArquivos([arquivo], nomeArquivo)
-      if (status === 'erro' || status === 'indisponivel') toast('Não foi possível salvar a foto — tenta de novo')
+      if (status === 'erro' || status === 'indisponivel') {
+        toast('Abrindo a foto numa aba — toque e segure nela e escolha "Salvar Imagem"')
+        window.open(url, '_blank')
+      }
       return
     }
     const blobUrl = URL.createObjectURL(blob)
@@ -9784,22 +9810,23 @@ function _dlProgressFechar() {
   _dlFilaPendente = null
 }
 
-// download em massa. Em DESKTOP: blob + <a download> sequencial, sem
-// limite de quantidade (não depende de gesto do usuário pra cada
-// arquivo). Em CELULAR: só existe um jeito real de salvar (Web Share,
-// ver _compartilharArquivos) e ele só funciona com um toque de
+// download em massa. Em DESKTOP e ANDROID tocável: blob + <a
+// download> sequencial, sem limite de quantidade — funciona direto
+// nos dois (ver _iOS/_precisaWebShare acima; blob+<a> só falha mesmo
+// no iOS). Só no IOS TOCÁVEL: único jeito real de salvar é Web Share
+// (ver _compartilharArquivos), e ele só funciona com um toque de
 // usuário de verdade por trás — por isso processa em lotes de
 // LIMITE_SHARE fotos, e quando sobra mais, PARA e mostra um botão
 // "Baixar as próximas N" em vez de tentar continuar sozinho: um
 // segundo navigator.share() disparado pelo código, sem um clique novo
 // do usuário, é recusado ou trava pra sempre em vários navegadores
-// mobile (achado real, ver histórico desta função) — não tem como
+// (achado real, ver histórico desta função) — não tem como
 // automatizar 100% isso na plataforma, então a fila com 1 toque por
 // lote é o mais automatizado que dá pra fazer sem arriscar travar.
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
 
-  if (!_dispositivoTocavel()) {
+  if (!_precisaWebShare()) {
     let falhas = 0
     _dlProgressMostrar(`Preparando ${itens.length} foto(s)…`, 'Vai aparecer na pasta de Downloads do navegador.')
     for (let i = 0; i < itens.length; i++) {
