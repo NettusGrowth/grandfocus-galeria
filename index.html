@@ -2952,10 +2952,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </select>
     </div>
     <div class="field" id="preview-upload-marcar-wrap" style="display:none;">
-      <label style="display:flex;align-items:center;gap:6px;font-weight:400;text-transform:none;cursor:pointer;color:#DBC9A8;">
-        <input type="checkbox" id="preview-upload-marcar-master" checked onchange="_toggleMarcarTodasPreview(this.checked)">
-        Selecionar tudo / Desmarcar tudo
-      </label>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span class="meta" id="preview-upload-marcar-contador" style="align-self:center;">0 de 0 marcada(s)</span>
+        <div style="display:flex;gap:8px;">
+          <button type="button" class="btn btn-sm" onclick="_toggleMarcarTodasPreview(true)">Marcar tudo</button>
+          <button type="button" class="btn btn-sm" onclick="_toggleMarcarTodasPreview(false)">Desmarcar tudo</button>
+        </div>
+      </div>
       <div class="hint" style="margin-top:8px;margin-bottom:0;">Marque quais fotos já entram com a marcação automática (clique na foto ou no ✓) — dá pra ajustar depois, foto a foto.</div>
     </div>
     <div class="foto-grid" id="preview-upload-grid" style="max-height:340px;overflow-y:auto;margin-bottom:6px;"></div>
@@ -8842,8 +8845,7 @@ function _atualizarPreviewUploadMarcarWrap(temRoster) {
   // selecionado", que já vinha marcado por padrão) — o usuário
   // desmarca foto a foto ou usa o master toggle se quiser o inverso.
   _previewUploadMarcados = temRoster ? new Set(_previewUploadFiles) : new Set()
-  const master = document.getElementById('preview-upload-marcar-master')
-  if (master) { master.checked = temRoster; master.indeterminate = false }
+  _atualizarMasterCheckboxPreview()
 }
 
 function _prepararUploadEvento(files) {
@@ -8914,15 +8916,15 @@ function _toggleMarcarTodasPreview(marcarTudo) {
   })
   _atualizarMasterCheckboxPreview()
 }
-// reflete no master se está tudo/nada/parte marcado (estado
-// indeterminate = "misto", padrão nativo de checkbox pra isso).
+// mostra "X de Y marcada(s)" no lugar do antigo checkbox
+// indeterminate — dá pra ler de relance sem precisar contar os ✓ na
+// grade, principalmente quando são muitas fotos e a lista rola.
 function _atualizarMasterCheckboxPreview() {
-  const master = document.getElementById('preview-upload-marcar-master')
-  if (!master || !_previewUploadTemRoster) return
+  const contador = document.getElementById('preview-upload-marcar-contador')
+  if (!contador || !_previewUploadTemRoster) return
   const total = _previewUploadFiles.length
   const marcados = _previewUploadFiles.filter(f => _previewUploadMarcados.has(f)).length
-  master.checked = total > 0 && marcados === total
-  master.indeterminate = marcados > 0 && marcados < total
+  contador.textContent = `${marcados} de ${total} marcada(s)`
 }
 function _removerDoPreviewUpload(idx) {
   _previewUploadMarcados.delete(_previewUploadFiles[idx])
@@ -11090,10 +11092,22 @@ async function renderFotosEventoAdmin() {
   // deixava até selecionar/rolar pesado mesmo depois de carregado.
   wrap.innerHTML = ordemGrupos.map((nome, i) => {
     const colapsada = nome && _eventoSubpastasColapsadas.has(nome)
+    const qtd = grupos.get(nome).length
+    // cabeçalho por grupo só faz sentido quando dá pra confundir com
+    // outro grupo — se é a única pasta do evento, o "Selecionar
+    // todas" do topo já cobre o mesmo escopo.
+    const mostraCabecalho = nome || (ordemGrupos.length > 1 && qtd)
     return `
     <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
-      ${nome ? `<div class="subpasta-titulo"><h3 onclick="_eventoToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      ${grupos.get(nome).length ? `<div class="foto-grid" id="evt-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
+      ${mostraCabecalho ? `<div class="subpasta-titulo">
+        ${nome ? `<h3 onclick="_eventoToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="meta">${qtd} foto(s)</span>
+          ${qtd ? `<button class="btn btn-sm" onclick="_eventoSelecionarTodasDaPasta('${esc(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button>` : ''}
+        </div>
+      </div>` : ''}
+      ${qtd ? `<div class="foto-grid" id="evt-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
   `}).join('')
   ordemGrupos.forEach((nome, i) => {
@@ -11116,6 +11130,14 @@ function _eventoToggleSelecaoFoto(fotoId) {
 function _eventoSelecionarTodas() {
   if (!_eventoAtual) return
   store.fotos.filter(f => f.evento_id === _eventoAtual.id).forEach(f => _eventoFotoSelecao.add(f.id))
+  renderFotosEventoAdmin()
+}
+// escopado a UMA pasta/Ato só — o "Selecionar todas" do topo pega o
+// evento inteiro, o que atrapalha quando o admin só quer marcar/mover
+// as fotos de uma pasta específica dentro de um evento com várias.
+function _eventoSelecionarTodasDaPasta(nome) {
+  if (!_eventoAtual) return
+  store.fotos.filter(f => f.evento_id === _eventoAtual.id && (f.subpasta || '') === (nome || '')).forEach(f => _eventoFotoSelecao.add(f.id))
   renderFotosEventoAdmin()
 }
 function _eventoLimparSelecao() {
@@ -12803,10 +12825,19 @@ async function renderFotosEnsaioAdmin() {
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
   wrap.innerHTML = ordemGrupos.map((nome, i) => {
     const colapsada = nome && _ensaioSubpastasColapsadas.has(nome)
+    const qtd = grupos.get(nome).length
+    const mostraCabecalho = nome || (ordemGrupos.length > 1 && qtd)
     return `
     <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
-      ${nome ? `<div class="subpasta-titulo"><h3 onclick="_ensaioToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
-      ${grupos.get(nome).length ? `<div class="foto-grid" id="ens-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
+      ${mostraCabecalho ? `<div class="subpasta-titulo">
+        ${nome ? `<h3 onclick="_ensaioToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="meta">${qtd} foto(s)</span>
+          ${qtd ? `<button class="btn btn-sm" onclick="_ensaioSelecionarTodasDaPasta('${esc(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button>` : ''}
+        </div>
+      </div>` : ''}
+      ${qtd ? `<div class="foto-grid" id="ens-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
   `}).join('')
   ordemGrupos.forEach((nome, i) => {
@@ -12828,6 +12859,12 @@ function _ensaioToggleSelecaoFoto(fotoId) {
 function _ensaioSelecionarTodas() {
   if (!_ensaioAtual) return
   store.fotos.filter(f => f.evento_id === _ensaioAtual.id).forEach(f => _ensaioFotoSelecao.add(f.id))
+  renderFotosEnsaioAdmin()
+}
+// mesmo raciocínio de _eventoSelecionarTodasDaPasta, escopado ao Ensaio.
+function _ensaioSelecionarTodasDaPasta(nome) {
+  if (!_ensaioAtual) return
+  store.fotos.filter(f => f.evento_id === _ensaioAtual.id && (f.subpasta || '') === (nome || '')).forEach(f => _ensaioFotoSelecao.add(f.id))
   renderFotosEnsaioAdmin()
 }
 function _ensaioLimparSelecao() {
