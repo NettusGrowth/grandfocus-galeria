@@ -10789,25 +10789,43 @@ async function _eventoMarcarTurmaEmMassa(turma) {
 }
 
 // marca aluno OU pessoa (professor/diretor/proprietário) em massa nas
-// fotos selecionadas — antes só existia pra aluno.
+// fotos selecionadas — antes só existia pra aluno. Vira um toggle: se
+// a pessoa já está marcada em TODAS as fotos selecionadas, o clique
+// desmarca de todas (era o jeito de "desmarcar em massa" que faltava,
+// antes esse caso só mostrava um toast e não fazia nada); caso
+// contrário marca só quem falta.
 async function _eventoMarcarEmMassa(tipo, id) {
   const fotoIds = [..._eventoFotoSelecao]
   if (tipo === 'aluno') {
-    const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
-    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
-    const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
-    const { error } = await db.from('foto_aluno').insert(rows)
-    if (error) { toast('Erro: ' + error.message); return }
-    store.fotoAluno.push(...rows)
-    toast(`Marcado em ${novos.length} foto(s) ✓`)
+    const marcadas = fotoIds.filter(fid => store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
+    if (marcadas.length === fotoIds.length) {
+      const { error } = await db.from('foto_aluno').delete().eq('aluno_id', id).in('foto_id', fotoIds)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoAluno = store.fotoAluno.filter(x => !(x.aluno_id === id && fotoIds.includes(x.foto_id)))
+      toast(`Desmarcado de ${fotoIds.length} foto(s) ✓`)
+    } else {
+      const novos = fotoIds.filter(fid => !marcadas.includes(fid))
+      const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
+      const { error } = await db.from('foto_aluno').insert(rows)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoAluno.push(...rows)
+      toast(`Marcado em ${novos.length} foto(s) ✓`)
+    }
   } else {
-    const novos = fotoIds.filter(fid => !store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
-    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
-    const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
-    const { error } = await db.from('foto_pessoa').insert(rows)
-    if (error) { toast('Erro: ' + error.message); return }
-    store.fotoPessoa.push(...rows)
-    toast(`Marcado em ${novos.length} foto(s) ✓`)
+    const marcadas = fotoIds.filter(fid => store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
+    if (marcadas.length === fotoIds.length) {
+      const { error } = await db.from('foto_pessoa').delete().eq('user_id', id).in('foto_id', fotoIds)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoPessoa = store.fotoPessoa.filter(x => !(x.user_id === id && fotoIds.includes(x.foto_id)))
+      toast(`Desmarcado de ${fotoIds.length} foto(s) ✓`)
+    } else {
+      const novos = fotoIds.filter(fid => !marcadas.includes(fid))
+      const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
+      const { error } = await db.from('foto_pessoa').insert(rows)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoPessoa.push(...rows)
+      toast(`Marcado em ${novos.length} foto(s) ✓`)
+    }
   }
   renderFotosEventoAdmin()
 }
@@ -12396,24 +12414,39 @@ async function _ensaioMarcarTurmaEmMassa(turma) {
 // marca aluno OU pessoa (professor/diretor/responsável) em massa nas
 // fotos selecionadas — o mesmo botão de bulk-tag que o Evento já tinha
 // só pra aluno, agora cobre os dois tipos que o Ensaio pode receber.
+// Mesmo toggle do Evento: já marcado em todas as selecionadas -> desmarca.
 async function _ensaioMarcarEmMassa(tipo, id) {
   const fotoIds = [..._ensaioFotoSelecao]
   if (tipo === 'aluno') {
-    const novos = fotoIds.filter(fid => !store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
-    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
-    const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
-    const { error } = await db.from('foto_aluno').insert(rows)
-    if (error) { toast('Erro: ' + error.message); return }
-    store.fotoAluno.push(...rows)
-    toast(`Marcado em ${novos.length} foto(s) ✓`)
+    const marcadas = fotoIds.filter(fid => store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
+    if (marcadas.length === fotoIds.length) {
+      const { error } = await db.from('foto_aluno').delete().eq('aluno_id', id).in('foto_id', fotoIds)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoAluno = store.fotoAluno.filter(x => !(x.aluno_id === id && fotoIds.includes(x.foto_id)))
+      toast(`Desmarcado de ${fotoIds.length} foto(s) ✓`)
+    } else {
+      const novos = fotoIds.filter(fid => !marcadas.includes(fid))
+      const rows = novos.map(foto_id => ({ foto_id, aluno_id: id }))
+      const { error } = await db.from('foto_aluno').insert(rows)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoAluno.push(...rows)
+      toast(`Marcado em ${novos.length} foto(s) ✓`)
+    }
   } else {
-    const novos = fotoIds.filter(fid => !store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
-    if (!novos.length) { toast('Todas as selecionadas já têm essa marcação'); return }
-    const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
-    const { error } = await db.from('foto_pessoa').insert(rows)
-    if (error) { toast('Erro: ' + error.message); return }
-    store.fotoPessoa.push(...rows)
-    toast(`Marcado em ${novos.length} foto(s) ✓`)
+    const marcadas = fotoIds.filter(fid => store.fotoPessoa.some(x => x.foto_id === fid && x.user_id === id))
+    if (marcadas.length === fotoIds.length) {
+      const { error } = await db.from('foto_pessoa').delete().eq('user_id', id).in('foto_id', fotoIds)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoPessoa = store.fotoPessoa.filter(x => !(x.user_id === id && fotoIds.includes(x.foto_id)))
+      toast(`Desmarcado de ${fotoIds.length} foto(s) ✓`)
+    } else {
+      const novos = fotoIds.filter(fid => !marcadas.includes(fid))
+      const rows = novos.map(foto_id => ({ foto_id, user_id: id }))
+      const { error } = await db.from('foto_pessoa').insert(rows)
+      if (error) { toast('Erro: ' + error.message); return }
+      store.fotoPessoa.push(...rows)
+      toast(`Marcado em ${novos.length} foto(s) ✓`)
+    }
   }
   renderFotosEnsaioAdmin()
 }
