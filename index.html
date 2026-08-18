@@ -9527,22 +9527,34 @@ function lightboxNav(delta) {
 function _lightboxToggleZoom() {
   document.getElementById('lightbox-img-wrap').classList.toggle('zoomed')
 }
+// "é celular/tablet de verdade" — pointer grosso (dedo, não mouse) é o
+// sinal padrão pra isso, sem depender de sniffar user-agent (frágil).
+// Existe por um motivo bem específico: em DESKTOP, Chrome/Edge também
+// têm navigator.share com arquivo — se a gente tentasse share ali
+// também, o botão "Baixar" do admin (que hoje salva direto na pasta
+// Downloads, fluxo já validado) passaria a abrir um painel do Windows
+// perguntando "compartilhar com quem", uma mudança de comportamento
+// que ninguém pediu. Então: share só entra em jogo em toque; mouse
+// continua exatamente como sempre foi.
+function _dispositivoTocavel() {
+  return typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+}
 // tenta o menu nativo de compartilhar/salvar do sistema — é o ÚNICO
 // jeito que REALMENTE salva na galeria em celular de verdade. O truque
-// de blob + <a download> que existia antes (ver função logo abaixo)
-// rodava sem erro nenhum — por isso aparecia "Download pronto ✓" — mas
-// testado em 3 aparelhos reais diferentes, nenhum salvava nada: o
-// atributo download="" em URL blob: simplesmente não dispara o "Salvar"
-// de verdade na maioria dos navegadores mobile (a "trusted user
-// activation" do clique já não vale mais depois do await do
-// fetch/blob). Web Share nível 2 (com files) é quem aciona o menu
-// nativo de verdade ("Salvar Imagem"/"Salvar N Imagens") — suportado
-// em iOS Safari 15+ e Chrome/Android, cobre a esmagadora maioria dos
-// celulares reais. Mesmo padrão já usado e funcionando em
-// _publicaCompartilhar, só que aqui é pra SALVAR, não pra mandar pro
-// Instagram/WhatsApp.
+// de blob + <a download> que existia antes (ver _baixarUrl/
+// _baixarFotosEmMassa abaixo) rodava sem erro nenhum — por isso
+// aparecia "Download pronto ✓" — mas testado em 3 aparelhos reais
+// diferentes, nenhum salvava nada: o atributo download="" em URL
+// blob: simplesmente não dispara o "Salvar" de verdade na maioria dos
+// navegadores mobile (a "trusted user activation" do clique já não
+// vale mais depois do await do fetch/blob). Web Share nível 2 (com
+// files) é quem aciona o menu nativo de verdade ("Salvar Imagem"/
+// "Salvar N Imagens") — suportado em iOS Safari 15+ e Chrome/Android,
+// cobre a esmagadora maioria dos celulares reais. Mesmo padrão já
+// usado e funcionando em _publicaCompartilhar, só que aqui é pra
+// SALVAR, não pra mandar pro Instagram/WhatsApp.
 async function _compartilharArquivos(arquivos, tituloCompartilhar) {
-  if (!navigator.share || !navigator.canShare) return false
+  if (!_dispositivoTocavel() || !navigator.share || !navigator.canShare) return false
   try {
     if (!navigator.canShare({ files: arquivos })) return false
     await navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' })
@@ -9557,15 +9569,21 @@ async function _compartilharArquivos(arquivos, tituloCompartilhar) {
 // pra URL cross-origin (o caso de toda signed URL do Supabase Storage,
 // que aponta pra outro domínio), então clicar só ABRIA a foto numa
 // aba nova em vez de baixar. blob: é same-origin, então funciona bem
-// em DESKTOP — em celular, ver _compartilharArquivos acima, é ele quem
-// resolve de verdade; isso aqui vira só o fallback.
+// em DESKTOP — em celular esse caminho NÃO salva nada de verdade (ver
+// comentário de _compartilharArquivos acima), então lá nem tenta: ou
+// o share funciona, ou conta como falha de verdade (fingir sucesso
+// com um fallback que não funciona seria pior que avisar o usuário).
 async function _baixarUrl(url, nomeArquivo) {
   try {
     const resp = await fetch(url)
     if (!resp.ok) throw new Error('Falha ao buscar o arquivo')
     const blob = await resp.blob()
-    const arquivo = new File([blob], nomeArquivo || 'arquivo', { type: blob.type || 'image/jpeg' })
-    if (await _compartilharArquivos([arquivo], nomeArquivo)) return
+    if (_dispositivoTocavel()) {
+      const arquivo = new File([blob], nomeArquivo || 'arquivo', { type: blob.type || 'image/jpeg' })
+      const salvou = await _compartilharArquivos([arquivo], nomeArquivo)
+      if (!salvou) toast('Não foi possível salvar a foto — tenta de novo')
+      return
+    }
     const blobUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = blobUrl
@@ -9579,22 +9597,31 @@ async function _baixarUrl(url, nomeArquivo) {
   }
 }
 
-// download em massa — tenta salvar via menu nativo (Web Share, ver
-// _compartilharArquivos) em grupos de até LIMITE_SHARE fotos por vez
-// (mesmo limite já usado em _publicaCompartilhar por segurança de
-// memória — seria arriscado montar dezenas de File de uma vez só num
-// celular). Cada grupo que o share aceitar mostra UM menu nativo só
-// pra ele ("Salvar N Imagens"); grupo que falhar (sem suporte,
-// cancelado sem querer, erro) cai no fallback antigo (blob + <a
-// download>), que continua funcionando bem em desktop.
+// download em massa. Em CELULAR: agrupa em lotes de até LIMITE_SHARE
+// fotos (mesmo limite de memória já usado em _publicaCompartilhar —
+// montar dezenas de File de uma vez só arrisca travar um aparelho
+// fraco) e tenta um menu nativo por lote. Importante: em celular NÃO
+// existe fallback pro blob+<a> antigo — ele já provou não salvar nada
+// (é o bug que motivou essa reescrita), então se o share falhar isso
+// conta como falha de verdade, não finge sucesso. Só o 1º lote de uma
+// seleção grande tem garantia real de funcionar (a "ativação" do toque
+// original é consumida no primeiro share() — lotes seguintes podem
+// pedir o menu de novo sem gesto novo do usuário e alguns navegadores
+// recusam); por isso o toast final soma as falhas certinho em vez de
+// prometer que "todas foram salvas". Em DESKTOP: sempre o blob+<a
+// download> de sempre, sem share nenhum (ver _dispositivoTocavel).
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
 
+  const tocavel = _dispositivoTocavel()
   const LIMITE_SHARE = 10
+  const grupos = tocavel
+    ? Array.from({ length: Math.ceil(itens.length / LIMITE_SHARE) }, (_, i) => itens.slice(i * LIMITE_SHARE, (i + 1) * LIMITE_SHARE))
+    : [itens]
+
   let falhas = 0
-  for (let i = 0; i < itens.length; i += LIMITE_SHARE) {
-    const grupo = itens.slice(i, i + LIMITE_SHARE)
+  for (const grupo of grupos) {
     const arquivosDoGrupo = []
     for (const it of grupo) {
       let ok = false
@@ -9612,8 +9639,14 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
       }
     }
     if (!arquivosDoGrupo.length) continue
-    if (await _compartilharArquivos(arquivosDoGrupo, nomeBase)) continue
-    // fallback: blob + <a download>, uma foto de cada vez (nunca
+
+    if (tocavel) {
+      const salvou = await _compartilharArquivos(arquivosDoGrupo, nomeBase)
+      if (!salvou) falhas += arquivosDoGrupo.length
+      continue
+    }
+
+    // desktop: blob + <a download>, uma foto de cada vez (nunca
     // segura mais de um blob novo por vez na memória além do que já
     // foi buscado acima pro grupo).
     for (const arquivo of arquivosDoGrupo) {
