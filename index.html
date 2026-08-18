@@ -1670,6 +1670,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="navgroup-label">Gestão</div>
         <div class="tab" data-tab="escolas" data-tip="Escolas" data-bn-primary onclick="setAdminTab('escolas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="1.3"/><line x1="8" y1="8" x2="8" y2="8"/><line x1="12" y1="8" x2="12" y2="8"/><line x1="16" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="8" y2="12"/><line x1="12" y1="12" x2="12" y2="12"/><line x1="16" y1="12" x2="16" y2="12"/><path d="M9 21v-4h6v4"/></svg><span>Escolas</span></div>
         <div class="tab" data-tab="alunos" data-tip="Alunos" onclick="setAdminTab('alunos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20c0-3 2.5-5.3 5.5-5.3s5.5 2.3 5.5 5.3"/><circle cx="18" cy="9" r="2.3"/><path d="M15.6 14.3c2.6.2 4.4 2.2 4.4 5"/></svg><span>Alunos</span></div>
+        <div class="tab" data-tab="turmas" data-tip="Turmas" onclick="setAdminTab('turmas')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 3.5 8l8.5 4.5L20.5 8 12 3.5Z"/><path d="M6.5 10.3V15c0 1.4 2.5 2.5 5.5 2.5s5.5-1.1 5.5-2.5v-4.7"/></svg><span>Turmas</span></div>
         <div class="tab" data-tab="professores" data-tip="Professores &amp; Diretores" onclick="setAdminTab('professores')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9.5" cy="11" r="2"/><path d="M6.5 16c.4-1.7 1.6-2.6 3-2.6s2.6.9 3 2.6"/><line x1="14.5" y1="9.5" x2="17.5" y2="9.5"/><line x1="14.5" y1="12.5" x2="17.5" y2="12.5"/></svg><span>Professores &amp; Diretores</span></div>
         <div class="tab" data-tab="pais" data-tip="Pais" onclick="setAdminTab('pais')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2 4.8 6v5.4c0 5.1 3.1 8.9 7.2 10.4 4.1-1.5 7.2-5.3 7.2-10.4V6L12 3.2Z"/><path d="m9.2 12 2 2 3.6-4"/></svg><span>Pais</span></div>
         <div class="navgroup-label">Mídias</div>
@@ -1960,6 +1961,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <select id="alu-filtro-escola" onchange="renderAlunos()"><option value="">Todas as escolas</option></select>
         </div>
         <div class="list" id="lista-alunos"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-turmas" style="display:none;">
+        <div class="section-h">
+          <h2>Turmas</h2>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalTurma()">+ Nova turma</button>
+        </div>
+        <div class="filtro-row">
+          <input type="text" id="turma-busca" placeholder="Buscar turma…" oninput="renderTurmas()">
+          <select id="turma-filtro-escola" onchange="renderTurmas()"><option value="">Todas as escolas</option></select>
+        </div>
+        <div class="list" id="lista-turmas"></div>
       </div>
 
       <div class="admin-tab" id="admintab-professores" style="display:none;">
@@ -2300,9 +2313,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="field"><label>Nome</label><input type="text" id="alu-nome" placeholder="Nome do bailarino"></div>
     <div class="field">
       <label>Escola</label>
-      <select id="alu-escola"><option value="">— Avulso (sem escola) —</option></select>
+      <select id="alu-escola" onchange="_alunoEscolaMudou()"><option value="">— Avulso (sem escola) —</option></select>
     </div>
-    <div class="field"><label>Turma/Nível (opcional)</label><input type="text" id="alu-turma" placeholder="Ex: Ballet Infantil II"></div>
+    <div class="field"><label>Turma (opcional)</label><select id="alu-turma" onchange="_alunoTurmaSelecionada()" disabled><option value="">Sem turma</option></select></div>
     <div class="field"><label>Data de nascimento (opcional)</label><input type="date" id="alu-nascimento"></div>
     <div class="field">
       <label>Responsáveis (pais/mães)</label>
@@ -2316,6 +2329,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-aluno')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAluno()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: turma (entidade real, sempre presa a uma escola) — também
+     abre a partir do "+ Criar nova turma…" dentro do dropdown do
+     modal de Aluno (ver abrirModalTurma/_turmaAoSalvarCallback) -->
+<div class="modal-overlay" id="modal-turma">
+  <div class="modal" style="max-width:400px;">
+    <input type="hidden" id="turma-id">
+    <h3 id="turma-modal-titulo" style="margin-bottom:14px;">Nova turma</h3>
+    <div class="field"><label>Nome</label><input type="text" id="turma-nome" placeholder="Ex: Ballet Infantil II" onkeydown="if(event.key==='Enter')salvarTurma()"></div>
+    <div class="field"><label>Escola</label><select id="turma-escola"></select></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="_turmaAoSalvarCallback=null;fecharModal('modal-turma')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarTurma()">Salvar</button>
     </div>
   </div>
 </div>
@@ -3245,7 +3274,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [], crmPipelines: [], crmEtapas: [], crmLeads: [], crmMotivosPerda: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [], crmPipelines: [], crmEtapas: [], crmLeads: [], crmMotivosPerda: [], turmas: [] }
 // config global chave/valor (tabela app_config), carregada no login —
 // hoje só guarda hero_bg_path (foto de fundo do Dashboard, opcional,
 // ver _aplicarHeroBg). Ver Ctrl+Shift+B (só admin/super_admin).
@@ -4405,8 +4434,8 @@ async function salvarPerfil() {
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewAdmin() {
-  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis(), carregarProfessorEscolas(), carregarClientesAvulsos()])
-  renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais()
+  await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis(), carregarProfessorEscolas(), carregarClientesAvulsos(), carregarTurmas()])
+  renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais(); renderTurmas()
   atualizarAcessoAlvo()
   popularVinculoSelects()
   iniciarDashboardAdmin()
@@ -6944,6 +6973,11 @@ async function carregarAlunos() {
   if (error) { toast('Erro ao carregar alunos: ' + error.message); return }
   store.alunos = data || []
 }
+async function carregarTurmas() {
+  const { data, error } = await db.from('turmas').select('*').order('nome')
+  if (error) { toast('Erro ao carregar turmas: ' + error.message); return }
+  store.turmas = data || []
+}
 async function carregarEventos() {
   // embed de count (fotos(count)) — sem isso a lista do admin mostrava
   // sempre "0 foto(s)" até o evento ser aberto pelo menos uma vez na
@@ -8064,7 +8098,7 @@ function abrirModalAluno(alunoId, escolaIdPreset) {
   document.getElementById('alu-modal-titulo').textContent = a ? 'Editar aluno' : 'Novo aluno'
   document.getElementById('alu-nome').value = a?.nome || ''
   document.getElementById('alu-escola').value = a?.escola_id || escolaIdPreset || ''
-  document.getElementById('alu-turma').value = a?.turma || ''
+  _popularSelectTurmaAluno(a?.escola_id || escolaIdPreset || '', a?.turma_id || '')
   document.getElementById('alu-nascimento').value = a?.data_nascimento || ''
   document.getElementById('alu-observacoes').value = a?.observacoes || ''
   // login próprio só faz sentido pra um aluno que já existe (precisa
@@ -8134,7 +8168,12 @@ async function salvarAluno() {
   const nome = document.getElementById('alu-nome').value.trim()
   if (!nome) { toast('Informe o nome do aluno'); return }
   const escola_id = document.getElementById('alu-escola').value || null
-  const turma = document.getElementById('alu-turma').value.trim() || null
+  // turma_id é a fonte de verdade (entidade real); turma (texto) fica
+  // atualizado junto só pra quem ainda lê o campo livre antigo (lista
+  // de Alunos, detalhe da Escola, dropdown de turma da Comunidade) —
+  // sem precisar reescrever esses lugares agora.
+  const turma_id = document.getElementById('alu-turma').value || null
+  const turma = turma_id ? (store.turmas.find(t => t.id === turma_id)?.nome || null) : null
   const data_nascimento = document.getElementById('alu-nascimento').value || null
   const observacoes = document.getElementById('alu-observacoes').value.trim() || null
   const alunoId = id || crypto.randomUUID()
@@ -8149,7 +8188,7 @@ async function salvarAluno() {
     foto_url = path
   }
 
-  const payload = { id: alunoId, nome, escola_id, turma, data_nascimento, observacoes, foto_url, foto_pos: _posValor('alu-foto-preview') }
+  const payload = { id: alunoId, nome, escola_id, turma, turma_id, data_nascimento, observacoes, foto_url, foto_pos: _posValor('alu-foto-preview') }
   let data, error
   if (id) {
     ({ data, error } = await db.from('alunos').update(payload).eq('id', id).select().single())
@@ -8204,6 +8243,128 @@ async function excluirAluno(id) {
   renderAlunos(); renderEscolas()
   toast('Aluno apagado ✓')
   registrarAuditoria('apagou aluno', 'alunos', id, a.nome)
+}
+
+// ══════════════════════════════════════════════════════════════
+// TURMAS — antes era só o texto livre alunos.turma (cada um digitava
+// do seu jeito, sem padronização — "Ballet II", "ballet 2", "Infantil
+// II" todas viravam turmas "diferentes" mesmo sendo a mesma classe).
+// Agora é uma entidade de verdade, sempre presa a UMA escola,
+// reaproveitada tanto no cadastro do aluno (dropdown em vez de texto
+// livre) quanto no "marcar turma inteira" dos álbuns/ensaios
+// (_eventoMarcarTurmaEmMassa/_ensaioMarcarTurmaEmMassa, que agora
+// casam por turma_id em vez de comparar string).
+// ══════════════════════════════════════════════════════════════
+function renderTurmas() {
+  const el = document.getElementById('lista-turmas')
+  if (!el) return
+  _popularFiltroEscolas('turma-filtro-escola')
+  if (!store.turmas.length) { el.innerHTML = '<div class="empty">Nenhuma turma cadastrada ainda.</div>'; return }
+  const busca = (document.getElementById('turma-busca')?.value || '').trim().toLowerCase()
+  const filtroEscola = document.getElementById('turma-filtro-escola')?.value || ''
+  const turmas = store.turmas.filter(t => {
+    if (filtroEscola && filtroEscola !== 'avulso' && t.escola_id !== filtroEscola) return false
+    if (filtroEscola === 'avulso') return false
+    if (busca && !t.nome.toLowerCase().includes(busca)) return false
+    return true
+  })
+  if (!turmas.length) { el.innerHTML = '<div class="empty">Nenhuma turma encontrada com esse filtro.</div>'; return }
+  el.innerHTML = turmas.map(t => {
+    const qtdAlunos = store.alunos.filter(a => a.turma_id === t.id).length
+    return `
+    <div class="list-item">
+      <div>
+        <div class="nome">${esc(t.nome)}</div>
+        <div class="meta">${esc(nomeEscola(t.escola_id))} · ${qtdAlunos} aluno(s)</div>
+      </div>
+      <div class="actions">
+        <div class="icon-btn" title="Editar" onclick="abrirModalTurma('${t.id}')">${ICON_LAPIS}</div>
+        <div class="icon-btn danger" title="Apagar" onclick="excluirTurma('${t.id}')">${ICON_LIXEIRA}</div>
+      </div>
+    </div>`
+  }).join('')
+}
+
+// callback opcional: setado quando o modal é aberto a partir do "+
+// Criar nova turma…" dentro do dropdown do modal de Aluno — depois de
+// salvar, além do fluxo normal (renderTurmas), reseleciona a turma
+// nova no dropdown do aluno em vez de só fechar o modal.
+let _turmaAoSalvarCallback = null
+function abrirModalTurma(turmaId, escolaIdPreset, aoSalvar) {
+  const sel = document.getElementById('turma-escola')
+  sel.innerHTML = store.escolas.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  const t = turmaId ? store.turmas.find(x => x.id === turmaId) : null
+  document.getElementById('turma-id').value = t?.id || ''
+  document.getElementById('turma-modal-titulo').textContent = t ? 'Editar turma' : 'Nova turma'
+  document.getElementById('turma-nome').value = t?.nome || ''
+  document.getElementById('turma-escola').value = t?.escola_id || escolaIdPreset || (store.escolas[0]?.id || '')
+  _turmaAoSalvarCallback = aoSalvar || null
+  abrirModal('modal-turma')
+}
+
+async function salvarTurma() {
+  const id = document.getElementById('turma-id').value || null
+  const nome = document.getElementById('turma-nome').value.trim()
+  if (!nome) { toast('Informe o nome da turma'); return }
+  const escola_id = document.getElementById('turma-escola').value
+  if (!escola_id) { toast('Escolha a escola'); return }
+  const payload = { escola_id, nome }
+  let data, error
+  if (id) {
+    ({ data, error } = await db.from('turmas').update(payload).eq('id', id).select().single())
+  } else {
+    ({ data, error } = await db.from('turmas').insert(payload).select().single())
+  }
+  if (error) { toast('Erro ao salvar turma: ' + (error.code === '23505' ? 'já existe uma turma com esse nome nessa escola' : error.message)); return }
+  const idx = store.turmas.findIndex(t => t.id === data.id)
+  if (idx >= 0) store.turmas[idx] = data; else store.turmas.push(data)
+  store.turmas.sort((a, b) => a.nome.localeCompare(b.nome))
+  renderTurmas()
+  fecharModal('modal-turma')
+  toast(id ? 'Turma atualizada ✓' : 'Turma criada ✓')
+  registrarAuditoria(id ? 'editou turma' : 'criou turma', 'turmas', data.id, nome)
+  if (_turmaAoSalvarCallback) { const cb = _turmaAoSalvarCallback; _turmaAoSalvarCallback = null; cb(data) }
+}
+
+async function excluirTurma(id) {
+  const t = store.turmas.find(x => x.id === id)
+  if (!t) return
+  const qtdAlunos = store.alunos.filter(a => a.turma_id === id).length
+  let msg = `Apagar a turma "${t.nome}" permanentemente?`
+  if (qtdAlunos) msg += `\n\n⚠ ${qtdAlunos} aluno(s) estão nessa turma — eles ficam sem turma (o cadastro deles continua intacto, só a turma some).`
+  const ok = await confirmModal(msg, { titulo: 'Apagar turma', okLabel: 'Apagar', danger: true })
+  if (!ok) return
+  const { error } = await db.from('turmas').delete().eq('id', id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.turmas = store.turmas.filter(x => x.id !== id)
+  store.alunos.forEach(a => { if (a.turma_id === id) a.turma_id = null })
+  renderTurmas(); renderAlunos()
+  toast('Turma apagada ✓')
+  registrarAuditoria('apagou turma', 'turmas', id, t.nome)
+}
+
+// dropdown de turma no modal de Aluno — sempre escopado à escola
+// escolhida (turma pertence a uma escola só, não faria sentido listar
+// turma de outro lugar). Reconstrói toda vez que a escola muda.
+function _popularSelectTurmaAluno(escolaId, valorAtual) {
+  const sel = document.getElementById('alu-turma')
+  if (!sel) return
+  const turmasDaEscola = store.turmas.filter(t => t.escola_id === escolaId).sort((a, b) => a.nome.localeCompare(b.nome))
+  sel.innerHTML = '<option value="">Sem turma</option>' +
+    turmasDaEscola.map(t => `<option value="${t.id}">${esc(t.nome)}</option>`).join('') +
+    (escolaId ? '<option value="__nova__">+ Criar nova turma…</option>' : '')
+  sel.value = valorAtual && turmasDaEscola.some(t => t.id === valorAtual) ? valorAtual : ''
+  sel.disabled = !escolaId
+}
+function _alunoEscolaMudou() {
+  _popularSelectTurmaAluno(document.getElementById('alu-escola').value, '')
+}
+function _alunoTurmaSelecionada() {
+  const sel = document.getElementById('alu-turma')
+  if (sel.value !== '__nova__') return
+  sel.value = ''
+  const escolaId = document.getElementById('alu-escola').value
+  abrirModalTurma(null, escolaId, (novaTurma) => { _popularSelectTurmaAluno(escolaId, novaTurma.id) })
 }
 
 // ── importação em massa via Excel ──────────────────────────────────
@@ -10855,10 +11016,12 @@ function _atualizarToolbarEvento() {
     return
   }
   const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
-  const turmas = [...new Set(quemPodeSerMarcado.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
+  // turma_id (entidade de verdade) em vez do texto livre alunos.turma —
+  // agrupa por relação real, não por string igual por coincidência.
+  const turmaIds = [...new Set(quemPodeSerMarcado.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma_id).filter(Boolean))]
   const tagsEl = document.getElementById('evt-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" id="evt-toolbar-contador" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
-    turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_eventoMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
+    turmaIds.map(tid => `<span class="chip" style="border-color:var(--ouro);" onclick="_eventoMarcarTurmaEmMassa('${tid}')">Turma ${esc(store.turmas.find(t => t.id === tid)?.nome || '?')} inteira</span>`).join('') +
     quemPodeSerMarcado.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('evt-subpasta-mover')
   if (moverEl) {
@@ -10871,8 +11034,8 @@ function _atualizarToolbarEvento() {
 // "Toda a Turma" — marca de uma vez todo mundo daquela turma que
 // participa do evento, sem precisar clicar aluno por aluno (é isso que
 // evita 100 cliques num espetáculo grande).
-async function _eventoMarcarTurmaEmMassa(turma) {
-  const ids = store.alunos.filter(a => a.turma === turma && (_eventoQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id))).map(a => a.id)
+async function _eventoMarcarTurmaEmMassa(turmaId) {
+  const ids = store.alunos.filter(a => a.turma_id === turmaId && (_eventoQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id))).map(a => a.id)
   for (const id of ids) await _eventoMarcarEmMassa('aluno', id)
 }
 
@@ -12534,10 +12697,10 @@ function _atualizarToolbarEnsaio() {
     return
   }
   const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
-  const turmas = [...new Set(pessoasDisponiveis.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
+  const turmaIds = [...new Set(pessoasDisponiveis.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma_id).filter(Boolean))]
   const tagsEl = document.getElementById('ens-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" id="ens-toolbar-contador" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
-    turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_ensaioMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
+    turmaIds.map(tid => `<span class="chip" style="border-color:var(--ouro);" onclick="_ensaioMarcarTurmaEmMassa('${tid}')">Turma ${esc(store.turmas.find(t => t.id === tid)?.nome || '?')} inteira</span>`).join('') +
     pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('ens-subpasta-mover')
   if (moverEl) {
@@ -12548,8 +12711,8 @@ function _atualizarToolbarEnsaio() {
 }
 
 // "Toda a Turma" — mesmo atalho do Evento, pro Ensaio Avulso.
-async function _ensaioMarcarTurmaEmMassa(turma) {
-  const ids = store.alunos.filter(a => a.turma === turma && _ensaioQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id)).map(a => a.id)
+async function _ensaioMarcarTurmaEmMassa(turmaId) {
+  const ids = store.alunos.filter(a => a.turma_id === turmaId && _ensaioQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id)).map(a => a.id)
   for (const id of ids) await _ensaioMarcarEmMassa('aluno', id)
 }
 
