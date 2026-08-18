@@ -3193,6 +3193,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span id="lightbox-caption"></span>
     <button class="icon-btn" title="Compartilhar" onclick="_lightboxCompartilhar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg></button>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
+    <button class="icon-btn" title="Apagar" id="lightbox-btn-apagar" style="display:none;" onclick="_lightboxApagarAtual()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </div>
 
@@ -9298,10 +9299,19 @@ async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
 let _lightboxFotos = []
 let _lightboxIdx = -1
 
-function abrirLightbox(fotoId) {
+// aposApagar: quando passado, mostra o botão de apagar no rodapé do
+// lightbox e é chamado (re-renderiza a grade de onde a foto veio) toda
+// vez que uma foto é apagada por lá — omitido (undefined) em todo
+// contexto que não é gestão de álbum do admin (Pais/Escola/Comunidade
+// não ganham botão de apagar, RLS nem deixaria).
+let _lightboxAposApagar = null
+function abrirLightbox(fotoId, aposApagar) {
   const idx = _lightboxFotos.findIndex(f => f.id === fotoId)
   if (idx === -1) return
   _lightboxIdx = idx
+  _lightboxAposApagar = aposApagar || null
+  const btnApagar = document.getElementById('lightbox-btn-apagar')
+  if (btnApagar) btnApagar.style.display = _lightboxAposApagar ? '' : 'none'
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   _travarScrollFundo()
@@ -9312,7 +9322,17 @@ function fecharLightbox() {
   delete lb.dataset.modo
   document.getElementById('lightbox-img').src = ''
   document.getElementById('lightbox-img-wrap').classList.remove('zoomed')
+  _lightboxAposApagar = null
   _destravarScrollFundo()
+}
+// apaga a foto ATUALMENTE mostrada no lightbox (não a que foi clicada
+// pra abrir — o usuário pode ter navegado com < > antes de decidir
+// apagar), fecha o lightbox e re-renderiza a grade de origem.
+async function _lightboxApagarAtual() {
+  const f = _lightboxFotos[_lightboxIdx]
+  if (!f || !_lightboxAposApagar) return
+  await excluirFoto(f.id, _lightboxAposApagar)
+  if (!store.fotos.some(x => x.id === f.id)) fecharLightbox()
 }
 function lightboxNav(delta) {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
@@ -10669,7 +10689,7 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
-      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}', renderFotosEventoAdmin)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEventoAdmin)">${ICON_LIXEIRA}</button>
@@ -12324,7 +12344,7 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
-      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}')">
+      <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}', renderFotosEnsaioAdmin)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <button class="foto-expand" style="right:34px;" title="Apagar" onclick="event.stopPropagation();excluirFoto('${f.id}', renderFotosEnsaioAdmin)">${ICON_LIXEIRA}</button>
