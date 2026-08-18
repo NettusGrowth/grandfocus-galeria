@@ -11402,6 +11402,10 @@ let _galFiltroTexto = ''
 let _galFiltroAvulso = ''
 let _galFiltroEscolaAlunos = ''
 let _galFiltroPessoaAlbum = null
+// filtro por turma na aba "Alunos" do proprietário/diretor/professor
+// (renderGaleriaAlunosDaEscola) — escola já é fixa pra esses papéis,
+// então não precisa resetar ao trocar de escola (eles não trocam).
+let _galFiltroTurma = null
 let _galSelecao = new Set()
 
 // cache de nome pra gente marcada em fotos (professor/diretor/
@@ -11729,14 +11733,19 @@ function renderGaleriaAlbunsDaEscola(wrap) {
 // DESSA escola; ao escolher um, entra no mesmo caminho Aluno→Ano→Fotos
 // que o admin já usa na sua pasta raiz "Alunos".
 function renderGaleriaAlunosDaEscola(wrap) {
-  const alunos = store.alunos.filter(a => a.escola_id === _galEscolaId)
-  wrap.innerHTML += `${_galChipsEventosAlunos()}<div class="list">${alunos.length ? alunos.map(a => `
+  const turmasDaEscola = store.turmas.filter(t => t.escola_id === _galEscolaId).sort((a, b) => a.nome.localeCompare(b.nome))
+  const alunos = store.alunos.filter(a => a.escola_id === _galEscolaId && (!_galFiltroTurma || a.turma_id === _galFiltroTurma))
+  const chipsTurma = turmasDaEscola.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:14px;">
+    <span class="chip${!_galFiltroTurma ? ' on' : ''}" onclick="_galFiltroTurma=null;renderGaleriaAdmin()">Todos</span>
+    ${turmasDaEscola.map(t => `<span class="chip${_galFiltroTurma === t.id ? ' on' : ''}" onclick="_galFiltroTurma='${t.id}';renderGaleriaAdmin()">${esc(t.nome)}</span>`).join('')}
+  </div>` : ''
+  wrap.innerHTML += `${_galChipsEventosAlunos()}${chipsTurma}<div class="list">${alunos.length ? alunos.map(a => `
     <div class="list-item" onclick="_galRaiz='alunos';_galAlunoId='${a.id}';_galAno=null;renderGaleriaAdmin()">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar" id="gal-esc-alu-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
         <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
       </div>
-    </div>`).join('') : '<div class="empty">Nenhum aluno cadastrado nessa escola ainda.</div>'}</div>`
+    </div>`).join('') : `<div class="empty">${_galFiltroTurma ? 'Nenhum aluno nessa turma.' : 'Nenhum aluno cadastrado nessa escola ainda.'}</div>`}</div>`
   alunos.forEach(async a => {
     if (!a.foto_url) return
     const url = await _carregarImgCache(a.foto_url)
@@ -11752,10 +11761,13 @@ function renderGaleriaAlunosDaEscola(wrap) {
 function _galSubpastasDisponiveis(eventoId) {
   return [...new Set(store.fotos.filter(f => f.evento_id === eventoId && f.subpasta).map(f => f.subpasta))].sort()
 }
-// capa de pasta (mobile) — primeira foto encontrada do evento/subpasta,
-// sem preferência de ordem (qualquer foto real já é melhor que o
-// ícone genérico de pasta). null quando a pasta ainda está vazia.
+// capa de pasta — prioriza a capa escolhida pelo admin (eventos.capa_url,
+// a mesma usada no cabeçalho do álbum) pra ficar igual pra todo mundo
+// que olha a Galeria; só cai pra "qualquer foto do álbum" quando o
+// evento não tem capa definida (evita pasta sem nenhuma prévia).
 function _galCapaEvento(eventoId) {
+  const capaDefinida = store.eventos.find(e => e.id === eventoId)?.capa_url
+  if (capaDefinida) return capaDefinida
   const f = store.fotos.find(x => x.evento_id === eventoId)
   return f ? _fotoPreviewPath(f) : null
 }
@@ -11815,12 +11827,17 @@ function _galMosaicoCardHTML(nome, count, fotos, subtitulo) {
       </div>
     </div>`
 }
+// "Todas as fotos" (que somava solta+pasta e reabria os mesmos itens
+// de dentro de cada subpasta, só confundindo quem navega) foi tirada.
+// Fotos soltas (sem subpasta nenhuma) continuam acessíveis, mas como
+// uma pasta normal só com o que realmente não está em pasta nenhuma —
+// sem duplicar o que já aparece dentro das subpastas.
 function _galSubpastasListHTML(eventoId) {
   const subs = _galSubpastasDisponiveis(eventoId)
   const contar = sub => store.fotos.filter(f => f.evento_id === eventoId && f.subpasta === sub).length
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="pasta-grid" style="margin-bottom:12px;">
-    <div class="list-item pasta-item" onclick="_galSubpasta='__todas__';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">${_galPastaCardHTML('Todas as fotos', soltas + subs.length, _galCapaEvento(eventoId))}<div class="nome">Todas as fotos</div><div class="meta">${soltas} solta(s) + ${subs.length} pasta(s)</div></div>
+    ${soltas ? `<div class="list-item pasta-item" onclick="_galSubpasta='__soltas__';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">${_galPastaCardHTML('Fotos soltas', soltas, _galCapaEvento(eventoId))}<div class="nome">Fotos soltas</div><div class="meta">${soltas} foto(s)</div></div>` : ''}
     ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};_galFiltroPessoaAlbum=null;renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
   </div>`
 }
@@ -11837,8 +11854,10 @@ function renderGaleriaSubpastasDoAvulso(wrap) {
 
 function renderGaleriaFotosDoAlbum(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
-  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__todas__' ? _galSubpasta : null
-  const todasFotos = store.fotos.filter(f => f.evento_id === _galAlbumId && (subpastaAtiva ? f.subpasta === subpastaAtiva : true))
+  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__soltas__' ? _galSubpasta : null
+  const todasFotos = store.fotos.filter(f => f.evento_id === _galAlbumId && (
+    _galSubpasta === '__soltas__' ? !f.subpasta : subpastaAtiva ? f.subpasta === subpastaAtiva : true
+  ))
   // filtro por pessoa (aluno OU professor/diretor marcado nessas fotos) —
   // sempre escopado ao álbum aberto: nunca junta fotos de outro álbum.
   const pessoasNoAlbum = [
@@ -11854,7 +11873,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
-    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : _galSubpasta === '__soltas__' ? ' — Fotos soltas' : ''}</h2></div>
     ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
       ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
@@ -11904,12 +11923,14 @@ function renderGaleriaListaAvulsos(wrap) {
 
 function renderGaleriaFotosAvulso(wrap) {
   const ev = store.eventos.find(e => e.id === _galAvulsoId)
-  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__todas__' ? _galSubpasta : null
-  const fotos = store.fotos.filter(f => f.evento_id === _galAvulsoId && (subpastaAtiva ? f.subpasta === subpastaAtiva : true))
+  const subpastaAtiva = _galSubpasta && _galSubpasta !== '__soltas__' ? _galSubpasta : null
+  const fotos = store.fotos.filter(f => f.evento_id === _galAvulsoId && (
+    _galSubpasta === '__soltas__' ? !f.subpasta : subpastaAtiva ? f.subpasta === subpastaAtiva : true
+  ))
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
-    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : ''}</h2></div>
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : _galSubpasta === '__soltas__' ? ' — Fotos soltas' : ''}</h2></div>
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -13136,6 +13157,7 @@ async function iniciarViewEscola() {
   // vazio") pelo mesmo motivo do iniciarGaleriaAdmin: são arrays
   // globais que outra tela pode ter deixado com um recorte parcial.
   if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
+  if (!store.turmas.length) { const { data } = await db.from('turmas').select('*'); store.turmas = data || [] }
   const [{ data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
     db.from('fotos').select('*'),
     db.from('foto_aluno').select('*'),
