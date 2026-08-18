@@ -9025,14 +9025,15 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     // original só redimensionado, sem marca d'água nenhuma. Gera aqui
     // (best-effort — se falhar por algum motivo, thumb_path fica null e
     // cai pro storage_path original, igual sempre foi).
-    let thumbPath = null
+    let thumbPath = null, largura = null, altura = null
     try {
-      const thumbBlob = await _gerarThumbGaleria(file)
+      const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg' })
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
+      else { largura = thumb.largura; altura = thumb.altura }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -9413,6 +9414,11 @@ async function _gerarThumbWatermark(file) {
 // 1920px é generoso o bastante pra continuar nítido no lightbox em
 // qualquer tela; download sempre busca o storage_path original em
 // resolução total, essa prévia nunca substitui o arquivo de verdade.
+// devolve { blob, largura, altura } — as dimensões da prévia já saem
+// de brinde do canvas que a gente já ia gerar mesmo; salvar elas junto
+// (fotos.largura/altura) é o que deixa reservar o aspect-ratio certo
+// no <img> ANTES da imagem carregar (ver _galFotoItemHTML), matando o
+// "empurra-empurra" de layout na grade masonry sem aspect-ratio fixo.
 async function _gerarThumbGaleria(fileOuBlob) {
   return new Promise((resolve, reject) => {
     const img = new Image()
@@ -9428,7 +9434,7 @@ async function _gerarThumbGaleria(fileOuBlob) {
       const ctx = canvas.getContext('2d')
       if (!ctx) { reject(new Error('Canvas indisponível')); return }
       ctx.drawImage(img, 0, 0, w, h)
-      canvas.toBlob(blob => { if (!blob) reject(new Error('Falha ao gerar prévia')); else resolve(blob) }, 'image/jpeg', 0.82)
+      canvas.toBlob(blob => { if (!blob) reject(new Error('Falha ao gerar prévia')); else resolve({ blob, largura: w, altura: h }) }, 'image/jpeg', 0.82)
     }
     img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Falha ao ler a imagem')) }
     img.src = objUrl
@@ -9455,13 +9461,13 @@ async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
     try {
       const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(f.storage_path)
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
-      const thumbBlob = await _gerarThumbGaleria(blob)
+      const thumb = await _gerarThumbGaleria(blob)
       const thumbPath = _thumbPathDe(f.storage_path)
-      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg', upsert: true })
+      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg', upsert: true })
       if (upErr) throw upErr
-      const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath }).eq('id', f.id)
+      const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath, largura: thumb.largura, altura: thumb.altura }).eq('id', f.id)
       if (dbErr) throw dbErr
-      f.thumb_path = thumbPath
+      f.thumb_path = thumbPath; f.largura = thumb.largura; f.altura = thumb.altura
       feitas++
     } catch (e) {
       console.error('otimizar foto falhou', f.id, e)
@@ -12097,9 +12103,16 @@ function _galGridClass() { return 'foto-grid' + (_galRole !== 'admin' ? ' gal-bo
 // também).
 function _galFotoItemHTML(f) {
   const boutique = _galRole !== 'admin' ? ' gal-boutique' : ''
+  // reserva o espaço certo ANTES da foto carregar (grade boutique não
+  // tem aspect-ratio fixo — respeita a proporção real de cada foto).
+  // Sem isso o navegador só sabe a altura de verdade quando a imagem
+  // termina de baixar, e reflui a grade inteira, empurrando as
+  // vizinhas. Fotos antigas sem largura/altura salvas (de antes dessa
+  // coluna existir) caem no min-height do shimmer, igual já era.
+  const aspecto = boutique && f.largura && f.altura ? ` style="aspect-ratio:${f.largura}/${f.altura};"` : ''
   return `
     <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="abrirLightbox('${f.id}')">
-      ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
+      ${_imgTagCache(_fotoPreviewPath(f), `loading="lazy" alt=""${aspecto}`)}
       <div class="ck" onclick="event.stopPropagation();_galToggleSelecao('${f.id}')">${_galSelecao.has(f.id) ? '✓' : ''}</div>
     </div>`
 }
@@ -12661,14 +12674,15 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // mesmo motivo do uploadFotosEvento: marca d'água só existe na
     // Seleção de Fotos, aqui a prévia é só redimensionada.
-    let thumbPath = null
+    let thumbPath = null, largura = null, altura = null
     try {
-      const thumbBlob = await _gerarThumbGaleria(file)
+      const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumbBlob, { contentType: 'image/jpeg' })
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
+      else { largura = thumb.largura; altura = thumb.altura }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     const rosterAlunos = marcarEssaFoto ? alunosRoster : []
