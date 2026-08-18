@@ -1230,6 +1230,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-expand svg{width:13px;height:13px;}
 .foto-item:hover .foto-expand{opacity:1;}
 .foto-expand:hover{background:var(--ouro);color:var(--tinta);}
+.foto-reordenar{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:2px;opacity:0;transition:opacity .2s;z-index:2;}
+.foto-item:hover .foto-reordenar{opacity:1;}
+.foto-reordenar button{width:22px;height:18px;border-radius:4px;background:rgba(26,10,14,.7);border:1px solid rgba(200,175,127,.5);color:var(--ouro-luz);display:grid;place-items:center;cursor:pointer;padding:0;}
+.foto-reordenar button svg{width:12px;height:12px;}
+.foto-reordenar button:hover:not(:disabled){background:var(--ouro);color:var(--tinta);}
+.foto-reordenar button:disabled{opacity:.3;cursor:default;}
+@media(max-width:900px){.foto-reordenar{opacity:1;}}
 .foto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
 /* Comunidade desativada temporariamente pra todo mundo (pedido
    explícito) — só esconde o botão da aba (admin/escola/responsável),
@@ -10694,12 +10701,55 @@ async function _marcarPessoaToggle(tipo, id) {
   if (badge) badge.textContent = _marcarPessoasContagem(fotoId)
 }
 
-function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
+// ordem de exibição dentro de uma subpasta/grupo: quem já tem `ordem`
+// atribuído (por já ter sido reordenado alguma vez) vem primeiro,
+// respeitando esse número; quem nunca foi mexido continua na ordem de
+// upload (criado_em), no fim da lista. Usado tanto pra renderizar
+// quanto por _eventoMoverFoto/_ensaioMoverFoto pra saber a posição
+// atual antes de trocar duas fotos de lugar.
+function _ordenarGrupoFotos(lista) {
+  return [...lista].sort((a, b) => {
+    if (a.ordem != null && b.ordem != null) return a.ordem - b.ordem
+    if (a.ordem != null) return -1
+    if (b.ordem != null) return 1
+    return (a.criado_em || '').localeCompare(b.criado_em || '')
+  })
+}
+// troca a foto de lugar com a vizinha (delta -1 sobe, +1 desce) DENTRO
+// da mesma subpasta — reordenar entre pastas diferentes não faz
+// sentido aqui (mover de pasta já é outro botão/drag separado).
+// Persiste a ordem do GRUPO INTEIRO de uma vez (não só as duas que
+// trocaram) porque fotos nunca reordenadas ainda não têm `ordem`
+// nenhum — normalizar tudo pra um índice sequencial na primeira troca
+// evita ordem ambígua depois.
+async function _eventoMoverFoto(fotoId, delta) {
+  const foto = store.fotos.find(f => f.id === fotoId)
+  if (!foto) return
+  const lista = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === _eventoAtual.id && (f.subpasta || '') === (foto.subpasta || '')))
+  const idx = lista.findIndex(f => f.id === fotoId)
+  const novoIdx = idx + delta
+  if (idx === -1 || novoIdx < 0 || novoIdx >= lista.length) return
+  const nova = [...lista]
+  ;[nova[idx], nova[novoIdx]] = [nova[novoIdx], nova[idx]]
+  const resultados = await Promise.all(nova.map((f, i) => db.from('fotos').update({ ordem: i }).eq('id', f.id)))
+  if (resultados.some(r => r.error)) { toast('Erro ao reordenar — tenta de novo'); return }
+  nova.forEach((f, i) => { f.ordem = i })
+  renderFotosEventoAdmin()
+}
+
+function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes, listaGrupo) {
   const sel = _eventoFotoSelecao.has(f.id)
+  const idx = listaGrupo ? listaGrupo.indexOf(f) : -1
+  const podeSubir = idx > 0
+  const podeDescer = idx !== -1 && idx < listaGrupo.length - 1
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
+      <div class="foto-reordenar">
+        <button title="Mover pra cima" ${podeSubir ? '' : 'disabled'} onclick="event.stopPropagation();_eventoMoverFoto('${f.id}',-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        <button title="Mover pra baixo" ${podeDescer ? '' : 'disabled'} onclick="event.stopPropagation();_eventoMoverFoto('${f.id}',1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
+      </div>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
@@ -10746,6 +10796,7 @@ async function renderFotosEventoAdmin() {
   // que a pasta existe e já pode ser escolhida no próximo upload.
   _eventoSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
   if (!fotos.length && !_eventoSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEvento(); return }
+  grupos.forEach((lista, nome) => grupos.set(nome, _ordenarGrupoFotos(lista)))
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
   // cada subpasta pagina a própria grade (mesmo padrão de
   // _renderGridFotosPaginado da Galeria) — sem isso, um álbum grande
@@ -10763,7 +10814,7 @@ async function renderFotosEventoAdmin() {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
     if (nome && _eventoSubpastasColapsadas.has(nome)) return
-    _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes))
+    _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes, fotosGrupo))
   })
   _atualizarToolbarEvento()
 }
@@ -12359,12 +12410,35 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   }
 }
 
-function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
+// mesmo raciocínio de _eventoMoverFoto, escopado ao Ensaio.
+async function _ensaioMoverFoto(fotoId, delta) {
+  const foto = store.fotos.find(f => f.id === fotoId)
+  if (!foto) return
+  const lista = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === _ensaioAtual.id && (f.subpasta || '') === (foto.subpasta || '')))
+  const idx = lista.findIndex(f => f.id === fotoId)
+  const novoIdx = idx + delta
+  if (idx === -1 || novoIdx < 0 || novoIdx >= lista.length) return
+  const nova = [...lista]
+  ;[nova[idx], nova[novoIdx]] = [nova[novoIdx], nova[idx]]
+  const resultados = await Promise.all(nova.map((f, i) => db.from('fotos').update({ ordem: i }).eq('id', f.id)))
+  if (resultados.some(r => r.error)) { toast('Erro ao reordenar — tenta de novo'); return }
+  nova.forEach((f, i) => { f.ordem = i })
+  renderFotosEnsaioAdmin()
+}
+
+function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes, listaGrupo) {
   const sel = _ensaioFotoSelecao.has(f.id)
+  const idx = listaGrupo ? listaGrupo.indexOf(f) : -1
+  const podeSubir = idx > 0
+  const podeDescer = idx !== -1 && idx < listaGrupo.length - 1
   return `
     <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" onclick="_ensaioToggleSelecaoFoto('${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
+      <div class="foto-reordenar">
+        <button title="Mover pra cima" ${podeSubir ? '' : 'disabled'} onclick="event.stopPropagation();_ensaioMoverFoto('${f.id}',-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+        <button title="Mover pra baixo" ${podeDescer ? '' : 'disabled'} onclick="event.stopPropagation();_ensaioMoverFoto('${f.id}',1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
+      </div>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
@@ -12408,6 +12482,7 @@ async function renderFotosEnsaioAdmin() {
   fotos.forEach(f => { const k = f.subpasta || ''; if (!grupos.has(k)) grupos.set(k, []); grupos.get(k).push(f) })
   _ensaioSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
   if (!fotos.length && !_ensaioSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEnsaio(); return }
+  grupos.forEach((lista, nome) => grupos.set(nome, _ordenarGrupoFotos(lista)))
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
   wrap.innerHTML = ordemGrupos.map((nome, i) => {
     const colapsada = nome && _ensaioSubpastasColapsadas.has(nome)
@@ -12421,7 +12496,7 @@ async function renderFotosEnsaioAdmin() {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
     if (nome && _ensaioSubpastasColapsadas.has(nome)) return
-    _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes))
+    _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes, fotosGrupo))
   })
   _atualizarToolbarEnsaio()
 }
