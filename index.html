@@ -3483,7 +3483,16 @@ function _desligarRealtimeGlobal() {
   if (_canalRealtime) { db.removeChannel(_canalRealtime); _canalRealtime = null }
 }
 
+// BUG real encontrado (e não só suspeitado): o sino só se atualizava
+// sozinho em tempo real pro admin (_onRealtimeAuditoria, abaixo) — pra
+// escola/proprietário/professor/responsável, a bolinha de "não lida" e
+// a lista só refletiam o que existia no momento do login, e só
+// atualizavam de novo se a pessoa abrisse o sino manualmente. Postar
+// algo novo ou subir fotos não fazia a bolinha aparecer sozinha pra
+// esses papéis — dava a impressão de "notificação não funciona",
+// mesmo com o conteúdo certo assim que abria o dropdown.
 const _onRealtimeComunidade = _debounce(async () => {
+  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) iniciarSinoNotificacoes()
   if (!_feedContexto) return
   await carregarFeed(_feedContexto)
   renderFeedAtual()
@@ -3540,6 +3549,7 @@ function _onRealtimeReacao(payload) {
 function _visivel(id) { return !!document.getElementById(id)?.offsetParent }
 
 const _onRealtimeFotos = _debounce(async () => {
+  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) iniciarSinoNotificacoes()
   if (_eventoAtual) await _recarregarFotosEvento(_eventoAtual.id)
   if (_ensaioAtual) await _recarregarFotosEnsaio(_ensaioAtual.id)
   if (_eventoEscolaAtual) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
