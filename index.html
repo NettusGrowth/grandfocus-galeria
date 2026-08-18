@@ -1326,6 +1326,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .subpasta-titulo h3{font-size:14px;color:var(--ouro-luz);font-family:var(--serif);}
 .subpasta-titulo .meta{font-size:11.5px;color:#8A7461;}
 .subpasta-titulo .icon-btn{width:26px;height:26px;}
+.subpasta-titulo h3{cursor:pointer;display:flex;align-items:center;gap:6px;}
+.subpasta-titulo .colapsa-seta{transition:transform .15s;flex-shrink:0;}
+.subpasta-grupo.colapsada .colapsa-seta{transform:rotate(-90deg);}
+.subpasta-grupo.colapsada .foto-grid{display:none;}
 
 .tag-picker{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px;}
 .tag-opt{font-size:10.5px;padding:.25em .6em;border-radius:99px;border:1px solid rgba(200,175,127,.3);color:#C9B9A4;cursor:pointer;}
@@ -8511,6 +8515,15 @@ async function excluirEvento(id, aposApagar) {
 let _eventoAtual = null
 let _eventoFotoSelecao = new Set()
 let _eventoSubpastasConhecidas = new Set()
+// pastas minimizadas nesse álbum — só o NOME fica guardado (não o
+// evento inteiro), reseta ao abrir outro evento (junto com
+// _eventoSubpastasConhecidas) pra sempre nascer tudo expandido.
+let _eventoSubpastasColapsadas = new Set()
+function _eventoToggleColapsarPasta(nome) {
+  if (_eventoSubpastasColapsadas.has(nome)) _eventoSubpastasColapsadas.delete(nome)
+  else _eventoSubpastasColapsadas.add(nome)
+  renderFotosEventoAdmin()
+}
 let _eventoVoltarContexto = null
 function _eventoVoltar() {
   if (_eventoVoltarContexto) { const fn = _eventoVoltarContexto.onClick; _eventoVoltarContexto = null; fn(); return }
@@ -8612,6 +8625,7 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   }
   const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', eventoId)
   _eventoSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
+  _eventoSubpastasColapsadas = new Set()
   renderFotosEventoAdmin()
 }
 function fecharEventoAdmin() {
@@ -10737,15 +10751,18 @@ async function renderFotosEventoAdmin() {
   // _renderGridFotosPaginado da Galeria) — sem isso, um álbum grande
   // jogava TODAS as fotos de TODAS as pastas no DOM de uma vez, o que
   // deixava até selecionar/rolar pesado mesmo depois de carregado.
-  wrap.innerHTML = ordemGrupos.map((nome, i) => `
-    <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
-      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
+  wrap.innerHTML = ordemGrupos.map((nome, i) => {
+    const colapsada = nome && _eventoSubpastasColapsadas.has(nome)
+    return `
+    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
+      ${nome ? `<div class="subpasta-titulo"><h3 onclick="_eventoToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
       ${grupos.get(nome).length ? `<div class="foto-grid" id="evt-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
-  `).join('')
+  `}).join('')
   ordemGrupos.forEach((nome, i) => {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
+    if (nome && _eventoSubpastasColapsadas.has(nome)) return
     _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes))
   })
   _atualizarToolbarEvento()
@@ -12185,6 +12202,12 @@ function _renderListaClientesAvulsos() {
 let _ensaioAtual = null
 let _ensaioFotoSelecao = new Set()
 let _ensaioSubpastasConhecidas = new Set()
+let _ensaioSubpastasColapsadas = new Set()
+function _ensaioToggleColapsarPasta(nome) {
+  if (_ensaioSubpastasColapsadas.has(nome)) _ensaioSubpastasColapsadas.delete(nome)
+  else _ensaioSubpastasColapsadas.add(nome)
+  renderFotosEnsaioAdmin()
+}
 async function abrirEnsaioAdmin(ensaioId) {
   _ensaioAtual = store.eventos.find(e => e.id === ensaioId)
   if (!_ensaioAtual) return
@@ -12245,6 +12268,7 @@ async function abrirEnsaioAdmin(ensaioId) {
   }
   const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', ensaioId)
   _ensaioSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
+  _ensaioSubpastasColapsadas = new Set()
   renderFotosEnsaioAdmin()
 }
 function fecharEnsaioAdmin() {
@@ -12385,15 +12409,18 @@ async function renderFotosEnsaioAdmin() {
   _ensaioSubpastasConhecidas.forEach(nome => { if (!grupos.has(nome)) grupos.set(nome, []) })
   if (!fotos.length && !_ensaioSubpastasConhecidas.size) { wrap.innerHTML = '<div class="empty">Nenhuma foto ainda — envie acima.</div>'; _atualizarToolbarEnsaio(); return }
   const ordemGrupos = [...grupos.keys()].sort((a, b) => a === '' ? -1 : b === '' ? 1 : a.localeCompare(b))
-  wrap.innerHTML = ordemGrupos.map((nome, i) => `
-    <div class="subpasta-grupo" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
-      ${nome ? `<div class="subpasta-titulo"><h3>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
+  wrap.innerHTML = ordemGrupos.map((nome, i) => {
+    const colapsada = nome && _ensaioSubpastasColapsadas.has(nome)
+    return `
+    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
+      ${nome ? `<div class="subpasta-titulo"><h3 onclick="_ensaioToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3><span class="meta">${grupos.get(nome).length} foto(s)</span><button class="icon-btn danger" style="margin-left:auto;" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button></div>` : ''}
       ${grupos.get(nome).length ? `<div class="foto-grid" id="ens-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
     </div>
-  `).join('')
+  `}).join('')
   ordemGrupos.forEach((nome, i) => {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
+    if (nome && _ensaioSubpastasColapsadas.has(nome)) return
     _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes))
   })
   _atualizarToolbarEnsaio()
