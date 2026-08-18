@@ -1230,13 +1230,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-expand svg{width:13px;height:13px;}
 .foto-item:hover .foto-expand{opacity:1;}
 .foto-expand:hover{background:var(--ouro);color:var(--tinta);}
-.foto-reordenar{position:absolute;left:6px;bottom:6px;display:flex;flex-direction:column;gap:2px;opacity:0;transition:opacity .2s;z-index:2;}
-.foto-item:hover .foto-reordenar{opacity:1;}
-.foto-reordenar button{width:22px;height:18px;border-radius:4px;background:rgba(26,10,14,.7);border:1px solid rgba(200,175,127,.5);color:var(--ouro-luz);display:grid;place-items:center;cursor:pointer;padding:0;}
-.foto-reordenar button svg{width:12px;height:12px;}
-.foto-reordenar button:hover:not(:disabled){background:var(--ouro);color:var(--tinta);}
-.foto-reordenar button:disabled{opacity:.3;cursor:default;}
-@media(max-width:900px){.foto-reordenar{opacity:1;}}
+/* reordenar agora é por arrastar (drag-and-drop nativo) em vez das
+   antigas setas ↑/↓ que ficavam encavaladas em cima do botão de
+   marcar pessoas — .drop-alvo é o destaque de "solta aqui" enquanto
+   uma foto arrastada paira por cima de outra da mesma pasta. */
+.foto-item.drop-alvo{outline:2px solid var(--ouro-luz);outline-offset:-2px;}
 .foto-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
 /* Comunidade desativada temporariamente pra todo mundo (pedido
    explícito) — só esconde o botão da aba (admin/escola/responsável),
@@ -11041,8 +11039,8 @@ async function _marcarPessoaToggle(tipo, id) {
 // atribuído (por já ter sido reordenado alguma vez) vem primeiro,
 // respeitando esse número; quem nunca foi mexido continua na ordem de
 // upload (criado_em), no fim da lista. Usado tanto pra renderizar
-// quanto por _eventoMoverFoto/_ensaioMoverFoto pra saber a posição
-// atual antes de trocar duas fotos de lugar.
+// quanto por _fotoDropReordenar pra saber a posição atual antes de
+// recolocar as fotos arrastadas.
 function _ordenarGrupoFotos(lista) {
   return [...lista].sort((a, b) => {
     if (a.ordem != null && b.ordem != null) return a.ordem - b.ordem
@@ -11051,41 +11049,55 @@ function _ordenarGrupoFotos(lista) {
     return (a.criado_em || '').localeCompare(b.criado_em || '')
   })
 }
-// troca a foto de lugar com a vizinha (delta -1 sobe, +1 desce) DENTRO
-// da mesma subpasta — reordenar entre pastas diferentes não faz
-// sentido aqui (mover de pasta já é outro botão/drag separado).
-// Persiste a ordem do GRUPO INTEIRO de uma vez (não só as duas que
-// trocaram) porque fotos nunca reordenadas ainda não têm `ordem`
-// nenhum — normalizar tudo pra um índice sequencial na primeira troca
-// evita ordem ambígua depois.
-async function _eventoMoverFoto(fotoId, delta) {
-  const foto = store.fotos.find(f => f.id === fotoId)
-  if (!foto) return
-  const lista = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === _eventoAtual.id && (f.subpasta || '') === (foto.subpasta || '')))
-  const idx = lista.findIndex(f => f.id === fotoId)
-  const novoIdx = idx + delta
-  if (idx === -1 || novoIdx < 0 || novoIdx >= lista.length) return
-  const nova = [...lista]
-  ;[nova[idx], nova[novoIdx]] = [nova[novoIdx], nova[idx]]
+// arrastar 1 foto (ou várias, se a arrastada já estava selecionada —
+// mesma lógica de _fotoDragStart) por cima de outra foto da MESMA
+// pasta reordena a grade ali — solta ANTES do alvo se soltar na
+// metade esquerda dele, DEPOIS se soltar na metade direita. Substitui
+// as antigas setas ↑/↓ (que ficavam encavaladas em cima do botão de
+// marcar pessoas) por um gesto só, que já suporta mover várias de
+// uma vez. stopPropagation nos dois eventos é essencial: sem isso o
+// drop também dispara o handler de MOVER-PRA-OUTRA-PASTA do
+// .subpasta-grupo pai, tratando essa reordenação como se fosse um
+// "mover a foto pra pasta X" (mesma pasta, mas via outro caminho).
+// Persiste a ordem do GRUPO INTEIRO de uma vez (fotos nunca
+// reordenadas ainda não têm `ordem` nenhum — normalizar tudo pra um
+// índice sequencial na primeira troca evita ordem ambígua depois).
+async function _fotoDropReordenar(e, tipo, targetFotoId, el) {
+  e.preventDefault()
+  e.stopPropagation()
+  el.classList.remove('drop-alvo')
+  if (!_dragFotoIds?.length) return
+  const arrastados = _dragFotoIds
+  _dragFotoIds = null
+  if (arrastados.includes(targetFotoId)) return
+  const eventoAtualId = tipo === 'evento' ? _eventoAtual?.id : _ensaioAtual?.id
+  if (!eventoAtualId) return
+  const alvo = store.fotos.find(f => f.id === targetFotoId)
+  if (!alvo) return
+  const grupo = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === eventoAtualId && (f.subpasta || '') === (alvo.subpasta || '')))
+  // só reordena quem já é da mesma pasta do alvo — arrastar uma foto
+  // de OUTRA pasta pra cá é o drop no cabeçalho da pasta, não este.
+  const idsMovidos = arrastados.filter(id => grupo.some(f => f.id === id))
+  if (!idsMovidos.length) return
+  const restante = grupo.filter(f => !idsMovidos.includes(f.id))
+  const idxAlvo = restante.findIndex(f => f.id === targetFotoId)
+  const rect = el.getBoundingClientRect()
+  const depois = (e.clientX - rect.left) > rect.width / 2
+  const posicao = depois ? idxAlvo + 1 : idxAlvo
+  const movidos = idsMovidos.map(id => grupo.find(f => f.id === id))
+  const nova = [...restante.slice(0, posicao), ...movidos, ...restante.slice(posicao)]
   const resultados = await Promise.all(nova.map((f, i) => db.from('fotos').update({ ordem: i }).eq('id', f.id)))
   if (resultados.some(r => r.error)) { toast('Erro ao reordenar — tenta de novo'); return }
   nova.forEach((f, i) => { f.ordem = i })
-  renderFotosEventoAdmin()
+  if (tipo === 'evento') renderFotosEventoAdmin(); else renderFotosEnsaioAdmin()
 }
 
-function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes, listaGrupo) {
+function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
   const sel = _eventoFotoSelecao.has(f.id)
-  const idx = listaGrupo ? listaGrupo.indexOf(f) : -1
-  const podeSubir = idx > 0
-  const podeDescer = idx !== -1 && idx < listaGrupo.length - 1
   return `
-    <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" onclick="_eventoToggleSelecaoFoto('${f.id}')">
+    <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="_fotoDropReordenar(event,'evento','${f.id}',this)" onclick="_eventoToggleSelecaoFoto('${f.id}')" title="Arraste pra reordenar (ou pro topo de outra pasta, pra mover)">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
-      <div class="foto-reordenar">
-        <button title="Mover pra cima" ${podeSubir ? '' : 'disabled'} onclick="event.stopPropagation();_eventoMoverFoto('${f.id}',-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
-        <button title="Mover pra baixo" ${podeDescer ? '' : 'disabled'} onclick="event.stopPropagation();_eventoMoverFoto('${f.id}',1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
-      </div>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
@@ -11162,7 +11174,7 @@ async function renderFotosEventoAdmin() {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
     if (nome && _eventoSubpastasColapsadas.has(nome)) return
-    _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes, fotosGrupo))
+    _renderGridFotosPaginado(document.getElementById(`evt-grid-${i}`), fotosGrupo, f => _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes))
   })
   _atualizarToolbarEvento()
 }
@@ -12866,35 +12878,12 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   }
 }
 
-// mesmo raciocínio de _eventoMoverFoto, escopado ao Ensaio.
-async function _ensaioMoverFoto(fotoId, delta) {
-  const foto = store.fotos.find(f => f.id === fotoId)
-  if (!foto) return
-  const lista = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === _ensaioAtual.id && (f.subpasta || '') === (foto.subpasta || '')))
-  const idx = lista.findIndex(f => f.id === fotoId)
-  const novoIdx = idx + delta
-  if (idx === -1 || novoIdx < 0 || novoIdx >= lista.length) return
-  const nova = [...lista]
-  ;[nova[idx], nova[novoIdx]] = [nova[novoIdx], nova[idx]]
-  const resultados = await Promise.all(nova.map((f, i) => db.from('fotos').update({ ordem: i }).eq('id', f.id)))
-  if (resultados.some(r => r.error)) { toast('Erro ao reordenar — tenta de novo'); return }
-  nova.forEach((f, i) => { f.ordem = i })
-  renderFotosEnsaioAdmin()
-}
-
-function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes, listaGrupo) {
+function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
   const sel = _ensaioFotoSelecao.has(f.id)
-  const idx = listaGrupo ? listaGrupo.indexOf(f) : -1
-  const podeSubir = idx > 0
-  const podeDescer = idx !== -1 && idx < listaGrupo.length - 1
   return `
-    <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" onclick="_ensaioToggleSelecaoFoto('${f.id}')">
+    <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="_fotoDropReordenar(event,'ensaio','${f.id}',this)" onclick="_ensaioToggleSelecaoFoto('${f.id}')" title="Arraste pra reordenar (ou pro topo de outra pasta, pra mover)">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
-      <div class="foto-reordenar">
-        <button title="Mover pra cima" ${podeSubir ? '' : 'disabled'} onclick="event.stopPropagation();_ensaioMoverFoto('${f.id}',-1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
-        <button title="Mover pra baixo" ${podeDescer ? '' : 'disabled'} onclick="event.stopPropagation();_ensaioMoverFoto('${f.id}',1)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg></button>
-      </div>
       <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
@@ -12961,7 +12950,7 @@ async function renderFotosEnsaioAdmin() {
     const fotosGrupo = grupos.get(nome)
     if (!fotosGrupo.length) return
     if (nome && _ensaioSubpastasColapsadas.has(nome)) return
-    _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes, fotosGrupo))
+    _renderGridFotosPaginado(document.getElementById(`ens-grid-${i}`), fotosGrupo, f => _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes))
   })
   _atualizarToolbarEnsaio()
 }
