@@ -113,6 +113,26 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 }
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+/* banner de progresso de download — não some sozinho (só some quando
+   o usuário fecha), pra dar previsibilidade real num processo que
+   depende do usuário interagir com a caixa nativa do celular (o
+   toast antigo desaparecia em 3.2s mesmo com o processo ainda rolando,
+   dando a impressão de "sumiu sem eu saber o que aconteceu"). */
+.dl-progress{
+  position:fixed;bottom:calc(24px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  background:var(--tinta);border:1px solid var(--ouro);color:var(--ouro-luz);border-radius:12px;
+  z-index:1000;width:min(92vw,380px);box-shadow:0 8px 28px rgba(0,0,0,.4);
+}
+.dl-progress-body{display:flex;align-items:center;gap:12px;padding:14px 16px;}
+.dl-progress-spinner{width:20px;height:20px;flex-shrink:0;border-radius:50%;border:2.5px solid rgba(200,175,127,.25);border-top-color:var(--ouro-luz);animation:dl-spin .8s linear infinite;}
+.dl-progress.parado .dl-progress-spinner{display:none;}
+@keyframes dl-spin{to{transform:rotate(360deg);}}
+.dl-progress-texto{flex:1;min-width:0;}
+.dl-progress-titulo{font-size:13.5px;font-weight:600;color:var(--ouro-luz);}
+.dl-progress-sub{font-size:12px;color:#B39F86;margin-top:2px;line-height:1.4;}
+.dl-progress-acao{padding:0 16px 14px;}
+.dl-progress-acao .btn{width:100%;}
+
 /* ── galeria pública (link privado, ?g=TOKEN) — mesmo canvas boutique
    claro usado na Seleção de Fotos (#view-selecao): a grade/cards
    reaproveitam .selpub-grid/.selpub-col/.selpub-card (definidos mais
@@ -3254,6 +3274,25 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- banner de progresso de download — diferente do toast (que some
+     sozinho em 3.2s): fica na tela até o usuário fechar, mostra em
+     qual etapa o processo está (buscando/aguardando a caixa nativa/
+     resultado final) e, quando há mais fotos do que cabe num lote só,
+     oferece um botão pra continuar o próximo lote com 1 toque. -->
+<div class="dl-progress" id="dl-progress" style="display:none;">
+  <div class="dl-progress-body">
+    <div class="dl-progress-spinner" id="dl-progress-spinner"></div>
+    <div class="dl-progress-texto">
+      <div class="dl-progress-titulo" id="dl-progress-titulo"></div>
+      <div class="dl-progress-sub" id="dl-progress-sub"></div>
+    </div>
+    <button class="icon-btn" id="dl-progress-fechar" style="display:none;" title="Fechar" onclick="_dlProgressFechar()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="dl-progress-acao" id="dl-progress-acao" style="display:none;"></div>
+</div>
 
 <script>
 // ══════════════════════════════════════════════════════════════
@@ -9622,29 +9661,32 @@ function _dispositivoTocavel() {
 // cobre a esmagadora maioria dos celulares reais. Mesmo padrão já
 // usado e funcionando em _publicaCompartilhar, só que aqui é pra
 // SALVAR, não pra mandar pro Instagram/WhatsApp.
-// segundo achado real em aparelho (seleção de 51 fotos): "Preparando…"
-// travava pra sempre, sem erro nenhum e sem terminar. Causa: depois do
-// PRIMEIRO navigator.share() de uma sequência, a "ativação de usuário"
-// já foi consumida — um SEGUNDO share() sem toque novo do usuário não
-// só é recusado, em alguns Safari a Promise nem chega a rejeitar,
-// fica pendurada pra sempre. Sem timeout, isso travava a função
-// inteira no meio do await, nunca chegando no toast final. 8s é tempo
-// de sobra pro caso normal (o menu abre quase na hora).
-function _comTimeout(promessa, ms) {
-  return Promise.race([
-    promessa,
-    new Promise((_, rejeita) => setTimeout(() => rejeita(new Error('timeout')), ms)),
-  ])
-}
+//
+// BUG REAL encontrado em aparelho (confirmado com print do usuário):
+// um timeout de 8s que existia aqui corria em paralelo com o
+// navigator.share() e, se o usuário demorasse mais que 8s pra tocar
+// em "Salvar N Imagens" na caixa nativa — o normal, já que é uma
+// caixa do sistema esperando o usuário decidir, não uma barra de
+// progresso — o timeout vencia a corrida e a função reportava "28
+// foto(s) falharam" mesmo com a caixa ainda aberta na tela,
+// esperando um toque que ainda ia salvar as fotos de verdade minutos
+// depois. Ou seja: o timeout mentia. A trava contra travamento
+// permanente (comentário antigo abaixo, sobre um SEGUNDO share() sem
+// gesto novo do usuário nunca resolver a Promise) continua válida,
+// mas a solução certa pra ela não é competir com o tempo de reação do
+// usuário — é nunca fazer um segundo share() sem um toque novo dele
+// (ver _dlProcessarProximoLote), o que elimina a causa raiz sem
+// precisar arriscar declarar falha num processo que só está esperando
+// o usuário. Por isso: SEM timeout aqui — o await espera o tempo que
+// for preciso pra caixa nativa ser resolvida (salvar ou cancelar).
 async function _compartilharArquivos(arquivos, tituloCompartilhar) {
-  if (!_dispositivoTocavel() || !navigator.share || !navigator.canShare) return false
+  if (!_dispositivoTocavel() || !navigator.share || !navigator.canShare) return 'indisponivel'
   try {
-    if (!navigator.canShare({ files: arquivos })) return false
-    await _comTimeout(navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' }), 8000)
-    return true
+    if (!navigator.canShare({ files: arquivos })) return 'indisponivel'
+    await navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' })
+    return 'ok'
   } catch (e) {
-    if (e.name === 'AbortError') return true // usuário cancelou o menu -> não é erro, não tenta fallback
-    return false
+    return e.name === 'AbortError' ? 'cancelado' : 'erro'
   }
 }
 // baixa via fetch+blob em vez de só apontar a.href pra URL assinada —
@@ -9663,8 +9705,8 @@ async function _baixarUrl(url, nomeArquivo) {
     const blob = await resp.blob()
     if (_dispositivoTocavel()) {
       const arquivo = new File([blob], nomeArquivo || 'arquivo', { type: blob.type || 'image/jpeg' })
-      const salvou = await _compartilharArquivos([arquivo], nomeArquivo)
-      if (!salvou) toast('Não foi possível salvar a foto — tenta de novo')
+      const status = await _compartilharArquivos([arquivo], nomeArquivo)
+      if (status === 'erro' || status === 'indisponivel') toast('Não foi possível salvar a foto — tenta de novo')
       return
     }
     const blobUrl = URL.createObjectURL(blob)
@@ -9680,46 +9722,72 @@ async function _baixarUrl(url, nomeArquivo) {
   }
 }
 
-// download em massa. Em CELULAR: agrupa em lotes de até LIMITE_SHARE
-// fotos (mesmo limite de memória já usado em _publicaCompartilhar —
-// montar dezenas de File de uma vez só arrisca travar um aparelho
-// fraco) e tenta um menu nativo por lote. Importante: em celular NÃO
-// existe fallback pro blob+<a> antigo — ele já provou não salvar nada
-// (é o bug que motivou essa reescrita), então se o share falhar isso
-// conta como falha de verdade, não finge sucesso. Só o 1º lote de uma
-// seleção grande tem garantia real de funcionar (a "ativação" do toque
-// original é consumida no primeiro share() — lotes seguintes podem
-// pedir o menu de novo sem gesto novo do usuário e alguns navegadores
-// recusam); por isso o toast final soma as falhas certinho em vez de
-// prometer que "todas foram salvas". Em DESKTOP: sempre o blob+<a
-// download> de sempre, sem share nenhum (ver _dispositivoTocavel).
+// busca com 1 retentativa — usado tanto pelo caminho desktop quanto
+// pelo mobile de _baixarFotosEmMassa, e por _dlProcessarProximoLote
+// (que continua a fila depois de um toque novo do usuário, então
+// precisa estar em escopo de módulo, não preso dentro de outra função).
+async function _baixarFotoComRetentativa(it) {
+  for (let tentativa = 1; tentativa <= 2; tentativa++) {
+    try {
+      const resp = await fetch(it.url)
+      if (!resp.ok) throw new Error('HTTP ' + resp.status)
+      const blob = await resp.blob()
+      return new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
+    } catch (e) {
+      if (tentativa === 2) return null
+      await new Promise(r => setTimeout(r, 400))
+    }
+  }
+  return null
+}
+
+// ── banner de progresso de download ──────────────────────────────
+// diferente do toast (que soma sozinho em 3.2s mesmo com o processo
+// ainda rolando): fica na tela até o usuário fechar, mostra em que
+// etapa o download está de verdade (buscando os arquivos / esperando
+// o usuário confirmar na caixa nativa / resultado final) e, quando há
+// mais fotos do que cabe num lote de compartilhamento só, guarda a
+// fila pendente em _dlFilaPendente pra continuar com 1 toque.
+let _dlFilaPendente = null
+function _dlProgressMostrar(titulo, sub, opts) {
+  const el = document.getElementById('dl-progress')
+  if (!el) return
+  el.style.display = 'block'
+  el.classList.toggle('parado', !!(opts && opts.parado))
+  document.getElementById('dl-progress-titulo').textContent = titulo
+  document.getElementById('dl-progress-sub').textContent = sub || ''
+  document.getElementById('dl-progress-fechar').style.display = (opts && opts.podeFechar) ? '' : 'none'
+  const acao = document.getElementById('dl-progress-acao')
+  if (opts && opts.acaoHtml) { acao.innerHTML = opts.acaoHtml; acao.style.display = 'block' }
+  else { acao.innerHTML = ''; acao.style.display = 'none' }
+}
+function _dlProgressFechar() {
+  const el = document.getElementById('dl-progress')
+  if (el) el.style.display = 'none'
+  _dlFilaPendente = null
+}
+
+// download em massa. Em DESKTOP: blob + <a download> sequencial, sem
+// limite de quantidade (não depende de gesto do usuário pra cada
+// arquivo). Em CELULAR: só existe um jeito real de salvar (Web Share,
+// ver _compartilharArquivos) e ele só funciona com um toque de
+// usuário de verdade por trás — por isso processa em lotes de
+// LIMITE_SHARE fotos, e quando sobra mais, PARA e mostra um botão
+// "Baixar as próximas N" em vez de tentar continuar sozinho: um
+// segundo navigator.share() disparado pelo código, sem um clique novo
+// do usuário, é recusado ou trava pra sempre em vários navegadores
+// mobile (achado real, ver histórico desta função) — não tem como
+// automatizar 100% isso na plataforma, então a fila com 1 toque por
+// lote é o mais automatizado que dá pra fazer sem arriscar travar.
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
 
-  async function _buscarArquivo(it) {
-    for (let tentativa = 1; tentativa <= 2; tentativa++) {
-      try {
-        const resp = await fetch(it.url)
-        if (!resp.ok) throw new Error('HTTP ' + resp.status)
-        const blob = await resp.blob()
-        return new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
-      } catch (e) {
-        if (tentativa === 2) return null
-        await new Promise(r => setTimeout(r, 400))
-      }
-    }
-    return null
-  }
-
-  let falhas = 0
-
   if (!_dispositivoTocavel()) {
-    // desktop: blob + <a download>, uma foto de cada vez — busca,
-    // baixa e libera antes de ir pra próxima, nunca segura mais de um
-    // blob novo na memória (importante em álbuns de centenas de fotos).
-    toast(`Preparando ${itens.length} foto(s)…`)
-    for (const it of itens) {
-      const arquivo = await _buscarArquivo(it)
+    let falhas = 0
+    _dlProgressMostrar(`Preparando ${itens.length} foto(s)…`, 'Vai aparecer na pasta de Downloads do navegador.')
+    for (let i = 0; i < itens.length; i++) {
+      _dlProgressMostrar(`Baixando ${i + 1} de ${itens.length}…`, itens.length > 3 ? 'Isso pode levar um tempo — não feche esta aba.' : '')
+      const arquivo = await _baixarFotoComRetentativa(itens[i])
       if (!arquivo) { falhas++; continue }
       const blobUrl = URL.createObjectURL(arquivo)
       const a = document.createElement('a')
@@ -9731,43 +9799,74 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
       await new Promise(r => setTimeout(r, 350))
     }
-    toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
+    _dlProgressMostrar(
+      falhas ? `Concluído — ${falhas} de ${itens.length} falharam` : 'Download concluído ✓',
+      '', { parado: true, podeFechar: true }
+    )
     return
   }
 
-  // celular: SÓ UMA chamada de navigator.share, nunca várias em
-  // sequência. Achado real em aparelho: numa seleção de 51 fotos, o
-  // app ficava preso pra sempre em "Preparando…" — a causa era tentar
-  // vários lotes de share() um atrás do outro; a "ativação de
-  // usuário" do toque original só vale pro PRIMEIRO share(), os
-  // seguintes ficam pendurados sem erro nem sucesso (daí o travamento,
-  // ver _comTimeout acima). Em vez de fingir que processa a seleção
-  // inteira e travar/falhar silenciosamente no meio, corta pra só o
-  // primeiro LIMITE_SHARE (mesmo limite de memória de
-  // _publicaCompartilhar) e avisa ANTES de tentar, pra quem selecionou
-  // muita coisa saber exatamente o que vai acontecer.
-  const LIMITE_SHARE = 10
-  const alvo = itens.slice(0, LIMITE_SHARE)
-  toast(itens.length > LIMITE_SHARE
-    ? `Celular só salva ${LIMITE_SHARE} fotos por vez — preparando as ${LIMITE_SHARE} primeiras…`
-    : `Preparando ${alvo.length} foto(s)…`)
+  _dlFilaPendente = { itens, nomeBase, indice: 0, falhasAcumuladas: 0 }
+  await _dlProcessarProximoLote()
+}
 
-  // busca o lote em PARALELO (Promise.all) — reproduzido de verdade
-  // num aparelho real: baixar 1 foto de ~7MB salvava certinho, mas 2
-  // já falhavam. Causa: buscar as fotos uma depois da outra
-  // (sequencial) levava tempo demais, e por essa demora a ativação de
-  // usuário expirava antes de chamar navigator.share(). Buscar em
-  // paralelo mantém o tempo total bem perto do de UMA foto só.
-  const resultados = await Promise.all(alvo.map(_buscarArquivo))
+// processa o próximo lote (até 10 fotos) da fila em _dlFilaPendente.
+// Chamado automaticamente pelo 1º lote (ainda dentro da mesma
+// ativação do clique original em "Baixar") e, pros lotes seguintes,
+// só pelo botão "Baixar as próximas N fotos" do banner — que É um
+// toque novo de verdade, então o navigator.share() de dentro dele
+// funciona com a mesma confiabilidade do primeiro lote.
+async function _dlProcessarProximoLote() {
+  const fila = _dlFilaPendente
+  if (!fila) return
+  const LIMITE_SHARE = 10
+  const alvo = fila.itens.slice(fila.indice, fila.indice + LIMITE_SHARE)
+  const totalLotes = Math.ceil(fila.itens.length / LIMITE_SHARE)
+  const numLote = Math.floor(fila.indice / LIMITE_SHARE) + 1
+  const prefixo = totalLotes > 1 ? `Lote ${numLote} de ${totalLotes} — ` : ''
+
+  _dlProgressMostrar(`${prefixo}Preparando ${alvo.length} foto(s)…`, 'Buscando os arquivos…')
+  const resultados = await Promise.all(alvo.map(_baixarFotoComRetentativa))
   const arquivosDoLote = resultados.filter(Boolean)
-  falhas += resultados.length - arquivosDoLote.length + (itens.length - alvo.length)
+  let falhasLote = alvo.length - arquivosDoLote.length
+  let status = null
+
   if (arquivosDoLote.length) {
-    const salvou = await _compartilharArquivos(arquivosDoLote, nomeBase)
-    if (!salvou) falhas += arquivosDoLote.length
+    _dlProgressMostrar(
+      `${prefixo}Abra a caixa que apareceu`,
+      'Toque em "Salvar" pra confirmar — pode demorar até você tocar, sem problema, é só esperar.',
+      { podeFechar: true }
+    )
+    status = await _compartilharArquivos(arquivosDoLote, fila.nomeBase)
+    if (status !== 'ok') falhasLote += arquivosDoLote.length
   }
-  toast(falhas
-    ? `Download concluído — ${falhas} foto(s) falharam${itens.length > LIMITE_SHARE ? ' (selecione o restante e baixe de novo)' : ''}`
-    : 'Download pronto ✓')
+
+  fila.falhasAcumuladas += falhasLote
+  fila.indice += alvo.length
+  const restam = fila.itens.length - fila.indice
+  const resumoLote = status === 'cancelado'
+    ? 'Você cancelou — nenhuma dessas fotos foi salva.'
+    : falhasLote ? `${falhasLote} de ${alvo.length} não salvaram.` : `${alvo.length} foto(s) salva(s) ✓`
+
+  if (restam > 0) {
+    const proximo = Math.min(LIMITE_SHARE, restam)
+    _dlProgressMostrar(
+      totalLotes > 1 ? `Lote ${numLote} de ${totalLotes} concluído` : 'Lote concluído',
+      `${resumoLote} ${restam} foto(s) restante(s).`,
+      {
+        parado: true, podeFechar: true,
+        acaoHtml: `<button class="btn btn-primary btn-sm" onclick="_dlProcessarProximoLote()">Baixar as próximas ${proximo} fotos</button>`,
+      }
+    )
+  } else {
+    const totalFalhas = fila.falhasAcumuladas
+    _dlProgressMostrar(
+      totalFalhas ? `Concluído — ${totalFalhas} de ${fila.itens.length} não salvaram` : 'Todas as fotos foram salvas ✓',
+      resumoLote,
+      { parado: true, podeFechar: true }
+    )
+    _dlFilaPendente = null
+  }
 }
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
@@ -13652,16 +13751,18 @@ function atualizarBotaoBaixar() {
   btn.textContent = `Baixar selecionadas (${_fotoSelecao.size})`
 }
 
+// antes chamava _baixarUrl (que faz seu próprio navigator.share) uma
+// foto de cada vez num loop — no celular, cada uma dessas é um
+// share() novo sem gesto novo do usuário entre eles (mesmo bug de
+// fundo do resto do app). Reaproveita _baixarFotosEmMassa (que já
+// resolve isso com fila + botão de continuar) em vez de reimplementar
+// o loop aqui.
 async function baixarSelecionadas() {
   const paths = store.fotos.filter(f => _fotoSelecao.has(f.id)).map(f => f.storage_path)
   if (!paths.length) return
-  toast(`Baixando ${paths.length} foto(s)…`)
-  for (let i = 0; i < paths.length; i++) {
-    const url = await _urlAssinada(paths[i])
-    if (!url) continue
-    await _baixarUrl(url, paths[i].split('/').pop())
-    await new Promise(r => setTimeout(r, 350))
-  }
+  const urls = await Promise.all(paths.map(p => _urlAssinada(p)))
+  const itens = paths.map((path, i) => ({ url: urls[i], nome: path.split('/').pop() })).filter(it => it.url)
+  await _baixarFotosEmMassa(itens, 'fotos')
   registrarAuditoria('baixou fotos selecionadas', 'fotos', null, `${paths.length} foto(s)`)
 }
 
@@ -13868,17 +13969,18 @@ function _renderPublicaLightboxAtual() {
 // padrão em lotes de 25 já usado na Seleção pública
 // (_selPubBaixarTodas) — evita o navegador bloquear como "pop-up" ao
 // disparar downloads demais de uma vez.
+// antes disparava vários lotes de _baixarFotosEmMassa em sequência
+// dentro do mesmo clique — no celular isso significava vários
+// navigator.share() sem gesto novo do usuário entre eles, o mesmo bug
+// de fundo já corrigido em _baixarFotosEmMassa/_dlProcessarProximoLote.
+// _baixarFotosEmMassa já sabe lidar com listas de qualquer tamanho
+// (no desktop baixa tudo em sequência; no celular já faz sua própria
+// fila em lotes de 10 com o botão de continuar) — só repassa a lista
+// inteira de uma vez, sem loop nenhum aqui.
 async function _publicaBaixarLista(fotos) {
   if (!fotos.length) return
-  const TAMANHO_LOTE = 25
-  const lotes = []
-  for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
-  for (let lote = 0; lote < lotes.length; lote++) {
-    const itens = lotes[lote].map((f, i) => ({ url: f.url, nome: `foto-${lote * TAMANHO_LOTE + i + 1}.jpg` }))
-    const nomeLote = lotes.length > 1 ? `fotos-parte-${lote + 1}-de-${lotes.length}` : 'fotos'
-    await _baixarFotosEmMassa(itens, nomeLote)
-    if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
-  }
+  const itens = fotos.map((f, i) => ({ url: f.url, nome: `foto-${i + 1}.jpg` }))
+  await _baixarFotosEmMassa(itens, 'fotos')
 }
 // botão único do dock: baixa só o que estiver marcado nos cards, ou
 // tudo se nada estiver marcado (mesmo comportamento "óbvio" de
@@ -15243,29 +15345,20 @@ function _renderSelPubLiberadoConteudo() {
   }
 }
 
-// baixa em lotes (chunks) — pedidos grandes (centenas de fotos em alta)
-// em memória ao mesmo tempo derrubavam o navegador no celular; cada
-// lote processa e libera a própria memória antes do próximo começar,
-// então o pico fica limitado ao tamanho de UM lote, não do pedido
-// inteiro. Cada lote vai pra _baixarFotosEmMassa (compartilhamento
-// nativo → Salvar em Fotos; sem zip nenhum, ver comentário lá).
+// antes quebrava em lotes de 25 e chamava _baixarFotosEmMassa uma vez
+// por lote em sequência — no celular isso disparava vários
+// navigator.share() sem gesto novo do usuário entre eles (mesmo bug
+// de fundo já corrigido lá). _baixarFotosEmMassa já cuida da própria
+// fila/memória (desktop baixa tudo em sequência liberando um blob por
+// vez; celular já faz lotes de 10 com botão de continuar), então só
+// repassa a lista inteira de uma vez, sem loop aqui.
 async function _selPubBaixarTodas(tipo) {
   const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   if (!fotos.length) return
-  const TAMANHO_LOTE = 25
-  const lotes = []
-  for (let i = 0; i < fotos.length; i += TAMANHO_LOTE) lotes.push(fotos.slice(i, i + TAMANHO_LOTE))
   const sufixoNome = tipo === 'bastidores' ? '-bastidores' : ''
   const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
-
-  for (let lote = 0; lote < lotes.length; lote++) {
-    const itens = lotes[lote].map((f, i) => ({ url: f.url, nome: `foto-${lote * TAMANHO_LOTE + i + 1}.jpg` }))
-    const nomeLote = lotes.length > 1 ? `${nomeBase}-parte-${lote + 1}-de-${lotes.length}` : nomeBase
-    await _baixarFotosEmMassa(itens, nomeLote)
-    // pausa curta entre lotes — sem isso, disparar vários downloads em
-    // sequência muito rápida faz o navegador bloquear como "pop-up".
-    if (lote < lotes.length - 1) await new Promise(r => setTimeout(r, 500))
-  }
+  const itens = fotos.map((f, i) => ({ url: f.url, nome: `foto-${i + 1}.jpg` }))
+  await _baixarFotosEmMassa(itens, nomeBase)
 }
 
 // ── boot ────────────────────────────────────────────────────────
