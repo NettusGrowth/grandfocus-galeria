@@ -9527,17 +9527,45 @@ function lightboxNav(delta) {
 function _lightboxToggleZoom() {
   document.getElementById('lightbox-img-wrap').classList.toggle('zoomed')
 }
+// tenta o menu nativo de compartilhar/salvar do sistema — é o ÚNICO
+// jeito que REALMENTE salva na galeria em celular de verdade. O truque
+// de blob + <a download> que existia antes (ver função logo abaixo)
+// rodava sem erro nenhum — por isso aparecia "Download pronto ✓" — mas
+// testado em 3 aparelhos reais diferentes, nenhum salvava nada: o
+// atributo download="" em URL blob: simplesmente não dispara o "Salvar"
+// de verdade na maioria dos navegadores mobile (a "trusted user
+// activation" do clique já não vale mais depois do await do
+// fetch/blob). Web Share nível 2 (com files) é quem aciona o menu
+// nativo de verdade ("Salvar Imagem"/"Salvar N Imagens") — suportado
+// em iOS Safari 15+ e Chrome/Android, cobre a esmagadora maioria dos
+// celulares reais. Mesmo padrão já usado e funcionando em
+// _publicaCompartilhar, só que aqui é pra SALVAR, não pra mandar pro
+// Instagram/WhatsApp.
+async function _compartilharArquivos(arquivos, tituloCompartilhar) {
+  if (!navigator.share || !navigator.canShare) return false
+  try {
+    if (!navigator.canShare({ files: arquivos })) return false
+    await navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' })
+    return true
+  } catch (e) {
+    if (e.name === 'AbortError') return true // usuário cancelou o menu -> não é erro, não tenta fallback
+    return false
+  }
+}
 // baixa via fetch+blob em vez de só apontar a.href pra URL assinada —
 // o atributo download="" do <a> é ignorado pelos navegadores modernos
 // pra URL cross-origin (o caso de toda signed URL do Supabase Storage,
 // que aponta pra outro domínio), então clicar só ABRIA a foto numa
-// aba nova em vez de baixar. blob: é sempre same-origin de verdade,
-// então o download funciona sempre, em qualquer navegador.
+// aba nova em vez de baixar. blob: é same-origin, então funciona bem
+// em DESKTOP — em celular, ver _compartilharArquivos acima, é ele quem
+// resolve de verdade; isso aqui vira só o fallback.
 async function _baixarUrl(url, nomeArquivo) {
   try {
     const resp = await fetch(url)
     if (!resp.ok) throw new Error('Falha ao buscar o arquivo')
     const blob = await resp.blob()
+    const arquivo = new File([blob], nomeArquivo || 'arquivo', { type: blob.type || 'image/jpeg' })
+    if (await _compartilharArquivos([arquivo], nomeArquivo)) return
     const blobUrl = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = blobUrl
@@ -9551,48 +9579,54 @@ async function _baixarUrl(url, nomeArquivo) {
   }
 }
 
-// download em massa SEM zip — direto pra pasta de Fotos/Downloads do
-// dispositivo, igual no desktop. Chegou a usar o menu de
-// compartilhamento nativo do iOS (navigator.share) pra tentar cair no
-// "Salvar N Imagens" do sistema, mas na prática o usuário via isso
-// como uma tela extra de escolha no meio do caminho em vez de um
-// download direto — trocado pelo mesmo caminho de baixo (blob + <a
-// download>) em todo dispositivo, sem diálogo do sistema no meio.
+// download em massa — tenta salvar via menu nativo (Web Share, ver
+// _compartilharArquivos) em grupos de até LIMITE_SHARE fotos por vez
+// (mesmo limite já usado em _publicaCompartilhar por segurança de
+// memória — seria arriscado montar dezenas de File de uma vez só num
+// celular). Cada grupo que o share aceitar mostra UM menu nativo só
+// pra ele ("Salvar N Imagens"); grupo que falhar (sem suporte,
+// cancelado sem querer, erro) cai no fallback antigo (blob + <a
+// download>), que continua funcionando bem em desktop.
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
 
-  // baixa e libera cada foto uma de cada vez — nunca segura mais de
-  // um blob por vez na memória. Uma retentativa curta antes de
-  // desistir de verdade cobre a maioria das falhas passageiras de
-  // rede — comum em celular baixando várias fotos seguidas, mesmo
-  // raciocínio já usado em _processarLoteUrlAssinada. Também checa
-  // resp.ok: sem isso, uma URL assinada expirada/erro do servidor
-  // "baixava com sucesso" um arquivinho de erro em vez da foto de
-  // verdade — silenciosamente corrompido, não contava nem como falha.
+  const LIMITE_SHARE = 10
   let falhas = 0
-  for (const it of itens) {
-    let ok = false
-    for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
-      try {
-        const resp = await fetch(it.url)
-        if (!resp.ok) throw new Error('HTTP ' + resp.status)
-        const blob = await resp.blob()
-        const blobUrl = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = blobUrl
-        a.download = it.nome
-        document.body.appendChild(a)
-        a.click()
-        a.remove()
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-        ok = true
-      } catch (e) {
-        if (tentativa === 2) falhas++
-        else await new Promise(r => setTimeout(r, 400))
+  for (let i = 0; i < itens.length; i += LIMITE_SHARE) {
+    const grupo = itens.slice(i, i + LIMITE_SHARE)
+    const arquivosDoGrupo = []
+    for (const it of grupo) {
+      let ok = false
+      for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
+        try {
+          const resp = await fetch(it.url)
+          if (!resp.ok) throw new Error('HTTP ' + resp.status)
+          const blob = await resp.blob()
+          arquivosDoGrupo.push(new File([blob], it.nome, { type: blob.type || 'image/jpeg' }))
+          ok = true
+        } catch (e) {
+          if (tentativa === 2) falhas++
+          else await new Promise(r => setTimeout(r, 400))
+        }
       }
     }
-    await new Promise(r => setTimeout(r, 350))
+    if (!arquivosDoGrupo.length) continue
+    if (await _compartilharArquivos(arquivosDoGrupo, nomeBase)) continue
+    // fallback: blob + <a download>, uma foto de cada vez (nunca
+    // segura mais de um blob novo por vez na memória além do que já
+    // foi buscado acima pro grupo).
+    for (const arquivo of arquivosDoGrupo) {
+      const blobUrl = URL.createObjectURL(arquivo)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = arquivo.name
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+      await new Promise(r => setTimeout(r, 350))
+    }
   }
   toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
 }
