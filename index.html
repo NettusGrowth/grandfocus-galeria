@@ -1191,6 +1191,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(min-width:900px){.foto-grid.gal-boutique{column-count:3;column-gap:18px;}}
 .foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;}
 .foto-item.gal-boutique img{height:auto;object-fit:unset;display:block;}
+/* sem aspect-ratio fixo (masonry natural), a foto ainda sem src tem
+   altura intrínseca zero — o shimmer dourado de .foto-item img:not([src])
+   existe mas não tem área visível pra aparecer. Reserva uma altura mínima
+   só enquanto não carregou; some sozinho assim que o src entra e o
+   masonry recalcula pela altura real da foto. */
+.foto-item.gal-boutique img:not([src]),.foto-item.gal-boutique img[src=""]{min-height:200px;}
 /* tarja clara de bônus (Seleção de Fotos) — em vez de um emoji
    pequeno disputando espaço com os ícones de ação no canto, ocupa a
    base inteira da foto pra ficar óbvio num relance de olhos. */
@@ -3328,14 +3334,20 @@ function gerarSenha() {
 // funcionar. Com telefone cadastrado, abre direto na conversa. Nenhum
 // dos dois envia sozinho: só o clique de "Enviar" dentro do
 // WhatsApp/e-mail é que realmente despacha — aqui é só o link.
-function _credencialBoxHTML(username, senha, mensagemExtra, opts = {}) {
+// fecharModalId: sem isso, depois de criar a conta o modal só tinha
+// "Cancelar" (que soa como "desfazer" mesmo já tendo criado de
+// verdade) e "Salvar" (que não deveria mais fazer nada) — parecia
+// travado. Um botão "Concluído" dentro da própria caixa de
+// credenciais deixa claro que terminou e fecha de propósito.
+function _credencialBoxHTML(username, senha, mensagemExtra, opts = {}, fecharModalId) {
   const msg = `Olá! Segue seu acesso à Galeria Grand Focus:\n\nUsuário: ${username}\nSenha: ${senha}\n\nAcesse em ${location.origin}${location.pathname}`
   const tel = (opts.telefone || '').replace(/\D/g, '')
   const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`
   const mail = `mailto:${opts.email || ''}?subject=${encodeURIComponent('Seu acesso à Galeria Grand Focus')}&body=${encodeURIComponent(msg)}`
-  return `${esc(`Usuário: ${username}`)}\n${esc(`Senha:   ${senha}`)}\n\n${esc(mensagemExtra)}<div style="white-space:normal;display:flex;gap:8px;margin-top:12px;">
+  return `${esc(`Usuário: ${username}`)}\n${esc(`Senha:   ${senha}`)}\n\n${esc(mensagemExtra)}<div style="white-space:normal;display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
     <a class="btn btn-sm" href="${wa}" target="_blank" rel="noopener">📲 Enviar por WhatsApp</a>
     <a class="btn btn-sm" href="${mail}">✉️ Enviar por e-mail</a>
+    ${fecharModalId ? `<button class="btn btn-primary btn-sm" type="button" onclick="fecharModal('${fecharModalId}')" style="margin-left:auto;">✓ Concluído</button>` : ''}
   </div>`
 }
 
@@ -7750,7 +7762,7 @@ async function salvarProfessor() {
     renderProfessores()
 
     document.getElementById('prof-resultado').style.display = 'block'
-    document.getElementById('prof-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email: emailContato })
+    document.getElementById('prof-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email: emailContato }, 'modal-professor')
     registrarAuditoria('criou professor/diretor', 'perfis', suData.user?.id, `usuário ${username} — ${nome} (${cargo})`)
     toast('Professor/diretor criado ✓')
   } finally {
@@ -7961,7 +7973,7 @@ async function salvarPai() {
   renderPais()
 
   document.getElementById('pai-resultado').style.display = 'block'
-  document.getElementById('pai-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email, telefone })
+  document.getElementById('pai-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nome}.`, { email, telefone }, 'modal-pai')
   registrarAuditoria('criou responsável', 'perfis', suData.user?.id, `usuário ${username} — ${nome}`)
   toast('Responsável criado ✓')
 }
@@ -7998,7 +8010,7 @@ async function resetarSenhaUsuario(userId, origem) {
   const senha = gerarSenha()
   const { error } = await db.rpc('resetar_senha', { alvo_user_id: userId, nova_senha: senha })
   if (error) { toast('Erro ao redefinir senha: ' + error.message); return }
-  document.getElementById('credencial-modal-texto').innerHTML = _credencialBoxHTML(p.username || '(sem usuário cadastrado)', senha, `Envie pra ${nome} — a senha antiga parou de funcionar.`, { email: p.email, telefone: p.telefone })
+  document.getElementById('credencial-modal-texto').innerHTML = _credencialBoxHTML(p.username || '(sem usuário cadastrado)', senha, `Envie pra ${nome} — a senha antiga parou de funcionar.`, { email: p.email, telefone: p.telefone }, 'modal-credencial')
   abrirModal('modal-credencial')
   registrarAuditoria('redefiniu a senha de ' + nome, 'perfis', userId, null)
 }
@@ -9349,21 +9361,35 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
   toast(`Preparando ${itens.length} foto(s)…`)
 
   // baixa e libera cada foto uma de cada vez — nunca segura mais de
-  // um blob por vez na memória.
+  // um blob por vez na memória. Uma retentativa curta antes de
+  // desistir de verdade cobre a maioria das falhas passageiras de
+  // rede — comum em celular baixando várias fotos seguidas, mesmo
+  // raciocínio já usado em _processarLoteUrlAssinada. Também checa
+  // resp.ok: sem isso, uma URL assinada expirada/erro do servidor
+  // "baixava com sucesso" um arquivinho de erro em vez da foto de
+  // verdade — silenciosamente corrompido, não contava nem como falha.
   let falhas = 0
   for (const it of itens) {
-    try {
-      const resp = await fetch(it.url)
-      const blob = await resp.blob()
-      const blobUrl = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = blobUrl
-      a.download = it.nome
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
-    } catch (e) { falhas++ }
+    let ok = false
+    for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
+      try {
+        const resp = await fetch(it.url)
+        if (!resp.ok) throw new Error('HTTP ' + resp.status)
+        const blob = await resp.blob()
+        const blobUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = blobUrl
+        a.download = it.nome
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
+        ok = true
+      } catch (e) {
+        if (tentativa === 2) falhas++
+        else await new Promise(r => setTimeout(r, 400))
+      }
+    }
     await new Promise(r => setTimeout(r, 350))
   }
   toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
@@ -10723,15 +10749,27 @@ function _eventoLimparSelecao() {
   renderFotosEventoAdmin()
 }
 
+// os chips de "marcar em massa" (turmas + roster inteiro) dependem só
+// de QUEM pode ser marcado nesse evento, não de quantas fotos estão
+// selecionadas — reconstruir a lista inteira (às vezes 100+ chips, um
+// por aluno da escola) em TODA foto clicada travava a seleção por
+// ~1s em escola grande. Agora só monta os chips quando a toolbar abre
+// pela primeira vez; clique seguinte só atualiza o contador (barato).
 function _atualizarToolbarEvento() {
   const toolbar = document.getElementById('evt-toolbar')
   if (!toolbar) return
   if (!_eventoFotoSelecao.size) { toolbar.style.display = 'none'; return }
+  const jaAberta = toolbar.style.display === 'flex'
   toolbar.style.display = 'flex'
+  if (jaAberta) {
+    const contadorEl = document.getElementById('evt-toolbar-contador')
+    if (contadorEl) contadorEl.textContent = `${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:`
+    return
+  }
   const quemPodeSerMarcado = _eventoQuemPodeSerMarcado()
   const turmas = [...new Set(quemPodeSerMarcado.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
   const tagsEl = document.getElementById('evt-toolbar-tags')
-  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+  tagsEl.innerHTML = `<span class="meta" id="evt-toolbar-contador" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
     turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_eventoMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
     quemPodeSerMarcado.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('evt-subpasta-mover')
@@ -10936,13 +10974,17 @@ async function excluirFotosEmMassa(fotoIds, aposApagar) {
 // baixa uma lista de storage_paths em massa — ver _baixarFotosEmMassa
 // (nome mantido por compatibilidade com o único call site existente,
 // mas não gera mais .zip nenhum)
+// nome ficou de um zip antigo que não existe mais — hoje baixa direto
+// (ver _baixarFotosEmMassa). Resolve as URLs assinadas em paralelo
+// (Promise.all) em vez de uma de cada vez: um `for...await` aqui
+// serializava cada chamada e desativava sem querer o lote automático
+// de _urlAssinada (ele só agrupa pedidos que chegam no mesmo tick),
+// deixando "Preparando N fotos…" bem mais lento que precisava pra
+// eventos grandes.
 async function baixarComoZip(paths, nomeArquivo) {
   if (!paths.length) return
-  const itens = []
-  for (const path of paths) {
-    const url = await _urlAssinada(path)
-    if (url) itens.push({ url, nome: path.split('/').pop() })
-  }
+  const urls = await Promise.all(paths.map(p => _urlAssinada(p)))
+  const itens = paths.map((path, i) => ({ url: urls[i], nome: path.split('/').pop() })).filter(it => it.url)
   await _baixarFotosEmMassa(itens, (nomeArquivo || 'fotos').replace(/\.zip$/i, ''))
   registrarAuditoria('baixou fotos em massa', 'fotos', null, `${paths.length} foto(s) — ${nomeArquivo || ''}`)
 }
@@ -12316,15 +12358,25 @@ function _ensaioLimparSelecao() {
   renderFotosEnsaioAdmin()
 }
 
+// mesma otimização de _atualizarToolbarEvento: os chips não dependem
+// de quantas fotos estão selecionadas, só do roster do ensaio —
+// reconstruir tudo a cada clique travava a seleção por ~1s com
+// roster grande.
 function _atualizarToolbarEnsaio() {
   const toolbar = document.getElementById('ens-toolbar')
   if (!toolbar) return
   if (!_ensaioFotoSelecao.size) { toolbar.style.display = 'none'; return }
+  const jaAberta = toolbar.style.display === 'flex'
   toolbar.style.display = 'flex'
+  if (jaAberta) {
+    const contadorEl = document.getElementById('ens-toolbar-contador')
+    if (contadorEl) contadorEl.textContent = `${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:`
+    return
+  }
   const pessoasDisponiveis = _ensaioQuemPodeSerMarcado()
   const turmas = [...new Set(pessoasDisponiveis.filter(p => p.tipo === 'aluno').map(p => store.alunos.find(a => a.id === p.id)?.turma).filter(Boolean))]
   const tagsEl = document.getElementById('ens-toolbar-tags')
-  tagsEl.innerHTML = `<span class="meta" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
+  tagsEl.innerHTML = `<span class="meta" id="ens-toolbar-contador" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
     turmas.map(t => `<span class="chip" style="border-color:var(--ouro);" onclick="_ensaioMarcarTurmaEmMassa('${esc(t)}')">Turma ${esc(t)} inteira</span>`).join('') +
     pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
   const moverEl = document.getElementById('ens-subpasta-mover')
@@ -12580,7 +12632,7 @@ async function criarAcesso() {
     }
 
     document.getElementById('acesso-resultado').style.display = 'block'
-    document.getElementById('acesso-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nomeAlvo}.`, { email: emailContato })
+    document.getElementById('acesso-resultado').innerHTML = _credencialBoxHTML(username, senha, `Envie essas credenciais para ${nomeAlvo}.`, { email: emailContato }, 'modal-acesso')
     document.getElementById('acesso-usuario').value = ''
     document.getElementById('acesso-email').value = ''
     document.getElementById('acesso-nome-avulso').value = ''
