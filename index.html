@@ -9553,11 +9553,25 @@ function _dispositivoTocavel() {
 // cobre a esmagadora maioria dos celulares reais. Mesmo padrão já
 // usado e funcionando em _publicaCompartilhar, só que aqui é pra
 // SALVAR, não pra mandar pro Instagram/WhatsApp.
+// segundo achado real em aparelho (seleção de 51 fotos): "Preparando…"
+// travava pra sempre, sem erro nenhum e sem terminar. Causa: depois do
+// PRIMEIRO navigator.share() de uma sequência, a "ativação de usuário"
+// já foi consumida — um SEGUNDO share() sem toque novo do usuário não
+// só é recusado, em alguns Safari a Promise nem chega a rejeitar,
+// fica pendurada pra sempre. Sem timeout, isso travava a função
+// inteira no meio do await, nunca chegando no toast final. 8s é tempo
+// de sobra pro caso normal (o menu abre quase na hora).
+function _comTimeout(promessa, ms) {
+  return Promise.race([
+    promessa,
+    new Promise((_, rejeita) => setTimeout(() => rejeita(new Error('timeout')), ms)),
+  ])
+}
 async function _compartilharArquivos(arquivos, tituloCompartilhar) {
   if (!_dispositivoTocavel() || !navigator.share || !navigator.canShare) return false
   try {
     if (!navigator.canShare({ files: arquivos })) return false
-    await navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' })
+    await _comTimeout(navigator.share({ files: arquivos, title: tituloCompartilhar || 'Fotos' }), 8000)
     return true
   } catch (e) {
     if (e.name === 'AbortError') return true // usuário cancelou o menu -> não é erro, não tenta fallback
@@ -9612,7 +9626,6 @@ async function _baixarUrl(url, nomeArquivo) {
 // download> de sempre, sem share nenhum (ver _dispositivoTocavel).
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
-  toast(`Preparando ${itens.length} foto(s)…`)
 
   async function _buscarArquivo(it) {
     for (let tentativa = 1; tentativa <= 2; tentativa++) {
@@ -9635,6 +9648,7 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
     // desktop: blob + <a download>, uma foto de cada vez — busca,
     // baixa e libera antes de ir pra próxima, nunca segura mais de um
     // blob novo na memória (importante em álbuns de centenas de fotos).
+    toast(`Preparando ${itens.length} foto(s)…`)
     for (const it of itens) {
       const arquivo = await _buscarArquivo(it)
       if (!arquivo) { falhas++; continue }
@@ -9652,27 +9666,39 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
     return
   }
 
-  // celular: agrupa em lotes de até LIMITE_SHARE fotos (mesmo limite
-  // de memória já usado em _publicaCompartilhar) e busca cada lote em
-  // PARALELO (Promise.all) — reproduzido de verdade num aparelho real:
-  // baixar 1 foto de ~7MB salvava certinho, mas 2 já falhavam. Causa:
-  // buscar as fotos uma depois da outra (sequencial) levava tempo
-  // demais, e por essa demora a "ativação de usuário" do toque
-  // original expirava antes de chamar navigator.share() — o Safari
-  // recusa o menu nativo silenciosamente nesse caso. Buscar o lote
-  // inteiro em paralelo mantém o tempo total bem perto do de UMA foto
-  // só, então continua dentro da janela de ativação de verdade.
+  // celular: SÓ UMA chamada de navigator.share, nunca várias em
+  // sequência. Achado real em aparelho: numa seleção de 51 fotos, o
+  // app ficava preso pra sempre em "Preparando…" — a causa era tentar
+  // vários lotes de share() um atrás do outro; a "ativação de
+  // usuário" do toque original só vale pro PRIMEIRO share(), os
+  // seguintes ficam pendurados sem erro nem sucesso (daí o travamento,
+  // ver _comTimeout acima). Em vez de fingir que processa a seleção
+  // inteira e travar/falhar silenciosamente no meio, corta pra só o
+  // primeiro LIMITE_SHARE (mesmo limite de memória de
+  // _publicaCompartilhar) e avisa ANTES de tentar, pra quem selecionou
+  // muita coisa saber exatamente o que vai acontecer.
   const LIMITE_SHARE = 10
-  for (let i = 0; i < itens.length; i += LIMITE_SHARE) {
-    const grupo = itens.slice(i, i + LIMITE_SHARE)
-    const resultados = await Promise.all(grupo.map(_buscarArquivo))
-    const arquivosDoGrupo = resultados.filter(Boolean)
-    falhas += resultados.length - arquivosDoGrupo.length
-    if (!arquivosDoGrupo.length) continue
-    const salvou = await _compartilharArquivos(arquivosDoGrupo, nomeBase)
-    if (!salvou) falhas += arquivosDoGrupo.length
+  const alvo = itens.slice(0, LIMITE_SHARE)
+  toast(itens.length > LIMITE_SHARE
+    ? `Celular só salva ${LIMITE_SHARE} fotos por vez — preparando as ${LIMITE_SHARE} primeiras…`
+    : `Preparando ${alvo.length} foto(s)…`)
+
+  // busca o lote em PARALELO (Promise.all) — reproduzido de verdade
+  // num aparelho real: baixar 1 foto de ~7MB salvava certinho, mas 2
+  // já falhavam. Causa: buscar as fotos uma depois da outra
+  // (sequencial) levava tempo demais, e por essa demora a ativação de
+  // usuário expirava antes de chamar navigator.share(). Buscar em
+  // paralelo mantém o tempo total bem perto do de UMA foto só.
+  const resultados = await Promise.all(alvo.map(_buscarArquivo))
+  const arquivosDoLote = resultados.filter(Boolean)
+  falhas += resultados.length - arquivosDoLote.length + (itens.length - alvo.length)
+  if (arquivosDoLote.length) {
+    const salvou = await _compartilharArquivos(arquivosDoLote, nomeBase)
+    if (!salvou) falhas += arquivosDoLote.length
   }
-  toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
+  toast(falhas
+    ? `Download concluído — ${falhas} foto(s) falharam${itens.length > LIMITE_SHARE ? ' (selecione o restante e baixe de novo)' : ''}`
+    : 'Download pronto ✓')
 }
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
