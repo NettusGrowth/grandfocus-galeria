@@ -9280,13 +9280,23 @@ function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) 
   let renderizados = 0
   let sentinel = null
   let obs = null
+  // acrescentar ~60 nós de uma vez é uma mutação de DOM pesada — disparada
+  // bem na hora que o sentinel entra na tela (ou seja, exatamente
+  // enquanto o dedo ainda está arrastando perto do fim do carregado),
+  // isso é o padrão clássico que faz o touch "travar" no iOS até soltar e
+  // tocar de novo (o gesto de scroll ativo se perde no meio da mutação).
+  // requestAnimationFrame tira a inserção do meio do callback do
+  // IntersectionObserver (que roda em cima do scroll), alinhando com o
+  // próximo quadro de pintura em vez de no meio do gesto.
   function carregarLote() {
     const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
     if (!lote.length) return
-    const html = lote.map(f => itemHtmlFn(f)).join('')
-    if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html)
-    else gridEl.insertAdjacentHTML('beforeend', html)
-    _hidratarImgCache(gridEl)
+    requestAnimationFrame(() => {
+      const html = lote.map(f => itemHtmlFn(f)).join('')
+      if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html)
+      else gridEl.insertAdjacentHTML('beforeend', html)
+      _hidratarImgCache(gridEl)
+    })
     renderizados += lote.length
     if (renderizados >= fotos.length && obs) { obs.disconnect(); sentinel?.remove(); sentinel = null }
   }
@@ -9300,7 +9310,12 @@ function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) 
     sentinel.setAttribute('aria-hidden', 'true')
     sentinel.style.cssText = 'grid-column:1/-1;height:1px;'
     gridEl.appendChild(sentinel)
-    obs = new IntersectionObserver(entries => { if (entries[0].isIntersecting) carregarLote() }, { rootMargin: '1000px 0px' })
+    // rootMargin bem mais folgado (era 1000px): dispara o próximo lote
+    // bem antes do sentinel chegar perto da área visível de verdade,
+    // então a inserção acontece com folga, nunca "na cara" do usuário
+    // enquanto ele ainda está arrastando o dedo pelo fim do que já
+    // carregou — reduz a chance de pegar o gesto de touch no meio.
+    obs = new IntersectionObserver(entries => { if (entries[0].isIntersecting) carregarLote() }, { rootMargin: '2500px 0px' })
     obs.observe(sentinel)
   }
 }
