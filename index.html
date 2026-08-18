@@ -11117,12 +11117,13 @@ let _galBreadcrumbPartes = []
 function _galBreadcrumb() {
   const partes = [{ label: 'Galeria', onclick: '_galIrRaiz()' }]
   if (_galRaiz === 'filhos') {
-    partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;renderGaleriaAdmin()' })
+    partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
-      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;renderGaleriaAdmin()' })
+      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     }
-    if (_galAno) partes.push({ label: _galAno })
+    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
+    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
   } else if (_galRaiz === 'escolas') {
     partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
     if (_galEscolaId !== undefined) partes.push({ label: esc(nomeEscola(_galEscolaId)), onclick: '_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
@@ -11134,12 +11135,13 @@ function _galBreadcrumb() {
     if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push({ label: esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
     if (_galSubpasta) partes.push({ label: esc(_galSubpasta) })
   } else if (_galRaiz === 'alunos') {
-    partes.push({ label: 'Alunos', onclick: '_galAlunoId=null;_galAno=null;renderGaleriaAdmin()' })
+    partes.push({ label: 'Alunos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
-      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;renderGaleriaAdmin()' })
+      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     }
-    if (_galAno) partes.push({ label: _galAno })
+    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
+    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
   }
   _galBreadcrumbPartes = partes
   return partes.map(p => p.onclick ? `<span onclick="${p.onclick}" style="cursor:pointer;">${p.label}</span>` : `<span>${p.label}</span>`).join(' <span style="opacity:.4;">/</span> ')
@@ -11216,7 +11218,8 @@ function renderGaleriaAdmin() {
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
   if (_galRaiz === 'filhos') {
-    if (_galAlunoId && _galAno) { renderGaleriaFotosDoAno(wrap); return }
+    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+    if (_galAlunoId && _galAno) { renderGaleriaAlbunsDoAno(wrap); return }
     if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
     renderGaleriaListaFilhos(wrap); return
   }
@@ -11241,7 +11244,8 @@ function renderGaleriaAdmin() {
     renderGaleriaEscolas(wrap); return
   }
   if (_galRaiz === 'alunos') {
-    if (_galAlunoId && _galAno) { renderGaleriaFotosDoAno(wrap); return }
+    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+    if (_galAlunoId && _galAno) { renderGaleriaAlbunsDoAno(wrap); return }
     if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
     renderGaleriaListaTodosAlunos(wrap); return
   }
@@ -11623,39 +11627,61 @@ function renderGaleriaAnosDoAluno(wrap) {
   wrap.innerHTML += `${_galRole === 'admin' ? `<div class="section-h"><button class="btn btn-sm" onclick="abrirUploadRapidoAluno()">📤 Fazer upload pra este aluno</button></div>` : ''}
     <div class="pasta-grid">${anosOrdenados.length ? anosOrdenados.map(ano => {
       const fotosDoAno = anos.get(ano)
-      return `<div class="list-item pasta-item" onclick="_galAno='${ano}';renderGaleriaAdmin()">
+      return `<div class="list-item pasta-item" onclick="_galAno='${ano}';_galAlbumId=null;renderGaleriaAdmin()">
         ${_galMosaicoCardHTML(ano, fotosDoAno.length, fotosDoAno, `${fotosDoAno.length} foto(s)`)}
       </div>`
     }).join('') : '<div class="empty">Nenhuma foto marcada pra esse aluno ainda.</div>'}</div>`
   _hidratarImgCache(wrap)
 }
 
-function renderGaleriaFotosDoAno(wrap) {
+// nível "Álbuns do Ano" pro caminho Aluno (Filhos/Alunos) — uma pasta
+// por evento, mesmo padrão visual de renderGaleriaAlbunsDaEscola.
+// Antes esse nível já entregava as fotos direto, todos os eventos do
+// ano numa parede só separada apenas pelo <h3> do título — impossível
+// de navegar num ano com muitos eventos acumulados, e pros Pais era
+// pior ainda (parecia tudo misturado, sem a mesma organização em
+// pastas que o proprietário/admin enxerga em Álbuns & Eventos).
+function renderGaleriaAlbunsDoAno(wrap) {
   const fotosDoAno = _fotosDoAluno(_galAlunoId).filter(f => {
     const ev = store.eventos.find(e => e.id === f.evento_id)
     const ano = ev?.data ? ev.data.slice(0, 4) : 'Sem data'
     return ano === _galAno
   })
-  // filtro por pessoa marcada (professor/diretor/proprietário também
-  // aparecem em fotos onde esse aluno está) — mesmo padrão de chips já
-  // usado no caminho Escolas (renderGaleriaFotosDoAlbum), só que aqui
-  // não precisa do tipo "aluno" (o aluno já é fixo, é o próprio nível).
-  const pessoasNoAno = [
-    ...new Set(store.fotoPessoa.filter(x => fotosDoAno.some(f => f.id === x.foto_id)).map(x => x.user_id)),
+  const porEvento = new Map()
+  fotosDoAno.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
+  const eventos = [...porEvento.keys()].map(id => store.eventos.find(e => e.id === id)).filter(Boolean)
+    .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+  wrap.innerHTML += `<div class="pasta-grid">${eventos.length ? eventos.map(ev => {
+    const lista = porEvento.get(ev.id)
+    return `<div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
+      ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), lista.length, _fotoPreviewPath(lista[0]))}
+      <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${lista.length} foto(s)</div>
+    </div>`
+  }).join('') : '<div class="empty">Nenhuma foto nesse ano.</div>'}</div>`
+  _hidratarImgCache(wrap)
+}
+
+// fotos de UM evento, escopadas a UM aluno — nível final do caminho
+// Aluno (Filhos/Alunos). Mesma UI de renderGaleriaFotosDoAlbum (chips
+// de pessoa marcada, toolbar, grid paginado), só que a base já vem
+// filtrada por _fotosDoAluno: nunca mistura com a foto de outra
+// criança do mesmo evento, mesmo esse sendo um álbum inteiro da escola.
+function renderGaleriaFotosDoAlbumDoAluno(wrap) {
+  const ev = store.eventos.find(e => e.id === _galAlbumId)
+  const todasFotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId)
+  const pessoasNoAlbum = [
+    ...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id)),
   ].map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) }))
   const fotos = _galFiltroPessoaAlbum
-    ? fotosDoAno.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
-    : fotosDoAno
+    ? todasFotos.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
+    : todasFotos
   _lightboxFotos = fotos
   _galSelecao = new Set()
-
-  const porEvento = new Map()
-  fotos.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
-
   wrap.innerHTML += `
-    ${pessoasNoAno.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>
+    ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
-      ${pessoasNoAno.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
+      ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
     </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
@@ -11666,20 +11692,14 @@ function renderGaleriaFotosDoAno(wrap) {
         ${_galRole === 'admin' ? `<button class="btn btn-sm btn-danger" id="gal-btn-apagar" disabled onclick="_galApagarSelecionadas()">Apagar selecionadas</button>` : ''}
       </div>
     </div>
-    ${[...porEvento.entries()].map(([eventoId, lista]) => {
-      const ev = store.eventos.find(e => e.id === eventoId)
-      return `<div class="galeria-secao">
-        <h3 class="galeria-secao-titulo">${esc(ev?.nome || '(evento removido)')}${ev?.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</h3>
-        <div class="${_galGridClass()}">${lista.map(f => _galFotoItemHTML(f)).join('')}</div>
-      </div>`
-    }).join('')}
+    <div class="${_galGridClass()}" id="gal-fotos-grid"></div>
   `
-  _hidratarImgCache(wrap)
-  const idsPendentes = pessoasNoAno.filter(p => p.nome === '?').map(p => p.id)
+  _renderGridFotosPaginado(document.getElementById('gal-fotos-grid'), fotos)
+  const idsPendentes = pessoasNoAlbum.filter(p => p.nome === '?').map(p => p.id)
   if (idsPendentes.length) {
-    const alunoIdNoMomento = _galAlunoId
+    const albumIdNoMomento = _galAlbumId
     _garantirNomesPessoas(idsPendentes).then(achouAlgo => {
-      if (achouAlgo && _galAlunoId === alunoIdNoMomento) renderGaleriaAdmin()
+      if (achouAlgo && _galAlbumId === albumIdNoMomento) renderGaleriaAdmin()
     })
   }
 }
