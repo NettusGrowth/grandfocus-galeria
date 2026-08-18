@@ -8471,6 +8471,11 @@ async function confirmarImportacaoAlunos() {
 let _eventoCapaArquivo = null
 let _eventoAlunosSelecionados = new Set()
 let _eventoPessoasSelecionadas = new Set()
+// quais grupos de turma estão expandidos no seletor "Quem participa
+// deste evento?" — sem isso, uma escola com 50 turmas jogaria os
+// alunos de todas elas abertos ao mesmo tempo, voltando ao mesmo
+// problema de lista enfileirada que a agrupação por turma resolve.
+let _eventoSeletorTurmasAbertas = new Set()
 
 // staff (professor/diretor/proprietário) vinculado a uma escola —
 // mesmo filtro já usado em outros lugares do admin pra achar quem
@@ -8487,6 +8492,7 @@ function abrirModalEvento(eventoId) {
   _eventoCapaArquivo = null
   _eventoAlunosSelecionados = new Set(ev?.alunos_selecionados || [])
   _eventoPessoasSelecionadas = new Set(ev?.pessoas_selecionadas || [])
+  _eventoSeletorTurmasAbertas = new Set()
 
   document.getElementById('evt-id').value = ev?.id || ''
   document.getElementById('evt-modal-titulo').textContent = ev ? 'Editar evento' : 'Novo evento'
@@ -8537,19 +8543,57 @@ function _eventoCapaSelecionada(inputEl) {
   _abrirAjusteFoto(wrap.id)
 }
 
+// agrupado por Turma > Aluno (com "Equipe" separado) em vez da lista
+// crua enfileirada de antes — numa escola com 50 turmas/500 alunos,
+// tudo num único bloco horizontal era ilegível e obrigava a rolar
+// procurando nome por nome. Cada turma vira um grupo colapsável com
+// atalho de 1 clique pra marcar/desmarcar ela inteira.
 function _renderEventoSeletorAlunos() {
   const escolaId = document.getElementById('evt-escola').value
   const wrap = document.getElementById('evt-alunos-wrap')
   wrap.style.display = escolaId ? 'block' : 'none'
   if (!escolaId) { _eventoAlunosSelecionados = new Set(); _eventoPessoasSelecionadas = new Set(); return }
   const busca = document.getElementById('evt-alunos-busca').value.toLowerCase()
-  const alunos = store.alunos.filter(a => a.escola_id === escolaId && a.nome.toLowerCase().includes(busca))
   const pessoas = _pessoasDaEscola(escolaId).filter(p => p.nome.toLowerCase().includes(busca))
   const el = document.getElementById('evt-alunos-lista')
-  el.innerHTML = (alunos.length || pessoas.length) ? (
-    alunos.map(a => `<span class="tag-opt${_eventoAlunosSelecionados.has(a.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('aluno','${a.id}',this)">${esc(a.nome)}</span>`).join('') +
-    pessoas.map(p => `<span class="tag-opt${_eventoPessoasSelecionadas.has(p.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('pessoa','${p.id}',this)">${esc(p.nome)} · ${esc(p.sub)}</span>`).join('')
-  ) : '<span style="opacity:.6;font-size:12px;">Nenhum aluno/pessoa dessa escola ainda</span>'
+  const grupos = new Map()
+  store.alunos.filter(a => a.escola_id === escolaId && a.nome.toLowerCase().includes(busca)).forEach(a => {
+    const tid = a.turma_id || '__sem__'
+    if (!grupos.has(tid)) grupos.set(tid, [])
+    grupos.get(tid).push(a)
+  })
+  const ordemTurmas = [...grupos.keys()].sort((x, y) => x === '__sem__' ? 1 : y === '__sem__' ? -1 :
+    (store.turmas.find(t => t.id === x)?.nome || '').localeCompare(store.turmas.find(t => t.id === y)?.nome || ''))
+  const htmlTurmas = ordemTurmas.map(tid => {
+    const alunosTurma = grupos.get(tid)
+    const nomeTurma = tid === '__sem__' ? 'Sem turma' : (store.turmas.find(t => t.id === tid)?.nome || '?')
+    const aberta = !!busca || _eventoSeletorTurmasAbertas.has(tid)
+    const todosMarcados = alunosTurma.every(a => _eventoAlunosSelecionados.has(a.id))
+    return `<div class="turma-grupo">
+      <div class="subpasta-titulo" style="cursor:pointer;margin-bottom:4px;padding-bottom:4px;" onclick="_eventoToggleTurmaAberta('${tid}')">
+        <h3 style="font-size:12.5px;"><svg class="colapsa-seta" style="${aberta ? '' : 'transform:rotate(-90deg);'}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>${esc(nomeTurma)}<span class="meta">(${alunosTurma.length})</span></h3>
+        <button type="button" class="btn btn-sm" onclick="event.stopPropagation();_eventoToggleTurmaInteira('${tid}')">${todosMarcados ? 'Tirar turma inteira' : 'Turma inteira'}</button>
+      </div>
+      ${aberta ? `<div class="tag-picker">${alunosTurma.map(a => `<span class="tag-opt${_eventoAlunosSelecionados.has(a.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('aluno','${a.id}',this)">${esc(a.nome)}</span>`).join('')}</div>` : ''}
+    </div>`
+  }).join('')
+  const htmlPessoas = pessoas.length ? `<div class="turma-grupo">
+      <div class="subpasta-titulo" style="margin-bottom:4px;padding-bottom:4px;"><h3 style="font-size:12.5px;cursor:default;">Equipe<span class="meta">(${pessoas.length})</span></h3></div>
+      <div class="tag-picker">${pessoas.map(p => `<span class="tag-opt${_eventoPessoasSelecionadas.has(p.id) ? ' on' : ''}" onclick="_eventoTogglePessoa('pessoa','${p.id}',this)">${esc(p.nome)} · ${esc(p.sub)}</span>`).join('')}</div>
+    </div>` : ''
+  el.innerHTML = (htmlTurmas + htmlPessoas) || '<span style="opacity:.6;font-size:12px;">Nenhum aluno/pessoa dessa escola ainda</span>'
+}
+function _eventoToggleTurmaAberta(tid) {
+  if (_eventoSeletorTurmasAbertas.has(tid)) _eventoSeletorTurmasAbertas.delete(tid); else _eventoSeletorTurmasAbertas.add(tid)
+  _renderEventoSeletorAlunos()
+}
+function _eventoToggleTurmaInteira(tid) {
+  const escolaId = document.getElementById('evt-escola').value
+  const alunosTurma = store.alunos.filter(a => a.escola_id === escolaId && (a.turma_id || '__sem__') === tid)
+  const todosMarcados = alunosTurma.every(a => _eventoAlunosSelecionados.has(a.id))
+  alunosTurma.forEach(a => { if (todosMarcados) _eventoAlunosSelecionados.delete(a.id); else _eventoAlunosSelecionados.add(a.id) })
+  _eventoSeletorTurmasAbertas.add(tid)
+  _renderEventoSeletorAlunos()
 }
 
 function _eventoTogglePessoa(tipo, id, el) {
@@ -8772,6 +8816,10 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
     <div id="evt-upload-status"></div>
     <div class="foto-toolbar" id="evt-toolbar" style="display:none;">
       <div class="chip-row" id="evt-toolbar-tags"></div>
+      <div id="evt-toolbar-individual" style="display:none;width:100%;margin:2px 0 4px;padding:10px;border:1px solid rgba(200,175,127,.2);border-radius:8px;background:rgba(0,0,0,.15);">
+        <input type="text" id="evt-toolbar-individual-busca" placeholder="Buscar por nome…" style="margin-bottom:8px;" oninput="_eventoRenderMarcarIndividual()">
+        <div class="tag-picker" id="evt-toolbar-individual-lista" style="max-height:160px;overflow-y:auto;"></div>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <select id="evt-subpasta-mover"></select>
         <button class="btn btn-sm" onclick="_eventoAplicarSubpasta()">Mover</button>
@@ -11169,13 +11217,35 @@ function _atualizarToolbarEvento() {
   const tagsEl = document.getElementById('evt-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" id="evt-toolbar-contador" style="align-self:center;">${_eventoFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
     turmaIds.map(tid => `<span class="chip" style="border-color:var(--ouro);" onclick="_eventoMarcarTurmaEmMassa('${tid}')">Turma ${esc(store.turmas.find(t => t.id === tid)?.nome || '?')} inteira</span>`).join('') +
-    quemPodeSerMarcado.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
+    (quemPodeSerMarcado.length ? `<span class="chip" onclick="_eventoToggleMarcarIndividual()">👤 Marcar pessoa específica…</span>` : '')
+  const painelIndividual = document.getElementById('evt-toolbar-individual')
+  if (painelIndividual) painelIndividual.style.display = 'none'
   const moverEl = document.getElementById('evt-subpasta-mover')
   if (moverEl) {
     moverEl.innerHTML = '<option value="">Sem pasta (solto no evento)</option>' +
       _todasSubpastasConhecidas().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
       '<option value="__nova__">+ Criar nova pasta…</option>'
   }
+}
+
+// painel de busca escondido por padrão — a lista completa de "quem
+// pode ser marcado" (que num evento grande passa de centenas de
+// pessoas) só é montada/exibida quando o admin realmente pede pra
+// marcar alguém fora do atalho de turma inteira, em vez de sempre
+// empilhar todo mundo numa fileira de chips que nunca termina.
+function _eventoToggleMarcarIndividual() {
+  const painel = document.getElementById('evt-toolbar-individual')
+  if (!painel) return
+  const abrindo = painel.style.display === 'none'
+  painel.style.display = abrindo ? 'block' : 'none'
+  if (abrindo) { document.getElementById('evt-toolbar-individual-busca').value = ''; _eventoRenderMarcarIndividual(); document.getElementById('evt-toolbar-individual-busca').focus() }
+}
+function _eventoRenderMarcarIndividual() {
+  const busca = document.getElementById('evt-toolbar-individual-busca').value.toLowerCase()
+  const lista = _eventoQuemPodeSerMarcado().filter(p => p.nome.toLowerCase().includes(busca))
+  document.getElementById('evt-toolbar-individual-lista').innerHTML = lista.length
+    ? lista.map(p => `<span class="chip" onclick="_eventoMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
+    : '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
 }
 
 // "Toda a Turma" — marca de uma vez todo mundo daquela turma que
@@ -12311,6 +12381,7 @@ function _ensaioQuemPodeSerMarcado() {
 
 let _ensaioAlunosSel = new Set()
 let _ensaioPessoasSel = new Set()
+let _ensaioSeletorTurmasAbertas = new Set()
 let _ensaioCapaArquivo = null
 
 function abrirModalEnsaio(ensaioId) {
@@ -12318,6 +12389,7 @@ function abrirModalEnsaio(ensaioId) {
   _ensaioCapaArquivo = null
   _ensaioAlunosSel = new Set(ev?.alunos_selecionados || [])
   _ensaioPessoasSel = new Set(ev?.pessoas_selecionadas || [])
+  _ensaioSeletorTurmasAbertas = new Set()
 
   document.getElementById('ens-id').value = ev?.id || ''
   document.getElementById('ens-modal-titulo').textContent = ev ? 'Editar ensaio avulso' : 'Novo ensaio avulso'
@@ -12425,14 +12497,55 @@ function _ensaioCapaSelecionada(inputEl) {
   _abrirAjusteFoto(wrap.id)
 }
 
+// mesmo raciocínio de _renderEventoSeletorAlunos, mas o Ensaio Avulso
+// não é preso a uma escola só — o roster mistura alunos de qualquer
+// turma/escola com professores/diretores/responsáveis. Alunos entram
+// agrupados por Turma; o resto (staff/responsáveis) fica numa seção
+// separada, sem turma pra agrupar por.
 function _renderEnsaioSeletorPessoas() {
   const busca = document.getElementById('ens-busca').value.toLowerCase()
-  const pessoas = _todasPessoasSelecionaveis().filter(p => p.nome.toLowerCase().includes(busca))
+  const todos = _todasPessoasSelecionaveis().filter(p => p.nome.toLowerCase().includes(busca))
+  const alunos = todos.filter(p => p.tipo === 'aluno')
+  const resto = todos.filter(p => p.tipo !== 'aluno')
   const el = document.getElementById('ens-pessoas-lista')
-  el.innerHTML = pessoas.length ? pessoas.map(p => {
-    const marcado = p.tipo === 'aluno' ? _ensaioAlunosSel.has(p.id) : _ensaioPessoasSel.has(p.id)
-    return `<span class="tag-opt${marcado ? ' on' : ''}" onclick="_ensaioTogglePessoa('${p.tipo}','${p.id}',this)">${esc(p.nome)} · ${p.sub}</span>`
-  }).join('') : '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
+  const grupos = new Map()
+  alunos.forEach(p => {
+    const aluno = store.alunos.find(a => a.id === p.id)
+    const tid = aluno?.turma_id || '__sem__'
+    if (!grupos.has(tid)) grupos.set(tid, [])
+    grupos.get(tid).push(p)
+  })
+  const ordemTurmas = [...grupos.keys()].sort((x, y) => x === '__sem__' ? 1 : y === '__sem__' ? -1 :
+    (store.turmas.find(t => t.id === x)?.nome || '').localeCompare(store.turmas.find(t => t.id === y)?.nome || ''))
+  const htmlTurmas = ordemTurmas.map(tid => {
+    const alunosTurma = grupos.get(tid)
+    const nomeTurma = tid === '__sem__' ? 'Sem turma' : (store.turmas.find(t => t.id === tid)?.nome || '?')
+    const aberta = !!busca || _ensaioSeletorTurmasAbertas.has(tid)
+    const todosMarcados = alunosTurma.every(p => _ensaioAlunosSel.has(p.id))
+    return `<div class="turma-grupo">
+      <div class="subpasta-titulo" style="cursor:pointer;margin-bottom:4px;padding-bottom:4px;" onclick="_ensaioToggleTurmaAberta('${tid}')">
+        <h3 style="font-size:12.5px;"><svg class="colapsa-seta" style="${aberta ? '' : 'transform:rotate(-90deg);'}" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>${esc(nomeTurma)}<span class="meta">(${alunosTurma.length})</span></h3>
+        <button type="button" class="btn btn-sm" onclick="event.stopPropagation();_ensaioToggleTurmaInteira('${tid}')">${todosMarcados ? 'Tirar turma inteira' : 'Turma inteira'}</button>
+      </div>
+      ${aberta ? `<div class="tag-picker">${alunosTurma.map(p => `<span class="tag-opt${_ensaioAlunosSel.has(p.id) ? ' on' : ''}" onclick="_ensaioTogglePessoa('aluno','${p.id}',this)">${esc(p.nome)}</span>`).join('')}</div>` : ''}
+    </div>`
+  }).join('')
+  const htmlResto = resto.length ? `<div class="turma-grupo">
+      <div class="subpasta-titulo" style="margin-bottom:4px;padding-bottom:4px;"><h3 style="font-size:12.5px;cursor:default;">Equipe e responsáveis<span class="meta">(${resto.length})</span></h3></div>
+      <div class="tag-picker">${resto.map(p => `<span class="tag-opt${_ensaioPessoasSel.has(p.id) ? ' on' : ''}" onclick="_ensaioTogglePessoa('pessoa','${p.id}',this)">${esc(p.nome)} · ${p.sub}</span>`).join('')}</div>
+    </div>` : ''
+  el.innerHTML = (htmlTurmas + htmlResto) || '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
+}
+function _ensaioToggleTurmaAberta(tid) {
+  if (_ensaioSeletorTurmasAbertas.has(tid)) _ensaioSeletorTurmasAbertas.delete(tid); else _ensaioSeletorTurmasAbertas.add(tid)
+  _renderEnsaioSeletorPessoas()
+}
+function _ensaioToggleTurmaInteira(tid) {
+  const alunosTurma = store.alunos.filter(a => (a.turma_id || '__sem__') === tid)
+  const todosMarcados = alunosTurma.every(a => _ensaioAlunosSel.has(a.id))
+  alunosTurma.forEach(a => { if (todosMarcados) _ensaioAlunosSel.delete(a.id); else _ensaioAlunosSel.add(a.id) })
+  _ensaioSeletorTurmasAbertas.add(tid)
+  _renderEnsaioSeletorPessoas()
 }
 
 function _ensaioTogglePessoa(tipo, id, el) {
@@ -12633,6 +12746,10 @@ async function abrirEnsaioAdmin(ensaioId) {
     <div id="ens-upload-status"></div>
     <div class="foto-toolbar" id="ens-toolbar" style="display:none;">
       <div class="chip-row" id="ens-toolbar-tags"></div>
+      <div id="ens-toolbar-individual" style="display:none;width:100%;margin:2px 0 4px;padding:10px;border:1px solid rgba(200,175,127,.2);border-radius:8px;background:rgba(0,0,0,.15);">
+        <input type="text" id="ens-toolbar-individual-busca" placeholder="Buscar por nome…" style="margin-bottom:8px;" oninput="_ensaioRenderMarcarIndividual()">
+        <div class="tag-picker" id="ens-toolbar-individual-lista" style="max-height:160px;overflow-y:auto;"></div>
+      </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <select id="ens-subpasta-mover"></select>
         <button class="btn btn-sm" onclick="_ensaioAplicarSubpasta()">Mover</button>
@@ -12892,13 +13009,31 @@ function _atualizarToolbarEnsaio() {
   const tagsEl = document.getElementById('ens-toolbar-tags')
   tagsEl.innerHTML = `<span class="meta" id="ens-toolbar-contador" style="align-self:center;">${_ensaioFotoSelecao.size} selecionada(s) · marcar em todas:</span>` +
     turmaIds.map(tid => `<span class="chip" style="border-color:var(--ouro);" onclick="_ensaioMarcarTurmaEmMassa('${tid}')">Turma ${esc(store.turmas.find(t => t.id === tid)?.nome || '?')} inteira</span>`).join('') +
-    pessoasDisponiveis.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
+    (pessoasDisponiveis.length ? `<span class="chip" onclick="_ensaioToggleMarcarIndividual()">👤 Marcar pessoa específica…</span>` : '')
+  const painelIndividual = document.getElementById('ens-toolbar-individual')
+  if (painelIndividual) painelIndividual.style.display = 'none'
   const moverEl = document.getElementById('ens-subpasta-mover')
   if (moverEl) {
     moverEl.innerHTML = '<option value="">Sem pasta (solto no ensaio)</option>' +
       _todasSubpastasConhecidasEnsaio().map(n => `<option value="${esc(n)}">📁 ${esc(n)}</option>`).join('') +
       '<option value="__nova__">+ Criar nova pasta…</option>'
   }
+}
+
+// mesmo raciocínio de _eventoToggleMarcarIndividual/_eventoRenderMarcarIndividual.
+function _ensaioToggleMarcarIndividual() {
+  const painel = document.getElementById('ens-toolbar-individual')
+  if (!painel) return
+  const abrindo = painel.style.display === 'none'
+  painel.style.display = abrindo ? 'block' : 'none'
+  if (abrindo) { document.getElementById('ens-toolbar-individual-busca').value = ''; _ensaioRenderMarcarIndividual(); document.getElementById('ens-toolbar-individual-busca').focus() }
+}
+function _ensaioRenderMarcarIndividual() {
+  const busca = document.getElementById('ens-toolbar-individual-busca').value.toLowerCase()
+  const lista = _ensaioQuemPodeSerMarcado().filter(p => p.nome.toLowerCase().includes(busca))
+  document.getElementById('ens-toolbar-individual-lista').innerHTML = lista.length
+    ? lista.map(p => `<span class="chip" onclick="_ensaioMarcarEmMassa('${p.tipo}','${p.id}')">${esc(p.nome)}</span>`).join('')
+    : '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
 }
 
 // "Toda a Turma" — mesmo atalho do Evento, pro Ensaio Avulso.
