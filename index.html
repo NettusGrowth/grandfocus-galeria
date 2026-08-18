@@ -9614,42 +9614,30 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
   toast(`Preparando ${itens.length} foto(s)…`)
 
-  const tocavel = _dispositivoTocavel()
-  const LIMITE_SHARE = 10
-  const grupos = tocavel
-    ? Array.from({ length: Math.ceil(itens.length / LIMITE_SHARE) }, (_, i) => itens.slice(i * LIMITE_SHARE, (i + 1) * LIMITE_SHARE))
-    : [itens]
-
-  let falhas = 0
-  for (const grupo of grupos) {
-    const arquivosDoGrupo = []
-    for (const it of grupo) {
-      let ok = false
-      for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
-        try {
-          const resp = await fetch(it.url)
-          if (!resp.ok) throw new Error('HTTP ' + resp.status)
-          const blob = await resp.blob()
-          arquivosDoGrupo.push(new File([blob], it.nome, { type: blob.type || 'image/jpeg' }))
-          ok = true
-        } catch (e) {
-          if (tentativa === 2) falhas++
-          else await new Promise(r => setTimeout(r, 400))
-        }
+  async function _buscarArquivo(it) {
+    for (let tentativa = 1; tentativa <= 2; tentativa++) {
+      try {
+        const resp = await fetch(it.url)
+        if (!resp.ok) throw new Error('HTTP ' + resp.status)
+        const blob = await resp.blob()
+        return new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
+      } catch (e) {
+        if (tentativa === 2) return null
+        await new Promise(r => setTimeout(r, 400))
       }
     }
-    if (!arquivosDoGrupo.length) continue
+    return null
+  }
 
-    if (tocavel) {
-      const salvou = await _compartilharArquivos(arquivosDoGrupo, nomeBase)
-      if (!salvou) falhas += arquivosDoGrupo.length
-      continue
-    }
+  let falhas = 0
 
-    // desktop: blob + <a download>, uma foto de cada vez (nunca
-    // segura mais de um blob novo por vez na memória além do que já
-    // foi buscado acima pro grupo).
-    for (const arquivo of arquivosDoGrupo) {
+  if (!_dispositivoTocavel()) {
+    // desktop: blob + <a download>, uma foto de cada vez — busca,
+    // baixa e libera antes de ir pra próxima, nunca segura mais de um
+    // blob novo na memória (importante em álbuns de centenas de fotos).
+    for (const it of itens) {
+      const arquivo = await _buscarArquivo(it)
+      if (!arquivo) { falhas++; continue }
       const blobUrl = URL.createObjectURL(arquivo)
       const a = document.createElement('a')
       a.href = blobUrl
@@ -9660,6 +9648,29 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 1000)
       await new Promise(r => setTimeout(r, 350))
     }
+    toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
+    return
+  }
+
+  // celular: agrupa em lotes de até LIMITE_SHARE fotos (mesmo limite
+  // de memória já usado em _publicaCompartilhar) e busca cada lote em
+  // PARALELO (Promise.all) — reproduzido de verdade num aparelho real:
+  // baixar 1 foto de ~7MB salvava certinho, mas 2 já falhavam. Causa:
+  // buscar as fotos uma depois da outra (sequencial) levava tempo
+  // demais, e por essa demora a "ativação de usuário" do toque
+  // original expirava antes de chamar navigator.share() — o Safari
+  // recusa o menu nativo silenciosamente nesse caso. Buscar o lote
+  // inteiro em paralelo mantém o tempo total bem perto do de UMA foto
+  // só, então continua dentro da janela de ativação de verdade.
+  const LIMITE_SHARE = 10
+  for (let i = 0; i < itens.length; i += LIMITE_SHARE) {
+    const grupo = itens.slice(i, i + LIMITE_SHARE)
+    const resultados = await Promise.all(grupo.map(_buscarArquivo))
+    const arquivosDoGrupo = resultados.filter(Boolean)
+    falhas += resultados.length - arquivosDoGrupo.length
+    if (!arquivosDoGrupo.length) continue
+    const salvou = await _compartilharArquivos(arquivosDoGrupo, nomeBase)
+    if (!salvou) falhas += arquivosDoGrupo.length
   }
   toast(falhas ? `Download concluído — ${falhas} foto(s) falharam` : 'Download pronto ✓')
 }
