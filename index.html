@@ -1661,7 +1661,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <ul class="dash-activity" id="sino-lista"></ul>
           <div class="sino-footer">
             <button onclick="_notifMarcarTodasLidas()">Marcar tudo como lido</button>
-            <button onclick="fecharModal('modal-busca');document.getElementById('sino-drop').classList.remove('open');if(['admin','super_admin'].includes(meuPerfil?.role)){setAdminTab('auditoria');iniciarAuditoriaAdmin()}">Ver histórico</button>
+            <button id="sino-ver-historico" onclick="fecharModal('modal-busca');document.getElementById('sino-drop').classList.remove('open');setAdminTab('auditoria');iniciarAuditoriaAdmin()">Ver histórico</button>
           </div>
         </div>
       </div>
@@ -3648,6 +3648,11 @@ async function mostrarApp(user) {
   document.getElementById('topbar-busca-btn').style.display = ['admin', 'super_admin'].includes(data.role) ? 'flex' : 'none'
   document.getElementById('sino-wrap').style.display = data.role === 'avulso' ? 'none' : 'block'
   if (data.role !== 'avulso') iniciarSinoNotificacoes()
+  // "Ver histórico" só existe pra Auditoria (aba exclusiva do admin) —
+  // pros outros papéis o clique não levava a lugar nenhum (dava a
+  // impressão de botão quebrado); melhor nem mostrar.
+  const btnVerHistorico = document.getElementById('sino-ver-historico')
+  if (btnVerHistorico) btnVerHistorico.style.display = ['admin', 'super_admin'].includes(data.role) ? '' : 'none'
   const tabEquipe = document.querySelector('#view-escola .tab[data-tab="equipe"]')
   if (tabEquipe) tabEquipe.style.display = ['proprietario', 'diretor'].includes(data.role) ? 'flex' : 'none'
   // Gold Reserve (Bloco 16): dado financeiro sensível, só super_admin —
@@ -4090,12 +4095,14 @@ async function iniciarSinoNotificacoes() {
     let itensPosts = [], itensFotos = []
     try {
       const { data, error } = await db.from('posts').select('*').order('criado_em', { ascending: false }).limit(8)
-      if (!error) itensPosts = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` }))
-    } catch (e) { /* best-effort */ }
+      if (error) console.error('sino: falha ao buscar posts', error)
+      else itensPosts = (data || []).map(p => ({ texto: 'Novo post: ' + (p.texto ? (p.texto.length > 60 ? p.texto.slice(0, 60) + '…' : p.texto) : '(mídia)'), sub: (p.autor_nome || '—') + ' · ' + fmtDataHora(p.criado_em), quando: p.criado_em, onClick: role === 'responsavel' ? `setRespTab('comunidade');iniciarComunidadeResponsavel()` : `setEscolaTab('comunidade');iniciarComunidadeEscola()` }))
+    } catch (e) { console.error('sino: erro ao buscar posts', e) }
     try {
       const { data, error } = await db.from('fotos').select('id, criado_em, eventos(nome)').order('criado_em', { ascending: false }).limit(8)
-      if (!error) itensFotos = (data || []).map(f => ({ texto: 'Fotos novas em ' + (f.eventos?.nome || 'um álbum'), sub: fmtDataHora(f.criado_em), quando: f.criado_em, onClick: onClickGaleria }))
-    } catch (e) { /* best-effort */ }
+      if (error) console.error('sino: falha ao buscar fotos', error)
+      else itensFotos = (data || []).map(f => ({ texto: 'Fotos novas em ' + (f.eventos?.nome || 'um álbum'), sub: fmtDataHora(f.criado_em), quando: f.criado_em, onClick: onClickGaleria }))
+    } catch (e) { console.error('sino: erro ao buscar fotos', e) }
     itens = [...itensPosts, ...itensFotos].sort((a, b) => (b.quando || '').localeCompare(a.quando || '')).slice(0, 15)
   }
   itens = _notifAgrupar(itens)
@@ -4110,7 +4117,7 @@ async function iniciarSinoNotificacoes() {
         <span class="sino-item-txt">${esc(i.texto)}<small>${esc(i.sub)}</small></span>
         ${i.quando > lidasAte ? '<span class="sino-item-dot"></span>' : ''}
       </li>`).join('')
-    : '<li class="empty" style="border:0;">Nada por aqui ainda.</li>'
+    : '<li class="empty" style="border:0;color:#DBC9A8;">Nenhuma notificação por enquanto.</li>'
   window._notifItensAtuais = itens
 }
 function _notifClicar(idx) {
