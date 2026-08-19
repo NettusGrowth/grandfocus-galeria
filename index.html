@@ -9904,6 +9904,14 @@ async function _dlProcessarProximoLote() {
       { podeFechar: true }
     )
     status = await _compartilharArquivos(arquivosDoLote, fila.nomeBase)
+    // Web Share é tudo-ou-nada (não dá pra saber QUAL arquivo do lote
+    // falhou) — quando dá erro de verdade (não cancelamento
+    // proposital), guarda o lote inteiro pra oferecer no fim um jeito
+    // garantido de salvar foto por foto (ver _dlBaixarFalhasUmAUma):
+    // cada toque nesse modo é um gesto novo de verdade, então sempre
+    // funciona, mesmo se o lote em grupo falhar de novo por algum
+    // motivo de rede/aparelho que o pré-fetch não cobriu.
+    if (status === 'erro') { fila.itensFalhos = fila.itensFalhos || []; fila.itensFalhos.push(...alvo) }
     if (status !== 'ok') falhasLote += arquivosDoLote.length
   }
 
@@ -9936,13 +9944,35 @@ async function _dlProcessarProximoLote() {
     }
   } else {
     const totalFalhas = fila.falhasAcumuladas
+    const itensFalhos = fila.itensFalhos || []
     _dlProgressMostrar(
       totalFalhas ? `Concluído — ${totalFalhas} de ${fila.itens.length} não salvaram` : 'Todas as fotos foram salvas ✓',
       resumoLote,
-      { parado: true, podeFechar: true }
+      {
+        parado: true, podeFechar: true,
+        acaoHtml: itensFalhos.length
+          ? `<button class="btn btn-primary btn-sm" onclick="_dlBaixarFalhasUmAUma()">Salvar as ${itensFalhos.length} que falharam, 1 por 1</button>`
+          : null,
+      }
     )
+    _dlItensFalhosPendentes = itensFalhos
     _dlFilaPendente = null
   }
+}
+// último recurso, garantido: quando o lote em grupo falha de verdade
+// (não cancelamento), mostra cada foto que não salvou como um botão
+// separado — cada toque nesse botão é um gesto de usuário 100% novo
+// (sem nenhum await entre o toque e o navigator.share/abrir aba), a
+// mesma situação de baixar 1 foto do lightbox (que já funciona) — não
+// tem cenário de rede/aparelho onde isso não funcione, é o "sempre
+// funciona" por trás de todo o resto ser só otimização de conveniência.
+let _dlItensFalhosPendentes = []
+function _dlBaixarFalhasUmAUma() {
+  const acao = document.getElementById('dl-progress-acao')
+  if (!acao) return
+  acao.innerHTML = _dlItensFalhosPendentes.map((it, i) =>
+    `<button class="btn btn-sm" style="width:100%;margin-bottom:6px;" onclick="_baixarUrl('${esc(it.url)}','${esc(it.nome)}');this.disabled=true;this.textContent='Salvando…'">📷 ${esc(it.nome)}</button>`
+  ).join('')
 }
 async function _lightboxBaixar() {
   const publico = document.getElementById('lightbox').dataset.modo === 'publico'
