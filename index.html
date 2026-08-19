@@ -1183,7 +1183,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 }
 @keyframes gf-shine{to{background-position:-200% 0;}}
 @media(prefers-reduced-motion:reduce){.foto-item img:not([src]),.foto-item img[src=""]{animation:none;}}
-.foto-item img,.lightbox-img-wrap img,.post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
+/* Comunidade e Seleção pública (prévia paga, antes do cliente
+   comprar) mantêm o toque-e-segure bloqueado — ainda são prévias que
+   fazem sentido proteger. Já a galeria autenticada (foto-item/
+   lightbox) é do próprio dono da conta: sem razão nenhuma pra
+   bloquear o menu nativo "Salvar Imagem" do iOS/Android nela — ver
+   goal de long-press. */
+.post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
+.foto-item img,.lightbox-img-wrap img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;}
 .foto-item .ck{
   position:absolute;top:8px;left:8px;width:32px;height:32px;border-radius:7px;background:rgba(26,10,14,.75);
   border:1.5px solid rgba(200,175,127,.6);display:grid;place-items:center;font-size:16px;color:var(--ouro-luz);
@@ -9869,60 +9876,147 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
 }
 
 // ══════════════════════════════════════════════════════════════
-// GALERIA AUTENTICADA (proprietário/professor/responsável/admin) —
-// reescrita completa da causa raiz real, não um ajuste de timing.
+// GALERIA AUTENTICADA (proprietário/professor/responsável/admin).
 //
-// Evidência real que derrubou a hipótese anterior (pré-fetch/cache de
-// blob): mesmo com o link E os bytes já prontos em cache antes do
-// toque, o download continuava falhando no iPhone ("2 de 2 não
-// salvaram") — e, quando falhava, o fallback abria a foto crua numa
-// aba do Supabase em vez de salvar. Ou seja, o problema nunca foi só
-// "tempo até chamar navigator.share()" — é o navigator.share() (+ os
-// Blob/File de fotos em alta resolução de câmera profissional, várias
-// dezenas de MB cada) em si sendo instável no WebKit do iOS, correndo
-// risco real de estourar memória do processo da aba com mais de uma
-// foto grande carregada em JS ao mesmo tempo.
+// Round 1 desta correção tinha trocado Web Share por link direto com
+// Content-Disposition:attachment (<a download>), pra parar de carregar
+// bytes de foto em memória JS. Só que no iOS Safari isso trocou um
+// problema por outro, pior: disparar vários <a download> em sequência
+// (mesmo com pausa entre eles) faz o Safari empilhar vários avisos
+// "Fazendo o download..." ao mesmo tempo e manda tudo pro app
+// Arquivos/iCloud Drive — nunca pro app Fotos, que é onde o cliente
+// espera achar a foto. Evidência real (prints do usuário): downloads
+// simultâneos sobrepostos e arquivo salvo em "Arquivos", não na
+// galeria do iPhone.
 //
-// Correção de verdade: PARAR de carregar bytes de foto em memória JS
-// pra baixar. O Supabase Storage aceita pedir a URL assinada já com
-// `Content-Disposition: attachment` (parâmetro `download` de
-// createSignedUrl) — o PRÓPRIO NAVEGADOR processa o download direto
-// da rede pro disco, sem nunca passar pelo heap do JavaScript. Isso
-// elimina de uma vez: o limite de memória do WebKit (não existe Blob
-// pra estourar RAM), a "ativação de toque" do Web Share (não é Web
-// Share, é só um link comum), e o link cru abrindo na tela sem baixar
-// (o header força download em vez de exibir). Funciona igual em
-// iOS/Android/Desktop — não precisa mais de nenhuma bifurcação por
-// plataforma pra essa galeria. Sequencial, 1 arquivo por vez, com uma
-// pausa curta entre cada uma (Chrome/Safari desktop tratam vários
-// downloads disparados rápido demais como pop-up e bloqueiam).
+// Correção de verdade agora: iOS tocável volta a usar Web Share (é o
+// ÚNICO caminho do WebKit que abre a caixa "Salvar Imagens" indo
+// direto pro app Fotos) — mas em MICRO-LOTES guiados de no máximo 4
+// fotos, nunca soltos de uma vez. Cada lote: busca só os bytes DESSE
+// lote (nunca do álbum inteiro — é isso que evita estourar RAM),
+// espera um toque novo do usuário no botão "Salvar" (Safari exige
+// gesto novo pra aceitar share() de forma confiável — chamar sozinho
+// entre lotes, sem esperar o toque, era exatamente o que falhava antes
+// de mudar pra Content-Disposition), e revoga os File/Blob do lote
+// assim que a caixa nativa fecha, antes de preparar o próximo.
+// Desktop/Android tocável não têm nenhum desses dois problemas (já
+// testado funcionando neste projeto) — mantêm o link direto sequencial
+// simples, sem Web Share nem lotes.
+const _DL_LOTE_IOS = 4
+let _dlFilaIOS = null // {paths, nomeBase, indice, totalLotes, falhasTotal, arquivosProntos}
+
 async function _baixarFotosPrivadoNativo(paths, nomeBase) {
   if (!paths.length) return
-  let falhas = 0
-  for (let i = 0; i < paths.length; i++) {
-    _dlProgressMostrar(`Baixando ${i + 1} de ${paths.length}…`, '', { progresso: { atual: i, total: paths.length } })
-    const nome = paths[i].split('/').pop() || 'foto.jpg'
-    let signedUrl = null
-    try {
-      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(paths[i], 120, { download: nome })
-      if (error) throw error
-      signedUrl = data?.signedUrl || null
-    } catch (e) { console.error('_baixarFotosPrivadoNativo: falha ao gerar link', paths[i], e) }
-    if (!signedUrl) { falhas++; continue }
-    const a = document.createElement('a')
-    a.href = signedUrl
-    a.download = nome
-    document.body.appendChild(a)
-    a.click()
-    a.remove()
-    await new Promise(r => setTimeout(r, 400))
+  if (!_precisaWebShare()) {
+    let falhas = 0
+    for (let i = 0; i < paths.length; i++) {
+      _dlProgressMostrar(`Baixando ${i + 1} de ${paths.length}…`, '', { progresso: { atual: i, total: paths.length } })
+      const nome = paths[i].split('/').pop() || 'foto.jpg'
+      let signedUrl = null
+      try {
+        const { data, error } = await db.storage.from(BUCKET).createSignedUrl(paths[i], 120, { download: nome })
+        if (error) throw error
+        signedUrl = data?.signedUrl || null
+      } catch (e) { console.error('_baixarFotosPrivadoNativo: falha ao gerar link', paths[i], e) }
+      if (!signedUrl) { falhas++; continue }
+      const a = document.createElement('a')
+      a.href = signedUrl
+      a.download = nome
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      await new Promise(r => setTimeout(r, 400))
+    }
+    _dlProgressMostrar(
+      falhas ? `Concluído — ${falhas} de ${paths.length} não salvaram` : (paths.length > 1 ? 'Todas as fotos foram salvas ✓' : 'Download concluído ✓'),
+      falhas ? 'Verifique sua conexão e toque em "Baixar" de novo.' : '',
+      { parado: true, progresso: { atual: paths.length, total: paths.length } }
+    )
+    if (nomeBase) registrarAuditoria('baixou fotos', 'fotos', null, `${paths.length} foto(s) — ${nomeBase}`)
+    return
   }
+  _dlFilaIOS = { paths, nomeBase, indice: 0, totalLotes: Math.ceil(paths.length / _DL_LOTE_IOS), falhasTotal: 0, arquivosProntos: null }
+  await _dlPrepararLoteIOS()
+}
+
+// busca só os bytes do lote atual (máx 4 fotos) e para, esperando o
+// usuário tocar em "Salvar" — nunca chama navigator.share() sozinho
+// aqui, pra não gastar o gesto de toque que abriu o download inteiro.
+async function _dlPrepararLoteIOS() {
+  const fila = _dlFilaIOS
+  if (!fila) return
+  const inicio = fila.indice * _DL_LOTE_IOS
+  const alvo = fila.paths.slice(inicio, inicio + _DL_LOTE_IOS)
+  const prefixo = fila.totalLotes > 1 ? `Parte ${fila.indice + 1} de ${fila.totalLotes} — ` : ''
+  _dlProgressMostrar(`${prefixo}Preparando ${alvo.length} foto(s)…`, 'Buscando os arquivos…', { progresso: { atual: inicio, total: fila.paths.length } })
+
+  const arquivos = []
+  for (const path of alvo) {
+    try {
+      const nome = path.split('/').pop() || 'foto.jpg'
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 120)
+      if (error || !data?.signedUrl) throw error || new Error('sem link assinado')
+      const resp = await fetch(data.signedUrl)
+      if (!resp.ok) throw new Error('HTTP ' + resp.status)
+      const blob = await resp.blob()
+      arquivos.push(new File([blob], nome, { type: blob.type || 'image/jpeg' }))
+    } catch (e) {
+      console.error('_dlPrepararLoteIOS: falha ao preparar', path, e)
+      fila.falhasTotal++
+    }
+  }
+
+  if (!arquivos.length) {
+    // lote inteiro falhou na preparação — ninguém tocou em "Salvar"
+    // ainda, então não gastou gesto nenhum: pode seguir pro próximo
+    // lote sozinho, sem esperar o usuário.
+    fila.indice++
+    if (fila.indice < fila.totalLotes) { await _dlPrepararLoteIOS(); return }
+    _dlFinalizarLoteIOS(fila)
+    return
+  }
+  fila.arquivosProntos = arquivos
+  _dlProgressMostrar(`${prefixo}${arquivos.length} foto(s) prontas`, 'Toque em "Salvar" pra abrir a caixa do iPhone.', {
+    progresso: { atual: inicio, total: fila.paths.length },
+    acaoHtml: `<button class="btn" onclick="_dlSalvarLoteIOS()">Salvar ${arquivos.length} foto(s)${fila.totalLotes > 1 ? ' — parte ' + (fila.indice + 1) + '/' + fila.totalLotes : ''}</button>`,
+  })
+}
+
+// chamado pelo clique do botão "Salvar" — dispara navigator.share()
+// já no mesmo gesto de toque do clique (_compartilharArquivos chama
+// share() antes de qualquer await), depois libera a RAM do lote na
+// hora (File não precisa de revokeObjectURL — não passa por
+// createObjectURL nesse fluxo — só solta a referência mesmo).
+async function _dlSalvarLoteIOS() {
+  const fila = _dlFilaIOS
+  if (!fila || !fila.arquivosProntos) return
+  const arquivos = fila.arquivosProntos
+  fila.arquivosProntos = null
+  _dlProgressMostrar('Abra a caixa que apareceu', 'Toque em "Salvar Imagens" pra confirmar.', { progresso: { atual: fila.indice * _DL_LOTE_IOS, total: fila.paths.length } })
+  const status = await _compartilharArquivos(arquivos, fila.nomeBase)
+  if (status !== 'ok') fila.falhasTotal += arquivos.length
+  arquivos.length = 0 // solta a referência dos File/Blob do lote antes do próximo — libera RAM já
+
+  fila.indice++
+  if (fila.indice < fila.totalLotes) {
+    _dlProgressMostrar(`Parte ${fila.indice} de ${fila.totalLotes} concluída`, 'Toque pra preparar a próxima parte.', {
+      progresso: { atual: fila.indice * _DL_LOTE_IOS, total: fila.paths.length },
+      parado: true,
+      acaoHtml: `<button class="btn" onclick="_dlPrepararLoteIOS()">Baixar parte ${fila.indice + 1} de ${fila.totalLotes}</button>`,
+    })
+    return
+  }
+  _dlFinalizarLoteIOS(fila)
+}
+
+function _dlFinalizarLoteIOS(fila) {
   _dlProgressMostrar(
-    falhas ? `Concluído — ${falhas} de ${paths.length} não salvaram` : (paths.length > 1 ? 'Todas as fotos foram salvas ✓' : 'Download concluído ✓'),
-    falhas ? 'Verifique sua conexão e toque em "Baixar" de novo.' : '',
-    { parado: true, progresso: { atual: paths.length, total: paths.length } }
+    fila.falhasTotal ? `Concluído — ${fila.falhasTotal} de ${fila.paths.length} não salvaram` : 'Todas as fotos foram salvas ✓',
+    fila.falhasTotal ? 'Toque em "Baixar" de novo pra tentar as que faltaram.' : '',
+    { parado: true, progresso: { atual: fila.paths.length, total: fila.paths.length } }
   )
-  if (nomeBase) registrarAuditoria('baixou fotos', 'fotos', null, `${paths.length} foto(s) — ${nomeBase}`)
+  if (fila.nomeBase) registrarAuditoria('baixou fotos', 'fotos', null, `${fila.paths.length} foto(s) — ${fila.nomeBase}`)
+  _dlFilaIOS = null
 }
 
 async function _lightboxBaixar() {
@@ -10008,12 +10102,17 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') _selPubLightboxNav(-1)
 })
 
-// bloqueia o menu de botão direito nas prévias de foto — é só um
-// obstáculo pequeno (print de tela ou dev tools contornam fácil), a
-// proteção de verdade é a RLS: sem vínculo, a foto nem chega a ser
-// pedida ao servidor.
+// bloqueia o menu de botão direito só nas prévias públicas/pagas
+// (Comunidade, Seleção antes de comprar) — é só um obstáculo pequeno
+// (print de tela ou dev tools contornam fácil), a proteção de verdade
+// é a RLS: sem vínculo, a foto nem chega a ser pedida ao servidor.
+// A galeria autenticada (foto-item/lightbox) foi tirada dessa lista de
+// propósito: é o dono da própria conta olhando a própria foto, e no
+// iOS o "botão direito" (contextmenu) é o mesmo evento do toque-e-
+// segure — bloqueando ele aqui também travava o menu nativo "Salvar
+// Imagem" que o usuário pediu pra funcionar.
 document.addEventListener('contextmenu', e => {
-  if (e.target.closest('.foto-item, .lightbox-img-wrap, .post-imagem, .selpub-card')) e.preventDefault()
+  if (e.target.closest('.post-imagem, .selpub-card')) e.preventDefault()
 })
 
 // ══════════════════════════════════════════════════════════════
