@@ -9438,9 +9438,15 @@ function _invalidarImgCache(path) {
 // bem na hora do layout/paint, e é exatamente isso que trava o scroll
 // quando tem muita foto pesada. Efeito colateral zero: suportado em
 // todo navegador relevante, só muda QUANDO o decode acontece.
+// SEMPRE nasce com data-path, mesmo quando já tem blob em cache
+// (src preenchido pra pintura instantânea) — precisa passar por
+// _hidratarImgCache de qualquer jeito pra trocar o blob: pela URL
+// assinada de verdade no fim (ver _hidratarPathImg), senão uma foto
+// já vista antes nessa sessão (cache quente) nunca sai do blob: e o
+// toque-e-segure fica quebrado só nela.
 function _imgTagCache(path, attrs = '') {
   const cache = _imgCache(path)
-  return cache ? `<img src="${cache}" decoding="async" ${attrs}>` : `<img data-path="${esc(path)}" decoding="async" ${attrs}>`
+  return `<img${cache ? ` src="${cache}"` : ''} data-path="${esc(path)}" decoding="async" ${attrs}>`
 }
 
 // roda depois de jogar HTML com _imgTagCache() no DOM — hidrata só os
@@ -9458,11 +9464,25 @@ function _imgTagCache(path, attrs = '') {
 // chamada usa um observer PRÓPRIO, que se desliga sozinho assim que
 // termina de hidratar o que observava — não fica um observer global
 // vivo acumulando referência de tela em tela.
+// pinta a miniatura com o blob (rápido, zero-flash) e DEPOIS troca
+// pra URL assinada de verdade (https://…) — mesma causa raiz do
+// lightbox (ver renderLightboxAtual): <img src="blob:…"> nunca abre
+// "Salvar Imagem" no toque-e-segure do iOS, só um recurso de rede de
+// verdade abre. _urlAssinada já é cacheada (300s) e em lote, então
+// isso não vira uma chamada de rede a mais por foto — quase sempre
+// resolve do mesmo cache que _carregarImgCache já esquentou por
+// dentro (exceto quando a foto veio do cache em DISCO, que pula
+// _urlAssinada de propósito pra não gastar rede à toa — por isso o
+// pedido aqui é sempre feito, não só quando falta o blob).
+function _hidratarPathImg(img, path) {
+  _carregarImgCache(path).then(url => { if (url) img.src = url })
+  _urlAssinada(path).then(urlReal => { if (urlReal) img.src = urlReal })
+}
 function _hidratarImgCache(escopo) {
   const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
   if (!imgs.length) return
   if (!('IntersectionObserver' in window)) {
-    imgs.forEach(img => { _carregarImgCache(img.dataset.path).then(url => { if (url) img.src = url }); img.removeAttribute('data-path') })
+    imgs.forEach(img => { _hidratarPathImg(img, img.dataset.path); img.removeAttribute('data-path') })
     return
   }
   let restantes = imgs.length
@@ -9478,7 +9498,7 @@ function _hidratarImgCache(escopo) {
       // crescendo aos poucos, ver _renderGridFotosPaginado) reobservaria
       // as imagens já tratadas de novo, uma pra cada lote novo.
       img.removeAttribute('data-path')
-      if (path) _carregarImgCache(path).then(url => { if (url) img.src = url })
+      if (path) _hidratarPathImg(img, path)
       if (restantes <= 0) obs.disconnect()
     })
   }, { rootMargin: '600px 0px' })
