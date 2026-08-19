@@ -9769,13 +9769,35 @@ async function _baixarUrl(url, nomeArquivo) {
 // pelo mobile de _baixarFotosEmMassa, e por _dlProcessarProximoLote
 // (que continua a fila depois de um toque novo do usuário, então
 // precisa estar em escopo de módulo, não preso dentro de outra função).
+// cache dos BYTES já baixados (não só do link assinado, ver
+// _cacheUrlAssinada) — chave é o storage_path, não a URL (a URL muda
+// a cada link assinado novo). Achado real com relato do usuário: no
+// iPhone, a galeria PRIVADA (fotos em alta, precisa gerar link antes)
+// falhava sempre na primeira tentativa e funcionava na hora numa
+// segunda tentativa logo em seguida — sinal claro de que o tempo
+// gasto BUSCANDO OS BYTES da foto (não só o link) também consome a
+// janela de ativação do toque no iOS. Guardar o arquivo já baixado
+// (ver _galPrefetchUrl, que popula isso no momento da SELEÇÃO, bem
+// antes do toque em "Baixar") deixa o toque de verdade praticamente
+// instantâneo quando o cache já está quente. Tamanho limitado (10 —
+// mesmo tamanho de um lote) pra não estourar memória de aparelho
+// fraco com fotos em alta resolução.
+const _cacheBlobFoto = new Map()
+function _cacheBlobGuardar(path, arquivo) {
+  if (_cacheBlobFoto.has(path)) _cacheBlobFoto.delete(path) // reinsere no fim (mais recente)
+  _cacheBlobFoto.set(path, arquivo)
+  while (_cacheBlobFoto.size > 10) _cacheBlobFoto.delete(_cacheBlobFoto.keys().next().value)
+}
 async function _baixarFotoComRetentativa(it) {
+  if (it.path && _cacheBlobFoto.has(it.path)) return _cacheBlobFoto.get(it.path)
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     try {
       const resp = await fetch(it.url)
       if (!resp.ok) throw new Error('HTTP ' + resp.status)
       const blob = await resp.blob()
-      return new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
+      const arquivo = new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
+      if (it.path) _cacheBlobGuardar(it.path, arquivo)
+      return arquivo
     } catch (e) {
       if (tentativa === 2) return null
       await new Promise(r => setTimeout(r, 400))
@@ -9902,6 +9924,16 @@ async function _dlProcessarProximoLote() {
         acaoHtml: `<button class="btn btn-primary btn-sm" onclick="_dlProcessarProximoLote()">Baixar as próximas ${proximo} fotos</button>`,
       }
     )
+    // pré-busca (via cache de path, quando existe) os bytes do
+    // PRÓXIMO lote já agora, enquanto o banner espera o toque no
+    // botão — o tempo que a pessoa leva pra ler e decidir tocar é de
+    // graça pra esquentar o cache, então quando o toque de verdade
+    // acontecer o navigator.share() já sai quase instantâneo.
+    if (fila.itens[fila.indice]?.path) {
+      fila.itens.slice(fila.indice, fila.indice + LIMITE_SHARE).forEach(it => {
+        if (!_cacheBlobFoto.has(it.path)) _baixarFotoComRetentativa(it)
+      })
+    }
   } else {
     const totalFalhas = fila.falhasAcumuladas
     _dlProgressMostrar(
@@ -11625,7 +11657,11 @@ async function excluirFotosEmMassa(fotoIds, aposApagar) {
 async function baixarComoZip(paths, nomeArquivo) {
   if (!paths.length) return
   const urls = await Promise.all(paths.map(p => _urlAssinada(p)))
-  const itens = paths.map((path, i) => ({ url: urls[i], nome: path.split('/').pop() })).filter(it => it.url)
+  // path vai junto pra _baixarFotoComRetentativa poder achar um blob
+  // já pré-buscado em _cacheBlobFoto (ver _galPrefetchUrl) — na
+  // galeria PRIVADA (essa função) é onde o pré-fetch faz diferença de
+  // verdade; a pública já usa outro caminho, com a foto leve já pronta.
+  const itens = paths.map((path, i) => ({ url: urls[i], nome: path.split('/').pop(), path })).filter(it => it.url)
   await _baixarFotosEmMassa(itens, (nomeArquivo || 'fotos').replace(/\.zip$/i, ''))
   registrarAuditoria('baixou fotos em massa', 'fotos', null, `${paths.length} foto(s) — ${nomeArquivo || ''}`)
 }
@@ -12379,8 +12415,39 @@ function _galFotoItemHTML(f) {
     </div>`
 }
 
+// BUG REAL confirmado com print do usuário: no iPhone, baixar da
+// galeria PÚBLICA (link já vem pronto no card) sempre funcionou —
+// baixar da galeria PRIVADA (autenticada, precisa gerar link assinado
+// na hora) falhava sempre, independente da quantidade. A diferença
+// entre as duas é exatamente esse passo a mais: _urlAssinada faz uma
+// viagem de rede pra Supabase Storage ANTES de sequer buscar os bytes
+// da foto — no iOS Safari, cada await entre o toque do usuário e o
+// navigator.share() consome a "ativação" do toque, e essa viagem
+// extra (que a galeria pública não tem) é o suficiente pra zerar essa
+// janela sempre, não só às vezes. Correção: já busca (e cacheia, ver
+// _urlAssinada) o link assinado no momento em que a foto é
+// SELECIONADA — bem antes do toque em "Baixar" — pra quando o toque
+// de verdade acontecer, o link já estar pronto e sobrar bem mais
+// tempo de ativação pra chamar o navigator.share().
+// pré-busca o LINK e os BYTES da foto assim que ela é selecionada
+// (ver _baixarFotoComRetentativa/_cacheBlobFoto acima) — silencioso
+// (sem toast, sem travar a seleção), best-effort: se falhar aqui, o
+// download de verdade tenta de novo do zero na hora do toque em
+// "Baixar", exatamente como já fazia antes desse pré-fetch existir.
+async function _galPrefetchUrl(fotoId) {
+  const f = store.fotos.find(x => x.id === fotoId)
+  if (!f?.storage_path) return
+  const url = await _urlAssinada(f.storage_path)
+  if (!url || _cacheBlobFoto.has(f.storage_path)) return
+  try {
+    const resp = await fetch(url)
+    if (!resp.ok) return
+    const blob = await resp.blob()
+    _cacheBlobGuardar(f.storage_path, new File([blob], f.storage_path.split('/').pop(), { type: blob.type || 'image/jpeg' }))
+  } catch (e) { /* best-effort — o download de verdade tenta de novo */ }
+}
 function _galToggleSelecao(fotoId) {
-  if (_galSelecao.has(fotoId)) _galSelecao.delete(fotoId); else _galSelecao.add(fotoId)
+  if (_galSelecao.has(fotoId)) { _galSelecao.delete(fotoId) } else { _galSelecao.add(fotoId); _galPrefetchUrl(fotoId) }
   const item = document.getElementById('gal-fg-' + fotoId)
   if (item) { item.classList.toggle('sel', _galSelecao.has(fotoId)); item.querySelector('.ck').textContent = _galSelecao.has(fotoId) ? '✓' : '' }
   const btnBaixar = document.getElementById('gal-btn-baixar')
@@ -12401,6 +12468,12 @@ function _galToggleSelecao(fotoId) {
 // _galSelecao no momento em que cada lote é criado.
 function _galSelecionarTodas() {
   _lightboxFotos.forEach(f => _galSelecao.add(f.id))
+  // só pré-busca as primeiras 10 (tamanho de 1 lote de verdade, ver
+  // _dlProcessarProximoLote) — sem esse limite, "Selecionar todas" num
+  // álbum de 29+ fotos em alta dispararia dezenas de fetches enormes
+  // em paralelo de uma vez (gasto de dados e memória à toa, já que o
+  // cache só guarda os 10 mais recentes mesmo).
+  _lightboxFotos.slice(0, 10).forEach(f => _galPrefetchUrl(f.id))
   _galAtualizarSelecaoUI()
 }
 function _galLimparSelecao() {
