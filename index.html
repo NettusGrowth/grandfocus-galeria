@@ -1190,7 +1190,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    bloquear o menu nativo "Salvar Imagem" do iOS/Android nela — ver
    goal de long-press. */
 .post-imagem,.selpub-card img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:none;}
-.foto-item img,.lightbox-img-wrap img{-webkit-user-select:none;user-select:none;-webkit-user-drag:none;user-drag:none;}
+.foto-item img,.lightbox-img-wrap img{-webkit-user-drag:none;user-drag:none;-webkit-touch-callout:default !important;-webkit-user-select:auto !important;user-select:auto !important;pointer-events:auto !important;}
 .foto-item .ck{
   position:absolute;top:8px;left:8px;width:32px;height:32px;border-radius:7px;background:rgba(26,10,14,.75);
   border:1.5px solid rgba(200,175,127,.6);display:grid;place-items:center;font-size:16px;color:var(--ouro-luz);
@@ -10216,8 +10216,20 @@ async function renderLightboxAtual() {
   // já tiver em cache, pinta na hora; senão, cai no mesmo carregamento
   // de antes (só na primeira vez que essa foto é vista).
   img.src = _imgCache(path) || ''
-  const url = await _carregarImgCache(path)
-  if (url) img.src = url
+  const blobUrl = await _carregarImgCache(path)
+  if (blobUrl) img.src = blobUrl
+  // troca pro recurso de rede de VERDADE (https://…) como último passo
+  // — causa raiz real do toque-e-segure não abrir "Salvar Imagem" no
+  // iOS (achado depois de já ter descartado CSS/overlay/listener,
+  // nenhum dos três bloqueia nada aqui): o WebKit não oferece o menu
+  // nativo de salvar em <img src="blob:…">, só em imagem carregada de
+  // um recurso de rede de verdade. blob: pinta rápido (acima) mas
+  // nunca habilita o menu; _urlAssinada() é a mesma URL assinada que a
+  // grade já pediu pouco antes (quase sempre resolve do cache em
+  // memória, sem round-trip novo) — é ELA que precisa ficar no <img>
+  // no final, não o blob.
+  const urlReal = await _urlAssinada(path)
+  if (urlReal) img.src = urlReal
   const evento = store.eventos.find(e => e.id === f.evento_id)
   document.getElementById('lightbox-caption').textContent =
     `${evento ? evento.nome : ''} — ${_lightboxIdx + 1} de ${_lightboxFotos.length}`
