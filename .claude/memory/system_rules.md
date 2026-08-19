@@ -71,15 +71,27 @@ trás, referenciado por commit.
 
 ---
 
-## Limitações reais do ambiente (não fingir que não existem)
+## Acesso ao banco (atualizado — 2026-08-19)
 
-- **Sem acesso de DDL/CLI ao Postgres deste projeto**: toda migration
-  em `supabase/sql/*.sql` precisa ser rodada manualmente pelo usuário
-  no SQL Editor do Supabase. Nenhuma sessão futura deve tentar
-  "conectar" ou assumir uma conexão de banco que não existe.
-- **Sem MCP de banco de dados conectado**: inspeção de schema/tabelas
-  é feita lendo os arquivos de migration já commitados em
-  `supabase/sql/`, não por introspecção ao vivo.
+- **A CLI do Supabase (`npx supabase`) está autenticada nesta
+  máquina** e enxerga os 2 projetos reais da conta (`NettusGrowth's
+  Project` e `GrandFocus`, ref `selnsjtumkxjrtnqofqx`). NÃO estava
+  linkada por padrão. `supabase link --project-ref ... --yes` não
+  pede senha do Postgres (usa o token de management API, não conexão
+  direta) — depois disso `supabase db query --linked -f arquivo.sql`
+  roda uma migration direto no banco de produção.
+- **Ainda assim, nunca rodar migration via CLI sem pedir autorização
+  explícita antes**, uma por uma — usuário foi claro ("cuidado pra
+  não estragar nada no meu painel") e só autorizou rodar as 2
+  migrations pendentes daquele momento (072+073), não deixou
+  autorização permanente pra rodar qualquer coisa futura sozinho.
+  Cada novo pedido de migration continua exigindo confirmação, mesmo
+  com o projeto já linkado.
+- `supabase/.temp/` (criado pelo `link`) fica de fora do commit —
+  cache local da CLI, não é do projeto.
+- Sem MCP de banco de dados dedicado conectado (não existe um
+  servidor MCP Supabase/Postgres neste ambiente) — o acesso real é
+  via CLI (`npx supabase db query`), não por um MCP.
 - **Playwright WebKit** é instalado sob demanda no scratchpad da
   sessão (`npm install --no-save playwright` + `npx playwright install
   webkit`), não faz parte das dependências do projeto em si
