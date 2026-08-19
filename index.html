@@ -1151,7 +1151,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .vinculo-item-avatar img{width:100%;height:100%;object-fit:cover;}
 
 .modal-overlay{
-  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center;padding:20px;
+  /* precisa ficar ACIMA do .lightbox (z-index:300) — modal de
+     Métricas da Foto/Apagar aberto por cima da foto ampliada
+     renderizava atrás do lightbox, então "abria" de verdade (RPC
+     rodava, dado carregava) mas ficava invisível/inclicável até
+     fechar a foto. 350 fica entre o lightbox e coisas que devem
+     continuar por cima de QUALQUER modal (toast z-index:999,
+     dl-progress z-index:1000, welcome-overlay z-index:400 — nunca
+     coexiste com modal, mas mantém a folga). */
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:350;align-items:center;justify-content:center;padding:20px;
 }
 .modal-overlay.show{display:flex;}
 .modal-overlay{backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
