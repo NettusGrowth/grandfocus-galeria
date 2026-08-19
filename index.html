@@ -11746,7 +11746,7 @@ let _galBreadcrumbPartes = []
 function _galBreadcrumb() {
   const partes = [{ label: 'Galeria', onclick: '_galIrRaiz()' }]
   if (_galRaiz === 'filhos') {
-    partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
+    if (store.alunos.length > 1) partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
       partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
@@ -11828,7 +11828,7 @@ function _galHeroMobileHTML() {
 // cabeçalho aparece por cima dela.
 function _galEhRaizDoPapel() {
   if (_galRaiz === null) return true
-  if (_galRaiz === 'filhos') return !_galAlunoId
+  if (_galRaiz === 'filhos') return !_galAlunoId || store.alunos.length === 1
   if (_galRaiz === 'escolas' && _galRole !== 'admin') return !_galAno && !_galAlbumId
   return false
 }
@@ -13841,7 +13841,12 @@ async function iniciarViewResponsavel() {
   // nada de parede única agrupada por evento, isso ficava impossível de
   // navegar com muitos eventos acumulados.
   _galRole = 'responsavel'
-  _galRaiz = 'filhos'; _galAlunoId = null; _galAno = null; _galAlbumId = null
+  // conta com só 1 aluno vinculado (caso do aluno avulso com login
+  // próprio, sem pai/responsável de verdade por trás — é ele mesmo
+  // gerenciando a própria galeria) pula a pasta "Filhos" e entra direto
+  // no aluno: com um só vinculado, aquele rótulo não faz sentido nenhum
+  // (e o breadcrumb abaixo também some com ele nesse caso).
+  _galRaiz = 'filhos'; _galAlunoId = meusFilhos.length === 1 ? meusFilhos[0].id : null; _galAno = null; _galAlbumId = null
   _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
   renderGaleriaAdmin()
 }
