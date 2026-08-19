@@ -3049,6 +3049,37 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: Métricas da Foto (exclusivo super_admin) — resumo com
+     pessoas únicas + abas "Quem Viu"/"Quem Baixou", acessível pelo
+     botão 📊 no lightbox de Álbuns e Eventos. -->
+<div class="modal-overlay" id="modal-metricas-foto" onclick="if(event.target===this)fecharModal('modal-metricas-foto')">
+  <div class="modal" style="max-width:480px;">
+    <h3 style="margin-bottom:2px;">📊 Métricas da Foto</h3>
+    <div class="meta" style="margin-bottom:14px;">Visível só pra super_admin.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">
+      <div style="border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:12px;">
+        <div style="font-size:12px;color:#B39F86;">👁️ Visualizações</div>
+        <div style="font-family:var(--serif);font-size:26px;color:var(--ouro-luz);" id="mf-total-views">—</div>
+        <div style="font-size:11.5px;color:#B39F86;"><span id="mf-unicos-views">0</span> pessoa(s) única(s)</div>
+      </div>
+      <div style="border:1px solid rgba(200,175,127,.3);border-radius:10px;padding:12px;">
+        <div style="font-size:12px;color:#B39F86;">⬇️ Downloads</div>
+        <div style="font-family:var(--serif);font-size:26px;color:var(--ouro-luz);" id="mf-total-downloads">—</div>
+        <div style="font-size:11.5px;color:#B39F86;"><span id="mf-unicos-downloads">0</span> pessoa(s) única(s)</div>
+      </div>
+    </div>
+    <div class="chip-row" style="margin-bottom:10px;">
+      <span class="chip on" id="mf-tab-visualizacao" onclick="_metricasFotoTrocarAba('visualizacao')">Quem Viu</span>
+      <span class="chip" id="mf-tab-download" onclick="_metricasFotoTrocarAba('download')">Quem Baixou</span>
+    </div>
+    <input type="text" id="metricas-foto-busca" placeholder="Buscar por nome…" oninput="_renderMetricasFotoLista()" style="margin-bottom:10px;">
+    <div id="metricas-foto-lista" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm btn-primary" onclick="fecharModal('modal-metricas-foto')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal: busca global (Ctrl+K, admin) -->
 <div class="modal-overlay" id="modal-busca" onclick="if(event.target===this)fecharModal('modal-busca')">
   <div class="modal command-palette" style="max-width:560px;padding:0;">
@@ -3266,6 +3297,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span id="lightbox-caption"></span>
     <button class="icon-btn" title="Compartilhar" onclick="_lightboxCompartilhar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg></button>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
+    <button class="icon-btn" title="Métricas da foto" id="lightbox-btn-metricas" style="display:none;" onclick="_abrirMetricasFotoAtual()">📊</button>
     <button class="icon-btn" title="Apagar" id="lightbox-btn-apagar" style="display:none;" onclick="_lightboxApagarAtual()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
 </div>
@@ -4633,6 +4665,83 @@ async function _dashAbrirDetalhePopularidade(fotoId) {
       <div style="display:flex;align-items:center;gap:10px;">
         <span class="list-avatar">${esc((d.nome || '?').trim().charAt(0).toUpperCase())}</span>
         <div class="nome-sub"><span class="nome">${esc(d.nome)}</span><br><span class="sub">${d.tipo === 'download' ? 'baixou' : 'visualizou'} ${d.qtd}x — última vez ${fmtDataHora(d.ultima_em)}</span></div>
+      </div>
+    </div>`).join('')
+}
+
+// ── Métricas da Foto (exclusivo super_admin) — botão 📊 no lightbox
+// de Álbuns e Eventos. Reaproveita o mesmo par de fontes da
+// popularidade existente (foto_visualizacoes/auditoria), só que com
+// pessoas ÚNICAS nos cards de resumo (foto_metricas_resumo, estrito a
+// super_admin) e perfil de cada pessoa na lista detalhada
+// (detalhe_popularidade_foto, mesmo RPC do Dashboard, agora com
+// coluna perfil a mais).
+let _metricasFotoId = null
+let _metricasFotoDados = []
+let _metricasFotoAba = 'visualizacao'
+async function _abrirMetricasFotoAtual() {
+  const f = _lightboxFotos[_lightboxIdx]
+  if (!f) return
+  await _abrirMetricasFoto(f.id)
+}
+async function _abrirMetricasFoto(fotoId) {
+  _metricasFotoId = fotoId
+  _metricasFotoAba = 'visualizacao'
+  document.getElementById('mf-tab-visualizacao').classList.add('on')
+  document.getElementById('mf-tab-download').classList.remove('on')
+  document.getElementById('metricas-foto-busca').value = ''
+  abrirModal('modal-metricas-foto')
+  document.getElementById('mf-total-views').textContent = '—'
+  document.getElementById('mf-total-downloads').textContent = '—'
+  document.getElementById('mf-unicos-views').textContent = '0'
+  document.getElementById('mf-unicos-downloads').textContent = '0'
+  document.getElementById('metricas-foto-lista').innerHTML = '<div class="empty" style="border:0;">Carregando…</div>'
+  const [resumo, detalhe] = await Promise.all([
+    db.rpc('foto_metricas_resumo', { p_foto_id: fotoId }),
+    db.rpc('detalhe_popularidade_foto', { p_foto_id: fotoId }),
+  ])
+  if (resumo.error) {
+    toast('Erro ao carregar resumo: ' + resumo.error.message)
+  } else if (resumo.data?.[0]) {
+    const r = resumo.data[0]
+    document.getElementById('mf-total-views').textContent = r.total_visualizacoes
+    document.getElementById('mf-unicos-views').textContent = r.pessoas_unicas_visualizacoes
+    document.getElementById('mf-total-downloads').textContent = r.total_downloads
+    document.getElementById('mf-unicos-downloads').textContent = r.pessoas_unicas_downloads
+  }
+  if (detalhe.error) {
+    document.getElementById('metricas-foto-lista').innerHTML = `<div class="empty" style="border:0;">Erro: ${esc(detalhe.error.message)}</div>`
+    return
+  }
+  _metricasFotoDados = detalhe.data || []
+  _renderMetricasFotoLista()
+}
+function _metricasFotoTrocarAba(tipo) {
+  _metricasFotoAba = tipo
+  document.getElementById('mf-tab-visualizacao').classList.toggle('on', tipo === 'visualizacao')
+  document.getElementById('mf-tab-download').classList.toggle('on', tipo === 'download')
+  _renderMetricasFotoLista()
+}
+function _renderMetricasFotoLista() {
+  const el = document.getElementById('metricas-foto-lista')
+  if (!el) return
+  const busca = (document.getElementById('metricas-foto-busca')?.value || '').toLowerCase().trim()
+  const linhas = _metricasFotoDados
+    .filter(d => d.tipo === _metricasFotoAba)
+    .filter(d => !busca || (d.nome || '').toLowerCase().includes(busca))
+  if (!linhas.length) {
+    el.innerHTML = `<div class="empty" style="border:0;">${_metricasFotoAba === 'download' ? 'Ninguém baixou essa foto ainda.' : 'Ninguém visualizou essa foto ainda.'}</div>`
+    return
+  }
+  el.innerHTML = linhas.map(d => `
+    <div class="list-item" style="cursor:default;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="list-avatar">${esc((d.nome || '?').trim().charAt(0).toUpperCase())}</span>
+        <div class="nome-sub">
+          <span class="nome">${esc(d.nome)}</span>
+          <span class="meta" style="margin-left:6px;">${esc(ROLE_LABEL[d.perfil] || d.perfil || '—')}</span><br>
+          <span class="sub">${d.qtd}x — última vez ${fmtDataHora(d.ultima_em)}</span>
+        </div>
       </div>
     </div>`).join('')
 }
@@ -9630,6 +9739,11 @@ function abrirLightbox(fotoId, aposApagar) {
   _lightboxAposApagar = aposApagar || null
   const btnApagar = document.getElementById('lightbox-btn-apagar')
   if (btnApagar) btnApagar.style.display = _lightboxAposApagar ? '' : 'none'
+  // "📊 Métricas da foto": só super_admin, só na galeria autenticada
+  // (Álbuns e Eventos) — regra de negócio explícita, não é pra
+  // admin comum nem pra galeria pública/seleção.
+  const btnMetricas = document.getElementById('lightbox-btn-metricas')
+  if (btnMetricas) btnMetricas.style.display = meuPerfil?.role === 'super_admin' ? '' : 'none'
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   _travarScrollFundo()
@@ -9903,12 +10017,38 @@ async function _baixarFotosEmMassa(itens, nomeBase) {
 // testado funcionando neste projeto) — mantêm o link direto sequencial
 // simples, sem Web Share nem lotes.
 const _DL_LOTE_IOS = 4
-let _dlFilaIOS = null // {paths, nomeBase, indice, totalLotes, falhasTotal, arquivosProntos}
+let _dlFilaIOS = null // {paths, nomeBase, indice, totalLotes, falhasTotal, arquivosProntos, pathsProntos, pathsSalvos}
+
+// grava, numa única chamada (1 payload, N linhas), quais fotos foram
+// de fato baixadas com sucesso — é o fix de raiz do "download em lote
+// não contava pra Métricas da Foto": antes só o download individual
+// pelo lightbox chamava registrarAuditoria, então zip/seleção
+// múltipla/micro-lotes iOS nunca apareciam em "quem baixou" nem no
+// contador de downloads. Mesma ação ('baixou foto') usada pelo
+// lightbox antes — mantém compatibilidade com o filtro
+// `ilike '%baixou foto%'` que fotos_mais_populares/
+// detalhe_popularidade_foto/foto_metricas_resumo já usam, então essas
+// telas passam a enxergar download em lote de graça, sem mudar SQL
+// nenhum. Best-effort (nunca trava o fluxo de download se falhar).
+async function _registrarDownloadsFotos(paths) {
+  if (!paths.length) return
+  const linhas = paths
+    .map(path => store.fotos.find(f => f.storage_path === path)?.id)
+    .filter(Boolean)
+    .map(fotoId => ({
+      user_id: currentUser?.id || null,
+      user_nome: meuPerfil?.nome || currentUser?.email || null,
+      acao: 'baixou foto', tabela: 'fotos', registro_id: fotoId, detalhe: null,
+    }))
+  if (!linhas.length) return
+  try { await db.from('auditoria').insert(linhas) } catch (e) { console.error('_registrarDownloadsFotos falhou', e) }
+}
 
 async function _baixarFotosPrivadoNativo(paths, nomeBase) {
   if (!paths.length) return
   if (!_precisaWebShare()) {
     let falhas = 0
+    const pathsOk = []
     for (let i = 0; i < paths.length; i++) {
       _dlProgressMostrar(`Baixando ${i + 1} de ${paths.length}…`, '', { progresso: { atual: i, total: paths.length } })
       const nome = paths[i].split('/').pop() || 'foto.jpg'
@@ -9925,6 +10065,7 @@ async function _baixarFotosPrivadoNativo(paths, nomeBase) {
       document.body.appendChild(a)
       a.click()
       a.remove()
+      pathsOk.push(paths[i])
       await new Promise(r => setTimeout(r, 400))
     }
     _dlProgressMostrar(
@@ -9933,9 +10074,10 @@ async function _baixarFotosPrivadoNativo(paths, nomeBase) {
       { parado: true, progresso: { atual: paths.length, total: paths.length } }
     )
     if (nomeBase) registrarAuditoria('baixou fotos', 'fotos', null, `${paths.length} foto(s) — ${nomeBase}`)
+    _registrarDownloadsFotos(pathsOk)
     return
   }
-  _dlFilaIOS = { paths, nomeBase, indice: 0, totalLotes: Math.ceil(paths.length / _DL_LOTE_IOS), falhasTotal: 0, arquivosProntos: null }
+  _dlFilaIOS = { paths, nomeBase, indice: 0, totalLotes: Math.ceil(paths.length / _DL_LOTE_IOS), falhasTotal: 0, arquivosProntos: null, pathsProntos: null, pathsSalvos: [] }
   await _dlPrepararLoteIOS()
 }
 
@@ -9951,6 +10093,7 @@ async function _dlPrepararLoteIOS() {
   _dlProgressMostrar(`${prefixo}Preparando ${alvo.length} foto(s)…`, 'Buscando os arquivos…', { progresso: { atual: inicio, total: fila.paths.length } })
 
   const arquivos = []
+  const pathsDosArquivos = [] // mesmo índice de arquivos — pra saber, depois do share() confirmar, EXATAMENTE quais fotos (paths) foram salvas de verdade
   for (const path of alvo) {
     try {
       const nome = path.split('/').pop() || 'foto.jpg'
@@ -9960,6 +10103,7 @@ async function _dlPrepararLoteIOS() {
       if (!resp.ok) throw new Error('HTTP ' + resp.status)
       const blob = await resp.blob()
       arquivos.push(new File([blob], nome, { type: blob.type || 'image/jpeg' }))
+      pathsDosArquivos.push(path)
     } catch (e) {
       console.error('_dlPrepararLoteIOS: falha ao preparar', path, e)
       fila.falhasTotal++
@@ -9976,6 +10120,7 @@ async function _dlPrepararLoteIOS() {
     return
   }
   fila.arquivosProntos = arquivos
+  fila.pathsProntos = pathsDosArquivos
   _dlProgressMostrar(`${prefixo}${arquivos.length} foto(s) prontas`, 'Toque em "Salvar" pra abrir a caixa do iPhone.', {
     progresso: { atual: inicio, total: fila.paths.length },
     acaoHtml: `<button class="btn" onclick="_dlSalvarLoteIOS()">Salvar ${arquivos.length} foto(s)${fila.totalLotes > 1 ? ' — parte ' + (fila.indice + 1) + '/' + fila.totalLotes : ''}</button>`,
@@ -9991,10 +10136,13 @@ async function _dlSalvarLoteIOS() {
   const fila = _dlFilaIOS
   if (!fila || !fila.arquivosProntos) return
   const arquivos = fila.arquivosProntos
+  const pathsDoLote = fila.pathsProntos || []
   fila.arquivosProntos = null
+  fila.pathsProntos = null
   _dlProgressMostrar('Abra a caixa que apareceu', 'Toque em "Salvar Imagens" pra confirmar.', { progresso: { atual: fila.indice * _DL_LOTE_IOS, total: fila.paths.length } })
   const status = await _compartilharArquivos(arquivos, fila.nomeBase)
-  if (status !== 'ok') fila.falhasTotal += arquivos.length
+  if (status === 'ok') fila.pathsSalvos.push(...pathsDoLote)
+  else fila.falhasTotal += arquivos.length
   arquivos.length = 0 // solta a referência dos File/Blob do lote antes do próximo — libera RAM já
 
   fila.indice++
@@ -10016,6 +10164,7 @@ function _dlFinalizarLoteIOS(fila) {
     { parado: true, progresso: { atual: fila.paths.length, total: fila.paths.length } }
   )
   if (fila.nomeBase) registrarAuditoria('baixou fotos', 'fotos', null, `${fila.paths.length} foto(s) — ${fila.nomeBase}`)
+  _registrarDownloadsFotos(fila.pathsSalvos)
   _dlFilaIOS = null
 }
 
@@ -10031,8 +10180,11 @@ async function _lightboxBaixar() {
   }
   const f = _lightboxFotos[_lightboxIdx]
   if (!f) return
+  // _baixarFotosPrivadoNativo já grava a auditoria por foto sozinha
+  // (_registrarDownloadsFotos) pra TODO download privado, sozinho ou
+  // em lote — chamar registrarAuditoria de novo aqui contaria essa
+  // MESMA foto 2x pra Métricas da Foto.
   await _baixarFotosPrivadoNativo([f.storage_path], null)
-  registrarAuditoria('baixou foto (lightbox)', 'fotos', f.id, '')
 }
 // sem compartilhar na galeria pública — lá a foto é sempre a versão
 // leve já com marca d'água, sem acesso direto ao storage privado pra
@@ -14094,6 +14246,11 @@ function _publicaAbrirLightbox(idx) {
   _renderPublicaLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   document.getElementById('lightbox').dataset.modo = 'publico'
+  // botão de Métricas é exclusivo da galeria autenticada (Álbuns e
+  // Eventos) — nunca aparece aqui, mesmo pra um super_admin navegando
+  // um link público.
+  const btnMetricas = document.getElementById('lightbox-btn-metricas')
+  if (btnMetricas) btnMetricas.style.display = 'none'
 }
 function _renderPublicaLightboxAtual() {
   const f = _publicaFotos[_lightboxIdx]
