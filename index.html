@@ -9026,7 +9026,16 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   }
   const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', eventoId)
   _eventoSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
-  _eventoSubpastasColapsadas = new Set()
+  // nasce tudo FECHADO (não expandido) — com dezenas de fotos por
+  // pasta, abrir um evento já jogava todas as pastas renderizadas de
+  // uma vez (cada uma paginando as próprias 60 primeiras fotos em
+  // paralelo), o que travava a tela inteira; e tinha que fechar pasta
+  // por pasta na mão toda vez. _todasSubpastasConhecidas() (não só
+  // _eventoSubpastasConhecidas) porque pega também subpasta que só
+  // existe pelo valor gravado nas fotos, sem linha própria em
+  // evento_subpastas. "Fotos soltas" (nome vazio) nunca entra aqui —
+  // o guard `nome &&` no render já garante que ela fica sempre aberta.
+  _eventoSubpastasColapsadas = new Set(_todasSubpastasConhecidas())
   renderFotosEventoAdmin()
 }
 function fecharEventoAdmin() {
@@ -13250,7 +13259,11 @@ async function abrirEnsaioAdmin(ensaioId) {
   }
   const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', ensaioId)
   _ensaioSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
-  _ensaioSubpastasColapsadas = new Set()
+  // mesmo motivo de abrirEventoAdmin: nasce tudo fechado, não
+  // expandido — evita travar a tela inteira com dezenas de fotos por
+  // pasta renderizando de uma vez, e evita ter que fechar pasta por
+  // pasta na mão.
+  _ensaioSubpastasColapsadas = new Set(_todasSubpastasConhecidasEnsaio())
   renderFotosEnsaioAdmin()
 }
 function fecharEnsaioAdmin() {
