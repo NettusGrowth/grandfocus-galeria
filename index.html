@@ -11854,7 +11854,7 @@ function _todasSubpastasConhecidas() {
 }
 
 async function _eventoApagarSelecionadas() {
-  await excluirFotosEmMassa([..._eventoFotoSelecao], () => { _eventoFotoSelecao = new Set(); renderFotosEventoAdmin() })
+  await excluirFotosEmMassa([..._eventoFotoSelecao], () => { _eventoFotoSelecao = new Set(); _atualizarToolbarEvento() }, renderFotosEventoAdmin)
 }
 
 async function toggleTagAluno(fotoId, alunoId, chipEl) {
@@ -11872,6 +11872,29 @@ async function toggleTagAluno(fotoId, alunoId, chipEl) {
   }
 }
 
+// remove só o(s) card(s) da(s) foto(s) apagada(s) da tela, sem
+// recriar a grade inteira — o re-render completo (aposApagar) chama
+// _renderGridFotosPaginado de novo, que SEMPRE recomeça a paginação
+// lazy-load do zero (só os primeiros 60), então num álbum grande o
+// scroll voltava pro topo a cada exclusão e era preciso rolar tudo de
+// nascer de novo pra achar onde tinha parado — exatamente a queixa
+// real ("reinicia pra o começo da página"). Cobre os 3 prefixos de id
+// usados pelas grades de foto (Evento/Ensaio/Galeria admin — a mesma
+// função também é chamada a partir do lightbox, que reaproveita o
+// aposApagar da grade de origem). Devolve false se não achou o nó de
+// alguma foto (grade com um id ainda não coberto aqui, ou item fora
+// do DOM por algum motivo) — quem chamou cai pro re-render completo
+// nesse caso, pra nunca deixar a tela desatualizada.
+function _removerFotoItensDOM(fotoIds) {
+  let todasAchadas = true
+  fotoIds.forEach(id => {
+    const el = document.getElementById('fitem-' + id) || document.getElementById('efitem-' + id) || document.getElementById('gal-fg-' + id)
+    if (el) el.remove()
+    else todasAchadas = false
+  })
+  return todasAchadas
+}
+
 // apaga a foto de vez (banco + arquivo) — só admin chega nesse botão,
 // mas a policy de "fotos" e do storage também travam por segurança.
 async function excluirFoto(fotoId, aposApagar) {
@@ -11885,7 +11908,7 @@ async function excluirFoto(fotoId, aposApagar) {
   store.fotoAluno = store.fotoAluno.filter(x => x.foto_id !== fotoId)
   toast('Foto apagada ✓')
   registrarAuditoria('apagou foto', 'fotos', fotoId, foto?.storage_path || '')
-  if (typeof aposApagar === 'function') aposApagar()
+  if (!_removerFotoItensDOM([fotoId]) && typeof aposApagar === 'function') aposApagar()
 }
 
 // separado do confirmModal pra quem já confirmou por outro caminho
@@ -11906,12 +11929,17 @@ async function _apagarFotosSemConfirmar(fotoIds) {
   return true
 }
 
-async function excluirFotosEmMassa(fotoIds, aposApagar) {
+// aposLimpar: callback LEVE, sempre chamado (limpar seleção + refresh
+// do toolbar) — nunca a grade inteira. renderCompleto: só entra como
+// fallback se _removerFotoItensDOM não achar o nó de alguma foto (ver
+// comentário lá em cima).
+async function excluirFotosEmMassa(fotoIds, aposLimpar, renderCompleto) {
   if (!fotoIds.length) return
   const ok = await confirmModal(`Apagar ${fotoIds.length} foto(s) permanentemente? Não dá pra desfazer.`, { titulo: 'Apagar fotos selecionadas', okLabel: 'Apagar', danger: true })
   if (!ok) return
   if (!await _apagarFotosSemConfirmar(fotoIds)) return
-  if (typeof aposApagar === 'function') aposApagar()
+  if (typeof aposLimpar === 'function') aposLimpar()
+  if (!_removerFotoItensDOM(fotoIds) && typeof renderCompleto === 'function') renderCompleto()
 }
 
 // baixa uma lista de storage_paths em massa — nome mantido por
@@ -12719,7 +12747,7 @@ function _galBaixarSelecionadas() {
   baixarComoZip([...store.fotos.filter(f => _galSelecao.has(f.id))].map(f => f.storage_path), 'fotos.zip')
 }
 function _galApagarSelecionadas() {
-  excluirFotosEmMassa([..._galSelecao], () => renderGaleriaAdmin())
+  excluirFotosEmMassa([..._galSelecao], () => _galLimparSelecao(), renderGaleriaAdmin)
 }
 // dock flutuante (mobile) — pílula fixa acima da bottom-nav, só
 // aparece com 1+ foto selecionada. Elemento único no shell da página
@@ -13593,7 +13621,7 @@ function _todasSubpastasConhecidasEnsaio() {
   return [...nomes].sort()
 }
 async function _ensaioApagarSelecionadas() {
-  await excluirFotosEmMassa([..._ensaioFotoSelecao], () => { _ensaioFotoSelecao = new Set(); renderFotosEnsaioAdmin() })
+  await excluirFotosEmMassa([..._ensaioFotoSelecao], () => { _ensaioFotoSelecao = new Set(); _atualizarToolbarEnsaio() }, renderFotosEnsaioAdmin)
 }
 
 async function toggleTagPessoa(fotoId, userId, chipEl) {
