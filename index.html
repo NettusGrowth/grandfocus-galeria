@@ -4231,7 +4231,7 @@ function _renderBuscaGlobal() {
     wrap.innerHTML = `
       <div class="cmdk-secao-titulo">Ações rápidas</div>
       <div class="cmdk-acoes-grid">${CMDK_ACOES_RAPIDAS.map(a => `<button class="cmdk-acao-rapida-btn" onclick="fecharModal('modal-busca');${a.onClick}">${esc(a.label)}</button>`).join('')}</div>
-      ${recentes.length ? `<div class="cmdk-secao-titulo">Buscas recentes</div>${recentes.map(t => `<div class="cmdk-item" onclick="document.getElementById('busca-input').value=${JSON.stringify(t)};_renderBuscaGlobal()"><span class="cmdk-avatar">🕘</span><div class="cmdk-txt"><div class="cmdk-nome">${esc(t)}</div></div></div>`).join('')}` : ''}
+      ${recentes.length ? `<div class="cmdk-secao-titulo">Buscas recentes</div>${recentes.map(t => `<div class="cmdk-item" onclick="document.getElementById('busca-input').value=${esc(JSON.stringify(t))};_renderBuscaGlobal()"><span class="cmdk-avatar">🕘</span><div class="cmdk-txt"><div class="cmdk-nome">${esc(t)}</div></div></div>`).join('')}` : ''}
     `
     return
   }
@@ -7428,7 +7428,7 @@ function abrirModalEscola(escolaId) {
   // mesma imagem da capa larga espremida num quadradinho, ficava
   // ilegível) — mesmo padrão de foto+capa do professor.
   const logoEl = document.getElementById('esc-logo-preview')
-  logoEl.innerHTML = `?<div class="trocar" onclick="document.getElementById('esc-logo-input').click()">Trocar logo</div><input type="file" id="esc-logo-input" accept="image/*" style="display:none;" onchange="_escolaLogoSelecionada(this)">`
+  logoEl.innerHTML = `<span class="letra-fallback">${esc((e?.nome || '?').trim().charAt(0).toUpperCase())}</span><div class="trocar" onclick="document.getElementById('esc-logo-input').click()">Trocar logo</div><input type="file" id="esc-logo-input" accept="image/*" style="display:none;" onchange="_escolaLogoSelecionada(this)">`
   if (e?.logo_url) _urlAssinada(e.logo_url).then(url => { if (url) { logoEl.querySelector('.letra-fallback')?.remove(); logoEl.insertAdjacentHTML('afterbegin', `<img src="${url}" alt="">`); _posAplicar('esc-logo-preview', e.logo_pos) } })
   else _posAplicar('esc-logo-preview', null)
 
@@ -9226,8 +9226,9 @@ function _renderFilaUpload(prefixo, files, estados) {
 // nenhum jeito de retomar de onde parou.
 let _evtUploadAtivo = false
 let _ensUploadAtivo = false
+let _selUploadAtivo = false
 window.addEventListener('beforeunload', e => {
-  if (_evtUploadAtivo || _ensUploadAtivo) { e.preventDefault(); e.returnValue = '' }
+  if (_evtUploadAtivo || _ensUploadAtivo || _selUploadAtivo) { e.preventDefault(); e.returnValue = '' }
 })
 
 async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
@@ -12436,7 +12437,7 @@ function _galSubpastasListHTML(eventoId) {
   const soltas = store.fotos.filter(f => f.evento_id === eventoId && !f.subpasta).length
   return `<div class="pasta-grid" style="margin-bottom:12px;">
     ${soltas ? `<div class="list-item pasta-item" onclick="_galSubpasta='__soltas__';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">${_galPastaCardHTML('Fotos soltas', soltas, _galCapaEvento(eventoId))}<div class="nome">Fotos soltas</div><div class="meta">${soltas} foto(s)</div></div>` : ''}
-    ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${JSON.stringify(s)};_galFiltroPessoaAlbum=null;renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
+    ${subs.map(s => `<div class="list-item pasta-item" onclick='_galSubpasta=${esc(JSON.stringify(s))};_galFiltroPessoaAlbum=null;renderGaleriaAdmin()'>${_galPastaCardHTML(s, contar(s), _galCapaSubpasta(eventoId, s))}<div class="nome">📁 ${esc(s)}</div><div class="meta">${contar(s)} foto(s)</div></div>`).join('')}
   </div>`
 }
 function renderGaleriaSubpastasDoAlbum(wrap) {
@@ -12474,7 +12475,7 @@ function renderGaleriaFotosDoAlbum(wrap) {
     <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${subpastaAtiva ? ' — ' + esc(subpastaAtiva) : _galSubpasta === '__soltas__' ? ' — Fotos soltas' : ''}</h2></div>
     ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
-      ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
+      ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${esc(JSON.stringify(p))};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
     </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
@@ -12655,7 +12656,7 @@ function renderGaleriaFotosDoAlbumDoAluno(wrap) {
     <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>
     ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
-      ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${JSON.stringify(p)};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
+      ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${esc(JSON.stringify(p))};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
     </div>` : ''}
     <div class="foto-toolbar">
       <span class="meta">${fotos.length} foto(s)</span>
@@ -14921,7 +14922,17 @@ function _renderSelecaoPedidoFotosGrid() {
 
 async function uploadFotosSelecao(files, bonus) {
   if (!files?.length || !_selecaoDetalheAtual) return
-  const galeriaId = _selecaoDetalheAtual.id
+  if (_selUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
+  _selUploadAtivo = true
+  try {
+  // captura a galeria (por referência, não só o id) no início — se o
+  // admin sair dessa galeria (ou voltar pra lista) no meio do envio,
+  // `_selecaoDetalheAtual` passa a apontar pra outro objeto (ou null);
+  // sem isso, o resto das fotos contava "ordem"/atualizava a capa da
+  // galeria ERRADA, ou tentava re-renderizar por cima de outra tela —
+  // mesma causa raiz já corrigida antes em uploadFotosEvento/Ensaio.
+  const galeria = _selecaoDetalheAtual
+  const galeriaId = galeria.id
   const estados = files.map(() => 'aguardando')
   _renderFilaUpload('sel', files, estados)
   let ok = 0
@@ -14944,10 +14955,10 @@ async function uploadFotosSelecao(files, bonus) {
       estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
     }
     const { data: fotoRow, error: insErr } = await db.from('selecao_fotos').insert({
-      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: _selecaoDetalheAtual.fotos.length, nome_original: file.name, bonus: !!bonus,
+      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: galeria.fotos.length, nome_original: file.name, bonus: !!bonus,
     }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
-    _selecaoDetalheAtual.fotos.push(fotoRow)
+    galeria.fotos.push(fotoRow)
     if (!primeiraCapaCandidata) primeiraCapaCandidata = levePath
     estados[i] = 'ok'; _renderFilaUpload('sel', files, estados)
     ok++
@@ -14959,11 +14970,17 @@ async function uploadFotosSelecao(files, bonus) {
   // primeira leva de fotos da galeria vira capa automaticamente — só
   // pra ter alguma prévia de cara; o admin pode trocar por qualquer
   // outra foto a qualquer momento (botão "Usar como capa" no grid).
-  if (ok && !_selecaoDetalheAtual.capa_url && primeiraCapaCandidata) {
+  if (ok && !galeria.capa_url && primeiraCapaCandidata) {
     const { error: capaErr } = await db.from('selecao_galerias').update({ capa_url: primeiraCapaCandidata }).eq('id', galeriaId)
-    if (!capaErr) _selecaoDetalheAtual.capa_url = primeiraCapaCandidata
+    if (!capaErr) galeria.capa_url = primeiraCapaCandidata
   }
-  _renderSelecaoFotosGrid()
+  // só redesenha a tela se o admin ainda estiver olhando pra ESSA
+  // galeria — se ele já saiu, `_selecaoDetalheAtual` é outro objeto
+  // (ou null) e desenhar por cima seria mostrar dado errado.
+  if (_selecaoDetalheAtual === galeria) _renderSelecaoFotosGrid()
+  } finally {
+    _selUploadAtivo = false
+  }
 }
 
 async function _definirCapaSelecao(fotoId) {
