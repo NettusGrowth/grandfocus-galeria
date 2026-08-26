@@ -14430,7 +14430,7 @@ function _publicaRenderGrid() {
     const lazy = i < 6 ? '' : 'loading="lazy"'
     const html = `
     <div class="selpub-card${_publicaSelecionados.has(f.id) ? ' on' : ''}" id="publica-card-${f.id}" onclick="_publicaToggle('${f.id}')">
-      <img src="${f.url}" ${lazy} alt="" onload="this.classList.add('gf-loaded')">
+      <img src="${f.url}" ${lazy} alt="" onload="this.classList.add('gf-loaded')" onerror="this.closest('.selpub-card').style.display='none'">
       <button class="selpub-zoom" onclick="event.stopPropagation();_publicaAbrirLightbox(${i})" title="Ampliar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
       <span class="check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><polyline points="20 6 9 17 4 12"/></svg></span>
     </div>`
