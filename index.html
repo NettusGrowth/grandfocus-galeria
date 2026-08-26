@@ -5044,11 +5044,25 @@ async function _dashRenderGanhosRecentes() {
   const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
 
   const acumulado = dados.reduce((s, g) => s + g.receitaTotal, 0)
+  // achado real (Luiz reportou: "este mês" sempre R$ 0,00 mesmo com
+  // eventos e cachê de sessão do próprio mês já no "acumulado") — só
+  // somava receitaExtras (fotos extras pagas pela Seleção de Fotos)
+  // por g.liberadoEm, e o cachê da sessão (precoSessao, a maior parte
+  // da receita de um estúdio de dança, contado no "acumulado" desde
+  // sempre) nunca tinha data nenhuma pra entrar em NENHUM mês do
+  // gráfico — não é só "este mês" que ficava sempre 0 pra sessão, é
+  // qualquer mês. Cachê de sessão conta na data do próprio evento
+  // (é quando a sessão aconteceu/foi cobrada); fotos extras continuam
+  // contando na data em que o pagamento foi liberado de verdade.
   const receitaPorMes = new Map()
+  const somaMes = (iso, valor) => {
+    const m = chaveMes(iso)
+    if (!m || !valor) return
+    receitaPorMes.set(m, (receitaPorMes.get(m) || 0) + valor)
+  }
   dados.forEach(g => {
-    const m = chaveMes(g.liberadoEm)
-    if (!m) return
-    receitaPorMes.set(m, (receitaPorMes.get(m) || 0) + g.receitaExtras)
+    somaMes(g.eventoData || g.criadoEmGaleria, g.precoSessao)
+    somaMes(g.liberadoEm, g.receitaExtras)
   })
   const esteMs = receitaPorMes.get(mesAtual) || 0
 
