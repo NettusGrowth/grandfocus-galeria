@@ -3639,12 +3639,23 @@ const _onRealtimeEventos = _debounce(async () => {
 // pelo tempo real, que não pode chutar quem está no meio de uma pasta
 // de volta pra raiz a cada foto nova que entra.
 async function _galAtualizarDados() {
-  const [{ data: eventos }, { data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
-    db.from('eventos').select('*, fotos(count)').order('data', { ascending: false }),
-    db.from('fotos').select('*'),
-    db.from('foto_aluno').select('*'),
-    db.from('foto_pessoa').select('*'),
-  ])
+  // chamado em background pelo tempo real (debounced) — uma falha de
+  // rede aqui não é culpa de nenhuma ação do usuário, então só loga
+  // (igual marcar_visualizacao_foto/_carregarAppConfig): sem o
+  // try/catch, essa Promise.all rejeitando travava a função inteira
+  // sem aviso nenhum, incluindo casos onde o usuário JÁ estava vendo a
+  // Galeria — o próximo evento de tempo real que chegasse também não
+  // atualizava nada, sem nenhuma pista do porquê.
+  let resultado
+  try {
+    resultado = await Promise.all([
+      db.from('eventos').select('*, fotos(count)').order('data', { ascending: false }),
+      db.from('fotos').select('*'),
+      db.from('foto_aluno').select('*'),
+      db.from('foto_pessoa').select('*'),
+    ])
+  } catch (e) { console.error('_galAtualizarDados falhou', e); return }
+  const [{ data: eventos }, { data: fotos }, { data: fa }, { data: fp }] = resultado
   if (eventos) store.eventos = eventos
   if (fotos) store.fotos = fotos
   if (fa) store.fotoAluno = fa
