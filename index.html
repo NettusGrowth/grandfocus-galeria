@@ -12645,14 +12645,21 @@ function renderGaleriaFotosDoAlbum(wrap) {
 // nem existia mais quando ela chegou). Guarda a posição do cursor
 // ANTES do render destruir o campo, restaura foco+cursor no campo
 // novo (mesmo visual, node diferente) logo depois.
+// mesma causa, sintoma diferente: quem tinha rolado a lista de
+// resultados pra baixo e continuava digitando (refinando a busca)
+// via a tela inteira sendo trocada — voltava pro topo a cada tecla,
+// sem nenhum motivo pra isso do ponto de vista de quem está digitando.
 let _galBuscaFocoId = null
 let _galBuscaFocoPos = null
+let _galBuscaScrollTop = null
 function _galBuscaGuardarFoco(inputEl) {
   _galBuscaFocoId = inputEl.id
   _galBuscaFocoPos = inputEl.selectionStart
+  _galBuscaScrollTop = document.querySelector('main')?.scrollTop ?? null
 }
 function _galBuscaRestaurarFoco() {
   if (!_galBuscaFocoId) return
+  if (_galBuscaScrollTop !== null) { const main = document.querySelector('main'); if (main) main.scrollTop = _galBuscaScrollTop }
   const el = document.getElementById(_galBuscaFocoId)
   if (el) { el.focus(); el.setSelectionRange(_galBuscaFocoPos, _galBuscaFocoPos) }
 }
@@ -12663,7 +12670,6 @@ function renderGaleriaListaAvulsos(wrap) {
   wrap.innerHTML += `
     <div class="field" style="max-width:320px;"><input type="text" id="gal-busca-avulso" placeholder="Buscar ensaio avulso…" oninput="_galFiltroAvulso=this.value.trim().toLowerCase();_galBuscaGuardarFoco(this);renderGaleriaAdmin()" value="${esc(_galFiltroAvulso)}"></div>
     <div class="pasta-grid" id="gal-lista-avulsos"></div>`
-  _galBuscaRestaurarFoco()
   const el = document.getElementById('gal-lista-avulsos')
   el.innerHTML = ensaios.length ? ensaios.map(ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
@@ -12673,6 +12679,10 @@ function renderGaleriaListaAvulsos(wrap) {
       <div class="nome">${esc(ev.nome)}</div><div class="meta">${ev.data ? fmtData(ev.data) : 'sem data'} · ${contagem} foto(s)</div>
     </div>`
   }).join('') : '<div class="empty">Nenhum ensaio avulso encontrado.</div>'
+  // só depois do innerHTML acima — antes disso o container tá curto
+  // demais e o navegador clampa o scrollTop restaurado de volta pra 0
+  // (mesmo motivo documentado em renderGaleriaListaTodosAlunos).
+  _galBuscaRestaurarFoco()
   _hidratarImgCache(el)
 }
 
@@ -12709,6 +12719,13 @@ function renderGaleriaListaTodosAlunos(wrap) {
       <select id="gal-filtro-escola-alunos" onchange="_galFiltroEscolaAlunos=this.value;renderGaleriaAdmin()"></select>
     </div>
     <div class="list" id="gal-lista-alunos2"></div>`
+  // restaura foco+cursor JÁ (não precisa da lista pronta pra isso), mas
+  // a restauração de SCROLL só funciona depois que a lista de resultados
+  // estiver populada de verdade — com a lista ainda vazia aqui, o
+  // container é curto demais e o navegador recorta (clampa) o
+  // scrollTop pedido de volta pra 0 antes da lista sequer existir.
+  // Por isso _galBuscaRestaurarFoco() roda de novo mais abaixo, depois
+  // do el.innerHTML populado — chamar 2x é inofensivo (idempotente).
   _galBuscaRestaurarFoco()
   // _popularFiltroEscolas precisa rodar DEPOIS do innerHTML acima — esse
   // <select> é criado na hora (diferente de alu-filtro-escola/
@@ -12723,7 +12740,7 @@ function renderGaleriaListaTodosAlunos(wrap) {
     (!_galFiltroEscolaAlunos || (_galFiltroEscolaAlunos === 'avulso' ? !a.escola_id : a.escola_id === _galFiltroEscolaAlunos))
   )
   const el = document.getElementById('gal-lista-alunos2')
-  if (!filtrados.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado.</div>'; return }
+  if (!filtrados.length) { el.innerHTML = '<div class="empty">Nenhum aluno encontrado.</div>'; _galBuscaRestaurarFoco(); return }
   el.innerHTML = filtrados.map(a => `
     <div class="list-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
@@ -12731,6 +12748,7 @@ function renderGaleriaListaTodosAlunos(wrap) {
         <div><div class="nome">${esc(a.nome)}</div><div class="meta">${a.escola_id ? esc(nomeEscola(a.escola_id)) : 'Avulso'} · ${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
       </div>
     </div>`).join('')
+  _galBuscaRestaurarFoco()
   filtrados.forEach(async a => {
     if (!a.foto_url) return
     const url = await _carregarImgCache(a.foto_url)
