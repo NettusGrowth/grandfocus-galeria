@@ -12035,6 +12035,14 @@ async function compartilharFoto(fotoId) {
 //   avulsos → lista de ensaios avulsos (busca) → Fotos (sem filtro)
 //   alunos  → lista de TODOS os alunos (busca + filtro por escola) →
 //     Aluno → Ano → Fotos (já agrupadas por evento/ensaio dele)
+// guarda contra resposta fora de ordem entre iniciarGaleriaAdmin/
+// iniciarViewEscola/iniciarViewResponsavel — trocar de aba rápido
+// (Galeria → outra → Galeria de novo, mania comum) dispara a mesma
+// função de novo sem esperar a chamada anterior terminar; se a 1ª
+// (mais lenta) responder DEPOIS da 2ª, ela sobrescrevia store.fotos/
+// store.eventos com dado velho por cima do que já tinha carregado
+// certo. Mesmo padrão do fix da galeria pública (_publicaCargaSeq).
+let _galCargaSeq = 0
 let _galRole = 'admin'
 let _galRaiz = null
 let _galEscolaId = undefined
@@ -12083,6 +12091,7 @@ function _nomePessoaMarcada(id) {
 }
 
 async function iniciarGaleriaAdmin() {
+  const minhaSeq = ++_galCargaSeq
   _galRole = 'admin'
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
   _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
@@ -12119,6 +12128,7 @@ async function iniciarGaleriaAdmin() {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
+  if (minhaSeq !== _galCargaSeq) return // uma chamada mais nova já respondeu — descarta essa
   const [{ data: fotos }, { data: fa }, { data: fp }] = resultado
   store.fotos = fotos || []
   store.fotoAluno = fa || []
@@ -13907,10 +13917,12 @@ async function vincularFilho() {
 // VIEW ESCOLA
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewEscola() {
+  const minhaSeq = ++_galCargaSeq
   // embed de count (fotos(count)) traz o total de mídias de cada evento
   // numa tacada só — sem isso seria uma query extra por card.
   const { data: eventos, error } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
   if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
+  if (minhaSeq !== _galCargaSeq) return
   store.eventos = eventos || []
   // sem filtro de escola aqui de propósito (mesmo motivo do "eventos"
   // duas linhas acima) — RLS (alunos_select) já escopa pro que esse
@@ -13919,6 +13931,7 @@ async function iniciarViewEscola() {
   // professor com vínculo só via escola adicional (professor_escolas)
   // ou sem escola_id principal nenhuma.
   const { data: alunos } = await db.from('alunos').select('*').order('nome')
+  if (minhaSeq !== _galCargaSeq) return
   store.alunos = alunos || []
   // resto do que a árvore da Galeria precisa — RLS já escopa cada uma
   // dessas queries pro que esse login pode ver (a própria escola).
@@ -13938,6 +13951,7 @@ async function iniciarViewEscola() {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
+  if (minhaSeq !== _galCargaSeq) return
   const [{ data: fotos }, { data: fa }, { data: fp }] = resultadoEsc
   store.fotos = fotos || []
   store.fotoAluno = fa || []
@@ -14251,10 +14265,12 @@ async function baixarSelecionadas() {
 let _respFiltroFilho = null
 
 async function iniciarViewResponsavel() {
+  const minhaSeq = ++_galCargaSeq
   _fotoSelecao.clear(); _fotoFiltroAluno = null; _respFiltroFilho = null
 
   const { data: vinc, error } = await db.from('responsavel_alunos').select('aluno_id, alunos(*)').eq('user_id', currentUser.id)
   if (error) { toast('Erro ao carregar seus filhos: ' + error.message); return }
+  if (minhaSeq !== _galCargaSeq) return
   const meusFilhos = (vinc || []).map(v => v.alunos).filter(Boolean)
   store.alunos = meusFilhos
   const alunoIds = meusFilhos.map(a => a.id)
@@ -14272,6 +14288,7 @@ async function iniciarViewResponsavel() {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
+  if (minhaSeq !== _galCargaSeq) return
   const [{ data: fa }, { data: fp }] = resultadoResp
   store.fotoAluno = fa || []
   store.fotoPessoa = fp || []
@@ -14288,6 +14305,7 @@ async function iniciarViewResponsavel() {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
+  if (minhaSeq !== _galCargaSeq) return
   store.eventos = eventos || []
 
   // a partir daqui é a mesma árvore de navegação da Galeria, só que
