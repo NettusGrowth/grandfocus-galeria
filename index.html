@@ -14536,15 +14536,27 @@ function _renderPublicaInvalidoCard(mensagem) {
   `
 }
 
+// token vem direto da URL (?g=TOKEN) — nunca interpolar ele dentro de
+// uma string onclick/onkeydown: esc() protege contra sair do atributo
+// HTML, mas o navegador DECODIFICA as entidades HTML do atributo antes
+// de rodar o onclick como JS, então um &#39; vira ' de novo bem a
+// tempo de fechar a string e injetar código (achado testando um token
+// malicioso de propósito — reproduzi a execução, esc() sozinho não
+// bastava). addEventListener com o token só como variável JS (nunca
+// serializado pra dentro do HTML) fecha o buraco de vez.
 function _renderPublicaSenhaCard(token, senhaErrada) {
   document.getElementById('publica-conteudo').innerHTML = `
     <div class="card publica-senha-card">
       <h3 style="margin-bottom:6px;">Esta galeria tem senha</h3>
       <div class="meta" style="margin-bottom:16px;">${senhaErrada ? 'Senha incorreta — tente de novo.' : 'Digite a senha que você recebeu pra ver as fotos.'}</div>
-      <div class="field"><input type="password" id="publica-senha-input" placeholder="Senha" onkeydown="if(event.key==='Enter')_carregarGaleriaPublica('${token}',document.getElementById('publica-senha-input').value)"></div>
-      <button class="btn btn-primary" style="width:100%;" onclick="_carregarGaleriaPublica('${token}',document.getElementById('publica-senha-input').value)">Entrar</button>
+      <div class="field"><input type="password" id="publica-senha-input" placeholder="Senha"></div>
+      <button class="btn btn-primary" style="width:100%;" id="publica-senha-btn">Entrar</button>
     </div>
   `
+  const input = document.getElementById('publica-senha-input')
+  const enviar = () => _carregarGaleriaPublica(token, input.value)
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar() })
+  document.getElementById('publica-senha-btn').addEventListener('click', enviar)
 }
 
 // lightbox público reaproveita o MESMO markup #lightbox do admin, mas
@@ -15440,15 +15452,22 @@ function _renderSelPubInvalidoCard(mensagem) {
   `
 }
 
+// mesmo motivo do _renderPublicaSenhaCard: token nunca vai serializado
+// pra dentro de um onclick/onkeydown (esc() não protege ali — HTML
+// decodifica a entidade antes do onclick rodar como JS).
 function _renderSelPubSenhaCard(token, senhaErrada) {
   document.getElementById('selecao-pub-conteudo').innerHTML = `
     <div class="card publica-senha-card">
       <h3 style="margin-bottom:6px;">Esta seleção tem senha</h3>
       <div class="meta" style="margin-bottom:16px;">${senhaErrada ? 'Senha incorreta — tente de novo.' : 'Digite a senha que você recebeu pra ver suas fotos.'}</div>
-      <div class="field"><input type="password" id="selpub-senha-input" placeholder="Senha" onkeydown="if(event.key==='Enter')_carregarSelecaoPublica('${token}',document.getElementById('selpub-senha-input').value)"></div>
-      <button class="btn btn-primary" style="width:100%;" onclick="_carregarSelecaoPublica('${token}',document.getElementById('selpub-senha-input').value)">Entrar</button>
+      <div class="field"><input type="password" id="selpub-senha-input" placeholder="Senha"></div>
+      <button class="btn btn-primary" style="width:100%;" id="selpub-senha-btn">Entrar</button>
     </div>
   `
+  const input = document.getElementById('selpub-senha-input')
+  const enviar = () => _carregarSelecaoPublica(token, input.value)
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar() })
+  document.getElementById('selpub-senha-btn').addEventListener('click', enviar)
 }
 
 // bloqueio duro de galeria vencida já existe no RPC (estoura antes de
