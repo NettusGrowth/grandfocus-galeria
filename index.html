@@ -12716,7 +12716,7 @@ function renderGaleriaListaTodosAlunos(wrap) {
   wrap.innerHTML += `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
       <input type="text" id="gal-busca-aluno" style="max-width:280px;" placeholder="Buscar aluno…" oninput="_galFiltroTexto=this.value.toLowerCase();_galBuscaGuardarFoco(this);renderGaleriaAdmin()" value="${esc(_galFiltroTexto)}">
-      <select id="gal-filtro-escola-alunos" onchange="_galFiltroEscolaAlunos=this.value;renderGaleriaAdmin()"></select>
+      <select id="gal-filtro-escola-alunos" onchange="_galFiltroEscolaAlunos=this.value;_galBuscaFocoId=null;renderGaleriaAdmin()"></select>
     </div>
     <div class="list" id="gal-lista-alunos2"></div>`
   // restaura foco+cursor JÁ (não precisa da lista pronta pra isso), mas
