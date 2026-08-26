@@ -10010,9 +10010,24 @@ function _dlProgressFechar() {
 // createSignedUrl — sem controle sobre o header de download). Se um
 // lote falhar de verdade, é reportado honestamente, sem lista de
 // botões — só um "tentar de novo" simples.
+// mania real: tocar em "Baixar" várias vezes rápido (o download não
+// começa instantaneamente, o toque parece não ter feito nada) —
+// sem essa trava, cada toque disparava seu próprio loop concorrente,
+// duplicando cada foto baixada (o navegador salva "foto-1 (1).jpg",
+// "foto-1 (2).jpg"...) e fazia o banner de progresso piscar entre
+// vários textos diferentes ao mesmo tempo.
+let _baixandoEmMassaPublico = false
 async function _baixarFotosEmMassa(itens, nomeBase) {
   if (!itens.length) return
-
+  if (_baixandoEmMassaPublico) { toast('Já tem um download em andamento — aguarda terminar.'); return }
+  _baixandoEmMassaPublico = true
+  try {
+    await _baixarFotosEmMassaInterno(itens, nomeBase)
+  } finally {
+    _baixandoEmMassaPublico = false
+  }
+}
+async function _baixarFotosEmMassaInterno(itens, nomeBase) {
   if (!_precisaWebShare()) {
     let falhas = 0
     for (let i = 0; i < itens.length; i++) {
