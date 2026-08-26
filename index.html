@@ -8929,6 +8929,58 @@ async function _sincronizarTagsRosterEmFotosExistentes(eventoId, alunosNovos, pe
   if (totalMarcados) toast(`Acesso liberado nas fotos já existentes ✓ (${totalMarcados} marcação(ões))`)
 }
 
+// achado real (relatado pelo Luiz: card "Suas fotos" de um responsável
+// duplicando 1:1 as fotos do próprio filho) — a função acima só cobre
+// quem ENTRA no elenco; quando alguém SAI do elenco de um evento já
+// com fotos, as marcações que _sincronizarTagsRosterEmFotosExistentes
+// já tinha feito continuam lá pra sempre, escondidas (o elenco atual
+// não mostra mais essa pessoa, mas ela segue vendo/marcada em toda
+// foto). Confirmado direto no banco: 80/80 fotos sobrepostas, elenco
+// de pessoas hoje vazio — ela foi removida do elenco sem isso desfazer
+// as marcações já feitas.
+// Diferente da função de cima, esta NÃO roda sozinha: existem outros
+// pontos no app que marcam aluno/pessoa foto-a-foto, fora do elenco do
+// evento (marcação manual, "toda a turma") — apagar toda marcação de
+// quem saiu do elenco sem perguntar arriscaria apagar uma marcação
+// manual que não tem nada a ver com o elenco. Por isso pede
+// confirmação explícita, e só entra em ação se o admin confirmar.
+async function _sincronizarRemocaoRosterEmFotosExistentes(eventoId, alunosRemovidos, pessoasRemovidos) {
+  if (!alunosRemovidos.length && !pessoasRemovidos.length) return
+  const fotoIds = new Set(store.fotos.filter(f => f.evento_id === eventoId).map(f => f.id))
+  if (!fotoIds.size) return
+  const marcasAluno = store.fotoAluno.filter(x => fotoIds.has(x.foto_id) && alunosRemovidos.includes(x.aluno_id))
+  const marcasPessoa = store.fotoPessoa.filter(x => fotoIds.has(x.foto_id) && pessoasRemovidos.includes(x.user_id))
+  const total = marcasAluno.length + marcasPessoa.length
+  if (!total) return
+  const quer = await confirmModal(
+    `${total} marcação(ões) de foto já feita(s) pra quem saiu do elenco. Desmarcar essas fotos também?`,
+    { titulo: 'Remover também das fotos?', okLabel: 'Desmarcar também', cancelLabel: 'Manter marcado' }
+  )
+  if (!quer) return
+  // foto_aluno/foto_pessoa não têm coluna id própria — chave composta
+  // (foto_id, aluno_id)/(foto_id, user_id) — apaga uma pessoa/aluno
+  // removido de cada vez, restrito às fotos deste evento.
+  if (marcasAluno.length) {
+    for (const aluno_id of alunosRemovidos) {
+      const fotosDele = marcasAluno.filter(x => x.aluno_id === aluno_id).map(x => x.foto_id)
+      if (!fotosDele.length) continue
+      const { error } = await db.from('foto_aluno').delete().eq('aluno_id', aluno_id).in('foto_id', fotosDele)
+      if (error) { console.error('remover roster: falha ao desmarcar aluno', error.message); return }
+    }
+    store.fotoAluno = store.fotoAluno.filter(x => !(fotoIds.has(x.foto_id) && alunosRemovidos.includes(x.aluno_id)))
+  }
+  if (marcasPessoa.length) {
+    for (const user_id of pessoasRemovidos) {
+      const fotosDela = marcasPessoa.filter(x => x.user_id === user_id).map(x => x.foto_id)
+      if (!fotosDela.length) continue
+      const { error } = await db.from('foto_pessoa').delete().eq('user_id', user_id).in('foto_id', fotosDela)
+      if (error) { console.error('remover roster: falha ao desmarcar pessoa', error.message); return }
+    }
+    store.fotoPessoa = store.fotoPessoa.filter(x => !(fotoIds.has(x.foto_id) && pessoasRemovidos.includes(x.user_id)))
+  }
+  toast(`Desmarcado das fotos ✓ (${total})`)
+}
+
 async function salvarEvento() {
   const id = document.getElementById('evt-id').value || null
   const nome = document.getElementById('evt-nome').value.trim()
@@ -8973,6 +9025,9 @@ async function salvarEvento() {
   const alunosNovos = [..._eventoAlunosSelecionados].filter(aid => !alunosAntigos.includes(aid))
   const pessoasNovas = [..._eventoPessoasSelecionadas].filter(pid => !pessoasAntigas.includes(pid))
   if (alunosNovos.length || pessoasNovas.length) await _sincronizarTagsRosterEmFotosExistentes(data.id, alunosNovos, pessoasNovas)
+  const alunosRemovidos = alunosAntigos.filter(aid => !_eventoAlunosSelecionados.has(aid))
+  const pessoasRemovidas = pessoasAntigas.filter(pid => !_eventoPessoasSelecionadas.has(pid))
+  if (alunosRemovidos.length || pessoasRemovidas.length) await _sincronizarRemocaoRosterEmFotosExistentes(data.id, alunosRemovidos, pessoasRemovidas)
 
   // preço da sessão vive numa tabela separada (eventos_financeiro, só
   // admin/super_admin) — não em `eventos`, que tem SELECT aberto pra
@@ -13384,6 +13439,9 @@ async function salvarEnsaio() {
   const alunosNovos = [..._ensaioAlunosSel].filter(aid => !alunosAntigos.includes(aid))
   const pessoasNovas = [..._ensaioPessoasSel].filter(pid => !pessoasAntigas.includes(pid))
   if (alunosNovos.length || pessoasNovas.length) await _sincronizarTagsRosterEmFotosExistentes(data.id, alunosNovos, pessoasNovas)
+  const alunosRemovidos = alunosAntigos.filter(aid => !_ensaioAlunosSel.has(aid))
+  const pessoasRemovidas = pessoasAntigas.filter(pid => !_ensaioPessoasSel.has(pid))
+  if (alunosRemovidos.length || pessoasRemovidas.length) await _sincronizarRemocaoRosterEmFotosExistentes(data.id, alunosRemovidos, pessoasRemovidas)
 
   const precoSessao = parseFloat(document.getElementById('ens-preco-sessao').value) || 0
   db.from('eventos_financeiro').upsert({ evento_id: data.id, preco_sessao: precoSessao, atualizado_em: new Date().toISOString(), atualizado_por: meuPerfil.user_id }).then(({ error: eFin }) => {
