@@ -1231,12 +1231,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(min-width:900px){.foto-grid.gal-boutique{column-count:3;column-gap:18px;}}
 .foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;}
 .foto-item.gal-boutique img{height:auto;object-fit:unset;display:block;}
-/* sem aspect-ratio fixo (masonry natural), a foto ainda sem src tem
-   altura intrínseca zero — o shimmer dourado de .foto-item img:not([src])
-   existe mas não tem área visível pra aparecer. Reserva uma altura mínima
-   só enquanto não carregou; some sozinho assim que o src entra e o
-   masonry recalcula pela altura real da foto. */
-.foto-item.gal-boutique img:not([src]),.foto-item.gal-boutique img[src=""]{min-height:200px;}
+/* sem aspect-ratio fixo (masonry natural), a foto ainda sem altura real
+   tem altura intrínseca zero. BUG REAL encontrado em produção (fotos
+   "sumindo" pra responsável/escola, nunca pra admin — que usa grid
+   quadrado fixo, imune a isso): esta regra usava :not([src]), mas o
+   atributo src é setado ASSIM que a URL é conhecida, bem antes da
+   imagem terminar de baixar/decodificar — pra fotos sem largura/altura
+   salva (sem aspect-ratio inline, ver _galFotoItemHTML), a reserva de
+   altura desaparecia exatamente na janela em que o navegador ainda não
+   tinha altura real nenhuma pra mostrar, e o card colapsava pra zero
+   e ficava invisível no masonry até o layout ser forçado a recalcular
+   por outro motivo (ou nunca). Corrigido: a reserva agora depende de
+   uma classe marcada só no onload de VERDADE (._galFotoItemHTML),
+   não da presença do atributo src. */
+.foto-item.gal-boutique img:not(.gf-carregada){min-height:200px;}
 /* tarja clara de bônus (Seleção de Fotos) — em vez de um emoji
    pequeno disputando espaço com os ícones de ação no canto, ocupa a
    base inteira da foto pra ficar óbvio num relance de olhos. */
@@ -12923,7 +12931,7 @@ function _galFotoItemHTML(f) {
   const aspecto = boutique && f.largura && f.altura ? ` style="aspect-ratio:${f.largura}/${f.altura};"` : ''
   return `
     <div class="foto-item${boutique}${_galSelecao.has(f.id) ? ' sel' : ''}" id="gal-fg-${f.id}" onclick="abrirLightbox('${f.id}')">
-      ${_imgTagCache(_fotoPreviewPath(f), `loading="lazy" alt=""${aspecto}`)}
+      ${_imgTagCache(_fotoPreviewPath(f), `loading="lazy" alt=""${aspecto} onload="this.classList.add('gf-carregada')"`)}
       <div class="ck" onclick="event.stopPropagation();_galToggleSelecao('${f.id}')">${_galSelecao.has(f.id) ? '✓' : ''}</div>
     </div>`
 }
