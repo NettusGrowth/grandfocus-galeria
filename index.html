@@ -3689,11 +3689,25 @@ async function _galAtualizarDados() {
   } catch (e) { console.error('_galAtualizarDados falhou', e); return }
   if (minhaSeq !== _galCargaSeq) return
   const [{ data: eventos }, { data: fotos }, { data: fa }, { data: fp }] = resultado
+  // achado real (Luiz relatou "parece aleatório, acontece até com
+  // poucas fotos"): o canal de tempo real que dispara essa função não
+  // filtra por evento/aluno — QUALQUER mudança na tabela fotos, em
+  // QUALQUER álbum do sistema inteiro (até de outro usuário totalmente
+  // sem relação com o que está em tela), chegava até aqui e sempre
+  // chamava renderGaleriaAdmin() no final, reconstruindo a grade
+  // inteira (todo <img>) mesmo quando o dado buscado era idêntico ao
+  // que já estava em store. Isso explica o "pisco" sem relação com a
+  // própria navegação/scroll da pessoa. Só re-renderiza quando algo
+  // realmente mudou pro que está carregado.
+  const mudou = (eventos && JSON.stringify(eventos) !== JSON.stringify(store.eventos))
+    || (fotos && JSON.stringify(fotos) !== JSON.stringify(store.fotos))
+    || (fa && JSON.stringify(fa) !== JSON.stringify(store.fotoAluno))
+    || (fp && JSON.stringify(fp) !== JSON.stringify(store.fotoPessoa))
   if (eventos) store.eventos = eventos
   if (fotos) store.fotos = fotos
   if (fa) store.fotoAluno = fa
   if (fp) store.fotoPessoa = fp
-  renderGaleriaAdmin()
+  if (mudou) renderGaleriaAdmin()
 }
 
 // ── auth ────────────────────────────────────────────────────────
@@ -9582,7 +9596,11 @@ function _hidratarPathImg(img, path) {
   // cima (o cache local só serve de "primeira pintura" enquanto a URL
   // real ainda não chegou).
   let realAplicada = false
-  _carregarImgCache(path).then(url => { if (url && !realAplicada) img.src = url })
+  // guarda extra pedida no protocolo de teste: nunca reatribuir src se
+  // já for exatamente o mesmo valor (idempotente, zero custo extra;
+  // não é a causa raiz do pisco — essa já era a flag realAplicada
+  // acima — mas evita qualquer reflow/decode redundante à toa).
+  _carregarImgCache(path).then(url => { if (url && !realAplicada && img.src !== url) img.src = url })
   // mesmo motivo do lightbox (ver renderLightboxAtual): pré-carrega a
   // URL real fora da tela antes de trocar o src visível, pra não
   // piscar toda miniatura da grade na troca blob→URL de rede real
@@ -9591,10 +9609,22 @@ function _hidratarPathImg(img, path) {
   // termina na URL real, preservando o toque-e-segure do iOS.
   _urlAssinada(path).then(urlReal => {
     if (!urlReal || urlReal === img.src) return
+    // achado novo (relatado pelo Luiz): logo após subir a foto tudo
+    // resolve de cache "quente" (sem pisco), mas minutos depois — com
+    // a URL assinada em memória expirada, exigindo round-trip de rede
+    // de novo — volta a piscar mesmo com a pré-carga. `onload` só
+    // garante que os bytes chegaram, não que a imagem já foi
+    // DECODIFICADA; com um gap de rede real antes da troca, o
+    // navegador ainda decodifica na hora de pintar o novo src, e é
+    // esse decode tardio que aparece como o pisco. decode() só resolve
+    // quando a imagem já está pronta pra pintar sem trabalho nenhum a
+    // mais — troca garantidamente instantânea. Sem suporte (raríssimo),
+    // cai de volta no onload de antes.
     const pre = new Image()
-    pre.onload = () => { realAplicada = true; img.src = urlReal }
-    pre.onerror = () => {}
     pre.src = urlReal
+    const aplicar = () => { realAplicada = true; img.src = urlReal }
+    if (pre.decode) pre.decode().then(aplicar).catch(() => {})
+    else { pre.onload = aplicar; pre.onerror = () => {} }
   })
 }
 function _hidratarImgCache(escopo) {
@@ -10412,10 +10442,14 @@ async function renderLightboxAtual() {
   // <img> visível ainda termina apontando pra URL de rede real, então
   // o toque-e-segure salvar no iOS continua funcionando igual.
   if (urlReal && urlReal !== img.src) {
+    // mesmo achado do grid (ver _hidratarPathImg): onload garante só
+    // que os bytes chegaram, não que a imagem já foi decodificada —
+    // decode() garante os dois, troca fica de fato instantânea.
     const pre = new Image()
-    pre.onload = () => { if (_lightboxFotos[_lightboxIdx] === f) img.src = urlReal }
-    pre.onerror = () => {}
     pre.src = urlReal
+    const aplicar = () => { if (_lightboxFotos[_lightboxIdx] === f) img.src = urlReal }
+    if (pre.decode) pre.decode().then(aplicar).catch(() => {})
+    else { pre.onload = aplicar; pre.onerror = () => {} }
   }
   const evento = store.eventos.find(e => e.id === f.evento_id)
   document.getElementById('lightbox-caption').textContent =
