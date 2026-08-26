@@ -14396,7 +14396,7 @@ async function _carregarGaleriaPublica(token, senha) {
   // isso a capa sempre cortava no centro aqui, mesmo com o admin já
   // tendo enquadrado certo lá dentro.
   conteudo.innerHTML = `
-    ${_publicaEvento?.capaUrl ? `<div class="publica-capa-wrap"><img class="publica-capa" src="${_publicaEvento.capaUrl}" style="object-position:${esc(_publicaEvento.capaPos || '50% 50%')};" loading="lazy" alt=""></div>` : ''}
+    ${_publicaEvento?.capaUrl ? `<div class="publica-capa-wrap"><img class="publica-capa" src="${_publicaEvento.capaUrl}" style="object-position:${esc(_publicaEvento.capaPos || '50% 50%')};" loading="lazy" alt="" onerror="this.parentElement.style.display='none'"></div>` : ''}
     <div class="publica-cabecalho">
       <h2>${esc(_publicaEvento?.nome || 'Galeria')}</h2>
       <div class="meta">${_publicaEvento?.data ? fmtData(_publicaEvento.data) : ''} · ${_publicaFotos.length} foto(s)</div>
