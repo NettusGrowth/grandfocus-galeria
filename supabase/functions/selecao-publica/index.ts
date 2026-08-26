@@ -94,17 +94,41 @@ async function acaoCriarPagamento(admin: any, token: string, senha: string | nul
   if (!handle) { console.error('selecao-publica[criar_pagamento]: infinitepay_handle vazio apesar de pagamento_automatico=true', { token }); return json({ error: 'Pagamento automático não configurado pelo estúdio ainda.' }, 400) }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-  const resp = await fetch('https://api.checkout.infinitepay.io/links', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      handle,
-      order_nsu: data.pedido.id,
-      webhook_url: `${supabaseUrl}/functions/v1/selecao-webhook`,
-      ...(redirectUrl ? { redirect_url: redirectUrl } : {}),
-      items: [{ description: `Fotos extras — ${data.galeria.titulo}`, quantity: 1, price: Math.round(data.pedido.valor_total * 100) }],
-    }),
-  })
+  // redirect_url vem do client (pra onde a InfinitePay manda o visitante
+  // depois de pagar) — só encaminha se for um https:// de verdade, senão
+  // ignora em silêncio (não derruba a criação do link de pagamento por
+  // causa disso). Sem essa checagem, alguém que chamasse essa action
+  // direto (fora do app) conseguia fazer a página de "pagamento
+  // concluído" da InfinitePay redirecionar pra qualquer lugar, inclusive
+  // um site de phishing imitando o checkout.
+  let redirectUrlSegura: string | null = null
+  if (redirectUrl) {
+    try {
+      const u = new URL(redirectUrl)
+      if (u.protocol === 'https:') redirectUrlSegura = redirectUrl
+    } catch { /* URL inválida — ignora, segue sem redirect_url */ }
+  }
+
+  let resp: Response
+  try {
+    resp = await fetch('https://api.checkout.infinitepay.io/links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        handle,
+        order_nsu: data.pedido.id,
+        webhook_url: `${supabaseUrl}/functions/v1/selecao-webhook`,
+        ...(redirectUrlSegura ? { redirect_url: redirectUrlSegura } : {}),
+        items: [{ description: `Fotos extras — ${data.galeria.titulo}`, quantity: 1, price: Math.round(data.pedido.valor_total * 100) }],
+      }),
+    })
+  } catch (e) {
+    // falha de rede/DNS/TLS antes de qualquer resposta HTTP — sem o
+    // try/catch isso derrubava a função inteira com um 500 cru em vez
+    // da mensagem tratada que todo outro erro daqui já usa.
+    console.error('selecao-publica[criar_pagamento]: fetch pra InfinitePay falhou de rede', { token, error: String(e) })
+    return json({ error: 'Não foi possível conectar ao provedor de pagamento agora. Tente de novo em instantes, ou pague pelo PIX abaixo mesmo.' }, 502)
+  }
   const linkData = await resp.json().catch(() => ({}))
   const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
   if (!resp.ok || !checkoutUrl) {

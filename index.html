@@ -5618,10 +5618,26 @@ function _agendaSomaHoras(hhmm, horas) {
   const total = h * 60 + m + horas * 60
   return String(Math.floor((total % 1440) / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0')
 }
+function _agendaParaMinutos(hhmm) {
+  const [h, m] = (hhmm || '00:00').split(':').map(Number)
+  return h * 60 + m
+}
+// Comparação em MINUTOS, não string — comparar "HH:MM" como texto só
+// funciona enquanto nenhum horário "vira o dia". Um compromisso às
+// 23h sem hora_fim (janela padrão de 2h) passava a acabar "01:00" —
+// um texto MENOR que "23:00" — e a comparação de string concluía (
+// errado) que não havia sobreposição nenhuma com outro compromisso
+// que também começasse perto da meia-noite. Em minutos, se o fim
+// calculado cai antes (ou igual a) o início, soma 24h nele — aí a
+// comparação numérica volta a fazer sentido nos dois lados.
 function _agendaHorasSobrepoem(iniA, fimA, iniB, fimB) {
-  const a2 = fimA || _agendaSomaHoras(iniA, 2)
-  const b2 = fimB || _agendaSomaHoras(iniB, 2)
-  return iniA < b2 && iniB < a2
+  const a1 = _agendaParaMinutos(iniA)
+  let a2 = fimA ? _agendaParaMinutos(fimA) : a1 + 120
+  if (a2 <= a1) a2 += 1440
+  const b1 = _agendaParaMinutos(iniB)
+  let b2 = fimB ? _agendaParaMinutos(fimB) : b1 + 120
+  if (b2 <= b1) b2 += 1440
+  return a1 < b2 && b1 < a2
 }
 function _agendaChecarConflito(payload, idExcluir) {
   const conflitos = []
@@ -11718,9 +11734,27 @@ function _eventoRenderMarcarIndividual() {
 // "Toda a Turma" — marca de uma vez todo mundo daquela turma que
 // participa do evento, sem precisar clicar aluno por aluno (é isso que
 // evita 100 cliques num espetáculo grande).
+// Captura a seleção de fotos UMA VEZ antes do loop (mesmo motivo do
+// fix em uploadFotosEvento/Ensaio/Selecao): se _eventoMarcarEmMassa
+// lesse `_eventoFotoSelecao` fresco a cada aluno, um clique/toque do
+// admin na seleção NO MEIO do loop (ex: clicar outra foto por engano)
+// faria os alunos seguintes serem marcados num conjunto de fotos
+// diferente do que apareceu na tela quando "Toda a turma" foi clicado.
+// Trava de clique duplo também: sem ela, clicar duas vezes rápido (ou
+// clicar "Toda a turma" em duas turmas quase juntas) faria dois loops
+// concorrentes tentarem marcar o mesmo aluno na mesma foto ao mesmo
+// tempo — os dois viam "ainda não marcado" e os dois inseriam.
+let _eventoMarcarMassaAtivo = false
 async function _eventoMarcarTurmaEmMassa(turmaId) {
-  const ids = store.alunos.filter(a => a.turma_id === turmaId && (_eventoQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id))).map(a => a.id)
-  for (const id of ids) await _eventoMarcarEmMassa('aluno', id)
+  if (_eventoMarcarMassaAtivo) { toast('Aguarde a marcação em massa anterior terminar.'); return }
+  _eventoMarcarMassaAtivo = true
+  try {
+    const ids = store.alunos.filter(a => a.turma_id === turmaId && (_eventoQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id))).map(a => a.id)
+    const fotoIdsCongelado = [..._eventoFotoSelecao]
+    for (const id of ids) await _eventoMarcarEmMassa('aluno', id, fotoIdsCongelado)
+  } finally {
+    _eventoMarcarMassaAtivo = false
+  }
 }
 
 // marca aluno OU pessoa (professor/diretor/proprietário) em massa nas
@@ -11729,8 +11763,11 @@ async function _eventoMarcarTurmaEmMassa(turmaId) {
 // desmarca de todas (era o jeito de "desmarcar em massa" que faltava,
 // antes esse caso só mostrava um toast e não fazia nada); caso
 // contrário marca só quem falta.
-async function _eventoMarcarEmMassa(tipo, id) {
-  const fotoIds = [..._eventoFotoSelecao]
+// `fotoIdsFixo`: passado por quem já capturou a seleção antes de um
+// loop (ver _eventoMarcarTurmaEmMassa) — se ausente, lê a seleção
+// atual normalmente (uso normal, clique avulso numa pessoa só).
+async function _eventoMarcarEmMassa(tipo, id, fotoIdsFixo) {
+  const fotoIds = fotoIdsFixo || [..._eventoFotoSelecao]
   if (tipo === 'aluno') {
     const marcadas = fotoIds.filter(fid => store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
     if (marcadas.length === fotoIds.length) {
@@ -13503,18 +13540,29 @@ function _ensaioRenderMarcarIndividual() {
     : '<span style="opacity:.6;font-size:12px;">Ninguém encontrado</span>'
 }
 
-// "Toda a Turma" — mesmo atalho do Evento, pro Ensaio Avulso.
+// "Toda a Turma" — mesmo atalho do Evento, pro Ensaio Avulso. Mesma
+// captura-uma-vez + trava de clique duplo — ver comentário em
+// _eventoMarcarTurmaEmMassa (razão idêntica, só que pro ensaio).
+let _ensaioMarcarMassaAtivo = false
 async function _ensaioMarcarTurmaEmMassa(turmaId) {
-  const ids = store.alunos.filter(a => a.turma_id === turmaId && _ensaioQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id)).map(a => a.id)
-  for (const id of ids) await _ensaioMarcarEmMassa('aluno', id)
+  if (_ensaioMarcarMassaAtivo) { toast('Aguarde a marcação em massa anterior terminar.'); return }
+  _ensaioMarcarMassaAtivo = true
+  try {
+    const ids = store.alunos.filter(a => a.turma_id === turmaId && _ensaioQuemPodeSerMarcado().some(p => p.tipo === 'aluno' && p.id === a.id)).map(a => a.id)
+    const fotoIdsCongelado = [..._ensaioFotoSelecao]
+    for (const id of ids) await _ensaioMarcarEmMassa('aluno', id, fotoIdsCongelado)
+  } finally {
+    _ensaioMarcarMassaAtivo = false
+  }
 }
 
 // marca aluno OU pessoa (professor/diretor/responsável) em massa nas
 // fotos selecionadas — o mesmo botão de bulk-tag que o Evento já tinha
 // só pra aluno, agora cobre os dois tipos que o Ensaio pode receber.
 // Mesmo toggle do Evento: já marcado em todas as selecionadas -> desmarca.
-async function _ensaioMarcarEmMassa(tipo, id) {
-  const fotoIds = [..._ensaioFotoSelecao]
+// `fotoIdsFixo`: ver comentário equivalente em _eventoMarcarEmMassa.
+async function _ensaioMarcarEmMassa(tipo, id, fotoIdsFixo) {
+  const fotoIds = fotoIdsFixo || [..._ensaioFotoSelecao]
   if (tipo === 'aluno') {
     const marcadas = fotoIds.filter(fid => store.fotoAluno.some(x => x.foto_id === fid && x.aluno_id === id))
     if (marcadas.length === fotoIds.length) {
