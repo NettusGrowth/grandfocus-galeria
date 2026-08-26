@@ -3325,14 +3325,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <!-- banner de progresso de download — diferente do toast (que some
      sozinho em 3.2s): fica na tela até o usuário fechar, mostra em
      qual etapa o processo está (buscando/aguardando a caixa nativa/
      resultado final) e, quando há mais fotos do que cabe num lote só,
      oferece um botão pra continuar o próximo lote com 1 toque. -->
-<div class="dl-progress" id="dl-progress" style="display:none;">
+<div class="dl-progress" id="dl-progress" style="display:none;" role="status" aria-live="polite">
   <div class="dl-progress-body">
     <div class="dl-progress-spinner" id="dl-progress-spinner"></div>
     <div class="dl-progress-texto">
