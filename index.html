@@ -3646,6 +3646,11 @@ async function _galAtualizarDados() {
   // sem aviso nenhum, incluindo casos onde o usuário JÁ estava vendo a
   // Galeria — o próximo evento de tempo real que chegasse também não
   // atualizava nada, sem nenhuma pista do porquê.
+  // _galCargaSeq (mesmo contador de iniciarGaleriaAdmin/etc.) evita que
+  // um evento de tempo real antigo, que demorou mais pra responder,
+  // sobrescreva dado mais novo já carregado por um evento seguinte —
+  // upload em lote real dispara vários eventos em sequência rápida.
+  const minhaSeq = ++_galCargaSeq
   let resultado
   try {
     resultado = await Promise.all([
@@ -3655,6 +3660,7 @@ async function _galAtualizarDados() {
       db.from('foto_pessoa').select('*'),
     ])
   } catch (e) { console.error('_galAtualizarDados falhou', e); return }
+  if (minhaSeq !== _galCargaSeq) return
   const [{ data: eventos }, { data: fotos }, { data: fa }, { data: fp }] = resultado
   if (eventos) store.eventos = eventos
   if (fotos) store.fotos = fotos
