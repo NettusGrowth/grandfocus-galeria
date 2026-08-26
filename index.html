@@ -12130,11 +12130,18 @@ function _galBreadcrumb() {
       if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
     }
   } else if (_galRaiz === 'escolas') {
-    partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
-    if (_galEscolaId !== undefined) partes.push({ label: esc(nomeEscola(_galEscolaId)), onclick: '_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
-    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
-    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
-    if (_galSubpasta) partes.push({ label: esc(_galSubpasta) })
+    partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAlunoId=null;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galEscolaId !== undefined) partes.push({ label: esc(nomeEscola(_galEscolaId)), onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galAlunoId) {
+      const a = store.alunos.find(x => x.id === _galAlunoId)
+      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
+      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
+      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
+    } else {
+      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
+      if (_galSubpasta) partes.push({ label: esc(_galSubpasta) })
+    }
   } else if (_galRaiz === 'avulsos') {
     partes.push({ label: 'Avulsos', onclick: '_galAvulsoId=null;_galSubpasta=null;renderGaleriaAdmin()' })
     if (_galAvulsoId) { const ev = store.eventos.find(e => e.id === _galAvulsoId); partes.push({ label: esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
@@ -12205,7 +12212,7 @@ function _galHeroMobileHTML() {
 function _galEhRaizDoPapel() {
   if (_galRaiz === null) return true
   if (_galRaiz === 'filhos') return !_galVendoFotosPessoais && (!_galAlunoId || store.alunos.length === 1)
-  if (_galRaiz === 'escolas' && _galRole !== 'admin') return !_galAno && !_galAlbumId
+  if (_galRaiz === 'escolas' && _galRole !== 'admin') return !_galAno && !_galAlbumId && !_galAlunoId
   return false
 }
 function renderGaleriaAdmin() {
@@ -12238,6 +12245,17 @@ function renderGaleriaAdmin() {
     return
   }
   if (_galRaiz === 'escolas') {
+    // drill-down "Alunos" da própria escola (diretor/proprietário/
+    // professor) — reaproveita o mesmo trio Aluno→Ano→Álbum de
+    // renderGaleriaListaFilhos/renderGaleriaListaTodosAlunos, mas sem
+    // trocar _galRaiz (ver renderGaleriaAlunosDaEscola): trocar pra
+    // 'alunos' derrubava esse papel na tela "todos os alunos, todas as
+    // escolas" do admin ao voltar (_galRaiz nunca era desfeito).
+    if (_galAlunoId) {
+      if (_galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+      if (_galAno) { renderGaleriaAlbunsDoAno(wrap); return }
+      renderGaleriaAnosDoAluno(wrap); return
+    }
     if (_galAlbumId) {
       if (_galSubpasta === null && _galSubpastasDisponiveis(_galAlbumId).length) { renderGaleriaSubpastasDoAlbum(wrap); return }
       renderGaleriaFotosDoAlbum(wrap); return
@@ -12387,7 +12405,7 @@ function renderGaleriaAlunosDaEscola(wrap) {
     ${turmasDaEscola.map(t => `<span class="chip${_galFiltroTurma === t.id ? ' on' : ''}" onclick="_galFiltroTurma='${t.id}';renderGaleriaAdmin()">${esc(t.nome)}</span>`).join('')}
   </div>` : ''
   wrap.innerHTML += `${_galChipsEventosAlunos()}${chipsTurma}<div class="list">${alunos.length ? alunos.map(a => `
-    <div class="list-item" onclick="_galRaiz='alunos';_galAlunoId='${a.id}';_galAno=null;renderGaleriaAdmin()">
+    <div class="list-item" onclick="_galAlunoId='${a.id}';_galAno=null;renderGaleriaAdmin()">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
         <div class="list-avatar" id="gal-esc-alu-${a.id}">${esc((a.nome || '?').charAt(0).toUpperCase())}</div>
         <div><div class="nome">${esc(a.nome)}</div><div class="meta">${store.fotoAluno.filter(x => x.aluno_id === a.id).length} foto(s)</div></div>
