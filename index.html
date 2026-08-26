@@ -12637,12 +12637,33 @@ function renderGaleriaFotosDoAlbum(wrap) {
   }
 }
 
+// re-render da Galeria troca o DOM inteiro a cada tecla digitada (sem
+// virtual DOM) — sem isso, o campo de busca perdia o foco a CADA
+// caractere, deixando só a primeira letra ir pro filtro (achado
+// digitando de verdade, não só colando o termo pronto de uma vez: a
+// segunda tecla simplesmente não ia pra lugar nenhum, porque o campo
+// nem existia mais quando ela chegou). Guarda a posição do cursor
+// ANTES do render destruir o campo, restaura foco+cursor no campo
+// novo (mesmo visual, node diferente) logo depois.
+let _galBuscaFocoId = null
+let _galBuscaFocoPos = null
+function _galBuscaGuardarFoco(inputEl) {
+  _galBuscaFocoId = inputEl.id
+  _galBuscaFocoPos = inputEl.selectionStart
+}
+function _galBuscaRestaurarFoco() {
+  if (!_galBuscaFocoId) return
+  const el = document.getElementById(_galBuscaFocoId)
+  if (el) { el.focus(); el.setSelectionRange(_galBuscaFocoPos, _galBuscaFocoPos) }
+}
+
 // ── caminho Avulsos: lista de ensaios (busca) → Fotos (sem filtro) ─
 function renderGaleriaListaAvulsos(wrap) {
   const ensaios = store.eventos.filter(e => e.tipo === 'ensaio' && (e.nome || '').toLowerCase().includes(_galFiltroAvulso))
   wrap.innerHTML += `
-    <div class="field" style="max-width:320px;"><input type="text" placeholder="Buscar ensaio avulso…" oninput="_galFiltroAvulso=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroAvulso)}"></div>
+    <div class="field" style="max-width:320px;"><input type="text" id="gal-busca-avulso" placeholder="Buscar ensaio avulso…" oninput="_galFiltroAvulso=this.value.trim().toLowerCase();_galBuscaGuardarFoco(this);renderGaleriaAdmin()" value="${esc(_galFiltroAvulso)}"></div>
     <div class="pasta-grid" id="gal-lista-avulsos"></div>`
+  _galBuscaRestaurarFoco()
   const el = document.getElementById('gal-lista-avulsos')
   el.innerHTML = ensaios.length ? ensaios.map(ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
@@ -12684,10 +12705,11 @@ function renderGaleriaFotosAvulso(wrap) {
 function renderGaleriaListaTodosAlunos(wrap) {
   wrap.innerHTML += `
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
-      <input type="text" style="max-width:280px;" placeholder="Buscar aluno…" oninput="_galFiltroTexto=this.value.toLowerCase();renderGaleriaAdmin()" value="${esc(_galFiltroTexto)}">
+      <input type="text" id="gal-busca-aluno" style="max-width:280px;" placeholder="Buscar aluno…" oninput="_galFiltroTexto=this.value.toLowerCase();_galBuscaGuardarFoco(this);renderGaleriaAdmin()" value="${esc(_galFiltroTexto)}">
       <select id="gal-filtro-escola-alunos" onchange="_galFiltroEscolaAlunos=this.value;renderGaleriaAdmin()"></select>
     </div>
     <div class="list" id="gal-lista-alunos2"></div>`
+  _galBuscaRestaurarFoco()
   // _popularFiltroEscolas precisa rodar DEPOIS do innerHTML acima — esse
   // <select> é criado na hora (diferente de alu-filtro-escola/
   // evt-filtro-escola, que já existem fixos no HTML base). Chamar antes
