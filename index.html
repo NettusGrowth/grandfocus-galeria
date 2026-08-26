@@ -1230,6 +1230,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 @media(min-width:600px){.foto-grid.gal-boutique{column-gap:14px;}}
 @media(min-width:900px){.foto-grid.gal-boutique{column-count:3;column-gap:18px;}}
 .foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;}
+/* BUG REAL GRAVE encontrado em produção: fotos sumindo pra TODOS os
+   papéis não-admin no celular (responsável, escola, proprietário —
+   reconhecia pasta e quantidade, mas a grade ficava vazia), só no
+   celular, nunca no desktop. Causa: .foto-item (regra base, linha
+   acima) tem content-visibility:auto — otimização de performance que
+   pula o layout/paint de itens fora da tela. Isso é conhecido por
+   quebrar dentro de layout multi-coluna (column-count, usado pelo
+   masonry boutique abaixo): o navegador nunca "promove" o item de
+   volta pra visível dentro de colunas, principalmente no motor do
+   Safari/iOS — daí só afetar celular. O grid do admin usa
+   display:grid (não column-count), por isso nunca teve esse bug.
+   Aqui desliga a otimização só pro masonry, onde ela é incompatível;
+   o lazy-load de verdade (baixar os bytes da imagem) continua via
+   IntersectionObserver em _hidratarImgCache, então o custo perdido é
+   só o layout/paint antecipado, não o download. */
+.foto-item.gal-boutique{content-visibility:visible;}
 .foto-item.gal-boutique img{height:auto;object-fit:unset;display:block;}
 /* sem aspect-ratio fixo (masonry natural), a foto ainda sem altura real
    tem altura intrínseca zero. BUG REAL encontrado em produção (fotos
@@ -9546,7 +9562,18 @@ function _imgTagCache(path, attrs = '') {
 // _urlAssinada de propósito pra não gastar rede à toa — por isso o
 // pedido aqui é sempre feito, não só quando falta o blob).
 function _hidratarPathImg(img, path) {
-  _carregarImgCache(path).then(url => { if (url) img.src = url })
+  // BUG REAL encontrado em produção (relatado pelo usuário: agora pisca
+  // pra QUALQUER usuário, miniatura E capa de pasta): estas duas promises
+  // rodam em paralelo e escrevem no mesmo img.src sem ordem garantida.
+  // O cuidado de pré-carregar a URL real antes de trocar (abaixo) não
+  // adianta nada se o cache local resolver DEPOIS e sobrescrever de volta
+  // pro blob — troca "ao vivo" sem pré-carga, exatamente o pisco que
+  // esse pré-carregamento existe pra evitar. A flag trava a ordem: uma
+  // vez que a URL real já foi aplicada, o blob nunca mais escreve por
+  // cima (o cache local só serve de "primeira pintura" enquanto a URL
+  // real ainda não chegou).
+  let realAplicada = false
+  _carregarImgCache(path).then(url => { if (url && !realAplicada) img.src = url })
   // mesmo motivo do lightbox (ver renderLightboxAtual): pré-carrega a
   // URL real fora da tela antes de trocar o src visível, pra não
   // piscar toda miniatura da grade na troca blob→URL de rede real
@@ -9556,7 +9583,7 @@ function _hidratarPathImg(img, path) {
   _urlAssinada(path).then(urlReal => {
     if (!urlReal || urlReal === img.src) return
     const pre = new Image()
-    pre.onload = () => { img.src = urlReal }
+    pre.onload = () => { realAplicada = true; img.src = urlReal }
     pre.onerror = () => {}
     pre.src = urlReal
   })
