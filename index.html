@@ -9539,7 +9539,19 @@ function _imgTagCache(path, attrs = '') {
 // pedido aqui é sempre feito, não só quando falta o blob).
 function _hidratarPathImg(img, path) {
   _carregarImgCache(path).then(url => { if (url) img.src = url })
-  _urlAssinada(path).then(urlReal => { if (urlReal) img.src = urlReal })
+  // mesmo motivo do lightbox (ver renderLightboxAtual): pré-carrega a
+  // URL real fora da tela antes de trocar o src visível, pra não
+  // piscar toda miniatura da grade na troca blob→URL de rede real
+  // (achado real: usuário reportou "toda foto pisca" — miniatura
+  // inclusa, não só o lightbox ampliado). O <img> visível ainda
+  // termina na URL real, preservando o toque-e-segure do iOS.
+  _urlAssinada(path).then(urlReal => {
+    if (!urlReal || urlReal === img.src) return
+    const pre = new Image()
+    pre.onload = () => { img.src = urlReal }
+    pre.onerror = () => {}
+    pre.src = urlReal
+  })
 }
 function _hidratarImgCache(escopo) {
   const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
@@ -10349,7 +10361,18 @@ async function renderLightboxAtual() {
   // memória, sem round-trip novo) — é ELA que precisa ficar no <img>
   // no final, não o blob.
   const urlReal = await _urlAssinada(path)
-  if (urlReal) img.src = urlReal
+  // pré-carrega a URL real numa <img> invisível ANTES de trocar o src
+  // visível — sem isso, o navegador troca de recurso "ao vivo" (mesmo
+  // sendo o mesmo dado do blob) e pisca até baixar/decodificar de
+  // novo. Pré-carregado, a troca vira instantânea (já em memória) e o
+  // <img> visível ainda termina apontando pra URL de rede real, então
+  // o toque-e-segure salvar no iOS continua funcionando igual.
+  if (urlReal && urlReal !== img.src) {
+    const pre = new Image()
+    pre.onload = () => { if (_lightboxFotos[_lightboxIdx] === f) img.src = urlReal }
+    pre.onerror = () => {}
+    pre.src = urlReal
+  }
   const evento = store.eventos.find(e => e.id === f.evento_id)
   document.getElementById('lightbox-caption').textContent =
     `${evento ? evento.nome : ''} — ${_lightboxIdx + 1} de ${_lightboxFotos.length}`
