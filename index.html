@@ -12032,6 +12032,12 @@ let _galAno = null
 let _galAlbumId = null
 let _galAvulsoId = null
 let _galSubpasta = null
+// responsável pode ter sido marcado direto (foto_pessoa) numa foto sem
+// nenhum filho seu marcado nela (ex: foto de família/plateia no
+// recital) — essas fotos não pertencem a nenhum "Filho" da árvore, daí
+// esse flag liga um ramo à parte ("Suas fotos") dentro da raiz
+// 'filhos'. Ver renderGaleriaFotosPessoaisResp/_fotosPessoaisResp.
+let _galVendoFotosPessoais = false
 let _galEscolaModo = null // null = "Eventos & Álbuns" | 'alunos' — só usado por diretor/proprietário/professor no nível Ano
 let _galEscolaFiltro = 'todos' // 'todos' | 'eventos' | 'avulsos' — pílulas da tela de pouso (lista de anos) de quem só tem uma escola
 let _galFiltroTexto = ''
@@ -12112,13 +12118,17 @@ let _galBreadcrumbPartes = []
 function _galBreadcrumb() {
   const partes = [{ label: 'Galeria', onclick: '_galIrRaiz()' }]
   if (_galRaiz === 'filhos') {
-    if (store.alunos.length > 1) partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
-    if (_galAlunoId) {
-      const a = store.alunos.find(x => x.id === _galAlunoId)
-      partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
+    if (_galVendoFotosPessoais) {
+      partes.push({ label: 'Suas fotos' })
+    } else {
+      if (store.alunos.length > 1) partes.push({ label: 'Filhos', onclick: '_galAlunoId=null;_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
+      if (_galAlunoId) {
+        const a = store.alunos.find(x => x.id === _galAlunoId)
+        partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
+      }
+      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
+      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
     }
-    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
-    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
   } else if (_galRaiz === 'escolas') {
     partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
     if (_galEscolaId !== undefined) partes.push({ label: esc(nomeEscola(_galEscolaId)), onclick: '_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
@@ -12194,7 +12204,7 @@ function _galHeroMobileHTML() {
 // cabeçalho aparece por cima dela.
 function _galEhRaizDoPapel() {
   if (_galRaiz === null) return true
-  if (_galRaiz === 'filhos') return !_galAlunoId || store.alunos.length === 1
+  if (_galRaiz === 'filhos') return !_galVendoFotosPessoais && (!_galAlunoId || store.alunos.length === 1)
   if (_galRaiz === 'escolas' && _galRole !== 'admin') return !_galAno && !_galAlbumId
   return false
 }
@@ -12213,6 +12223,7 @@ function renderGaleriaAdmin() {
 
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
   if (_galRaiz === 'filhos') {
+    if (_galVendoFotosPessoais) { renderGaleriaFotosPessoaisResp(wrap); return }
     if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
     if (_galAlunoId && _galAno) { renderGaleriaAlbunsDoAno(wrap); return }
     if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
@@ -14226,22 +14237,62 @@ async function iniciarViewResponsavel() {
   // próprio, sem pai/responsável de verdade por trás — é ele mesmo
   // gerenciando a própria galeria) pula a pasta "Filhos" e entra direto
   // no aluno: com um só vinculado, aquele rótulo não faz sentido nenhum
-  // (e o breadcrumb abaixo também some com ele nesse caso).
-  _galRaiz = 'filhos'; _galAlunoId = meusFilhos.length === 1 ? meusFilhos[0].id : null; _galAno = null; _galAlbumId = null
-  _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  // (e o breadcrumb abaixo também some com ele nesse caso). Mas só pula
+  // se não houver "Suas fotos" também — senão esse card nunca apareceria
+  // em lugar nenhum (a lista que ele mora é exatamente a que pularíamos).
+  const temFotosPessoais = _fotosPessoaisResp().length > 0
+  _galRaiz = 'filhos'; _galAlunoId = (meusFilhos.length === 1 && !temFotosPessoais) ? meusFilhos[0].id : null; _galAno = null; _galAlbumId = null
+  _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set(); _galVendoFotosPessoais = false
   renderGaleriaAdmin()
+}
+
+// fotos onde o PRÓPRIO responsável foi marcado direto (foto_pessoa),
+// sem passar por nenhum filho — ex: foto de família/plateia num
+// recital. Sem isso essas fotos ficavam invisíveis pra sempre: eram
+// buscadas em iniciarViewResponsavel (store.fotos as inclui), mas a
+// árvore de navegação inteira é escopada por _fotosDoAluno (só
+// foto_aluno), então nunca apareciam em lugar nenhum.
+function _fotosPessoaisResp() {
+  const fotoIds = new Set(store.fotoPessoa.filter(x => x.user_id === currentUser.id).map(x => x.foto_id))
+  return store.fotos.filter(f => fotoIds.has(f.id))
 }
 
 // ── caminho Filhos (responsável): lista dos próprios filhos, sem
 // escola aparecendo → reaproveita Ano/Fotos do caminho Alunos ────────
 function renderGaleriaListaFilhos(wrap) {
+  const fotosPessoais = _fotosPessoaisResp()
+  const cardPessoal = fotosPessoais.length ? `<div class="list-item pasta-item" onclick="_galVendoFotosPessoais=true;renderGaleriaAdmin()">
+      ${_galMosaicoCardHTML('Suas fotos', fotosPessoais.length, fotosPessoais, `${fotosPessoais.length} foto(s)`)}
+    </div>` : ''
   wrap.innerHTML += `<div class="pasta-grid">${store.alunos.length ? store.alunos.map(a => {
     const fotosDoAluno = _fotosDoAluno(a.id)
     return `<div class="list-item pasta-item" onclick="_galAlunoId='${a.id}';renderGaleriaAdmin()">
       ${_galMosaicoCardHTML(a.nome, fotosDoAluno.length, fotosDoAluno, `${fotosDoAluno.length} foto(s)`)}
     </div>`
-  }).join('') : '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
+  }).join('') + cardPessoal : cardPessoal || '<div class="empty">Nenhum filho vinculado a essa conta ainda — fale com a Grand Focus.</div>'}</div>`
   _hidratarImgCache(wrap)
+}
+
+// leaf "Suas fotos" — flat, sem Ano/Álbum (geralmente poucas fotos,
+// espalhadas por eventos diferentes; agrupar só pra isso não paga o
+// esforço). Mesma toolbar/grid dos outros caminhos.
+function renderGaleriaFotosPessoaisResp(wrap) {
+  const fotos = _fotosPessoaisResp()
+  _lightboxFotos = fotos
+  _galSelecao = new Set()
+  wrap.innerHTML += `
+    <div class="section-h" style="margin-top:0;"><h2>Suas fotos</h2></div>
+    <div class="foto-toolbar">
+      <span class="meta">${fotos.length} foto(s)</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm" onclick="_galSelecionarTodas()">Selecionar todas</button>
+        <button class="btn btn-sm" onclick="_galLimparSelecao()">Nenhuma</button>
+        <button class="btn btn-sm" id="gal-btn-baixar" disabled onclick="_galBaixarSelecionadas()">Baixar selecionadas (0)</button>
+      </div>
+    </div>
+    <div class="${_galGridClass()}" id="gal-fotos-grid"></div>
+  `
+  _renderGridFotosPaginado(document.getElementById('gal-fotos-grid'), fotos)
 }
 
 // ── galeria pública (link privado, sem login) ─────────────────────
