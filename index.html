@@ -10319,6 +10319,14 @@ async function renderLightboxAtual() {
   const f = _lightboxFotos[_lightboxIdx]
   if (!f) return
   const img = document.getElementById('lightbox-img')
+  // #lightbox-img é o MESMO elemento reaproveitado pelo modo público
+  // (_renderPublicaLightboxAtual, que grava onload/onerror nele) — sem
+  // limpar aqui, um handler deixado de uma visita anterior ao link
+  // público continua preso no elemento e dispara de novo em toda foto
+  // do modo autenticado, inclusive nas 2-3 trocas de src que essa
+  // função já faz por foto (cache→blob→URL real).
+  img.onload = null
+  img.onerror = null
   const path = _fotoPreviewPath(f)
   // a miniatura da grade (_galFotoItemHTML) já buscou e guardou essa
   // MESMA imagem em cache (_carregarImgCache) — abrir o lightbox
