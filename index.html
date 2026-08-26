@@ -14498,7 +14498,10 @@ function _publicaAbrirLightbox(idx) {
 function _renderPublicaLightboxAtual() {
   const f = _publicaFotos[_lightboxIdx]
   if (!f) return
-  document.getElementById('lightbox-img').src = f.url
+  const img = document.getElementById('lightbox-img')
+  img.onerror = () => { img.style.display = 'none' }
+  img.onload = () => { img.style.display = '' }
+  img.src = f.url
   document.getElementById('lightbox-caption').textContent = `${_lightboxIdx + 1} de ${_publicaFotos.length}`
 }
 // antes só dava pra baixar 1 foto de cada vez aqui (a única forma de
