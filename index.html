@@ -14366,7 +14366,17 @@ function renderGaleriaFotosPessoaisResp(wrap) {
 let _publicaFotos = []
 let _publicaSelecionados = new Set()
 let _publicaEvento = null
+// guarda contra resposta fora de ordem: reenviar a senha (ou recarregar)
+// sem esperar a tentativa anterior terminar é comum em rede lenta/
+// instável (mania real: digitar errado, perceber, digitar certo de
+// novo rapidinho) — sem isso, se a 1ª chamada (ex: senha errada) demora
+// mais que a 2ª (senha certa) pra responder, ela chega DEPOIS e
+// sobrescreve a galeria já carregada certinha de volta pra tela de
+// erro. Cada chamada carimba sua própria sequência e só aplica o
+// resultado se ainda for a mais recente.
+let _publicaCargaSeq = 0
 async function _carregarGaleriaPublica(token, senha) {
+  const minhaSeq = ++_publicaCargaSeq
   const conteudo = document.getElementById('publica-conteudo')
   conteudo.innerHTML = '<div class="empty">Carregando…</div>'
   const dock = document.getElementById('publica-dock')
@@ -14379,10 +14389,12 @@ async function _carregarGaleriaPublica(token, senha) {
       body: JSON.stringify({ token, senha: senha || null }),
     })
   } catch (e) {
+    if (minhaSeq !== _publicaCargaSeq) return
     conteudo.innerHTML = '<div class="empty">Não foi possível conectar. Confira sua internet e tente de novo.</div>'
     return
   }
   const data = await resp.json().catch(() => ({}))
+  if (minhaSeq !== _publicaCargaSeq) return // uma chamada mais nova já respondeu — descarta essa
   if (!resp.ok || data.error) {
     if (/senha/i.test(data.error || '')) { _renderPublicaSenhaCard(token, /^.+$/.test(senha || '')); return }
     _renderPublicaInvalidoCard(data.error)
