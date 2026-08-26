@@ -3477,10 +3477,13 @@ function _credencialBoxHTML(username, senha, mensagemExtra, opts = {}, fecharMod
   const msg = `Olá! Segue seu acesso à Galeria Grand Focus:\n\nUsuário: ${username}\nSenha: ${senha}\n\nAcesse em ${location.origin}${location.pathname}`
   const tel = (opts.telefone || '').replace(/\D/g, '')
   const wa = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`
-  const mail = `mailto:${opts.email || ''}?subject=${encodeURIComponent('Seu acesso à Galeria Grand Focus')}&body=${encodeURIComponent(msg)}`
+  // encodeURIComponent no e-mail: sem isso, um endereço com aspas (ou
+  // qualquer lixo vindo do cadastro) fecha o href e vira injeção de
+  // atributo (ex: onmouseover=) no HTML gerado logo abaixo.
+  const mail = `mailto:${encodeURIComponent(opts.email || '')}?subject=${encodeURIComponent('Seu acesso à Galeria Grand Focus')}&body=${encodeURIComponent(msg)}`
   return `${esc(`Usuário: ${username}`)}\n${esc(`Senha:   ${senha}`)}\n\n${esc(mensagemExtra)}<div style="white-space:normal;display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
-    <a class="btn btn-sm" href="${wa}" target="_blank" rel="noopener">📲 Enviar por WhatsApp</a>
-    <a class="btn btn-sm" href="${mail}">✉️ Enviar por e-mail</a>
+    <a class="btn btn-sm" href="${esc(wa)}" target="_blank" rel="noopener">📲 Enviar por WhatsApp</a>
+    <a class="btn btn-sm" href="${esc(mail)}">✉️ Enviar por e-mail</a>
     ${fecharModalId ? `<button class="btn btn-primary btn-sm" type="button" onclick="fecharModal('${fecharModalId}')" style="margin-left:auto;">✓ Concluído</button>` : ''}
   </div>`
 }
@@ -5100,7 +5103,7 @@ async function _dashCarregarAtividade() {
     <li style="display:flex;align-items:flex-start;gap:10px;">
       <span class="list-avatar" id="dash-ativ-av-${e.id}" style="width:26px;height:26px;font-size:10px;flex-shrink:0;margin-top:1px;">${esc((e.user_nome || '?').trim().charAt(0).toUpperCase())}</span>
       <span style="min-width:0;flex:1;">
-        <b style="color:var(--ouro-luz);font-weight:500;cursor:pointer;" onclick="_dashIrParaAuditoriaUsuario('${esc(e.user_nome || '')}')">${esc(e.user_nome || 'Alguém')}</b> ${esc(e.acao)}
+        <b style="color:var(--ouro-luz);font-weight:500;cursor:pointer;" onclick="_dashIrParaAuditoriaUsuario('${escJs(e.user_nome || '')}')">${esc(e.user_nome || 'Alguém')}</b> ${esc(e.acao)}
         <span class="aud-badge ${classe}" style="margin-left:5px;font-size:9.5px;padding:1px 6px;vertical-align:1px;">${AUDITORIA_TIPO_LABEL[classe]}</span>
         <small style="display:block;color:#8A7461;font-size:11px;margin-top:2px;">${fmtDataHora(e.criado_em)}</small>
       </span>
@@ -6165,7 +6168,7 @@ function abrirModalCrmPerda() {
   _crmMotivoPerdaSelecionado = null
   document.getElementById('crmp-obs').value = ''
   document.getElementById('crm-perda-lista').innerHTML = store.crmMotivosPerda.map(m =>
-    `<span class="tag-opt" onclick="_crmSelecionarMotivoPerda('${esc(m.texto)}',this)">${esc(m.texto)}</span>`).join('')
+    `<span class="tag-opt" onclick="_crmSelecionarMotivoPerda('${escJs(m.texto)}',this)">${esc(m.texto)}</span>`).join('')
   abrirModal('modal-crm-perda')
 }
 function _crmSelecionarMotivoPerda(texto, el) {
@@ -7431,6 +7434,15 @@ function fmtDataHora(iso) { if (!iso) return ''; const d = new Date(iso); return
 function fmtBRL(v) { return 'R$ ' + Number(v || 0).toFixed(2).replace('.', ',') }
 function fmtUltimoAcesso(iso) { return iso ? fmtDataHora(iso) : 'nunca acessou' }
 function esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])) }
+
+// esc() NAO basta dentro de um atributo on*= : o navegador DECODIFICA as
+// entidades HTML do atributo ANTES de rodar o conteudo como JS, entao um
+// &#39; vira aspa simples de novo bem a tempo de fechar a string e injetar
+// codigo (comprovado com exploit real nesta sessao, ver commit e8ae735).
+// escJs escapa PRIMEIRO pro contexto JS (barra invertida + aspa simples) e
+// so depois pro HTML — assim o escape JS sobrevive a decodificacao.
+// Usar em TODO ${} que cai dentro de onclick/ondrop/onchange/etc.
+function escJs(s) { return esc(String(s ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'")) }
 
 // ── modais: escola / aluno / evento ──────────────────────────────
 let _escolaCapaArquivo = null
@@ -11615,7 +11627,7 @@ function _fotoItemEventoAdminHTML(f, quemPodeSerMarcado, contagemMarcacoes) {
     <div class="foto-item${sel ? ' sel' : ''}" id="fitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_eventoFotoSelecao)" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="_fotoDropReordenar(event,'evento','${f.id}',this)" onclick="_eventoToggleSelecaoFoto('${f.id}')" title="Arraste pra reordenar (ou pro topo de outra pasta, pra mover)">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
-      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
+      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${escJs(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}', renderFotosEventoAdmin)">
@@ -11675,13 +11687,13 @@ async function renderFotosEventoAdmin() {
     // todas" do topo já cobre o mesmo escopo.
     const mostraCabecalho = nome || (ordemGrupos.length > 1 && qtd)
     return `
-    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${esc(nome)}',this)">
+    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${escJs(nome)}',this)">
       ${mostraCabecalho ? `<div class="subpasta-titulo">
-        ${nome ? `<h3 onclick="_eventoToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
+        ${nome ? `<h3 onclick="_eventoToggleColapsarPasta('${escJs(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="meta">${qtd} foto(s)</span>
-          ${qtd ? `<button class="btn btn-sm" onclick="_eventoSelecionarTodasDaPasta('${esc(nome)}')">Selecionar todas desta pasta</button>` : ''}
-          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_eventoApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button>` : ''}
+          ${qtd ? `<button class="btn btn-sm" onclick="_eventoSelecionarTodasDaPasta('${escJs(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_eventoApagarPasta('${escJs(nome)}')">${ICON_LIXEIRA}</button>` : ''}
         </div>
       </div>` : ''}
       ${qtd ? `<div class="foto-grid" id="evt-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
@@ -13537,7 +13549,7 @@ function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
     <div class="foto-item${sel ? ' sel' : ''}" id="efitem-${f.id}" draggable="true" ondragstart="_fotoDragStart(event,'${f.id}',_ensaioFotoSelecao)" ondragover="event.preventDefault();event.stopPropagation();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="_fotoDropReordenar(event,'ensaio','${f.id}',this)" onclick="_ensaioToggleSelecaoFoto('${f.id}')" title="Arraste pra reordenar (ou pro topo de outra pasta, pra mover)">
       ${_imgTagCache(_fotoPreviewPath(f), 'alt=""')}
       <span class="ck">${sel ? '✓' : ''}</span>
-      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${esc(f.storage_path)}')">
+      <button class="foto-expand" style="right:64px;" title="Baixar" onclick="event.stopPropagation();_baixarFotoRapido('${escJs(f.storage_path)}')">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>
       </button>
       <button class="foto-expand" title="Ver ampliada" onclick="event.stopPropagation();abrirLightbox('${f.id}', renderFotosEnsaioAdmin)">
@@ -13587,13 +13599,13 @@ async function renderFotosEnsaioAdmin() {
     const qtd = grupos.get(nome).length
     const mostraCabecalho = nome || (ordemGrupos.length > 1 && qtd)
     return `
-    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${esc(nome)}',this)">
+    <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${escJs(nome)}',this)">
       ${mostraCabecalho ? `<div class="subpasta-titulo">
-        ${nome ? `<h3 onclick="_ensaioToggleColapsarPasta('${esc(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
+        ${nome ? `<h3 onclick="_ensaioToggleColapsarPasta('${escJs(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
         <div style="display:flex;align-items:center;gap:8px;">
           <span class="meta">${qtd} foto(s)</span>
-          ${qtd ? `<button class="btn btn-sm" onclick="_ensaioSelecionarTodasDaPasta('${esc(nome)}')">Selecionar todas desta pasta</button>` : ''}
-          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_ensaioApagarPasta('${esc(nome)}')">${ICON_LIXEIRA}</button>` : ''}
+          ${qtd ? `<button class="btn btn-sm" onclick="_ensaioSelecionarTodasDaPasta('${escJs(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_ensaioApagarPasta('${escJs(nome)}')">${ICON_LIXEIRA}</button>` : ''}
         </div>
       </div>` : ''}
       ${qtd ? `<div class="foto-grid" id="ens-grid-${i}"></div>` : `<div class="foto-grid">${nome ? '<div class="empty">Vazia — envie fotos e escolha essa pasta, ou arraste fotos aqui.</div>' : ''}</div>`}
