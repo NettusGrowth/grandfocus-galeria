@@ -3942,7 +3942,7 @@ async function _salvarHeroBg() {
   try {
     const blob = await _comprimirParaWebp(_heroBgArquivo, 2400)
     const path = `config/hero-bg-${Date.now()}.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, blob, { contentType: 'image/webp' })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, blob, { cacheControl: '31536000', contentType: 'image/webp' })
     if (upErr) { toast('Erro ao enviar: ' + upErr.message); return }
     const anterior = _appConfig.hero_bg_path
     const posValor = `${_heroBgPosicao.x.toFixed(1)}% ${_heroBgPosicao.y.toFixed(1)}%`
@@ -4558,7 +4558,7 @@ async function salvarPerfil() {
     if (!file) continue
     const leve = await _comprimirParaWebp(file, tipo === 'foto' ? 400 : 1600)
     const path = `perfis/${currentUser.id}/${tipo}.webp`
-    const { error } = await db.storage.from(BUCKET).upload(path, leve, { contentType: 'image/webp', upsert: true })
+    const { error } = await db.storage.from(BUCKET).upload(path, leve, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (error) { toast(`Erro ao enviar ${tipo === 'foto' ? 'a foto' : 'a capa'}: ` + error.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
     _invalidarUrlCache(path)
     if (tipo === 'foto') fotoPath = path; else capaPath = path
@@ -7541,9 +7541,15 @@ async function salvarEscola() {
 
   let capa_url = id ? (store.escolas.find(e => e.id === id)?.capa_url || null) : null
   if (_escolaCapaArquivo) {
-    const ext = (_escolaCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `escolas/${escolaId}/capa.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _escolaCapaArquivo, { contentType: _escolaCapaArquivo.type, upsert: true })
+    // achado real (trace de performance do Luiz): capa subia o arquivo
+    // ORIGINAL sem nenhum resize/compressão — uma capa de 9+ MB sendo
+    // decodificada pra caber num card de ~300px causava pausa visível
+    // (o "pisco" reportado). Mesmo helper já testado em produção pro
+    // Meu Perfil (_comprimirParaWebp) — 1600px de lado maior é mais que
+    // suficiente pra qualquer card/hero, e sempre vira .webp.
+    const comprimida = await _comprimirParaWebp(_escolaCapaArquivo, 1600)
+    const path = `escolas/${escolaId}/capa.webp`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
@@ -7551,9 +7557,9 @@ async function salvarEscola() {
 
   let logo_url = id ? (store.escolas.find(e => e.id === id)?.logo_url || null) : null
   if (_escolaLogoArquivo) {
-    const ext = (_escolaLogoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `escolas/${escolaId}/logo.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _escolaLogoArquivo, { contentType: _escolaLogoArquivo.type, upsert: true })
+    const comprimido = await _comprimirParaWebp(_escolaLogoArquivo, 800)
+    const path = `escolas/${escolaId}/logo.webp`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimido, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar o logo: ' + upErr.message); return }
     _invalidarUrlCache(path)
     logo_url = path
@@ -7682,7 +7688,7 @@ async function _escolaDetalheCapaSelecionada(inputEl) {
   const escolaId = _escolaDetalheAtual
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
   const path = `escolas/${escolaId}/capa.${ext}`
-  const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+  const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
   if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
   _invalidarUrlCache(path)
   const { data, error } = await db.from('escolas').update({ capa_url: path }).eq('id', escolaId).select().single()
@@ -7982,13 +7988,13 @@ async function _uploadFotoCapaProfessor(userId) {
   if (_profFotoArquivo) {
     const ext = (_profFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${userId}/foto.${ext}`
-    const { error } = await db.storage.from(BUCKET).upload(path, _profFotoArquivo, { contentType: _profFotoArquivo.type, upsert: true })
+    const { error } = await db.storage.from(BUCKET).upload(path, _profFotoArquivo, { cacheControl: '31536000', contentType: _profFotoArquivo.type, upsert: true })
     if (!error) { foto_url = path; _invalidarUrlCache(path) }
   }
   if (_profCapaArquivo) {
-    const ext = (_profCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `perfis/${userId}/capa.${ext}`
-    const { error } = await db.storage.from(BUCKET).upload(path, _profCapaArquivo, { contentType: _profCapaArquivo.type, upsert: true })
+    const comprimida = await _comprimirParaWebp(_profCapaArquivo, 1600)
+    const path = `perfis/${userId}/capa.webp`
+    const { error } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (!error) { capa_url = path; _invalidarUrlCache(path) }
   }
   return { foto_url, capa_url }
@@ -8221,7 +8227,7 @@ async function salvarPai() {
     if (_paiFotoArquivo) {
       const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
       const path = `perfis/${id}/foto.${ext}`
-      const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
+      const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
       if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
     }
     const payload = { nome, email, telefone, foto_pos: _posValor('pai-foto-preview') }
@@ -8254,7 +8260,7 @@ async function salvarPai() {
   if (_paiFotoArquivo) {
     const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${suData.user?.id}/foto.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { contentType: _paiFotoArquivo.type, upsert: true })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
     if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
   }
   const perfilPayload = { user_id: suData.user?.id, role: 'responsavel', nome, username, email }
@@ -8438,7 +8444,7 @@ async function salvarAluno() {
   if (_alunoFotoArquivo) {
     const ext = (_alunoFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `alunos/${alunoId}/foto.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _alunoFotoArquivo, { contentType: _alunoFotoArquivo.type, upsert: true })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _alunoFotoArquivo, { cacheControl: '31536000', contentType: _alunoFotoArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a foto: ' + upErr.message); return }
     _invalidarUrlCache(path)
     foto_url = path
@@ -8923,9 +8929,12 @@ async function salvarEvento() {
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
   if (_eventoCapaArquivo) {
-    const ext = (_eventoCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `eventos-capa/${eventoId}/capa.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _eventoCapaArquivo, { contentType: _eventoCapaArquivo.type, upsert: true })
+    // mesmo achado real da capa de escola (ver comentário lá) — capa de
+    // evento é a que mais aparece na Galeria (card de pasta pra todo
+    // papel), e era a que tinha o arquivo mais pesado no trace real.
+    const comprimida = await _comprimirParaWebp(_eventoCapaArquivo, 1600)
+    const path = `eventos-capa/${eventoId}/capa.webp`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
@@ -9328,7 +9337,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // marca d'água só faz sentido na Seleção de Fotos (onde protege
     // contra baixar antes de pagar) — na Galeria/Álbuns quem vê já tem
@@ -9340,7 +9349,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg' })
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
@@ -9832,7 +9841,7 @@ async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
       const thumb = await _gerarThumbGaleria(blob)
       const thumbPath = _thumbPathDe(f.storage_path)
-      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg', upsert: true })
+      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
       if (upErr) throw upErr
       const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath, largura: thumb.largura, altura: thumb.altura }).eq('id', f.id)
       if (dbErr) throw dbErr
@@ -11186,7 +11195,7 @@ async function publicarPost() {
     const extPadrao = tipo === 'video' ? 'mp4' : tipo === 'audio' ? 'mp3' : (tipo === 'documento' ? 'pdf' : 'jpg')
     const ext = (file.name.split('.').pop() || extPadrao).toLowerCase().replace(/[^a-z0-9]/g, '')
     const path = `posts/${post.id}/midia-${i}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type, upsert: true })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
     if (upErr) { toast(`Publicação criada, mas uma mídia falhou: ${upErr.message}`); continue }
     const { error: midiaErr } = await db.from('post_midias').insert({ post_id: post.id, tipo, storage_path: path, ordem: i })
     if (midiaErr) toast(`Publicação criada, mas uma mídia falhou: ${midiaErr.message}`)
@@ -11257,9 +11266,9 @@ async function _salvarComunidadeHeader() {
   const nome = document.getElementById('ch-nome').value.trim() || null
   let capaPath = store.escolas.find(x => x.id === escolaId)?.comunidade_capa_url || null
   if (_chCapaArquivo) {
-    const ext = (_chCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `escolas/${escolaId}/comunidade-capa.${ext}`
-    const { error } = await db.storage.from(BUCKET).upload(path, _chCapaArquivo, { contentType: _chCapaArquivo.type, upsert: true })
+    const comprimida = await _comprimirParaWebp(_chCapaArquivo, 1600)
+    const path = `escolas/${escolaId}/comunidade-capa.webp`
+    const { error } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (error) { toast('Erro ao enviar capa: ' + error.message); return }
     _invalidarUrlCache(path)
     capaPath = path
@@ -13306,9 +13315,9 @@ async function salvarEnsaio() {
 
   let capa_url = id ? (store.eventos.find(e => e.id === id)?.capa_url || null) : null
   if (_ensaioCapaArquivo) {
-    const ext = (_ensaioCapaArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `eventos-capa/${ensaioId}/capa.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _ensaioCapaArquivo, { contentType: _ensaioCapaArquivo.type, upsert: true })
+    const comprimida = await _comprimirParaWebp(_ensaioCapaArquivo, 1600)
+    const path = `eventos-capa/${ensaioId}/capa.webp`
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
@@ -13567,7 +13576,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { contentType: file.type })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // mesmo motivo do uploadFotosEvento: marca d'água só existe na
     // Seleção de Fotos, aqui a prévia é só redimensionada.
@@ -13575,7 +13584,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { contentType: 'image/jpeg' })
+      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
@@ -15228,7 +15237,7 @@ async function _selecaoReprocessarMarcaDagua() {
       const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(origemPath)
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
       const novoBlob = await _gerarThumbWatermark(blob)
-      const { error: upErr } = await db.storage.from(BUCKET).upload(f.storage_path, novoBlob, { contentType: 'image/jpeg', upsert: true })
+      const { error: upErr } = await db.storage.from(BUCKET).upload(f.storage_path, novoBlob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
       if (upErr) throw upErr
       _invalidarUrlCache(f.storage_path)
       feitas++
@@ -15305,13 +15314,13 @@ async function uploadFotosSelecao(files, bonus) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const sufixo = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const altaPath = `selecoes/${galeriaId}/alta-${sufixo}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(altaPath, file, { contentType: file.type })
+    const { error: upErr } = await db.storage.from(BUCKET).upload(altaPath, file, { cacheControl: '31536000', contentType: file.type })
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     let levePath
     try {
       const blob = await _gerarThumbWatermark(file)
       levePath = `selecoes/${galeriaId}/leve-${sufixo}.jpg`
-      const { error: upLeveErr } = await db.storage.from(BUCKET).upload(levePath, blob, { contentType: 'image/jpeg' })
+      const { error: upLeveErr } = await db.storage.from(BUCKET).upload(levePath, blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
       if (upLeveErr) throw upLeveErr
     } catch (e) {
       estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
