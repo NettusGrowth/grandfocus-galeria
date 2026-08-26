@@ -12091,11 +12091,24 @@ async function iniciarGaleriaAdmin() {
   // que já tinha sido visto aparecia com "0 fotos" e sem capa mesmo
   // tendo fotos de verdade no banco. Sempre recarregar tudo aqui é a
   // única forma de garantir os 3 arrays completos ao entrar na aba.
-  const [{ data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
-    db.from('fotos').select('*'),
-    db.from('foto_aluno').select('*'),
-    db.from('foto_pessoa').select('*'),
-  ])
+  let resultado
+  try {
+    resultado = await Promise.all([
+      db.from('fotos').select('*'),
+      db.from('foto_aluno').select('*'),
+      db.from('foto_pessoa').select('*'),
+    ])
+  } catch (e) {
+    // falha de REDE de verdade (offline, DNS, etc.) rejeita a Promise
+    // inteira em vez de resolver com {error} — sem esse catch, isso
+    // atravessava a função sem nenhum aviso: a tela ficava do jeito que
+    // já estava (às vezes em branco), sem toast nenhum, sem log nem
+    // pista de que algo tinha falhado. Mesma classe de gap corrigida
+    // em iniciarViewEscola/iniciarViewResponsavel.
+    toast('Erro ao carregar fotos: ' + e.message)
+    return
+  }
+  const [{ data: fotos }, { data: fa }, { data: fp }] = resultado
   store.fotos = fotos || []
   store.fotoAluno = fa || []
   store.fotoPessoa = fp || []
@@ -13903,11 +13916,18 @@ async function iniciarViewEscola() {
   // globais que outra tela pode ter deixado com um recorte parcial.
   if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
   if (!store.turmas.length) { const { data } = await db.from('turmas').select('*'); store.turmas = data || [] }
-  const [{ data: fotos }, { data: fa }, { data: fp }] = await Promise.all([
-    db.from('fotos').select('*'),
-    db.from('foto_aluno').select('*'),
-    db.from('foto_pessoa').select('*'),
-  ])
+  let resultadoEsc
+  try {
+    resultadoEsc = await Promise.all([
+      db.from('fotos').select('*'),
+      db.from('foto_aluno').select('*'),
+      db.from('foto_pessoa').select('*'),
+    ])
+  } catch (e) {
+    toast('Erro ao carregar fotos: ' + e.message)
+    return
+  }
+  const [{ data: fotos }, { data: fa }, { data: fp }] = resultadoEsc
   store.fotos = fotos || []
   store.fotoAluno = fa || []
   store.fotoPessoa = fp || []
@@ -14231,19 +14251,32 @@ async function iniciarViewResponsavel() {
   // o responsável também pode ter sido marcado direto (foto_pessoa) num
   // ensaio avulso próprio, sem passar por nenhum filho — antes só
   // foto_aluno era consultado, então essas fotos nunca apareciam pra ele.
-  const [{ data: fa }, { data: fp }] = await Promise.all([
-    alunoIds.length ? db.from('foto_aluno').select('*').in('aluno_id', alunoIds) : Promise.resolve({ data: [] }),
-    db.from('foto_pessoa').select('*').eq('user_id', currentUser.id),
-  ])
+  let resultadoResp
+  try {
+    resultadoResp = await Promise.all([
+      alunoIds.length ? db.from('foto_aluno').select('*').in('aluno_id', alunoIds) : Promise.resolve({ data: [] }),
+      db.from('foto_pessoa').select('*').eq('user_id', currentUser.id),
+    ])
+  } catch (e) {
+    toast('Erro ao carregar fotos: ' + e.message)
+    return
+  }
+  const [{ data: fa }, { data: fp }] = resultadoResp
   store.fotoAluno = fa || []
   store.fotoPessoa = fp || []
   const fotoIds = [...new Set([...(fa || []).map(x => x.foto_id), ...(fp || []).map(x => x.foto_id)])]
-  const { data: fotos } = fotoIds.length ? await db.from('fotos').select('*').in('id', fotoIds) : { data: [] }
-  store.fotos = fotos || []
-  const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
-  const { data: eventos } = eventoIds.length
-    ? await db.from('eventos').select('*').in('id', eventoIds).order('data', { ascending: false })
-    : { data: [] }
+  let fotos, eventos
+  try {
+    ;({ data: fotos } = fotoIds.length ? await db.from('fotos').select('*').in('id', fotoIds) : { data: [] })
+    store.fotos = fotos || []
+    const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
+    ;({ data: eventos } = eventoIds.length
+      ? await db.from('eventos').select('*').in('id', eventoIds).order('data', { ascending: false })
+      : { data: [] })
+  } catch (e) {
+    toast('Erro ao carregar fotos: ' + e.message)
+    return
+  }
   store.eventos = eventos || []
 
   // a partir daqui é a mesma árvore de navegação da Galeria, só que
