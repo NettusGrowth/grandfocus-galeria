@@ -10130,8 +10130,22 @@ async function _registrarDownloadsFotos(paths) {
   try { await db.from('auditoria').insert(linhas) } catch (e) { console.error('_registrarDownloadsFotos falhou', e) }
 }
 
+// mesma trava de reentrância do download público (_baixandoEmMassaPublico)
+// — toque repetido em "Baixar selecionadas" (toolbar ou dock mobile)
+// tinha o mesmo problema aqui: cada toque rodava seu próprio loop,
+// duplicando arquivo baixado e brigando pelo mesmo banner de progresso.
+let _baixandoPrivado = false
 async function _baixarFotosPrivadoNativo(paths, nomeBase) {
   if (!paths.length) return
+  if (_baixandoPrivado) { toast('Já tem um download em andamento — aguarda terminar.'); return }
+  _baixandoPrivado = true
+  try {
+    await _baixarFotosPrivadoNativoInterno(paths, nomeBase)
+  } finally {
+    _baixandoPrivado = false
+  }
+}
+async function _baixarFotosPrivadoNativoInterno(paths, nomeBase) {
   if (!_precisaWebShare()) {
     let falhas = 0
     const pathsOk = []
