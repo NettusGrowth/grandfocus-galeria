@@ -606,7 +606,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    comum (empilhado vertical) só nesses 3 lugares — vira grid de
    cards, senão cada capa ficaria esticada full-width e gigante. */
 .pasta-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;}
-.pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;}
+.pasta-item{flex-direction:column;align-items:stretch;padding:0;overflow:hidden;border-radius:12px;contain:layout paint;}
 .pasta-item>.nome,.pasta-item>.meta{display:none;}
 .pasta-capa{
   position:relative;display:block;width:100%;aspect-ratio:16/9;overflow:hidden;
@@ -1229,7 +1229,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .foto-grid.gal-boutique{display:block;column-count:2;column-gap:8px;}
 @media(min-width:600px){.foto-grid.gal-boutique{column-gap:14px;}}
 @media(min-width:900px){.foto-grid.gal-boutique{column-count:3;column-gap:18px;}}
-.foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;}
+.foto-item.gal-boutique{aspect-ratio:auto;break-inside:avoid;margin-bottom:14px;border-radius:8px;contain:layout paint;}
 /* BUG REAL GRAVE encontrado em produção: fotos sumindo pra TODOS os
    papéis não-admin no celular (responsável, escola, proprietário —
    reconhecia pasta e quantidade, mas a grade ficava vazia), só no
