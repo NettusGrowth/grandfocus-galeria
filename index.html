@@ -14554,7 +14554,10 @@ function _renderPublicaSenhaCard(token, senhaErrada) {
     </div>
   `
   const input = document.getElementById('publica-senha-input')
-  const enviar = () => _carregarGaleriaPublica(token, input.value)
+  // trim: senha costuma chegar colada de um WhatsApp/e-mail formatado,
+  // com espaço sobrando no início/fim sem a pessoa perceber — sem isso,
+  // a senha "certa" dava erro por causa de espaço invisível.
+  const enviar = () => _carregarGaleriaPublica(token, input.value.trim())
   input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar() })
   document.getElementById('publica-senha-btn').addEventListener('click', enviar)
 }
@@ -15465,7 +15468,7 @@ function _renderSelPubSenhaCard(token, senhaErrada) {
     </div>
   `
   const input = document.getElementById('selpub-senha-input')
-  const enviar = () => _carregarSelecaoPublica(token, input.value)
+  const enviar = () => _carregarSelecaoPublica(token, input.value.trim()) // mesmo motivo: senha colada com espaço sobrando
   input.addEventListener('keydown', e => { if (e.key === 'Enter') enviar() })
   document.getElementById('selpub-senha-btn').addEventListener('click', enviar)
 }
