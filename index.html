@@ -1616,6 +1616,37 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .post-coment-menu-lista button:hover{background:rgba(200,175,127,.12);}
 
 @media(max-width:640px){main{padding:16px;}.topbar{padding:12px 16px;}.topbar .who span:not(.role-chip){display:none;}}
+
+/* ── Digipix: editor de lâmina (Passo 1) ──────────────────────────
+   layout de 2 colunas: canvas da lâmina + painel de fotos do evento.
+   canvas mantém proporção mm real via aspect-ratio (mesma técnica já
+   usada em _abrirAjusteFoto — medir o container real, não chutar). */
+.album-editor-shell{display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start;}
+@media(max-width:900px){.album-editor-shell{grid-template-columns:1fr;}}
+.album-spreads-tira{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;}
+.album-spread-thumb{flex:0 0 auto;width:70px;height:44px;border-radius:6px;border:2px solid rgba(200,175,127,.25);background:rgba(75,4,22,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#B39F86;}
+.album-spread-thumb.on{border-color:var(--dourado);color:var(--ouro-luz);}
+.album-spread-thumb.add{border-style:dashed;font-size:18px;}
+.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;}
+.album-guide{position:absolute;pointer-events:none;border:0;}
+.album-guide-sangria{inset:0;outline:1.5px dashed rgba(220,60,60,.75);outline-offset:-1px;}
+.album-guide-vinco{top:0;bottom:0;left:50%;width:0;border-left:1.5px dashed rgba(90,150,220,.85);}
+.album-guide-margem{outline:1.5px dashed rgba(212,175,55,.6);outline-offset:-1px;}
+.album-el{position:absolute;box-sizing:border-box;cursor:move;outline:1px solid transparent;}
+.album-el.sel{outline:2px solid var(--dourado);z-index:999 !important;}
+.album-el .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
+.album-el img{position:absolute;max-width:none;pointer-events:none;-webkit-user-drag:none;}
+.album-el .album-el-resize{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:nwse-resize;display:none;}
+.album-el .album-el-rotate{position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:grab;display:none;}
+.album-el.sel .album-el-resize,.album-el.sel .album-el-rotate{display:block;}
+.album-el-dpi{position:absolute;left:3px;top:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;line-height:1.6;pointer-events:none;}
+.album-el-dpi.ok{background:rgba(80,180,90,.85);color:#0b1a0c;}
+.album-el-dpi.baixo{background:rgba(220,60,60,.9);color:#fff;}
+.album-el-dpi.neutro{background:rgba(150,150,150,.75);color:#fff;}
+.album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
+.album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
+.album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
 </style>
 </head>
 <body>
@@ -9505,15 +9536,15 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     // original só redimensionado, sem marca d'água nenhuma. Gera aqui
     // (best-effort — se falhar por algum motivo, thumb_path fica null e
     // cai pro storage_path original, igual sempre foi).
-    let thumbPath = null, largura = null, altura = null
+    let thumbPath = null, largura = null, altura = null, larguraOriginal = null, alturaOriginal = null
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
       const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
-      else { largura = thumb.largura; altura = thumb.altura }
+      else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -9979,6 +10010,14 @@ async function _gerarThumbGaleria(fileOuBlob) {
     const objUrl = URL.createObjectURL(fileOuBlob)
     img.onload = () => {
       URL.revokeObjectURL(objUrl)
+      // largura/altura do ORIGINAL — precisa capturar ANTES de w/h
+      // virarem o tamanho já limitado da prévia (abaixo). Usada pelo
+      // DPI checker do Digipix (Módulo album_*): sem isso não dá pra
+      // saber a resolução real de impressão de foto nenhuma. Captura
+      // "de graça" — a imagem já está carregada aqui mesmo, gerando a
+      // prévia; sem isso precisaria baixar o arquivo original de novo
+      // só pra medir.
+      const larguraOriginal = img.width, alturaOriginal = img.height
       const MAX = 1920
       let w = img.width, h = img.height
       if (w >= h && w > MAX) { h = Math.round(h * MAX / w); w = MAX }
@@ -9988,7 +10027,7 @@ async function _gerarThumbGaleria(fileOuBlob) {
       const ctx = canvas.getContext('2d')
       if (!ctx) { reject(new Error('Canvas indisponível')); return }
       ctx.drawImage(img, 0, 0, w, h)
-      canvas.toBlob(blob => { if (!blob) reject(new Error('Falha ao gerar prévia')); else resolve({ blob, largura: w, altura: h }) }, 'image/jpeg', 0.82)
+      canvas.toBlob(blob => { if (!blob) reject(new Error('Falha ao gerar prévia')); else resolve({ blob, largura: w, altura: h, larguraOriginal, alturaOriginal }) }, 'image/jpeg', 0.82)
     }
     img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('Falha ao ler a imagem')) }
     img.src = objUrl
@@ -10006,7 +10045,12 @@ function _thumbPathDe(path) { return path.replace(/\.[^./]+$/, '') + '_thumb.jpg
 // _selecaoReprocessarMarcaDagua). Idempotente por construção: só entra
 // nas fotos que ainda não têm prévia, pode rodar de novo sem custo.
 async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
-  const pendentes = fotos.filter(f => !f.thumb_path)
+  // além de gerar prévia pra quem nunca teve, também mede
+  // largura_original/altura_original pra quem já tem thumb mas foi
+  // enviada antes dessa coluna existir (Digipix precisa dela pro DPI
+  // checker) — o download do original já acontece aqui de qualquer
+  // jeito, medir de brinde não custa uma chamada de rede a mais.
+  const pendentes = fotos.filter(f => !f.thumb_path || !f.largura_original)
   if (!pendentes.length) { toast('Todas as fotos já estão otimizadas.'); return }
   const status = document.getElementById(statusElId)
   let feitas = 0, falhas = 0
@@ -10016,12 +10060,15 @@ async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
       const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(f.storage_path)
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
       const thumb = await _gerarThumbGaleria(blob)
-      const thumbPath = _thumbPathDe(f.storage_path)
-      const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
-      if (upErr) throw upErr
-      const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath, largura: thumb.largura, altura: thumb.altura }).eq('id', f.id)
+      const precisaThumbNovo = !f.thumb_path
+      const thumbPath = precisaThumbNovo ? _thumbPathDe(f.storage_path) : f.thumb_path
+      if (precisaThumbNovo) {
+        const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
+        if (upErr) throw upErr
+      }
+      const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath, largura: thumb.largura, altura: thumb.altura, largura_original: thumb.larguraOriginal, altura_original: thumb.alturaOriginal }).eq('id', f.id)
       if (dbErr) throw dbErr
-      f.thumb_path = thumbPath; f.largura = thumb.largura; f.altura = thumb.altura
+      f.thumb_path = thumbPath; f.largura = thumb.largura; f.altura = thumb.altura; f.largura_original = thumb.larguraOriginal; f.altura_original = thumb.alturaOriginal
       feitas++
     } catch (e) {
       console.error('otimizar foto falhou', f.id, e)
@@ -13763,15 +13810,15 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // mesmo motivo do uploadFotosEvento: marca d'água só existe na
     // Seleção de Fotos, aqui a prévia é só redimensionada.
-    let thumbPath = null, largura = null, altura = null
+    let thumbPath = null, largura = null, altura = null, larguraOriginal = null, alturaOriginal = null
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
       const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
       if (thumbErr) thumbPath = null
-      else { largura = thumb.largura; altura = thumb.altura }
+      else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     const rosterAlunos = marcarEssaFoto ? alunosRoster : []
@@ -16489,15 +16536,430 @@ async function salvarAlbumTemplate() {
 // Passo 1 (linhas guia, drag/resize/rotate/crop, DPI checker, smart
 // layout, presets). Por ora só abre o projeto e mostra que a lista
 // básica (banco + modelos + projetos) já está de pé.
-function abrirAlbumEditor(projetoId) {
+// ── Digipix: editor de lâmina ────────────────────────────────────
+let _albumEditorProjeto = null
+let _albumEditorTemplate = null
+let _albumEditorSpreadAtual = null
+let _albumEditorFotosEvento = []
+let _albumEditorSelId = null
+
+async function abrirAlbumEditor(projetoId) {
   const projeto = store.albumProjects.find(p => p.id === projetoId)
   if (!projeto) return
   document.getElementById('albuns-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('album-editor-wrap')
   wrap.style.display = ''
+  wrap.innerHTML = '<div class="empty">Carregando…</div>'
+
+  _albumEditorProjeto = projeto
+  _albumEditorTemplate = store.albumTemplates.find(t => t.id === projeto.album_template_id) || null
+  _albumEditorSpreadAtual = null
+  _albumEditorSelId = null
+
+  const [{ data: spreads, error: e1 }, { data: fotos, error: e2 }] = await Promise.all([
+    db.from('album_spreads').select('*').eq('project_id', projetoId).order('spread_index'),
+    db.from('fotos').select('*').eq('evento_id', projeto.evento_id).order('criado_em'),
+  ])
+  if (e1 || e2) { toast('Erro ao abrir álbum: ' + (e1 || e2).message); return }
+  store.albumSpreads = spreads || []
+  _albumEditorFotosEvento = _ordenarGrupoFotos(fotos || [])
+
   wrap.innerHTML = `
     <div class="section-h"><h2>${esc(projeto.nome)}</h2><button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button></div>
-    <div class="empty">Editor de lâminas chega no próximo commit deste Passo 1.</div>`
+    <div class="album-toolbar">
+      <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
+      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumSalvarComoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
+    </div>
+    <div class="album-spreads-tira" id="album-spreads-tira"></div>
+    <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
+      <div>
+        <div id="album-el-toolbar" style="display:none;margin-bottom:8px;gap:6px;"><div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
+          <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
+          <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
+          <span class="meta" style="align-self:center;">Alt+arrastar recorta · scroll dá zoom no recorte</span>
+        </div></div>
+        <div class="album-canvas-wrap" id="album-canvas-wrap"></div>
+      </div>
+      <div>
+        <div class="meta" style="margin-bottom:8px;">Fotos do evento — arraste pra lâmina</div>
+        <div class="album-fotos-painel" id="album-fotos-painel"></div>
+      </div>
+    </div>`
+
+  renderAlbumFotosPainel()
+  renderAlbumSpreadsTira()
+  if (store.albumSpreads.length) await abrirAlbumSpread(store.albumSpreads[0].id)
+}
+
+function renderAlbumFotosPainel() {
+  const el = document.getElementById('album-fotos-painel')
+  if (!el) return
+  el.innerHTML = _albumEditorFotosEvento.map(f => `
+    <div class="album-foto-mini" draggable="true" data-foto-id="${f.id}" ondragstart="_albumFotoDragStart(event,'${f.id}')">
+      ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
+    </div>`).join('')
+  _hidratarImgCache(el)
+}
+
+let _albumFotoArrastandoId = null
+function _albumFotoDragStart(e, fotoId) {
+  _albumFotoArrastandoId = fotoId
+  e.dataTransfer.effectAllowed = 'copy'
+}
+
+function renderAlbumSpreadsTira() {
+  const el = document.getElementById('album-spreads-tira')
+  if (!el) return
+  el.innerHTML = store.albumSpreads.map((s, i) => `
+    <div class="album-spread-thumb${_albumEditorSpreadAtual?.id === s.id ? ' on' : ''}" onclick="abrirAlbumSpread('${s.id}')">Lâmina ${i + 1}</div>`).join('')
+    + `<div class="album-spread-thumb add" onclick="_albumCriarSpread()" title="Nova lâmina">+</div>`
+}
+
+async function _albumCriarSpread() {
+  const max = _albumEditorTemplate?.max_laminas || 40
+  if (store.albumSpreads.length >= max) { toast(`Esse modelo permite no máximo ${max} lâminas`); return }
+  const proximoIndex = store.albumSpreads.length ? Math.max(...store.albumSpreads.map(s => s.spread_index)) + 1 : 0
+  const { data, error } = await db.from('album_spreads').insert({ project_id: _albumEditorProjeto.id, spread_index: proximoIndex }).select().single()
+  if (error) { toast('Erro ao criar lâmina: ' + error.message); return }
+  store.albumSpreads.push(data)
+  renderAlbumSpreadsTira()
+  await abrirAlbumSpread(data.id)
+}
+
+async function abrirAlbumSpread(spreadId) {
+  const spread = store.albumSpreads.find(s => s.id === spreadId)
+  if (!spread) return
+  _albumEditorSpreadAtual = spread
+  _albumEditorSelId = null
+  document.getElementById('album-editor-shell').style.display = ''
+  document.getElementById('album-btn-salvar-preset').disabled = false
+  renderAlbumSpreadsTira()
+  const { data, error } = await db.from('album_elements').select('*').eq('spread_id', spreadId).order('z_index')
+  if (error) { toast('Erro ao carregar lâmina: ' + error.message); return }
+  store.albumElements = data || []
+  renderAlbumCanvas()
+}
+
+function _albumElementosDaSpreadAtual() {
+  return store.albumElements.filter(e => e.spread_id === _albumEditorSpreadAtual?.id)
+}
+
+function _albumDpiInfo(el, foto) {
+  if (!foto?.largura_original || !foto?.altura_original) return { classe: 'neutro', texto: '—' }
+  const escala = el.crop_scale || 1
+  const dpiW = (el.width > 0) ? Math.round((foto.largura_original / escala) / (el.width / 25.4)) : 0
+  const dpiH = (el.height > 0) ? Math.round((foto.altura_original / escala) / (el.height / 25.4)) : 0
+  const dpi = Math.min(dpiW, dpiH)
+  const alvo = _albumEditorTemplate?.dpi_alvo || 300
+  return { classe: dpi >= alvo ? 'ok' : 'baixo', texto: dpi + ' DPI' }
+}
+
+function _albumElementoHTML(el) {
+  const t = _albumEditorTemplate
+  const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
+  const leftPct = (el.x / t.largura_aberta_mm) * 100
+  const topPct = (el.y / t.altura_aberta_mm) * 100
+  const wPct = (el.width / t.largura_aberta_mm) * 100
+  const hPct = (el.height / t.altura_aberta_mm) * 100
+  const dpi = _albumDpiInfo(el, foto)
+  const src = foto ? (_imgCache(_fotoPreviewPath(foto)) || '') : ''
+  return `
+    <div class="album-el${_albumEditorSelId === el.id ? ' sel' : ''}" data-el-id="${el.id}"
+         style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};">
+      <div class="album-el-img-wrap">
+        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">` : ''}
+      </div>
+      <div class="album-el-dpi ${dpi.classe}">${dpi.texto}</div>
+      <div class="album-el-rotate" data-el-handle="rotate"></div>
+      <div class="album-el-resize" data-el-handle="resize"></div>
+    </div>`
+}
+
+function renderAlbumCanvas() {
+  const wrap = document.getElementById('album-canvas-wrap')
+  const t = _albumEditorTemplate
+  if (!wrap || !t) return
+  const toolbar = document.getElementById('album-el-toolbar')
+  if (toolbar) toolbar.style.display = _albumEditorSelId ? 'flex' : 'none'
+  wrap.style.aspectRatio = `${t.largura_aberta_mm} / ${t.altura_aberta_mm}`
+  const sangriaPctX = (t.sangria_mm / t.largura_aberta_mm) * 100
+  const sangriaPctY = (t.sangria_mm / t.altura_aberta_mm) * 100
+  const margemPctX = ((t.sangria_mm + t.margem_seguranca_mm) / t.largura_aberta_mm) * 100
+  const margemPctY = ((t.sangria_mm + t.margem_seguranca_mm) / t.altura_aberta_mm) * 100
+  const elementosHTML = _albumElementosDaSpreadAtual().map(_albumElementoHTML).join('')
+  wrap.innerHTML = `
+    <div class="album-guide album-guide-margem" style="inset:${margemPctY}% ${margemPctX}%;"></div>
+    ${elementosHTML}
+    ${t.tipo_dobra === 'vinco' ? '<div class="album-guide album-guide-vinco"></div>' : ''}
+    <div class="album-guide album-guide-sangria" style="inset:${sangriaPctY}% ${sangriaPctX}%;"></div>
+    `
+  _albumHidratarFotosCanvas()
+}
+
+function _albumHidratarFotosCanvas() {
+  _albumElementosDaSpreadAtual().forEach(el => {
+    const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
+    if (!foto) return
+    const img = document.querySelector(`.album-el[data-el-id="${el.id}"] img`)
+    if (img && !img.src) _hidratarPathImg(img, _fotoPreviewPath(foto))
+  })
+}
+
+// arrastar foto do painel lateral pra lâmina — cria um elemento novo
+// no ponto onde soltou. Native HTML5 DnD (dragstart/dragover/drop) —
+// diferente do drag DENTRO da lâmina (mover/redimensionar/girar, que
+// usa Pointer Events, mesmo padrão de _abrirAjusteFoto) porque aqui a
+// origem e o destino são containers diferentes, é o mesmo motivo pelo
+// qual _fotoDragStart (reordenar fotos na grade) já usa DnD nativo.
+document.addEventListener('dragover', e => {
+  if (!_albumFotoArrastandoId) return
+  if (e.target.closest('#album-canvas-wrap')) e.preventDefault()
+})
+document.addEventListener('drop', async e => {
+  if (!_albumFotoArrastandoId) return
+  const canvas = e.target.closest('#album-canvas-wrap')
+  if (!canvas) return
+  e.preventDefault()
+  const fotoId = _albumFotoArrastandoId
+  _albumFotoArrastandoId = null
+  const foto = _albumEditorFotosEvento.find(f => f.id === fotoId)
+  if (!foto || !_albumEditorSpreadAtual) return
+  const t = _albumEditorTemplate
+  const rect = canvas.getBoundingClientRect()
+  // guarda real: canvas sem layout ainda (largura/altura 0 — aba
+  // trocada no meio do drag, ou solto rápido demais antes do
+  // aspect-ratio assentar) faria a conta virar NaN e gravar posição
+  // quebrada no banco. Sem isso, um caso raro de timing corrompe
+  // silenciosamente um elemento (achado testando, não é teórico).
+  if (!rect.width || !rect.height) { toast('Não deu pra soltar a foto aqui — tenta de novo'); return }
+  const dropXmm = ((e.clientX - rect.left) / rect.width) * t.largura_aberta_mm
+  const dropYmm = ((e.clientY - rect.top) / rect.height) * t.altura_aberta_mm
+  // largura default ~1/3 da lâmina, altura pela proporção real da
+  // foto (original se já medida, senão a da prévia, senão quadrada).
+  const larguraDefault = t.largura_aberta_mm / 3
+  const proporcao = (foto.largura_original && foto.altura_original) ? foto.altura_original / foto.largura_original
+    : (foto.largura && foto.altura) ? foto.altura / foto.largura : 1
+  const alturaDefault = larguraDefault * proporcao
+  const maxZ = Math.max(0, ..._albumElementosDaSpreadAtual().map(el => el.z_index))
+  const payload = {
+    spread_id: _albumEditorSpreadAtual.id, foto_id: fotoId,
+    x: Math.max(0, dropXmm - larguraDefault / 2), y: Math.max(0, dropYmm - alturaDefault / 2),
+    width: larguraDefault, height: alturaDefault, rotation: 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: maxZ + 1,
+  }
+  const { data, error } = await db.from('album_elements').insert(payload).select().single()
+  if (error) { toast('Erro ao adicionar foto: ' + error.message); return }
+  store.albumElements.push(data)
+  _albumEditorSelId = data.id
+  renderAlbumCanvas()
+})
+
+// mover/redimensionar/girar/recortar um elemento já na lâmina —
+// Pointer Events delegados em document, mesmo mecanismo generalizado
+// de _abrirAjusteFoto (pointerdown/move/up/cancel + setPointerCapture
+// + delta em %), só que aqui precisa lembrar QUAL elemento e QUAL
+// modo (mover/redimensionar/girar/recortar) durante o gesto inteiro.
+let _albumDrag = null
+document.addEventListener('pointerdown', e => {
+  const canvas = document.getElementById('album-canvas-wrap')
+  if (!canvas || !canvas.contains(e.target)) return
+  const elDiv = e.target.closest('.album-el')
+  if (!elDiv) { _albumEditorSelId = null; renderAlbumCanvas(); return }
+  const id = elDiv.dataset.elId
+  const el = store.albumElements.find(x => x.id === id)
+  if (!el) return
+  _albumEditorSelId = id
+  const handle = e.target.closest('[data-el-handle]')?.dataset.elHandle
+  const rect = canvas.getBoundingClientRect()
+  // mesma guarda do drop (ver _albumFotoDragStart/drop) — canvas sem
+  // layout ainda não deve iniciar um arrasto que geraria NaN.
+  if (!rect.width || !rect.height) { renderAlbumCanvas(); return }
+  const t = _albumEditorTemplate
+  let modo = 'mover'
+  if (handle === 'resize') modo = 'redimensionar'
+  else if (handle === 'rotate') modo = 'girar'
+  else if (e.altKey) modo = 'recortar'
+  _albumDrag = {
+    modo, id, rectW: rect.width, rectH: rect.height, rectL: rect.left, rectT: rect.top,
+    startX: e.clientX, startY: e.clientY,
+    base: { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, crop_x: el.crop_x || 0, crop_y: el.crop_y || 0, crop_scale: el.crop_scale || 1 },
+    aspecto: el.width / el.height, mmPorPctX: t.largura_aberta_mm / 100, mmPorPctY: t.altura_aberta_mm / 100,
+  }
+  canvas.setPointerCapture(e.pointerId)
+  renderAlbumCanvas()
+  e.preventDefault()
+})
+document.addEventListener('pointermove', e => {
+  if (!_albumDrag) return
+  const d = _albumDrag
+  const el = store.albumElements.find(x => x.id === d.id)
+  if (!el) return
+  const dxMm = ((e.clientX - d.startX) / d.rectW) * (d.mmPorPctX * 100)
+  const dyMm = ((e.clientY - d.startY) / d.rectH) * (d.mmPorPctY * 100)
+  if (d.modo === 'mover') {
+    el.x = d.base.x + dxMm
+    el.y = d.base.y + dyMm
+  } else if (d.modo === 'redimensionar') {
+    let novaLargura = Math.max(10, d.base.width + dxMm)
+    let novaAltura = e.shiftKey ? novaLargura / d.aspecto : Math.max(10, d.base.height + dyMm)
+    el.width = novaLargura
+    el.height = novaAltura
+  } else if (d.modo === 'girar') {
+    const centroX = d.rectL + ((d.base.x + d.base.width / 2) / d.mmPorPctX / 100) * d.rectW
+    const centroY = d.rectT + ((d.base.y + d.base.height / 2) / d.mmPorPctY / 100) * d.rectH
+    const ang = Math.atan2(e.clientY - centroY, e.clientX - centroX) * (180 / Math.PI)
+    el.rotation = Math.round(ang + 90)
+  } else if (d.modo === 'recortar') {
+    // pan dentro da moldura, em % do frame (não da lâmina inteira) —
+    // por isso usa rect do PRÓPRIO elemento, não do canvas inteiro.
+    const elRect = document.querySelector(`.album-el[data-el-id="${d.id}"]`)?.getBoundingClientRect()
+    if (elRect) {
+      el.crop_x = d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100
+      el.crop_y = d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100
+    }
+  }
+  renderAlbumCanvas()
+})
+function _albumPararDrag() {
+  if (!_albumDrag) return
+  const id = _albumDrag.id
+  _albumDrag = null
+  _albumSalvarElemento(id)
+}
+document.addEventListener('pointerup', _albumPararDrag)
+document.addEventListener('pointercancel', _albumPararDrag)
+// zoom do recorte — scroll do mouse sobre um elemento selecionado.
+document.addEventListener('wheel', e => {
+  if (!_albumEditorSelId) return
+  const elDiv = e.target.closest(`.album-el[data-el-id="${_albumEditorSelId}"]`)
+  if (!elDiv) return
+  const el = store.albumElements.find(x => x.id === _albumEditorSelId)
+  if (!el) return
+  e.preventDefault()
+  el.crop_scale = Math.min(4, Math.max(1, (el.crop_scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)))
+  renderAlbumCanvas()
+  _albumSalvarElemento(el.id)
+}, { passive: false })
+// teclado: Delete apaga o elemento selecionado, setas nudge fino.
+document.addEventListener('keydown', e => {
+  if (!_albumEditorSelId || !document.getElementById('album-canvas-wrap')) return
+  if (!document.querySelector(`.album-el[data-el-id="${_albumEditorSelId}"]`)) return
+  const el = store.albumElements.find(x => x.id === _albumEditorSelId)
+  if (!el) return
+  if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); _albumApagarElemento(el.id); return }
+  const passo = e.shiftKey ? 5 : 1
+  if (e.key === 'ArrowLeft') { el.x -= passo; } else if (e.key === 'ArrowRight') { el.x += passo; }
+  else if (e.key === 'ArrowUp') { el.y -= passo; } else if (e.key === 'ArrowDown') { el.y += passo; }
+  else return
+  e.preventDefault()
+  renderAlbumCanvas()
+  _albumSalvarElemento(el.id)
+})
+
+async function _albumApagarElemento(id) {
+  const { error } = await db.from('album_elements').delete().eq('id', id)
+  if (error) { toast('Erro ao apagar: ' + error.message); return }
+  store.albumElements = store.albumElements.filter(x => x.id !== id)
+  _albumEditorSelId = null
+  renderAlbumCanvas()
+}
+
+// troca de camada — "trazer pra frente" troca o z_index com quem tá
+// imediatamente acima (não pula direto pro topo absoluto, senão perde
+// a posição relativa dos outros); repetir o clique vai subindo de um
+// em um, comportamento previsível de reordenar uma pilha.
+function _albumMudarCamada(direcao) {
+  const id = _albumEditorSelId
+  if (!id) return
+  const elementos = _albumElementosDaSpreadAtual().sort((a, b) => a.z_index - b.z_index)
+  const idx = elementos.findIndex(e => e.id === id)
+  const vizinhoIdx = idx + direcao
+  if (idx < 0 || vizinhoIdx < 0 || vizinhoIdx >= elementos.length) return
+  const atual = elementos[idx], vizinho = elementos[vizinhoIdx]
+  const zAtual = atual.z_index
+  atual.z_index = vizinho.z_index
+  vizinho.z_index = zAtual
+  renderAlbumCanvas()
+  _albumSalvarElemento(atual.id)
+  _albumSalvarElemento(vizinho.id)
+}
+
+function _albumSalvarElemento(id) {
+  _debounceChave('album-el-' + id, async () => {
+    const el = store.albumElements.find(x => x.id === id)
+    if (!el) return
+    const { error } = await db.from('album_elements').update({
+      x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation,
+      crop_x: el.crop_x, crop_y: el.crop_y, crop_scale: el.crop_scale, z_index: el.z_index,
+    }).eq('id', id)
+    if (error) console.error('Digipix: falha ao salvar elemento', error.message)
+  }, 500)
+}
+
+// Smart Layout — preenche lâminas VAZIAS (nunca sobrescreve uma
+// lâmina que já tem elemento) com um de 3 grids simples conforme a
+// orientação real das fotos (paisagem/retrato), em ordem cronológica.
+function _albumOrientacao(foto) {
+  const w = foto.largura_original || foto.largura, h = foto.altura_original || foto.altura
+  if (!w || !h) return 'quadrada'
+  return w > h ? 'paisagem' : (h > w ? 'retrato' : 'quadrada')
+}
+async function _albumSmartLayout() {
+  if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); return }
+  const t = _albumEditorTemplate
+  const spreadsVazias = store.albumSpreads.filter(s => !store.albumElements.some(el => el.spread_id === s.id))
+  if (!spreadsVazias.length) { toast('Todas as lâminas já têm fotos — crie uma lâmina nova pro Smart Layout usar'); return }
+  const fotos = [..._albumEditorFotosEvento]
+  const novosElementos = []
+  for (const spread of spreadsVazias) {
+    if (!fotos.length) break
+    const orientacaoPrimeira = _albumOrientacao(fotos[0])
+    // grid simples: paisagem = 1 foto cheia; retrato = 2 lado a lado;
+    // senão 3 em L (1 grande + 2 pequenas empilhadas do lado).
+    let grid
+    if (orientacaoPrimeira === 'paisagem') grid = [{ x: 0, y: 0, w: 1, h: 1 }]
+    else if (orientacaoPrimeira === 'retrato' && fotos.length >= 2) grid = [{ x: 0, y: 0, w: .5, h: 1 }, { x: .5, y: 0, w: .5, h: 1 }]
+    else if (fotos.length >= 3) grid = [{ x: 0, y: 0, w: .6, h: 1 }, { x: .6, y: 0, w: .4, h: .5 }, { x: .6, y: .5, w: .4, h: .5 }]
+    else grid = [{ x: 0, y: 0, w: 1, h: 1 }]
+    grid.forEach((celula, i) => {
+      const foto = fotos.shift()
+      if (!foto) return
+      const margemInterna = t.sangria_mm
+      novosElementos.push({
+        spread_id: spread.id, foto_id: foto.id,
+        x: celula.x * t.largura_aberta_mm + (celula.x > 0 ? margemInterna / 2 : 0),
+        y: celula.y * t.altura_aberta_mm + (celula.y > 0 ? margemInterna / 2 : 0),
+        width: celula.w * t.largura_aberta_mm - margemInterna,
+        height: celula.h * t.altura_aberta_mm - margemInterna,
+        rotation: 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: i,
+      })
+    })
+  }
+  if (!novosElementos.length) return
+  const { data, error } = await db.from('album_elements').insert(novosElementos).select()
+  if (error) { toast('Erro no Smart Layout: ' + error.message); return }
+  store.albumElements.push(...data)
+  toast(`Smart Layout aplicado ✓ (${data.length} fotos em ${spreadsVazias.length} lâmina(s))`)
+  renderAlbumCanvas()
+}
+
+// salva a lâmina ATUAL como preset reutilizável — posições RELATIVAS
+// (frações 0-1 da lâmina), pra funcionar em qualquer outro
+// projeto/modelo depois, não só neste tamanho de lâmina exato.
+async function _albumSalvarComoPreset() {
+  const elementos = _albumElementosDaSpreadAtual()
+  if (!elementos.length) { toast('Esta lâmina não tem fotos pra salvar como modelo'); return }
+  const nome = (window.prompt('Nome do modelo reutilizável:') || '').trim()
+  if (!nome) return
+  const t = _albumEditorTemplate
+  const estrutura = elementos.map(el => ({
+    xFr: el.x / t.largura_aberta_mm, yFr: el.y / t.altura_aberta_mm,
+    wFr: el.width / t.largura_aberta_mm, hFr: el.height / t.altura_aberta_mm,
+    rotation: el.rotation, z_index: el.z_index,
+  }))
+  const { error } = await db.from('album_layout_presets').insert({ nome, estrutura })
+  if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
+  toast('Modelo salvo ✓')
 }
 
 // ── boot ────────────────────────────────────────────────────────
