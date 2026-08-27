@@ -17403,12 +17403,25 @@ document.addEventListener('keydown', e => {
   _albumSalvarElemento(el.id)
 })
 
+// achado de UX: essa era a ÚNICA ação destrutiva de todo o módulo
+// Digipix (apagar lâmina, apagar foto, apagar evento — todas essas já
+// usam confirmModal) sem nenhuma confirmação — nem pela tecla Delete,
+// nem pelo botão 🗑 do toolbar. Como não existe desfazer em lugar
+// nenhum do app, um clique errado (ou Backspace sem querer, mesmo já
+// com as guardas de teclado corrigidas antes) apagava a posição/
+// recorte/rotação de uma foto pra sempre, sem chance de voltar atrás.
+let _albumApagandoElemento = false
 async function _albumApagarElemento(id) {
-  const { error } = await db.from('album_elements').delete().eq('id', id)
-  if (error) { toast('Erro ao apagar: ' + error.message); return }
-  store.albumElements = store.albumElements.filter(x => x.id !== id)
-  _albumEditorSelId = null
-  renderAlbumCanvas()
+  if (_albumApagandoElemento) return
+  _albumApagandoElemento = true
+  try {
+    if (!await confirmModal('Apagar essa foto da lâmina? A posição/recorte dela se perdem — não dá pra desfazer.', { titulo: 'Apagar elemento', okLabel: 'Apagar', danger: true })) return
+    const { error } = await db.from('album_elements').delete().eq('id', id)
+    if (error) { toast('Erro ao apagar: ' + error.message); return }
+    store.albumElements = store.albumElements.filter(x => x.id !== id)
+    _albumEditorSelId = null
+    renderAlbumCanvas()
+  } finally { _albumApagandoElemento = false }
 }
 
 // troca de camada — "trazer pra frente" troca o z_index com quem tá
