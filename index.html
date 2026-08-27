@@ -17265,6 +17265,14 @@ document.addEventListener('pointermove', e => {
   } else if (d.modo === 'redimensionar') {
     let novaLargura = Math.max(10, d.base.width + dxMm)
     let novaAltura = e.shiftKey ? novaLargura / d.aspecto : Math.max(10, d.base.height + dyMm)
+    // achado testando: redimensionar proporcional (Shift) só garantia o
+    // piso de 10mm na LARGURA — um elemento bem "faixa" (largura muito
+    // maior que altura, ex: banner) encolhia a altura pra menos de
+    // 1mm sem barrar, porque a altura aqui é DERIVADA da largura já
+    // travada, não checada de novo. Se a proporção jogar a altura
+    // abaixo do piso, trava a altura em 10 e recalcula a largura a
+    // partir dela — mantém a proporção sem furar o mínimo nos dois eixos.
+    if (e.shiftKey && novaAltura < 10) { novaAltura = 10; novaLargura = novaAltura * d.aspecto }
     el.width = novaLargura
     el.height = novaAltura
   } else if (d.modo === 'girar') {
