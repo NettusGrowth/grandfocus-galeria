@@ -18163,7 +18163,17 @@ function _albumClienteAtualizarBotoesNav() {
 function _albumClienteVirar(direcao) {
   if (_albumFlipAnimando) return
   const novoIndice = _albumClienteIndice + direcao
-  if (novoIndice < 0 || novoIndice >= _albumClienteSpreads.length) return
+  if (novoIndice < 0 || novoIndice >= _albumClienteSpreads.length) {
+    // achado de UX: os botões de navegação ficam "disabled" na borda
+    // (não chegam a chamar essa função), mas o SWIPE não passa por
+    // esse disabled — arrastar além da última/primeira lâmina não
+    // fazia NADA, sem toast, sem bounce, sem pista nenhuma de que o
+    // gesto foi reconhecido. Mesma preocupação que já motivou desabilitar
+    // os botões durante a animação (comentário logo abaixo), só que
+    // esse caso específico (limite do álbum) tinha ficado de fora.
+    toast(direcao > 0 ? 'Essa já é a última lâmina' : 'Essa já é a primeira lâmina')
+    return
+  }
   _albumFlipAnimando = true
   // achado testando "mania" real (clicar Próxima repetidas vezes
   // rápido): sem isso, os cliques durante a animação eram ignorados
