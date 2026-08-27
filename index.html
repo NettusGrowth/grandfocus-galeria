@@ -16838,6 +16838,14 @@ async function abrirAlbumEditor(projetoId) {
   _albumEditorTemplate = store.albumTemplates.find(t => t.id === projeto.album_template_id) || null
   _albumEditorSpreadAtual = null
   _albumEditorSelId = null
+  // achado testando: o toolbar do elemento é reconstruído do zero (sem
+  // a classe .on), então o botão ✋ Modo recorte sempre NASCE desligado
+  // visualmente — mas a variável que controla o comportamento de
+  // verdade (_albumModoRecorteToque) não era resetada junto. Resultado:
+  // ligar o modo num álbum e trocar pra outro deixava o botão
+  // MOSTRANDO desligado enquanto o arrasto de 1 dedo continuava
+  // recortando em vez de mover, sem nenhuma pista visual do motivo.
+  _albumModoRecorteToque = false
 
   const [{ data: spreads, error: e1 }, { data: fotos, error: e2 }] = await Promise.all([
     db.from('album_spreads').select('*').eq('project_id', projetoId).order('spread_index'),
