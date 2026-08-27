@@ -18121,6 +18121,16 @@ document.addEventListener('pointerup', e => {
   _albumClienteUltimoGestoFoiSwipe = true
   _albumClienteVirar(dx < 0 ? 1 : -1)
 })
+// achado numa rodada de teste: faltava o pointercancel aqui (o editor
+// admin já tem essa simetria — ver _albumPararDrag). No iOS, o gesto
+// de voltar (borda da tela) interrompe o toque com pointercancel, não
+// pointerup — sem isso, _albumClienteSwipe ficava "preso" com a
+// posição antiga, e um pointerup seguinte (de QUALQUER toque depois,
+// nem precisa ser no flipbook) era processado como um swipe fantasma
+// com distância bogus — o efeito real: isso marca
+// _albumClienteUltimoGestoFoiSwipe=true, o que faz o PRÓXIMO toque de
+// verdade numa foto (pra trocar) ser silenciosamente ignorado.
+document.addEventListener('pointercancel', () => { _albumClienteSwipe = null })
 
 let _albumClienteTrocandoElId = null
 function _albumClienteAbrirTroca(elementId) {
