@@ -16605,6 +16605,17 @@ async function salvarAlbumProjeto() {
 
 // ── envio pra aprovação do cliente (Passo 2) ─────────────────────
 async function _albumAbrirEnvioAprovacao() {
+  // achado na bateria de testes: mesma família do min_laminas que
+  // _albumApagarSpread já passou a barrar — mas enviar pra aprovação
+  // (ou exportar, ver abrirExportacaoAlbum) nunca checava isso. Um
+  // álbum recém-criado, com só 1-2 lâminas montadas, ia pro cliente
+  // pra aprovação (ou direto pra gráfica) mesmo o modelo exigindo um
+  // mínimo bem maior pra imprimir — sem nenhum aviso.
+  const minCheck = _albumEditorTemplate?.min_laminas || 1
+  if (store.albumSpreads.length < minCheck) {
+    const ok = await confirmModal(`Este álbum tem ${store.albumSpreads.length} lâmina(s), mas o modelo exige no mínimo ${minCheck} — a gráfica pode recusar. Enviar pra aprovação assim mesmo?`, { titulo: 'Menos lâminas que o mínimo', okLabel: 'Enviar assim mesmo', danger: true })
+    if (!ok) return
+  }
   const alunoIds = _albumEditorProjeto.eventos?.alunos_selecionados || []
   if (!alunoIds.length) { toast('Este evento não tem alunos vinculados — não dá pra saber quem é o responsável'); return }
   const { data, error } = await db.from('responsavel_alunos').select('user_id, perfis(nome)').in('aluno_id', alunoIds)
@@ -17916,6 +17927,11 @@ async function abrirExportacaoAlbum() {
   const avisos = []
   if (semFoto) avisos.push(`⚠ ${semFoto} elemento(s) usam foto(s) que não existem mais na galeria — vão sair em branco.`)
   if (baixaDpi) avisos.push(`⚠ ${baixaDpi} foto(s) abaixo de ${template.dpi_alvo} DPI — podem sair borradas na impressão.`)
+  // achado na mesma família do min_laminas que _albumApagarSpread já
+  // passou a barrar — mas exportar (igual "enviar pra aprovação")
+  // nunca checava isso. Um álbum com menos lâminas que o mínimo do
+  // modelo (encadernação/impressão) baixava normal, sem aviso nenhum.
+  if (store.albumSpreads.length < (template.min_laminas || 1)) avisos.push(`⚠ Este álbum tem ${store.albumSpreads.length} lâmina(s), mas o modelo exige no mínimo ${template.min_laminas} — a gráfica pode recusar.`)
   // achado de UX: essa tela nunca dizia se o álbum já foi APROVADO
   // pelo cliente — dava pra exportar (e mandar pra gráfica) um
   // rascunho que ninguém aprovou ainda, sem nenhum aviso disso bem
