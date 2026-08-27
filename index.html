@@ -16758,6 +16758,13 @@ async function salvarAlbumTemplate() {
     const idx = store.albumTemplates.findIndex(t => t.id === data.id)
     if (idx >= 0) store.albumTemplates[idx] = data; else store.albumTemplates.push(data)
     store.albumTemplates.sort((a, b) => a.nome.localeCompare(b.nome))
+    // achado testando a exportação: se o editor de OUTRO álbum que usa
+    // esse mesmo modelo já está aberto nesta aba, _albumEditorTemplate
+    // é uma referência separada — sem isso, ficava com a dimensão
+    // ANTIGA até o admin fechar e reabrir o álbum (a tela e a
+    // exportação continuariam batendo entre si, mas as duas desatualizadas
+    // em relação ao que acabou de ser salvo).
+    if (_albumEditorTemplate?.id === data.id) { _albumEditorTemplate = data; if (_albumEditorSpreadAtual) renderAlbumCanvas() }
     renderAlbumTemplatesLista()
     _albumTemplateNovoForm()
     toast('Modelo salvo ✓')
@@ -17547,12 +17554,23 @@ async function abrirExportacaoAlbum() {
 let _albumExportando = false
 async function _albumExportarJPGs() {
   if (_albumExportando || !_albumExportDados) return
+  // achado na revisão: exportação e o download de fotos já existente
+  // (_baixarFotosPrivadoNativo) usam o MESMO banner de progresso
+  // (#dl-progress) mas travas SEPARADAS — rodando os dois ao mesmo
+  // tempo, um sobrescreve o texto do outro, ou um fecha o banner
+  // enquanto o outro ainda está rodando por trás (o processo em si não
+  // corrompe nada, só a UI engana o admin, que pode achar que travou e
+  // clicar de novo). Reaproveita a trava _baixandoPrivado (já existe,
+  // já testada) pros dois lados: exportação espera download terminar,
+  // e download já barra sozinho se uma exportação estiver rolando.
+  if (_baixandoPrivado) { toast('Tem um download em andamento — aguarda terminar antes de exportar.'); return }
   _albumExportando = true
+  _baixandoPrivado = true
   try {
     const { projeto, template, elementos, fotosPorId } = _albumExportDados
     const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
     const arquivos = []
-    let feitas = 0
+    let feitas = 0, falhasEncode = 0
     const totalFotos = Math.max(elementos.length, 1)
     for (let i = 0; i < spreads.length; i++) {
       const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
@@ -17560,8 +17578,15 @@ async function _albumExportarJPGs() {
       const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
       const blob = await _albumCanvasParaBlob(canvas, 0.92)
       if (blob) arquivos.push(new File([blob], `${_albumNomeArquivo(projeto.nome)}-lamina-${i + 1}.jpg`, { type: 'image/jpeg' }))
+      else falhasEncode++ // achado testando com dimensão+DPI extremos: canvas grande demais pro navegador processar — toBlob volta null sem erro nenhum, sem isso virava "Nada pra exportar" (parece álbum vazio, não é)
     }
-    if (!arquivos.length) { _dlProgressFechar(); toast('Nada pra exportar'); return }
+    if (!arquivos.length) {
+      _dlProgressFechar()
+      toast(falhasEncode
+        ? `Não consegui gerar a imagem — a lâmina (${template.largura_aberta_mm}×${template.altura_aberta_mm}mm @ ${template.dpi_alvo} DPI) pode ser grande demais pra esse navegador processar. Tenta reduzir o DPI do modelo.`
+        : 'Nada pra exportar')
+      return
+    }
     _dlProgressMostrar('Salvando…', '', {})
     await _albumSalvarArquivos(arquivos, projeto.nome)
     _dlProgressMostrar('Exportação concluída ✓', `${arquivos.length} lâmina(s) em JPG`, { parado: true })
@@ -17569,28 +17594,36 @@ async function _albumExportarJPGs() {
   } catch (e) {
     _dlProgressFechar()
     toast('Erro ao exportar: ' + e.message)
-  } finally { _albumExportando = false }
+  } finally { _albumExportando = false; _baixandoPrivado = false }
 }
 
 async function _albumExportarPDF() {
   if (_albumExportando || !_albumExportDados) return
+  if (_baixandoPrivado) { toast('Tem um download em andamento — aguarda terminar antes de exportar.'); return }
   _albumExportando = true
+  _baixandoPrivado = true
   try {
     const { projeto, template, elementos, fotosPorId } = _albumExportDados
     const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
     const paginas = []
-    let feitas = 0
+    let feitas = 0, falhasEncode = 0
     const totalFotos = Math.max(elementos.length, 1)
     for (let i = 0; i < spreads.length; i++) {
       const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
       atualizaProgresso()
       const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
       const blob = await _albumCanvasParaBlob(canvas, 0.92)
-      if (!blob) continue
+      if (!blob) { falhasEncode++; continue } // mesmo achado do export em JPG — canvas grande demais, toBlob volta null sem erro
       const jpegBytes = new Uint8Array(await blob.arrayBuffer())
       paginas.push({ larguraMm: template.largura_aberta_mm, alturaMm: template.altura_aberta_mm, larguraPx: canvas.width, alturaPx: canvas.height, jpegBytes })
     }
-    if (!paginas.length) { _dlProgressFechar(); toast('Nada pra exportar'); return }
+    if (!paginas.length) {
+      _dlProgressFechar()
+      toast(falhasEncode
+        ? `Não consegui gerar a imagem — a lâmina (${template.largura_aberta_mm}×${template.altura_aberta_mm}mm @ ${template.dpi_alvo} DPI) pode ser grande demais pra esse navegador processar. Tenta reduzir o DPI do modelo.`
+        : 'Nada pra exportar')
+      return
+    }
     _dlProgressMostrar('Montando o PDF…', '', {})
     const pdfBlob = _construirPDF(paginas)
     await _albumSalvarArquivos([new File([pdfBlob], `${_albumNomeArquivo(projeto.nome)}.pdf`, { type: 'application/pdf' })], projeto.nome)
@@ -17599,7 +17632,7 @@ async function _albumExportarPDF() {
   } catch (e) {
     _dlProgressFechar()
     toast('Erro ao exportar: ' + e.message)
-  } finally { _albumExportando = false }
+  } finally { _albumExportando = false; _baixandoPrivado = false }
 }
 
 async function _albumMarcarEnviadoImpressao() {
