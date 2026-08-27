@@ -2859,6 +2859,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   </div>
 </div>
 
+<!-- modal: Digipix — exportar álbum (Passo 3) -->
+<div class="modal-overlay" id="modal-album-exportar">
+  <div class="modal" style="max-width:480px;">
+    <h3>Exportar pra impressão</h3>
+    <div id="albexp-corpo"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-exportar')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- modal: Digipix — cliente troca a foto de um elemento da lâmina -->
 <div class="modal-overlay" id="modal-album-cliente-troca">
   <div class="modal" style="max-width:480px;">
@@ -16796,6 +16807,7 @@ async function abrirAlbumEditor(projetoId) {
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
       <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
       ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
+      <button class="btn btn-sm" onclick="abrirExportacaoAlbum()">🖨 Exportar pra impressão</button>
       <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
         <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
         <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
@@ -17318,6 +17330,348 @@ async function _albumSalvarComoPreset() {
   if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
   _albumFecharCampoPreset()
   toast('Modelo salvo ✓')
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO DIGIPIX — Passo 3: motor de exportação gráfica (admin).
+// Renderiza cada lâmina num <canvas> na resolução REAL de impressão
+// (mm→px pelo dpi_alvo do modelo, não pela tela), replicando EXATO o
+// mesmo cálculo de posição/recorte/rotação do editor
+// (_albumElementoHTML/_albumAtualizarElementoDOM) — o cliente aprovou o
+// que viu ali, então a exportação precisa bater com aquele preview, não
+// é uma reinterpretação livre. Usa a foto ORIGINAL (storage_path via
+// signed URL), nunca a prévia/thumb (capada a ~1920px, insuficiente pra
+// 300 DPI em qualquer lâmina maior que uns 15cm de lado).
+//
+// JPG: canvas.toBlob nativo, sem dependência nenhuma.
+// PDF: hand-rolled (sem lib nenhuma, mesma linha do resto do app) — 1
+// lâmina por página em tamanho físico real, JPEG embutido DIRETO via
+// /DCTDecode (sem reprocessar a imagem — só copia os bytes que o
+// próprio toBlob já gerou). NÃO é PDF/X-1a certificado (isso exigiria
+// conversão pra CMYK com perfil ICC embutido, fora do que dá pra
+// garantir corretamente sem uma lib de cor de verdade) — é PDF RGB
+// simples. Pra gráfica que exige X-1a/CMYK, os JPGs em alta resolução
+// (opção separada) são o caminho mais seguro — a UI deixa isso claro.
+// ══════════════════════════════════════════════════════════════
+let _albumImagemOriginalCache = new Map() // foto_id -> { img, blobUrl }, evita rebaixar a mesma foto 2x numa exportação
+// revoga os blob: URLs antes de limpar — sem isso, cada foto original
+// carregada (às vezes dezenas de MB decodificados) ficava presa em
+// memória pro resto da aba, mesmo depois do cache "esquecer" dela.
+function _albumLimparCacheImagens() {
+  for (const { blobUrl } of _albumImagemOriginalCache.values()) URL.revokeObjectURL(blobUrl)
+  _albumImagemOriginalCache.clear()
+}
+async function _albumCarregarImagemOriginal(foto) {
+  if (_albumImagemOriginalCache.has(foto.id)) return _albumImagemOriginalCache.get(foto.id).img
+  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(foto.storage_path, 300)
+  if (error || !data?.signedUrl) throw new Error('link da foto original: ' + (error?.message || 'falhou'))
+  const resp = await fetch(data.signedUrl)
+  if (!resp.ok) throw new Error('download da foto original: HTTP ' + resp.status)
+  const blob = await resp.blob()
+  // blob: é sempre same-origin — desenhar no canvas a partir daqui nunca
+  // "suja" o canvas por CORS, diferente de apontar o <img> direto pra
+  // signed URL (origem do Storage, que taintaria o canvas se o header
+  // de CORS não vier como esperado).
+  const blobUrl = URL.createObjectURL(blob)
+  const img = new Image()
+  img.src = blobUrl
+  // decode() garante bytes E pintura prontos (não só "chegou") — mesmo
+  // motivo já usado em _hidratarPathImg no resto do app; aqui importa
+  // ainda mais, um decode incompleto no meio do drawImage rende em
+  // branco sem erro nenhum, silenciosamente.
+  await img.decode()
+  _albumImagemOriginalCache.set(foto.id, { img, blobUrl })
+  return img
+}
+
+// mesma fórmula de _albumDpiInfo (editor), só que sem depender do
+// global _albumEditorTemplate — a checagem de exportação roda com o
+// dpi_alvo já resolvido explicitamente.
+function _albumDpiClasseExport(el, foto, dpiAlvo) {
+  if (!foto?.largura_original || !foto?.altura_original) return 'neutro'
+  const escala = el.crop_scale || 1
+  const dpiW = (el.width > 0) ? (foto.largura_original / escala) / (el.width / 25.4) : 0
+  const dpiH = (el.height > 0) ? (foto.altura_original / escala) / (el.height / 25.4) : 0
+  return Math.min(dpiW, dpiH) >= (dpiAlvo || 300) ? 'ok' : 'baixo'
+}
+
+// desenha 1 elemento no canvas de exportação — mesma matemática do
+// editor (% vira px, crop_scale/crop_x/crop_y posicionam a imagem
+// DENTRO do frame, rotate gira em volta do CENTRO da caixa por cima do
+// recorte já clipado, nunca antes) — qualquer divergência aqui faz a
+// impressão sair diferente do que o cliente aprovou na tela.
+function _albumDesenharElementoCanvas(ctx, el, img, pxPorMm) {
+  const boxX = el.x * pxPorMm, boxY = el.y * pxPorMm
+  const boxW = el.width * pxPorMm, boxH = el.height * pxPorMm
+  const escala = el.crop_scale || 1
+  const imgW = boxW * escala
+  const imgH = imgW * (img.naturalHeight / img.naturalWidth)
+  const imgX = (boxW * (50 - (el.crop_x || 0)) / 100) - imgW / 2
+  const imgY = (boxH * (50 - (el.crop_y || 0)) / 100) - imgH / 2
+  ctx.save()
+  ctx.translate(boxX + boxW / 2, boxY + boxH / 2)
+  ctx.rotate((el.rotation || 0) * Math.PI / 180)
+  ctx.translate(-boxW / 2, -boxH / 2)
+  ctx.beginPath()
+  ctx.rect(0, 0, boxW, boxH)
+  ctx.clip()
+  ctx.drawImage(img, imgX, imgY, imgW, imgH)
+  ctx.restore()
+}
+
+async function _albumRenderizarLamina(spread, elementos, fotosPorId, template, onFotoCarregada) {
+  const pxPorMm = (template.dpi_alvo || 300) / 25.4
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.max(1, Math.round(template.largura_aberta_mm * pxPorMm))
+  canvas.height = Math.max(1, Math.round(template.altura_aberta_mm * pxPorMm))
+  const ctx = canvas.getContext('2d')
+  ctx.fillStyle = '#fff'
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const doSpread = elementos.filter(e => e.spread_id === spread.id).sort((a, b) => a.z_index - b.z_index)
+  for (const el of doSpread) {
+    const foto = fotosPorId.get(el.foto_id)
+    if (!foto) continue // foto removida da galeria depois de diagramada — já avisado no checklist antes de exportar
+    let img
+    try { img = await _albumCarregarImagemOriginal(foto) }
+    catch (e) { console.error('Digipix export: falha ao carregar foto', foto.id, e.message); continue }
+    _albumDesenharElementoCanvas(ctx, el, img, pxPorMm)
+    if (onFotoCarregada) onFotoCarregada()
+  }
+  return canvas
+}
+
+function _albumCanvasParaBlob(canvas, qualidade) {
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', qualidade ?? 0.92))
+}
+
+// busca fresca de TODOS os spreads/elementos/fotos do projeto aberto —
+// store.albumElements só guarda a lâmina ATUAL (ver abrirAlbumSpread),
+// então exportar o álbum inteiro não pode reaproveitar o store direto.
+async function _albumDadosCompletosExport() {
+  const spreadIds = store.albumSpreads.map(s => s.id)
+  const { data: elementos, error } = spreadIds.length
+    ? await db.from('album_elements').select('*').in('spread_id', spreadIds)
+    : { data: [] }
+  if (error) throw new Error(error.message)
+  const fotoIds = [...new Set((elementos || []).map(e => e.foto_id))]
+  const { data: fotos } = fotoIds.length ? await db.from('fotos').select('*').in('id', fotoIds) : { data: [] }
+  return { elementos: elementos || [], fotosPorId: new Map((fotos || []).map(f => [f.id, f])) }
+}
+
+function _albumNomeArquivo(nome) {
+  // mesmo padrão de RegExp('[\\u0300-\\u036f]') já usado em _gerarSlug/
+  // outros — regex com o caractere combinante LITERAL no código-fonte é
+  // frágil (edição/encoding pode corromper silenciosamente).
+  return (nome || 'album').normalize('NFD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+    .replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'album'
+}
+
+// salva 1+ arquivos gerados no cliente (nunca existiram como URL —
+// vieram de canvas.toBlob/PDF montado na hora) de forma que REALMENTE
+// funcione em celular de verdade — blob + <a download> testado em
+// aparelho real NÃO salva nada no iOS (ver _precisaWebShare acima,
+// bug real já documentado nesta base). Mesma decisão por PLATAFORMA:
+// Web Share só no iOS tocável, <a download> direto no resto (Android
+// tocável incluso). No iOS, um SEGUNDO navigator.share() sem toque novo
+// do usuário nunca resolve (outro bug real já achado aqui) — por isso
+// nunca chama share() em loop, só 1 vez com um lote de até 10 arquivos.
+async function _albumSalvarArquivos(arquivos, nomeBase) {
+  if (!arquivos.length) return
+  if (_precisaWebShare()) {
+    const lote = arquivos.slice(0, 10)
+    const status = await _compartilharArquivos(lote, nomeBase)
+    if (status === 'erro' || status === 'indisponivel') {
+      toast('Não consegui abrir o menu de salvar — tenta de novo ou exporta em PDF (1 arquivo só, mais simples no iPhone).')
+      return
+    }
+    if (status === 'ok' && arquivos.length > 10) toast('Só as primeiras 10 lâminas couberam nesse compartilhamento — pra levar todas de uma vez, use o PDF.')
+    return
+  }
+  for (let i = 0; i < arquivos.length; i++) {
+    const blobUrl = URL.createObjectURL(arquivos[i])
+    const a = document.createElement('a')
+    a.href = blobUrl
+    a.download = arquivos[i].name
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000)
+    // mesmo intervalo de _baixarFotosPrivadoNativoInterno — disparar
+    // download demais de uma vez seguida faz o navegador bloquear como
+    // popup a partir do 2º/3º.
+    if (i < arquivos.length - 1) await new Promise(r => setTimeout(r, 400))
+  }
+}
+
+let _albumExportDados = null
+async function abrirExportacaoAlbum() {
+  const projeto = _albumEditorProjeto
+  const template = _albumEditorTemplate
+  if (!projeto || !template) return
+  if (!store.albumSpreads.length) { toast('Este álbum ainda não tem lâminas pra exportar'); return }
+  // limpa o cache de fotos originais a cada NOVA sessão de exportação —
+  // dentro da mesma sessão (ex: exportar JPG e depois PDF do mesmo
+  // álbum sem fechar o modal) o cache ainda ajuda, mas sem isso um
+  // admin exportando vários álbuns na mesma sessão do navegador ia
+  // acumulando fotos em resolução total (às vezes dezenas de MB cada)
+  // pra sempre em memória — achado na revisão, não é teórico: cada
+  // Image decodificada custa largura×altura×4 bytes.
+  _albumLimparCacheImagens()
+  abrirModal('modal-album-exportar')
+  const corpo = document.getElementById('albexp-corpo')
+  corpo.innerHTML = '<div class="empty">Checando qualidade das fotos…</div>'
+  let dados
+  try { dados = await _albumDadosCompletosExport() }
+  catch (e) { corpo.innerHTML = `<div class="empty">Erro ao carregar: ${esc(e.message)}</div>`; return }
+  const { elementos, fotosPorId } = dados
+  _albumExportDados = { projeto, template, elementos, fotosPorId }
+  const semFoto = elementos.filter(e => !fotosPorId.has(e.foto_id)).length
+  const baixaDpi = elementos.filter(e => {
+    const f = fotosPorId.get(e.foto_id)
+    return f && _albumDpiClasseExport(e, f, template.dpi_alvo) === 'baixo'
+  }).length
+  const avisos = []
+  if (semFoto) avisos.push(`⚠ ${semFoto} elemento(s) usam foto(s) que não existem mais na galeria — vão sair em branco.`)
+  if (baixaDpi) avisos.push(`⚠ ${baixaDpi} foto(s) abaixo de ${template.dpi_alvo} DPI — podem sair borradas na impressão.`)
+  corpo.innerHTML = `
+    <div class="meta" style="margin-bottom:10px;">${store.albumSpreads.length} lâmina(s) · ${elementos.length} foto(s) · ${template.largura_aberta_mm}×${template.altura_aberta_mm}mm @ ${template.dpi_alvo} DPI</div>
+    ${avisos.length ? avisos.map(a => `<div style="color:var(--vermelho);font-size:12.5px;margin-bottom:6px;">${esc(a)}</div>`).join('') : '<div style="color:var(--verde);font-size:12.5px;margin-bottom:6px;">✓ Todas as fotos em boa resolução</div>'}
+    <div class="meta" style="margin:10px 0 12px;">O PDF aqui é RGB simples (1 lâmina por página, tamanho físico real) — não é PDF/X-1a com perfil de cor. Pra gráfica que exige isso, use os JPGs em alta resolução.</div>
+    <div class="modal-actions" style="justify-content:flex-start;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" onclick="_albumExportarJPGs()">🖼 Baixar JPGs (alta resolução)</button>
+      <button class="btn btn-sm" onclick="_albumExportarPDF()">📄 Baixar PDF</button>
+      ${projeto.status === 'aprovado' ? `<button class="btn btn-sm" onclick="_albumMarcarEnviadoImpressao()">✓ Marcar como enviado pra impressão</button>` : ''}
+    </div>`
+}
+
+let _albumExportando = false
+async function _albumExportarJPGs() {
+  if (_albumExportando || !_albumExportDados) return
+  _albumExportando = true
+  try {
+    const { projeto, template, elementos, fotosPorId } = _albumExportDados
+    const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
+    const arquivos = []
+    let feitas = 0
+    const totalFotos = Math.max(elementos.length, 1)
+    for (let i = 0; i < spreads.length; i++) {
+      const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
+      atualizaProgresso()
+      const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
+      const blob = await _albumCanvasParaBlob(canvas, 0.92)
+      if (blob) arquivos.push(new File([blob], `${_albumNomeArquivo(projeto.nome)}-lamina-${i + 1}.jpg`, { type: 'image/jpeg' }))
+    }
+    if (!arquivos.length) { _dlProgressFechar(); toast('Nada pra exportar'); return }
+    _dlProgressMostrar('Salvando…', '', {})
+    await _albumSalvarArquivos(arquivos, projeto.nome)
+    _dlProgressMostrar('Exportação concluída ✓', `${arquivos.length} lâmina(s) em JPG`, { parado: true })
+    registrarAuditoria('exportou álbum em JPG (Digipix)', 'album_projects', projeto.id, projeto.nome)
+  } catch (e) {
+    _dlProgressFechar()
+    toast('Erro ao exportar: ' + e.message)
+  } finally { _albumExportando = false }
+}
+
+async function _albumExportarPDF() {
+  if (_albumExportando || !_albumExportDados) return
+  _albumExportando = true
+  try {
+    const { projeto, template, elementos, fotosPorId } = _albumExportDados
+    const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
+    const paginas = []
+    let feitas = 0
+    const totalFotos = Math.max(elementos.length, 1)
+    for (let i = 0; i < spreads.length; i++) {
+      const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
+      atualizaProgresso()
+      const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
+      const blob = await _albumCanvasParaBlob(canvas, 0.92)
+      if (!blob) continue
+      const jpegBytes = new Uint8Array(await blob.arrayBuffer())
+      paginas.push({ larguraMm: template.largura_aberta_mm, alturaMm: template.altura_aberta_mm, larguraPx: canvas.width, alturaPx: canvas.height, jpegBytes })
+    }
+    if (!paginas.length) { _dlProgressFechar(); toast('Nada pra exportar'); return }
+    _dlProgressMostrar('Montando o PDF…', '', {})
+    const pdfBlob = _construirPDF(paginas)
+    await _albumSalvarArquivos([new File([pdfBlob], `${_albumNomeArquivo(projeto.nome)}.pdf`, { type: 'application/pdf' })], projeto.nome)
+    _dlProgressMostrar('Exportação concluída ✓', `PDF com ${paginas.length} lâmina(s)`, { parado: true })
+    registrarAuditoria('exportou álbum em PDF (Digipix)', 'album_projects', projeto.id, projeto.nome)
+  } catch (e) {
+    _dlProgressFechar()
+    toast('Erro ao exportar: ' + e.message)
+  } finally { _albumExportando = false }
+}
+
+async function _albumMarcarEnviadoImpressao() {
+  const projeto = _albumExportDados?.projeto
+  if (!projeto) return
+  const ok = await confirmModal('Marcar este álbum como "enviado pra impressão"? É só um status pra organização — não desfaz o download.', { titulo: 'Marcar como enviado', okLabel: 'Marcar' })
+  if (!ok) return
+  const { data, error } = await db.from('album_projects').update({ status: 'enviado_impressao' }).eq('id', projeto.id).select().single()
+  if (error) { toast('Erro ao atualizar status: ' + error.message); return }
+  projeto.status = data.status
+  const idxLista = store.albumProjects.findIndex(p => p.id === data.id)
+  if (idxLista >= 0) store.albumProjects[idxLista].status = data.status
+  if (_albumEditorProjeto?.id === data.id) _albumEditorProjeto.status = data.status
+  toast('Marcado como enviado pra impressão ✓')
+  fecharModal('modal-album-exportar')
+  registrarAuditoria('marcou álbum como enviado pra impressão (Digipix)', 'album_projects', projeto.id, projeto.nome)
+}
+
+// ── PDF hand-rolled, sem dependência nenhuma (mesma linha do resto do
+// app) — 1 imagem JPEG por página, embutida DIRETO via /DCTDecode
+// (bytes do toBlob copiados como estão, sem reprocessar). offsets de
+// cada objeto são calculados por CONSTRUÇÃO (nunca contados na mão),
+// porque 1 byte de offset errado no xref corrompe o arquivo inteiro.
+function _construirPDF(paginas) {
+  const MM_PARA_PT = 2.834645669
+  const parts = []
+  let offset = 0
+  const push = (chunk) => { parts.push(chunk); offset += chunk.length } // chunk: string ASCII ou Uint8Array — .length de string ASCII == bytes em UTF-8
+  const offsets = {} // numero do objeto -> offset onde "N 0 obj" começa
+
+  push('%PDF-1.4\n')
+
+  const numPage = i => 3 + i * 3
+  const numContent = i => 4 + i * 3
+  const numImage = i => 5 + i * 3
+  const totalObjs = 2 + paginas.length * 3
+
+  // 1: Catalog
+  offsets[1] = offset
+  push('1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n')
+
+  // 2: Pages (kids = 1 objeto Page por lâmina)
+  offsets[2] = offset
+  const kids = paginas.map((_, i) => `${numPage(i)} 0 R`).join(' ')
+  push(`2 0 obj\n<< /Type /Pages /Kids [${kids}] /Count ${paginas.length} >>\nendobj\n`)
+
+  paginas.forEach((p, i) => {
+    const wPt = (p.larguraMm * MM_PARA_PT).toFixed(2)
+    const hPt = (p.alturaMm * MM_PARA_PT).toFixed(2)
+
+    offsets[numPage(i)] = offset
+    push(`${numPage(i)} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${wPt} ${hPt}] /Resources << /XObject << /Im0 ${numImage(i)} 0 R >> >> /Contents ${numContent(i)} 0 R >>\nendobj\n`)
+
+    // conteúdo da página: escala a imagem (definida no PDF como o
+    // quadrado unitário 0..1) pro tamanho físico real da lâmina, cm =
+    // concat matrix — truque padrão de PDF pra "preencher a página".
+    const conteudo = `q ${wPt} 0 0 ${hPt} 0 0 cm /Im0 Do Q`
+    offsets[numContent(i)] = offset
+    push(`${numContent(i)} 0 obj\n<< /Length ${conteudo.length} >>\nstream\n${conteudo}\nendstream\nendobj\n`)
+
+    offsets[numImage(i)] = offset
+    push(`${numImage(i)} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${p.larguraPx} /Height ${p.alturaPx} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${p.jpegBytes.length} >>\nstream\n`)
+    push(p.jpegBytes)
+    push('\nendstream\nendobj\n')
+  })
+
+  const xrefOffset = offset
+  push(`xref\n0 ${totalObjs + 1}\n0000000000 65535 f \n`)
+  for (let n = 1; n <= totalObjs; n++) push(String(offsets[n]).padStart(10, '0') + ' 00000 n \n')
+  push(`trailer\n<< /Size ${totalObjs + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`)
+
+  return new Blob(parts, { type: 'application/pdf' })
 }
 
 // ══════════════════════════════════════════════════════════════
