@@ -17285,8 +17285,17 @@ document.addEventListener('pointermove', e => {
     // por isso usa rect do PRÓPRIO elemento, não do canvas inteiro.
     const elRect = document.querySelector(`.album-el[data-el-id="${d.id}"]`)?.getBoundingClientRect()
     if (elRect) {
-      el.crop_x = d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100
-      el.crop_y = d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100
+      // achado testando: sem limite nenhum, um arrasto rápido (comum
+      // no toque) jogava crop_x/crop_y pra milhares de % — a foto
+      // "sumia" da moldura (pan bem além da imagem), sem pista visual
+      // de quanto arrastar de volta pra recuperar. Limite matemático:
+      // com a imagem crop_scale× maior que o frame, ela só cobre o
+      // frame inteiro enquanto o pan fica dentro de ±50*(crop_scale-1)
+      // — em zoom 1 (sem zoom) isso trava em 0, correto (não tem pra
+      // onde puxar sem abrir vão).
+      const limitePan = 50 * ((el.crop_scale || 1) - 1)
+      el.crop_x = Math.min(limitePan, Math.max(-limitePan, d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100))
+      el.crop_y = Math.min(limitePan, Math.max(-limitePan, d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100))
     }
   }
   _albumAtualizarElementoDOM(el)
