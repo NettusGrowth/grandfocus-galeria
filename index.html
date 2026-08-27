@@ -1634,7 +1634,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    touch-action:pan-y, só que aqui precisa travar TUDO (não só
    vertical), porque o gesto de girar/redimensionar usa as duas
    direções. */
-.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;touch-action:none;}
+/* achado testando: overflow:hidden aqui cortava os handles de
+   redimensionar/girar de qualquer elemento colado na borda da lâmina
+   (sangria total — bem comum) — ficavam invisíveis E impossíveis de
+   tocar, no mouse e no toque. O recorte visual de cada FOTO já é feito
+   por elemento (.album-el-img-wrap{overflow:hidden}, mais abaixo), e
+   as guias (sangria/vinco/margem) já ficam dentro dos limites por
+   `inset`, então nada realmente PRECISAVA do overflow:hidden aqui —
+   só cortava sem querer o que devia continuar tocável. */
+.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:visible;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;touch-action:none;}
 .album-guide{position:absolute;pointer-events:none;border:0;}
 .album-guide-sangria{inset:0;outline:1.5px dashed rgba(220,60,60,.75);outline-offset:-1px;}
 .album-guide-vinco{top:0;bottom:0;left:50%;width:0;border-left:1.5px dashed rgba(90,150,220,.85);}
@@ -1661,6 +1669,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
 #album-btn-modo-recorte.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
+/* achado testando em viewport mobile: o botão de Modo recorte (feito
+   JUSTAMENTE pra toque) saiu com ~30px de altura, do mesmo jeito que
+   o resto do toolbar do elemento — inconsistente com o próprio
+   objetivo do Passo 4. Como os 4 ficam na mesma fileira, ajusta o
+   grupo inteiro (Frente/Trás/Apagar/Modo recorte), não só o botão
+   novo — senão um fica visivelmente maior que os irmãos ao lado. */
+#album-el-toolbar .btn{min-height:44px;}
+/* mesmo achado, agora nos botões de exportar (JPG/PDF/marcar como
+   enviado) — são a ação PRINCIPAL da tela de exportação, ainda mais
+   crítico ter alvo de toque confortável aqui do que num botão
+   secundário qualquer. */
+#albexp-corpo .btn{min-height:44px;}
 
 /* ── Digipix: portal do cliente (Passo 2) — flipbook CSS 3D puro,
    sem lib de terceiro (mesmo espírito caseiro do resto do app). */
@@ -16796,9 +16816,19 @@ let _albumEditorSpreadAtual = null
 let _albumEditorFotosEvento = []
 let _albumEditorSelId = null
 
+// achado na bateria de testes — mesma corrida de abrirAlbumSpread,
+// mas entre ÁLBUNS: clicar rápido em 2 álbuns diferentes na lista
+// podia deixar a resposta LENTA do primeiro sobrescrever
+// store.albumSpreads/_albumEditorFotosEvento/wrap.innerHTML DEPOIS do
+// segundo álbum já estar selecionado — a tela chegava a mostrar o
+// TÍTULO e as lâminas de um álbum errado, mesmo com
+// _albumEditorProjeto internamente correto. Mesmo padrão de sequência
+// monotônica de abrirAlbumSpread/_galCargaSeq.
+let _albumEditorCargaSeq = 0
 async function abrirAlbumEditor(projetoId) {
   const projeto = store.albumProjects.find(p => p.id === projetoId)
   if (!projeto) return
+  const minhaSeq = ++_albumEditorCargaSeq
   document.getElementById('albuns-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('album-editor-wrap')
   wrap.style.display = ''
@@ -16813,6 +16843,7 @@ async function abrirAlbumEditor(projetoId) {
     db.from('album_spreads').select('*').eq('project_id', projetoId).order('spread_index'),
     db.from('fotos').select('*').eq('evento_id', projeto.evento_id).order('criado_em'),
   ])
+  if (minhaSeq !== _albumEditorCargaSeq) return // um álbum mais novo já foi aberto por cima — descarta essa resposta atrasada
   if (e1 || e2) { toast('Erro ao abrir álbum: ' + (e1 || e2).message); return }
   store.albumSpreads = spreads || []
   _albumEditorFotosEvento = _ordenarGrupoFotos(fotos || [])
@@ -16935,25 +16966,43 @@ async function _albumCriarSpread() {
   } finally { _albumCriandoSpread = false }
 }
 
+// achado na bateria de testes: clicar rápido entre lâminas (ex: A
+// depois C) podia deixar a resposta LENTA e antiga (de A) chegar
+// DEPOIS da nova (C) já estar na tela, sobrescrevendo
+// store.albumElements com os elementos da lâmina ERRADA — o canvas de
+// C ficava vazio do nada, sem nenhum erro visível, parecendo que as
+// fotos sumiram. Mesmo padrão de corrida já corrigido antes na
+// Galeria principal (_galCargaSeq) — sequência monotônica: se uma
+// chamada mais nova já rodou por cima, a resposta antiga é descartada
+// em vez de aplicada.
+let _albumSpreadCargaSeq = 0
 async function abrirAlbumSpread(spreadId) {
   const spread = store.albumSpreads.find(s => s.id === spreadId)
   if (!spread) return
+  const minhaSeq = ++_albumSpreadCargaSeq
   _albumEditorSpreadAtual = spread
   _albumEditorSelId = null
   document.getElementById('album-editor-shell').style.display = ''
   document.getElementById('album-btn-salvar-preset').disabled = false
   renderAlbumSpreadsTira()
   const { data, error } = await db.from('album_elements').select('*').eq('spread_id', spreadId).order('z_index')
+  if (minhaSeq !== _albumSpreadCargaSeq) return // uma troca de lâmina mais nova já aconteceu — essa resposta chegou atrasada
   if (error) { toast('Erro ao carregar lâmina: ' + error.message); return }
   store.albumElements = data || []
   renderAlbumCanvas()
   _albumCarregarComentariosAdmin(spreadId)
 }
 
+// mesmo achado do lado do cliente (_albumClienteCarregarComentarios) —
+// trocar de lâmina rápido no editor podia deixar comentário de uma
+// lâmina ANTIGA aparecer pro admin embaixo da lâmina NOVA já aberta.
+let _albumComentariosAdminCargaSeq = 0
 async function _albumCarregarComentariosAdmin(spreadId) {
   const el = document.getElementById('album-comentarios-admin')
   if (!el) return
+  const minhaSeq = ++_albumComentariosAdminCargaSeq
   const { data, error } = await db.from('album_comentarios').select('*, perfis(nome)').eq('spread_id', spreadId).order('criado_em')
+  if (minhaSeq !== _albumComentariosAdminCargaSeq) return
   if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar os comentários</div>'; return }
   if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário nesta lâmina ainda.</div>'; return }
   el.innerHTML = data.map(c => `
@@ -17109,6 +17158,20 @@ document.addEventListener('drop', async e => {
   renderAlbumCanvas()
 })
 
+// achado na bateria de testes: mover (arrasto ou seta) não tinha
+// NENHUM limite — dava pra empurrar um elemento pra milhares de mm de
+// distância da lâmina sem aviso nenhum, e com o overflow:visible do
+// Passo 4 (corrigido nesta mesma rodada) ele ficaria literalmente
+// visível bem longe da lâmina, invadindo o painel de fotos/resto da
+// tela. Permite ficar parcialmente fora (sangria/composição criativa é
+// legítimo), só não deixa ir tão longe que "some" da vista.
+function _albumClampPosicao(el) {
+  const t = _albumEditorTemplate
+  if (!t) return
+  el.x = Math.min(Math.max(el.x, -el.width), t.largura_aberta_mm)
+  el.y = Math.min(Math.max(el.y, -el.height), t.altura_aberta_mm)
+}
+
 // mover/redimensionar/girar/recortar um elemento já na lâmina —
 // Pointer Events delegados em document, mesmo mecanismo generalizado
 // de _abrirAjusteFoto (pointerdown/move/up/cancel + setPointerCapture
@@ -17198,6 +17261,7 @@ document.addEventListener('pointermove', e => {
   if (d.modo === 'mover') {
     el.x = d.base.x + dxMm
     el.y = d.base.y + dyMm
+    _albumClampPosicao(el)
   } else if (d.modo === 'redimensionar') {
     let novaLargura = Math.max(10, d.base.width + dxMm)
     let novaAltura = e.shiftKey ? novaLargura / d.aspecto : Math.max(10, d.base.height + dyMm)
@@ -17267,6 +17331,7 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') { el.x -= passo; } else if (e.key === 'ArrowRight') { el.x += passo; }
   else if (e.key === 'ArrowUp') { el.y -= passo; } else if (e.key === 'ArrowDown') { el.y += passo; }
   else return
+  _albumClampPosicao(el)
   e.preventDefault()
   _albumAtualizarElementoDOM(el)
   _albumSalvarElemento(el.id)
@@ -17325,8 +17390,22 @@ function _albumOrientacao(foto) {
   if (!w || !h) return 'quadrada'
   return w > h ? 'paisagem' : (h > w ? 'retrato' : 'quadrada')
 }
+// achado na bateria de testes: sem trava nenhuma, 2 cliques rápidos em
+// "Smart Layout" enxergavam a MESMA lista de lâminas vazias (porque
+// store.albumElements só é atualizado DEPOIS do insert resolver) e
+// duplicavam as mesmas fotos empilhadas na mesma lâmina — mesma classe
+// de bug de clique duplo já corrigida em várias outras ações deste
+// módulo, faltou aqui.
+let _albumRodandoSmartLayout = false
 async function _albumSmartLayout() {
+  if (_albumRodandoSmartLayout) return
   if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); return }
+  _albumRodandoSmartLayout = true
+  try {
+    await _albumSmartLayoutInterno()
+  } finally { _albumRodandoSmartLayout = false }
+}
+async function _albumSmartLayoutInterno() {
   const t = _albumEditorTemplate
   const spreadsVazias = store.albumSpreads.filter(s => !store.albumElements.some(el => el.spread_id === s.id))
   if (!spreadsVazias.length) { toast('Todas as lâminas já têm fotos — crie uma lâmina nova pro Smart Layout usar'); return }
@@ -17360,7 +17439,7 @@ async function _albumSmartLayout() {
   const { data, error } = await db.from('album_elements').insert(novosElementos).select()
   if (error) { toast('Erro no Smart Layout: ' + error.message); return }
   store.albumElements.push(...data)
-  toast(`Smart Layout aplicado ✓ (${data.length} fotos em ${spreadsVazias.length} lâmina(s))`)
+  toast(`Smart Layout aplicado ✓ (${data.length} foto(s) em ${spreadsVazias.length} lâmina(s))`)
   renderAlbumCanvas()
 }
 
@@ -17382,21 +17461,30 @@ function _albumFecharCampoPreset() {
   document.getElementById('album-preset-campo').style.display = 'none'
   document.getElementById('album-btn-salvar-preset').style.display = ''
 }
+// achado na bateria de testes: sem trava, 2 cliques rápidos em
+// "Salvar" (o campo inline de nome do preset) criavam 2 presets
+// idênticos duplicados — mesma classe de bug já corrigida em outras
+// ações deste módulo.
+let _albumSalvandoPreset = false
 async function _albumSalvarComoPreset() {
+  if (_albumSalvandoPreset) return
   const elementos = _albumElementosDaSpreadAtual()
   if (!elementos.length) { toast('Esta lâmina não tem fotos pra salvar como modelo'); return }
   const nome = document.getElementById('album-preset-nome').value.trim()
   if (!nome) { toast('Dê um nome ao modelo'); return }
-  const t = _albumEditorTemplate
-  const estrutura = elementos.map(el => ({
-    xFr: el.x / t.largura_aberta_mm, yFr: el.y / t.altura_aberta_mm,
-    wFr: el.width / t.largura_aberta_mm, hFr: el.height / t.altura_aberta_mm,
-    rotation: el.rotation, z_index: el.z_index,
-  }))
-  const { error } = await db.from('album_layout_presets').insert({ nome, estrutura })
-  if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
-  _albumFecharCampoPreset()
-  toast('Modelo salvo ✓')
+  _albumSalvandoPreset = true
+  try {
+    const t = _albumEditorTemplate
+    const estrutura = elementos.map(el => ({
+      xFr: el.x / t.largura_aberta_mm, yFr: el.y / t.altura_aberta_mm,
+      wFr: el.width / t.largura_aberta_mm, hFr: el.height / t.altura_aberta_mm,
+      rotation: el.rotation, z_index: el.z_index,
+    }))
+    const { error } = await db.from('album_layout_presets').insert({ nome, estrutura })
+    if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
+    _albumFecharCampoPreset()
+    toast('Modelo salvo ✓')
+  } finally { _albumSalvandoPreset = false }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -18021,10 +18109,18 @@ async function _albumClienteConfirmarTroca(novaFotoId) {
   } finally { _albumClienteTrocando = false }
 }
 
+// achado na bateria de testes: virar de lâmina rápido no flipbook
+// podia deixar a resposta LENTA do comentário de uma página ANTIGA
+// sobrescrever a lista bem embaixo da lâmina NOVA que o cliente já
+// está olhando — parecia comentário sobre a foto errada. Mesmo padrão
+// de sequência monotônica já usado no editor admin (abrirAlbumSpread).
+let _albumClienteComentariosCargaSeq = 0
 async function _albumClienteCarregarComentarios(spreadId) {
   const el = document.getElementById('album-cliente-comentarios-lista')
   if (!el) return
+  const minhaSeq = ++_albumClienteComentariosCargaSeq
   const { data, error } = await db.from('album_comentarios').select('*').eq('spread_id', spreadId).order('criado_em')
+  if (minhaSeq !== _albumClienteComentariosCargaSeq) return // o cliente já virou a página de novo — descarta essa resposta atrasada
   if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar</div>'; return }
   if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário ainda nesta lâmina.</div>'; return }
   el.innerHTML = data.map(c => `
