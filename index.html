@@ -9222,6 +9222,19 @@ async function excluirEvento(id, aposApagar) {
   const numFotos = store.fotos.filter(f => f.evento_id === id).length
   let msg = `Apagar "${ev.nome}" permanentemente?`
   if (numFotos) msg += `\n\n⚠ ${numFotos} foto(s) desse evento serão apagadas junto — sem volta.`
+  // achado na revisão: album_projects.evento_id é "on delete cascade"
+  // (074_digipix_editor.sql) — sem essa checagem, apagar um evento
+  // aqui apagava junto, sem nenhum aviso específico, qualquer álbum
+  // Digipix dele, incluindo um já APROVADO pelo cliente e pronto pra
+  // impressão. store.albumProjects pode nem estar carregado (o admin
+  // pode nunca ter aberto a aba Digipix nesta sessão), por isso busca
+  // fresco no banco em vez de confiar no store.
+  const { data: albuns } = await db.from('album_projects').select('nome, status').eq('evento_id', id)
+  if (albuns?.length) {
+    const aprovados = albuns.filter(a => ['em_aprovacao', 'aprovado', 'enviado_impressao'].includes(a.status))
+    msg += `\n\n⚠ ${albuns.length} álbum(ns) Digipix deste evento também serão apagados junto` +
+      (aprovados.length ? ` — ${aprovados.length} deles já está com o cliente ou aprovado/enviado pra impressão!` : '.')
+  }
   const ok = await confirmModal(msg, { titulo: 'Apagar evento', okLabel: 'Apagar', danger: true })
   if (!ok) return
   const paths = store.fotos.filter(f => f.evento_id === id).map(f => f.storage_path)
@@ -12358,10 +12371,34 @@ function _removerFotoItensDOM(fotoIds) {
   return todasAchadas
 }
 
+// achado na revisão: album_elements.foto_id é "on delete cascade"
+// (074_digipix_editor.sql) — apagar uma foto que já está posicionada
+// numa lâmina Digipix apaga esse elemento junto, sem aviso nenhum, e
+// se o álbum já estiver com o cliente (em_aprovacao/aprovado/
+// enviado_impressao) isso estraga um trabalho que devia estar
+// travado. Checa ANTES de apagar — não bloqueia (o admin pode ter um
+// motivo legítimo, ex: foto duplicada), só avisa com informação real.
+async function _fotosDigipixEmUso(fotoIds) {
+  if (!fotoIds.length) return { total: 0, temAprovado: false }
+  const { data } = await db.from('album_elements').select('foto_id, album_spreads(album_projects(status))').in('foto_id', fotoIds)
+  if (!data?.length) return { total: 0, temAprovado: false }
+  const temAprovado = data.some(e => {
+    const spread = Array.isArray(e.album_spreads) ? e.album_spreads[0] : e.album_spreads
+    const projeto = spread ? (Array.isArray(spread.album_projects) ? spread.album_projects[0] : spread.album_projects) : null
+    return ['em_aprovacao', 'aprovado', 'enviado_impressao'].includes(projeto?.status)
+  })
+  return { total: new Set(data.map(e => e.foto_id)).size, temAprovado }
+}
+
 // apaga a foto de vez (banco + arquivo) — só admin chega nesse botão,
 // mas a policy de "fotos" e do storage também travam por segurança.
 async function excluirFoto(fotoId, aposApagar) {
-  const ok = await confirmModal('Apagar essa foto permanentemente? Não dá pra desfazer.', { titulo: 'Apagar foto', okLabel: 'Apagar', danger: true })
+  const digipix = await _fotosDigipixEmUso([fotoId])
+  let msg = 'Apagar essa foto permanentemente? Não dá pra desfazer.'
+  if (digipix.total) msg += digipix.temAprovado
+    ? '\n\n⚠ Essa foto está usada num álbum Digipix já aprovado/com o cliente — apagar aqui vai quebrar aquela lâmina.'
+    : '\n\n⚠ Essa foto está usada num álbum Digipix em diagramação — apagar aqui remove ela de lá também.'
+  const ok = await confirmModal(msg, { titulo: 'Apagar foto', okLabel: 'Apagar', danger: true })
   if (!ok) return
   const foto = store.fotos.find(f => f.id === fotoId)
   const { error: dbErr } = await db.from('fotos').delete().eq('id', fotoId)
@@ -12376,18 +12413,25 @@ async function excluirFoto(fotoId, aposApagar) {
 
 // separado do confirmModal pra quem já confirmou por outro caminho
 // (ex.: _eventoApagarPasta/_ensaioApagarPasta já usam seu próprio
-// modal de 3 saídas — pedir de novo aqui seria confirmação dupla).
+// modal de 3 saídas — pedir de novo aqui seria confirmação dupla, por
+// isso o aviso de Digipix aqui vem DEPOIS, como toast informativo, em
+// vez de tentar encaixar num confirm que já foi respondido).
 async function _apagarFotosSemConfirmar(fotoIds) {
   if (!fotoIds.length) return true
   const alvo = fotoIds.map(id => store.fotos.find(f => f.id === id)).filter(Boolean)
   const paths = alvo.flatMap(f => [f.storage_path, f.thumb_path].filter(Boolean))
+  const digipix = await _fotosDigipixEmUso(fotoIds)
   const { error: dbErr } = await db.from('fotos').delete().in('id', fotoIds)
   if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return false }
   if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
   store.fotos = store.fotos.filter(f => !fotoIds.includes(f.id))
   store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id))
   store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id))
-  toast(`${fotoIds.length} foto(s) apagada(s) ✓`)
+  // 1 toast só — o componente é global (sem fila), 2 chamadas seguidas
+  // fariam a segunda sobrescrever a primeira antes do usuário ler.
+  toast(`${fotoIds.length} foto(s) apagada(s) ✓` + (digipix.total
+    ? ` — ⚠ ${digipix.total} delas estava(m) em álbum(ns) Digipix${digipix.temAprovado ? ' (algum já aprovado/com o cliente)' : ''}, confira a diagramação`
+    : ''))
   registrarAuditoria('apagou fotos em massa', 'fotos', null, `${fotoIds.length} foto(s)`)
   return true
 }
@@ -16526,6 +16570,32 @@ async function _albumEnviarParaAprovacao() {
   if (!clienteId) { toast('Selecione um responsável'); return }
   _albumEnviandoAprovacao = true
   try {
+    // achado na revisão: a lâmina é montada com o pool INTEIRO de fotos
+    // do evento (que pode ter vários alunos/responsáveis, é assim que
+    // o próprio seletor de responsável acima lista mais de 1 opção) —
+    // nada impedia enviar um álbum com foto de OUTRO aluno pra um
+    // responsável que não enxerga aquela foto (fotos_visiveis()
+    // bloqueia no banco, então a foto simplesmente ficaria quebrada/
+    // em branco na tela dele, sem explicação nenhuma).
+    const spreadIds = store.albumSpreads.map(s => s.id)
+    const [{ data: vinc }, { data: fp }, { data: els }] = await Promise.all([
+      db.from('responsavel_alunos').select('aluno_id').eq('user_id', clienteId),
+      db.from('foto_pessoa').select('foto_id').eq('user_id', clienteId),
+      spreadIds.length ? db.from('album_elements').select('foto_id').in('spread_id', spreadIds) : Promise.resolve({ data: [] }),
+    ])
+    const alunoIdsDoCliente = (vinc || []).map(v => v.aluno_id)
+    const { data: fa } = alunoIdsDoCliente.length
+      ? await db.from('foto_aluno').select('foto_id').in('aluno_id', alunoIdsDoCliente)
+      : { data: [] }
+    const visiveis = new Set([...(fa || []).map(x => x.foto_id), ...(fp || []).map(x => x.foto_id)])
+    const foraDaVisao = [...new Set((els || []).map(e => e.foto_id))].filter(id => !visiveis.has(id))
+    if (foraDaVisao.length) {
+      const ok = await confirmModal(
+        `${foraDaVisao.length} foto(s) usada(s) neste álbum não pertencem a este responsável (não estão vinculadas a nenhum filho dele) — vão aparecer em branco/quebradas pra ele. Enviar assim mesmo?`,
+        { titulo: 'Foto fora da visão do responsável', okLabel: 'Enviar assim mesmo', danger: true }
+      )
+      if (!ok) return
+    }
     const { data, error } = await db.from('album_projects').update({ cliente_user_id: clienteId, status: 'em_aprovacao' }).eq('id', _albumEditorProjeto.id).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
     if (error) { toast('Erro ao enviar: ' + error.message); return }
     const idx = store.albumProjects.findIndex(p => p.id === data.id)
@@ -16642,8 +16712,34 @@ async function salvarAlbumTemplate() {
   if (payload.sangria_mm < 0 || payload.margem_seguranca_mm < 0) { toast('Sangria e margem não podem ser negativas'); return }
   if (!(payload.dpi_alvo > 0)) { toast('DPI alvo precisa ser maior que zero'); return }
   if (!(payload.min_laminas >= 1) || !(payload.max_laminas >= payload.min_laminas)) { toast('Confira o mínimo/máximo de lâminas (mínimo ≥ 1, máximo ≥ mínimo)'); return }
+  // achado na revisão: editar um modelo já usado por álbuns em
+  // andamento (ou até já APROVADO pelo cliente, pronto pra imprimir)
+  // muda a dimensão/sangria/margem embaixo dos pés — todos os
+  // elementos daqueles álbuns ficam com posição em mm que não bate
+  // mais com a lâmina nova, sem nenhum aviso visual de que algo
+  // mudou. Sem essa trava, dava pra distorcer silenciosamente um
+  // álbum já fechado pra impressão só editando um modelo qualquer.
+  // trava ANTES do confirmModal (não depois) — mesmo motivo já achado
+  // em _albumClienteAprovar: se o flag só é setado depois do await, 2
+  // cliques quase simultâneos em "Salvar" passam os dois pela checagem
+  // do topo antes de qualquer um setar o flag (TOCTOU), podendo abrir
+  // 2 confirmModal ou disparar 2 updates.
   _albumSalvandoTemplate = true
   try {
+    if (id) {
+      const usando = store.albumProjects.filter(p => p.album_template_id === id)
+      if (usando.length) {
+        const travados = usando.filter(p => ['em_aprovacao', 'aprovado', 'enviado_impressao'].includes(p.status))
+        const aviso = travados.length
+          ? `Atenção: ${travados.length} desses já está com o cliente ou aprovado/enviado pra impressão — mudar o modelo pode distorcer a diagramação sem ele perceber.`
+          : ''
+        const ok = await confirmModal(
+          `Este modelo já está em uso em ${usando.length} álbum(ns): ${usando.map(p => p.nome).join(', ')}. ${aviso} Mudar as dimensões/sangria/margem agora vai desalinhar as fotos já posicionadas nesses álbuns. Continuar mesmo assim?`,
+          { titulo: 'Modelo em uso', okLabel: 'Mudar assim mesmo', danger: true }
+        )
+        if (!ok) return
+      }
+    }
     let data, error
     if (id) ({ data, error } = await db.from('album_templates').update(payload).eq('id', id).select().single())
     else ({ data, error } = await db.from('album_templates').insert(payload).select().single())
@@ -17066,8 +17162,24 @@ document.addEventListener('wheel', e => {
   _albumSalvarElemento(el.id)
 }, { passive: false })
 // teclado: Delete apaga o elemento selecionado, setas nudge fino.
+// Duas guardas essenciais (achadas em revisão, não são teóricas):
+// 1) `#album-canvas-wrap` continua existindo no DOM (só oculto por
+//    display:none) mesmo depois do admin trocar de aba — checar só a
+//    EXISTÊNCIA do elemento (como o código fazia antes) deixava esse
+//    atalho ativo em QUALQUER lugar do app depois de sair do editor
+//    uma vez, podendo apagar um elemento sozinho com um Backspace
+//    normal digitado em outro canto do sistema. offsetParent (null
+//    quando display:none em algum ancestral) é o jeito padrão de
+//    checar visibilidade real, não só presença no DOM.
+// 2) Digitar num campo de texto (ex: nome do preset) também dispara
+//    keydown no document — sem essa guarda, corrigir um erro de
+//    digitação com Backspace apagaria o elemento em vez de apagar a
+//    letra do campo.
 document.addEventListener('keydown', e => {
-  if (!_albumEditorSelId || !document.getElementById('album-canvas-wrap')) return
+  if (!_albumEditorSelId) return
+  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return
+  const canvas = document.getElementById('album-canvas-wrap')
+  if (!canvas || !canvas.offsetParent) return
   if (!document.querySelector(`.album-el[data-el-id="${_albumEditorSelId}"]`)) return
   const el = store.albumElements.find(x => x.id === _albumEditorSelId)
   if (!el) return
@@ -17234,6 +17346,13 @@ async function _albumClienteVerificarTab() {
   const { data, error } = await db.from('album_projects').select('id').eq('cliente_user_id', currentUser.id).in('status', ['em_aprovacao', 'aprovado']).limit(1)
   if (error) { console.error('Digipix: falha ao checar álbum do cliente', error.message); return }
   tab.style.display = data?.length ? 'flex' : 'none'
+  // essa checagem é disparada em paralelo com o carregamento da view
+  // (fire-and-forget, não bloqueia login) — na maioria das vezes ela
+  // termina antes do _renderBottomNav() de mostrarApp(), mas não há
+  // garantia disso. Sem esse segundo render, um empate de timing
+  // deixaria "Meu Álbum" invisível no menu mobile (só bottom-nav, sem
+  // sidebar) até o próximo F5 vencer a corrida por sorte.
+  _renderBottomNav()
 }
 
 async function iniciarAlbumCliente() {
