@@ -17322,7 +17322,7 @@ document.addEventListener('wheel', e => {
   _albumSalvarElemento(el.id)
 }, { passive: false })
 // teclado: Delete apaga o elemento selecionado, setas nudge fino.
-// Duas guardas essenciais (achadas em revisão, não são teóricas):
+// Guardas essenciais (achadas em revisão, não são teóricas):
 // 1) `#album-canvas-wrap` continua existindo no DOM (só oculto por
 //    display:none) mesmo depois do admin trocar de aba — checar só a
 //    EXISTÊNCIA do elemento (como o código fazia antes) deixava esse
@@ -17335,9 +17335,22 @@ document.addEventListener('wheel', e => {
 //    keydown no document — sem essa guarda, corrigir um erro de
 //    digitação com Backspace apagaria o elemento em vez de apagar a
 //    letra do campo.
+// 3) achado na bateria de testes: abrirModal só soma uma classe .show
+//    por CIMA — nunca esconde o editor de baixo (offsetParent do
+//    canvas continua não-nulo com o modal aberto). Navegar as opções
+//    de um <select> dentro de um modal (ex: "Enviar pra aprovação")
+//    com as setas do teclado — uso normal de qualquer <select> — também
+//    disparava esse atalho por trás do modal, sem o admin perceber.
+//    Genérico: se o alvo está dentro de QUALQUER modal aberto, esse
+//    atalho não é dele.
 document.addEventListener('keydown', e => {
   if (!_albumEditorSelId) return
-  if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) || e.target.isContentEditable) return
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return
+  // achado testando o próprio fix acima: e.target pode não ser um
+  // Element de verdade (ex: o objeto Document, que não tem .closest) —
+  // sem o "?." isso jogava um TypeError não tratado toda vez que o
+  // alvo do evento não fosse um elemento.
+  if (e.target.closest?.('.modal-overlay.show')) return
   const canvas = document.getElementById('album-canvas-wrap')
   if (!canvas || !canvas.offsetParent) return
   if (!document.querySelector(`.album-el[data-el-id="${_albumEditorSelId}"]`)) return
