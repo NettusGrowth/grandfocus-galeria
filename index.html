@@ -17832,7 +17832,17 @@ async function abrirExportacaoAlbum() {
   const avisos = []
   if (semFoto) avisos.push(`⚠ ${semFoto} elemento(s) usam foto(s) que não existem mais na galeria — vão sair em branco.`)
   if (baixaDpi) avisos.push(`⚠ ${baixaDpi} foto(s) abaixo de ${template.dpi_alvo} DPI — podem sair borradas na impressão.`)
+  // achado de UX: essa tela nunca dizia se o álbum já foi APROVADO
+  // pelo cliente — dava pra exportar (e mandar pra gráfica) um
+  // rascunho que ninguém aprovou ainda, sem nenhum aviso disso bem
+  // aqui, na mesma tela de "Baixar". Mesmos rótulos já usados no
+  // cabeçalho do editor, pra ficar consistente.
+  const rotuloStatusExport = { rascunho: 'Rascunho', em_diagramacao: 'Em diagramação', em_aprovacao: 'Aguardando o cliente', aprovado: 'Aprovado ✓', enviado_impressao: 'Enviado pra impressão' }
+  const statusNaoAprovado = !['aprovado', 'enviado_impressao'].includes(projeto.status)
   corpo.innerHTML = `
+    <div style="${statusNaoAprovado ? 'color:var(--ouro-luz);' : 'color:var(--verde);'}font-size:12.5px;font-weight:600;margin-bottom:8px;">
+      ${statusNaoAprovado ? '⚠' : '✓'} Status: ${rotuloStatusExport[projeto.status] || projeto.status}${statusNaoAprovado ? ' — o cliente ainda não aprovou esse álbum' : ''}
+    </div>
     <div class="meta" style="margin-bottom:10px;">${store.albumSpreads.length} lâmina(s) · ${elementos.length} foto(s) · ${template.largura_aberta_mm}×${template.altura_aberta_mm}mm @ ${template.dpi_alvo} DPI</div>
     ${avisos.length ? avisos.map(a => `<div style="color:var(--vermelho);font-size:12.5px;margin-bottom:6px;">${esc(a)}</div>`).join('') : '<div style="color:var(--verde);font-size:12.5px;margin-bottom:6px;">✓ Todas as fotos em boa resolução</div>'}
     <div class="meta" style="margin:10px 0 12px;">O PDF aqui é RGB simples (1 lâmina por página, tamanho físico real) — não é PDF/X-1a com perfil de cor. Pra gráfica que exige isso, use os JPGs em alta resolução.</div>
