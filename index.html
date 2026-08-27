@@ -1624,9 +1624,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-editor-shell{display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start;}
 @media(max-width:900px){.album-editor-shell{grid-template-columns:1fr;}}
 .album-spreads-tira{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;}
-.album-spread-thumb{flex:0 0 auto;width:70px;height:44px;border-radius:6px;border:2px solid rgba(200,175,127,.25);background:rgba(75,4,22,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#B39F86;}
+.album-spread-thumb{position:relative;flex:0 0 auto;width:70px;height:44px;border-radius:6px;border:2px solid rgba(200,175,127,.25);background:rgba(75,4,22,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#B39F86;}
 .album-spread-thumb.on{border-color:var(--dourado);color:var(--ouro-luz);}
 .album-spread-thumb.add{border-style:dashed;font-size:18px;}
+/* achado de design: o "✕" de remover lâmina era um <span> minúsculo
+   colado no texto, dentro de uma miniatura já pequena (70x44px) — alvo
+   de toque bem abaixo do confortável, fácil de errar (e a intenção era
+   deletar, não abrir a lâmina). Vira um botão de canto com área de
+   toque real, sem dominar visualmente a miniatura. */
+.album-spread-thumb-remover{position:absolute;top:-8px;right:-8px;width:24px;height:24px;border-radius:50%;background:rgba(20,4,8,.92);border:1px solid rgba(200,175,127,.4);display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:#DBC9A8;}
+.album-spread-thumb-remover:hover{border-color:var(--vermelho);color:var(--vermelho);}
 /* Passo 4: sem touch-action:none aqui, um dedo arrastando uma foto no
    tablet virava SCROLL da página (o navegador assume gesto de rolagem
    por padrão) em vez de mover/redimensionar o elemento — o mesmo
@@ -16938,7 +16945,7 @@ function renderAlbumSpreadsTira() {
   el.innerHTML = store.albumSpreads.map((s, i) => `
     <div class="album-spread-thumb${_albumEditorSpreadAtual?.id === s.id ? ' on' : ''}" onclick="abrirAlbumSpread('${s.id}')">
       Lâmina ${i + 1}
-      <span onclick="event.stopPropagation();_albumApagarSpread('${s.id}')" title="Remover lâmina" style="margin-left:4px;opacity:.7;">✕</span>
+      <span class="album-spread-thumb-remover" onclick="event.stopPropagation();_albumApagarSpread('${s.id}')" title="Remover lâmina">✕</span>
     </div>`).join('')
     + `<div class="album-spread-thumb add" onclick="_albumCriarSpread()" title="Nova lâmina">+</div>`
 }
