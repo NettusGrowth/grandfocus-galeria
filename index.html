@@ -17534,13 +17534,22 @@ async function _albumSmartLayoutInterno() {
   // antes de decidir — mesmo motivo/padrão de _albumDadosCompletosExport.
   const spreadIds = store.albumSpreads.map(s => s.id)
   const { data: todosOsElementos, error: erroCheck } = spreadIds.length
-    ? await db.from('album_elements').select('spread_id').in('spread_id', spreadIds)
+    ? await db.from('album_elements').select('spread_id, foto_id').in('spread_id', spreadIds)
     : { data: [] }
   if (erroCheck) { toast('Erro ao checar as lâminas: ' + erroCheck.message); return }
   const spreadsComConteudo = new Set((todosOsElementos || []).map(e => e.spread_id))
   const spreadsVazias = store.albumSpreads.filter(s => !spreadsComConteudo.has(s.id))
   if (!spreadsVazias.length) { toast('Todas as lâminas já têm fotos — crie uma lâmina nova pro Smart Layout usar'); return }
-  const fotos = [..._albumEditorFotosEvento]
+  // achado na bateria de testes: rodar Smart Layout de novo numa lâmina
+  // nova (criada DEPOIS de uma rodada anterior já ter preenchido outras)
+  // reiniciava do começo de _albumEditorFotosEvento (lista fixa do
+  // evento inteiro, nunca filtrada) — repetia as MESMAS fotos já
+  // coladas em lâminas anteriores do álbum, em vez de continuar de onde
+  // parou. Mesma consulta fresca acima já traz foto_id de bônus; exclui
+  // quem já está em uso em QUALQUER lâmina do álbum antes de sortear.
+  const fotosJaUsadas = new Set((todosOsElementos || []).map(e => e.foto_id))
+  const fotos = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id))
+  if (!fotos.length) { toast('Todas as fotos deste evento já estão usadas em alguma lâmina do álbum'); return }
   const novosElementos = []
   for (const spread of spreadsVazias) {
     if (!fotos.length) break
@@ -17650,7 +17659,19 @@ async function _albumAplicarPreset() {
   _albumAplicandoPreset = true
   try {
     const t = _albumEditorTemplate
-    const fotos = [..._albumEditorFotosEvento]
+    // mesmo achado do Smart Layout: sem excluir fotos já coladas em
+    // OUTRAS lâminas do álbum, aplicar um modelo numa lâmina nova
+    // repetia as mesmas fotos de lâminas anteriores em vez de continuar
+    // com as próximas disponíveis — busca fresca (não usa
+    // store.albumElements, que só guarda a lâmina aberta).
+    const spreadIds = store.albumSpreads.map(s => s.id)
+    const { data: elementosDoAlbum, error: erroCheck } = spreadIds.length
+      ? await db.from('album_elements').select('foto_id').in('spread_id', spreadIds)
+      : { data: [] }
+    if (erroCheck) { toast('Erro ao checar o álbum: ' + erroCheck.message); return }
+    const fotosJaUsadas = new Set((elementosDoAlbum || []).map(e => e.foto_id))
+    const fotos = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id))
+    if (!fotos.length) { toast('Todas as fotos deste evento já estão usadas em alguma lâmina do álbum'); return }
     const novosElementos = []
     for (const item of preset.estrutura) {
       const foto = fotos.shift()
