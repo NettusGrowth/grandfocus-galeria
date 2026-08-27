@@ -1627,7 +1627,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-spread-thumb{flex:0 0 auto;width:70px;height:44px;border-radius:6px;border:2px solid rgba(200,175,127,.25);background:rgba(75,4,22,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#B39F86;}
 .album-spread-thumb.on{border-color:var(--dourado);color:var(--ouro-luz);}
 .album-spread-thumb.add{border-style:dashed;font-size:18px;}
-.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;}
+/* Passo 4: sem touch-action:none aqui, um dedo arrastando uma foto no
+   tablet virava SCROLL da página (o navegador assume gesto de rolagem
+   por padrão) em vez de mover/redimensionar o elemento — o mesmo
+   comportamento que .album-flip-wrap (Passo 2) já trata com
+   touch-action:pan-y, só que aqui precisa travar TUDO (não só
+   vertical), porque o gesto de girar/redimensionar usa as duas
+   direções. */
+.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;touch-action:none;}
 .album-guide{position:absolute;pointer-events:none;border:0;}
 .album-guide-sangria{inset:0;outline:1.5px dashed rgba(220,60,60,.75);outline-offset:-1px;}
 .album-guide-vinco{top:0;bottom:0;left:50%;width:0;border-left:1.5px dashed rgba(90,150,220,.85);}
@@ -1636,8 +1643,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-el.sel{outline:2px solid var(--dourado);z-index:999 !important;}
 .album-el .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
 .album-el img{position:absolute;max-width:none;pointer-events:none;-webkit-user-drag:none;}
-.album-el .album-el-resize{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:nwse-resize;display:none;}
-.album-el .album-el-rotate{position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:grab;display:none;}
+/* Passo 4: 14px/12px é preciso demais pro dedo — achado testando com
+   viewport de tablet, quase impossível acertar o handle certo sem
+   zoom. Aumentado pra ~28px (ainda bem menor que os 44px de botão
+   normal, mas handle de manipulação é sempre um alvo pequeno mesmo em
+   apps profissionais — 28px é o mínimo que ainda dá pra tocar sem
+   frustração e não domina visualmente um elemento pequeno na lâmina). */
+.album-el .album-el-resize{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:nwse-resize;display:none;touch-action:none;}
+.album-el .album-el-rotate{position:absolute;left:50%;top:-36px;transform:translateX(-50%);width:28px;height:28px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:grab;display:none;touch-action:none;}
 .album-el.sel .album-el-resize,.album-el.sel .album-el-rotate{display:block;}
 .album-el-dpi{position:absolute;left:3px;top:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;line-height:1.6;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.35);}
 .album-el-dpi.ok{background:var(--verde);color:#0b1a0c;}
@@ -1647,6 +1660,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+#album-btn-modo-recorte.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
 
 /* ── Digipix: portal do cliente (Passo 2) — flipbook CSS 3D puro,
    sem lib de terceiro (mesmo espírito caseiro do resto do app). */
@@ -16824,11 +16838,12 @@ async function abrirAlbumEditor(projetoId) {
     <div class="album-spreads-tira" id="album-spreads-tira"></div>
     <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
       <div>
-        <div id="album-el-toolbar" style="display:none;margin-bottom:8px;gap:6px;"><div style="display:flex;gap:6px;">
+        <div id="album-el-toolbar" style="display:none;margin-bottom:8px;gap:6px;"><div style="display:flex;gap:6px;flex-wrap:wrap;">
           <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
           <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
           <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
-          <span class="meta" style="align-self:center;">Alt+arrastar recorta · scroll dá zoom no recorte</span>
+          <button class="btn btn-sm" id="album-btn-modo-recorte" onclick="_albumAlternarModoRecorteToque()" title="Sem Alt no toque — alterna o que o arrasto de 1 dedo faz">✋ Modo recorte</button>
+          <span class="meta" style="align-self:center;">Alt+arrastar (ou botão ✋ no toque) recorta · scroll ou pinça com 2 dedos dá zoom</span>
         </div></div>
         <div class="album-canvas-wrap" id="album-canvas-wrap"></div>
       </div>
@@ -17099,10 +17114,44 @@ document.addEventListener('drop', async e => {
 // de _abrirAjusteFoto (pointerdown/move/up/cancel + setPointerCapture
 // + delta em %), só que aqui precisa lembrar QUAL elemento e QUAL
 // modo (mover/redimensionar/girar/recortar) durante o gesto inteiro.
+//
+// Passo 4 (touch): "recortar" no mouse é Alt+arrastar — não existe
+// Alt no toque, então um botão (✋ Modo recorte) alterna
+// _albumModoRecorteToque pra dar o mesmo efeito com 1 dedo só.
+let _albumModoRecorteToque = false
+function _albumAlternarModoRecorteToque() {
+  _albumModoRecorteToque = !_albumModoRecorteToque
+  document.getElementById('album-btn-modo-recorte')?.classList.toggle('on', _albumModoRecorteToque)
+}
+// zoom por pinça (2 dedos) — equivalente touch do scroll do mouse.
+// Pointer Events dão um pointerId por dedo; _albumPointersAtivos
+// rastreia os que estão tocando no canvas AGORA. 2º dedo tocando
+// durante um arrasto já em andamento vira pinça (some com o modo
+// anterior); soltar QUALQUER um dos dois dedos encerra o gesto inteiro
+// (mais previsível do que tentar "continuar" só com o dedo que sobrou).
+let _albumPointersAtivos = new Map()
 let _albumDrag = null
 document.addEventListener('pointerdown', e => {
   const canvas = document.getElementById('album-canvas-wrap')
   if (!canvas || !canvas.contains(e.target)) return
+  if (_albumDrag && !_albumPointersAtivos.has(e.pointerId)) {
+    // já tem 1 arrasto rolando (mover/redimensionar/girar/recortar) e
+    // chegou um 2º ponteiro — vira pinça de zoom no elemento atual,
+    // ignora onde exatamente o 2º dedo tocou.
+    _albumPointersAtivos.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    if (_albumPointersAtivos.size === 2) {
+      const el = store.albumElements.find(x => x.id === _albumDrag.id)
+      if (el) {
+        const pts = [..._albumPointersAtivos.values()]
+        _albumDrag.modo = 'pinch'
+        _albumDrag.pinchDistInicial = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y) || 1
+        _albumDrag.pinchEscalaBase = el.crop_scale || 1
+      }
+    }
+    canvas.setPointerCapture(e.pointerId)
+    e.preventDefault()
+    return
+  }
   const elDiv = e.target.closest('.album-el')
   if (!elDiv) { _albumEditorSelId = null; renderAlbumCanvas(); return }
   const id = elDiv.dataset.elId
@@ -17118,22 +17167,32 @@ document.addEventListener('pointerdown', e => {
   let modo = 'mover'
   if (handle === 'resize') modo = 'redimensionar'
   else if (handle === 'rotate') modo = 'girar'
-  else if (e.altKey) modo = 'recortar'
+  else if (e.altKey || _albumModoRecorteToque) modo = 'recortar'
   _albumDrag = {
     modo, id, rectW: rect.width, rectH: rect.height, rectL: rect.left, rectT: rect.top,
     startX: e.clientX, startY: e.clientY,
     base: { x: el.x, y: el.y, width: el.width, height: el.height, rotation: el.rotation, crop_x: el.crop_x || 0, crop_y: el.crop_y || 0, crop_scale: el.crop_scale || 1 },
     aspecto: el.width / el.height, mmPorPctX: t.largura_aberta_mm / 100, mmPorPctY: t.altura_aberta_mm / 100,
   }
+  _albumPointersAtivos.set(e.pointerId, { x: e.clientX, y: e.clientY })
   canvas.setPointerCapture(e.pointerId)
   renderAlbumCanvas()
   e.preventDefault()
 })
 document.addEventListener('pointermove', e => {
   if (!_albumDrag) return
+  if (_albumPointersAtivos.has(e.pointerId)) _albumPointersAtivos.set(e.pointerId, { x: e.clientX, y: e.clientY })
   const d = _albumDrag
   const el = store.albumElements.find(x => x.id === d.id)
   if (!el) return
+  if (d.modo === 'pinch') {
+    const pts = [..._albumPointersAtivos.values()]
+    if (pts.length < 2) return
+    const distAtual = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+    el.crop_scale = Math.min(4, Math.max(1, d.pinchEscalaBase * (distAtual / d.pinchDistInicial)))
+    _albumAtualizarElementoDOM(el)
+    return
+  }
   const dxMm = ((e.clientX - d.startX) / d.rectW) * (d.mmPorPctX * 100)
   const dyMm = ((e.clientY - d.startY) / d.rectH) * (d.mmPorPctY * 100)
   if (d.modo === 'mover') {
@@ -17164,6 +17223,7 @@ function _albumPararDrag() {
   if (!_albumDrag) return
   const id = _albumDrag.id
   _albumDrag = null
+  _albumPointersAtivos.clear()
   _albumSalvarElemento(id)
 }
 document.addEventListener('pointerup', _albumPararDrag)
