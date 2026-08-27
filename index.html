@@ -18169,8 +18169,13 @@ function _albumClienteHidratarFotos() {
 function _albumClienteAtualizarBotoesNav() {
   const prevBtn = document.getElementById('album-cliente-prev')
   const nextBtn = document.getElementById('album-cliente-next')
-  if (prevBtn) prevBtn.disabled = _albumClienteIndice === 0
-  if (nextBtn) nextBtn.disabled = _albumClienteIndice === _albumClienteSpreads.length - 1
+  // achado de UX: álbum de 1 lâmina só (proposta/prova avulsa, por
+  // exemplo) mostrava os dois botões de navegação SEMPRE desabilitados
+  // — visualmente ocupando espaço e confundindo ("pra que serve esse
+  // botão que nunca funciona?") num álbum que não tem pra onde navegar.
+  const soUmaLamina = _albumClienteSpreads.length <= 1
+  if (prevBtn) { prevBtn.disabled = _albumClienteIndice === 0; prevBtn.style.visibility = soUmaLamina ? 'hidden' : '' }
+  if (nextBtn) { nextBtn.disabled = _albumClienteIndice === _albumClienteSpreads.length - 1; nextBtn.style.visibility = soUmaLamina ? 'hidden' : '' }
 }
 
 function _albumClienteVirar(direcao) {
