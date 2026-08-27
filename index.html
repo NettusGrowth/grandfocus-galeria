@@ -16866,12 +16866,18 @@ async function abrirAlbumEditor(projetoId) {
     <div class="album-toolbar">
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
       <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
+      <button class="btn btn-sm" onclick="_albumAbrirUsarPreset()">📥 Usar modelo salvo</button>
       ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
       <button class="btn btn-sm" onclick="abrirExportacaoAlbum()">🖨 Exportar pra impressão</button>
       <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
         <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
         <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
         <button class="btn btn-sm" onclick="_albumFecharCampoPreset()">Cancelar</button>
+      </span>
+      <span id="album-usar-preset-campo" style="display:none;gap:6px;align-items:center;">
+        <select id="album-usar-preset-select" style="max-width:200px;"></select>
+        <button class="btn btn-sm btn-primary" onclick="_albumAplicarPreset()">Aplicar</button>
+        <button class="btn btn-sm" onclick="_albumFecharUsarPreset()">Cancelar</button>
       </span>
     </div>
     <div class="album-spreads-tira" id="album-spreads-tira"></div>
@@ -17560,6 +17566,60 @@ async function _albumSalvarComoPreset() {
     _albumFecharCampoPreset()
     toast('Modelo salvo ✓')
   } finally { _albumSalvandoPreset = false }
+}
+
+// achado na maratona de UX: "Salvar lâmina como modelo" existia e
+// funcionava (linhas acima) há sessões inteiras, mas NUNCA existiu
+// nenhum jeito de USAR um modelo salvo depois — o botão prometia
+// reaproveitar layouts e nunca cumpria. Completando a funcionalidade:
+// aplica um preset (posições RELATIVAS, ver _albumSalvarComoPreset)
+// na lâmina atual, escalando pro tamanho físico real do modelo desta
+// vez. Só numa lâmina vazia (mesma regra do Smart Layout) pra nunca
+// sobrescrever composição alheia sem querer.
+async function _albumAbrirUsarPreset() {
+  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos — Usar modelo só funciona numa lâmina vazia'); return }
+  const { data, error } = await db.from('album_layout_presets').select('*').order('nome')
+  if (error) { toast('Erro ao buscar modelos: ' + error.message); return }
+  if (!data?.length) { toast('Nenhum modelo salvo ainda — salve uma lâmina como modelo primeiro (💾)'); return }
+  const sel = document.getElementById('album-usar-preset-select')
+  sel.innerHTML = data.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')
+  sel._presetsCarregados = data
+  document.getElementById('album-usar-preset-campo').style.display = 'inline-flex'
+}
+function _albumFecharUsarPreset() {
+  document.getElementById('album-usar-preset-campo').style.display = 'none'
+}
+let _albumAplicandoPreset = false
+async function _albumAplicarPreset() {
+  if (_albumAplicandoPreset) return
+  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos'); _albumFecharUsarPreset(); return }
+  const sel = document.getElementById('album-usar-preset-select')
+  const preset = sel._presetsCarregados?.find(p => p.id === sel.value)
+  if (!preset?.estrutura?.length) { toast('Modelo inválido'); return }
+  if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); return }
+  _albumAplicandoPreset = true
+  try {
+    const t = _albumEditorTemplate
+    const fotos = [..._albumEditorFotosEvento]
+    const novosElementos = []
+    for (const item of preset.estrutura) {
+      const foto = fotos.shift()
+      if (!foto) break
+      novosElementos.push({
+        spread_id: _albumEditorSpreadAtual.id, foto_id: foto.id,
+        x: item.xFr * t.largura_aberta_mm, y: item.yFr * t.altura_aberta_mm,
+        width: item.wFr * t.largura_aberta_mm, height: item.hFr * t.altura_aberta_mm,
+        rotation: item.rotation || 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: item.z_index ?? 0,
+      })
+    }
+    if (!novosElementos.length) return
+    const { data, error } = await db.from('album_elements').insert(novosElementos).select()
+    if (error) { toast('Erro ao aplicar modelo: ' + error.message); return }
+    store.albumElements.push(...data)
+    _albumFecharUsarPreset()
+    renderAlbumCanvas()
+    toast(`Modelo aplicado ✓ (${data.length} foto(s))`)
+  } finally { _albumAplicandoPreset = false }
 }
 
 // ══════════════════════════════════════════════════════════════
