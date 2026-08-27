@@ -1639,10 +1639,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-el .album-el-resize{position:absolute;right:-6px;bottom:-6px;width:14px;height:14px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:nwse-resize;display:none;}
 .album-el .album-el-rotate{position:absolute;left:50%;top:-22px;transform:translateX(-50%);width:12px;height:12px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:grab;display:none;}
 .album-el.sel .album-el-resize,.album-el.sel .album-el-rotate{display:block;}
-.album-el-dpi{position:absolute;left:3px;top:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;line-height:1.6;pointer-events:none;}
-.album-el-dpi.ok{background:rgba(80,180,90,.85);color:#0b1a0c;}
-.album-el-dpi.baixo{background:rgba(220,60,60,.9);color:#fff;}
-.album-el-dpi.neutro{background:rgba(150,150,150,.75);color:#fff;}
+.album-el-dpi{position:absolute;left:3px;top:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;line-height:1.6;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+.album-el-dpi.ok{background:var(--verde);color:#0b1a0c;}
+.album-el-dpi.baixo{background:var(--vermelho);color:#fff;}
+.album-el-dpi.neutro{background:rgba(150,150,150,.85);color:#fff;}
 .album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -1651,8 +1651,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* ── Digipix: portal do cliente (Passo 2) — flipbook CSS 3D puro,
    sem lib de terceiro (mesmo espírito caseiro do resto do app). */
 .album-flip-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
+/* achado real testando mobile: os botões de virar página (.btn-sm
+   padrão) ficavam com ~30px de altura — bem abaixo dos ~44px
+   recomendados pra toque confortável (mesmo padrão já corrigido no
+   botão de login, #login-btn). São os controles mais usados do
+   portal do cliente no celular, então o alvo de toque maior aqui
+   importa mais que na maioria dos outros botões do app. */
+.album-flip-nav .btn{min-height:44px;padding-left:16px;padding-right:16px;}
+#album-cliente-comentario-input{min-height:44px;}
 .album-flip-wrap{perspective:1800px;width:100%;max-width:900px;margin:0 auto;touch-action:pan-y;}
-.album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55);transform-style:preserve-3d;}
+.album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55),0 0 0 1px rgba(212,175,55,.25);transform-style:preserve-3d;}
 .album-el-cliente{position:absolute;box-sizing:border-box;}
 .album-el-cliente.trocavel{cursor:pointer;}
 .album-el-cliente .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
@@ -16433,6 +16441,17 @@ async function iniciarAlbunsAdmin() {
   renderAlbumProjetos()
 }
 
+// cor do badge de status — reforço visual rápido (verde só quando
+// realmente aprovado, dourado quando precisa de atenção/ação de
+// alguém, neutro pro resto) em cima do `.badge` já usado no app
+// inteiro, sem inventar um componente novo.
+function _albumStatusBadgeStyle(status) {
+  if (status === 'aprovado') return 'color:var(--verde);border-color:var(--verde);'
+  if (status === 'em_aprovacao') return 'color:var(--ouro-luz);border-color:var(--dourado);'
+  if (status === 'enviado_impressao') return 'color:var(--ouro-luz);border-color:var(--ouro-fundo);'
+  return ''
+}
+
 function renderAlbumProjetos() {
   const el = document.getElementById('lista-album-projetos')
   if (!store.albumProjects.length) { el.innerHTML = '<div class="empty">Nenhum álbum criado ainda.</div>'; return }
@@ -16441,8 +16460,9 @@ function renderAlbumProjetos() {
     <div class="list-item" onclick="abrirAlbumEditor('${p.id}')">
       <div>
         <div class="nome">${esc(p.nome)}</div>
-        <div class="meta">${esc(p.eventos?.nome || '—')} · ${esc(p.album_templates?.nome || '—')} · ${rotuloStatus[p.status] || p.status}</div>
+        <div class="meta">${esc(p.eventos?.nome || '—')} · ${esc(p.album_templates?.nome || '—')}</div>
       </div>
+      <span class="badge" style="${_albumStatusBadgeStyle(p.status)}">${rotuloStatus[p.status] || p.status}</span>
     </div>`).join('')
 }
 
@@ -16673,7 +16693,7 @@ async function abrirAlbumEditor(projetoId) {
   const podeEnviarAprovacao = ['rascunho', 'em_diagramacao'].includes(projeto.status)
   wrap.innerHTML = `
     <div class="section-h">
-      <h2>${esc(projeto.nome)} <span class="meta" style="font-weight:400;">— ${rotuloStatus[projeto.status] || projeto.status}</span></h2>
+      <h2>${esc(projeto.nome)} <span class="badge" style="${_albumStatusBadgeStyle(projeto.status)}vertical-align:middle;">${rotuloStatus[projeto.status] || projeto.status}</span></h2>
       <button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button>
     </div>
     <div class="album-toolbar">
@@ -16807,10 +16827,10 @@ async function _albumCarregarComentariosAdmin(spreadId) {
   if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar os comentários</div>'; return }
   if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário nesta lâmina ainda.</div>'; return }
   el.innerHTML = data.map(c => `
-    <div style="padding:6px 0;border-bottom:1px solid rgba(200,175,127,.15);">
-      <div style="font-size:12px;color:var(--ouro-luz);">${esc(c.perfis?.nome || 'Cliente')}</div>
-      <div style="font-size:13px;">${esc(c.texto)}</div>
-      <div class="meta" style="font-size:10.5px;">${fmtDataHora(c.criado_em)}</div>
+    <div style="background:rgba(75,4,22,.35);border:1px solid rgba(200,175,127,.15);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
+      <div style="font-size:12px;color:var(--ouro-luz);font-weight:600;">${esc(c.perfis?.nome || 'Cliente')}</div>
+      <div style="font-size:13px;margin-top:2px;">${esc(c.texto)}</div>
+      <div class="meta" style="font-size:10.5px;margin-top:2px;">${fmtDataHora(c.criado_em)}</div>
     </div>`).join('')
 }
 
@@ -17251,7 +17271,9 @@ function renderAlbumClienteShell() {
   const p = _albumClienteProjeto
   wrap.innerHTML = `
     <div class="section-h"><h2>${esc(p.nome)}</h2></div>
-    <div class="meta" style="margin-bottom:14px;">${p.status === 'aprovado' ? `Aprovado em ${fmtDataHora(p.aprovado_em)} ✓` : 'Confira as lâminas, toque numa foto pra trocar por outra sua, ou deixe um comentário pedindo ajuste.'}</div>
+    ${p.status === 'aprovado'
+      ? `<div style="background:rgba(61,207,142,.12);border:1px solid var(--verde);border-radius:8px;padding:10px 14px;margin-bottom:14px;color:var(--verde);font-size:13.5px;">✓ Aprovado em ${fmtDataHora(p.aprovado_em)} — obrigado! Seu álbum já está a caminho da impressão.</div>`
+      : `<div class="meta" style="margin-bottom:14px;">Confira as lâminas, toque numa foto pra trocar por outra sua, ou deixe um comentário pedindo ajuste.</div>`}
     <div class="album-flip-nav">
       <button class="btn btn-sm" id="album-cliente-prev" onclick="_albumClienteVirar(-1)">‹ Anterior</button>
       <span class="meta" id="album-cliente-contador"></span>
@@ -17286,10 +17308,7 @@ function renderAlbumClienteSpread() {
   _albumClienteHidratarFotos()
   const contador = document.getElementById('album-cliente-contador')
   if (contador) contador.textContent = `Lâmina ${_albumClienteIndice + 1} de ${_albumClienteSpreads.length}`
-  const prevBtn = document.getElementById('album-cliente-prev')
-  const nextBtn = document.getElementById('album-cliente-next')
-  if (prevBtn) prevBtn.disabled = _albumClienteIndice === 0
-  if (nextBtn) nextBtn.disabled = _albumClienteIndice === _albumClienteSpreads.length - 1
+  _albumClienteAtualizarBotoesNav()
   _albumClienteCarregarComentarios(spread.id)
 }
 
@@ -17326,11 +17345,29 @@ function _albumClienteHidratarFotos() {
 // o estado "virado" ANTES de animar de volta pro neutro — sem isso o
 // navegador otimiza as duas mudanças de estilo numa só e a página só
 // "pula" pro final, sem parecer um flip de verdade.
+function _albumClienteAtualizarBotoesNav() {
+  const prevBtn = document.getElementById('album-cliente-prev')
+  const nextBtn = document.getElementById('album-cliente-next')
+  if (prevBtn) prevBtn.disabled = _albumClienteIndice === 0
+  if (nextBtn) nextBtn.disabled = _albumClienteIndice === _albumClienteSpreads.length - 1
+}
+
 function _albumClienteVirar(direcao) {
   if (_albumFlipAnimando) return
   const novoIndice = _albumClienteIndice + direcao
   if (novoIndice < 0 || novoIndice >= _albumClienteSpreads.length) return
   _albumFlipAnimando = true
+  // achado testando "mania" real (clicar Próxima repetidas vezes
+  // rápido): sem isso, os cliques durante a animação eram ignorados
+  // em silêncio (a trava _albumFlipAnimando funciona certo, mas sem
+  // feedback nenhum parece botão travado/quebrado). Desabilita os dois
+  // botões enquanto vira — _albumClienteAtualizarBotoesNav() é chamado
+  // de novo em cada ponto de término (normal e timer de segurança),
+  // reabilitando com o disabled certo pro índice final.
+  const prevBtn = document.getElementById('album-cliente-prev')
+  const nextBtn = document.getElementById('album-cliente-next')
+  if (prevBtn) prevBtn.disabled = true
+  if (nextBtn) nextBtn.disabled = true
   // achado real testando (não teórico): se a aba fica em segundo plano
   // no meio do flip (usuário troca de app no celular, minimiza),
   // requestAnimationFrame é PAUSADO indefinidamente pelo navegador até
@@ -17342,7 +17379,7 @@ function _albumClienteVirar(direcao) {
   // plano, mas nunca PAUSA de vez — pior caso é uma animação atrasada,
   // nunca travada; e o timer de segurança abaixo garante um limite
   // absoluto de qualquer forma.
-  const seguranca = setTimeout(() => { _albumFlipAnimando = false }, 2000)
+  const seguranca = setTimeout(() => { _albumFlipAnimando = false; _albumClienteAtualizarBotoesNav() }, 2000)
   const page = document.getElementById('album-flip-page')
   page.style.transition = 'transform .35s ease-in, opacity .35s ease-in'
   page.style.transform = `rotateY(${direcao > 0 ? -80 : 80}deg)`
@@ -17350,6 +17387,15 @@ function _albumClienteVirar(direcao) {
   setTimeout(() => {
     _albumClienteIndice = novoIndice
     renderAlbumClienteSpread()
+    // renderAlbumClienteSpread já recalcula o disabled dos botões com
+    // base no novo índice — mas _albumFlipAnimando ainda está true por
+    // mais ~370ms (a transição de entrada ainda não terminou), então
+    // reforça desabilitado aqui de novo pra não abrir uma janela onde
+    // o botão PARECE clicável mas o clique ainda seria ignorado.
+    const prevBtn2 = document.getElementById('album-cliente-prev')
+    const nextBtn2 = document.getElementById('album-cliente-next')
+    if (prevBtn2) prevBtn2.disabled = true
+    if (nextBtn2) nextBtn2.disabled = true
     const page2 = document.getElementById('album-flip-page')
     page2.style.transition = 'none'
     page2.style.transform = `rotateY(${direcao > 0 ? 80 : -80}deg)`
@@ -17358,7 +17404,7 @@ function _albumClienteVirar(direcao) {
     page2.style.transition = 'transform .35s ease-out, opacity .35s ease-out'
     page2.style.transform = 'rotateY(0deg)'
     page2.style.opacity = '1'
-    setTimeout(() => { clearTimeout(seguranca); _albumFlipAnimando = false }, 370)
+    setTimeout(() => { clearTimeout(seguranca); _albumFlipAnimando = false; _albumClienteAtualizarBotoesNav() }, 370)
   }, 360)
 }
 
@@ -17416,9 +17462,9 @@ async function _albumClienteCarregarComentarios(spreadId) {
   if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar</div>'; return }
   if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário ainda nesta lâmina.</div>'; return }
   el.innerHTML = data.map(c => `
-    <div style="padding:6px 0;border-bottom:1px solid rgba(200,175,127,.15);">
+    <div style="background:rgba(75,4,22,.35);border:1px solid rgba(200,175,127,.15);border-radius:8px;padding:8px 10px;margin-bottom:6px;">
       <div style="font-size:13px;">${esc(c.texto)}</div>
-      <div class="meta" style="font-size:10.5px;">${fmtDataHora(c.criado_em)}</div>
+      <div class="meta" style="font-size:10.5px;margin-top:2px;">${fmtDataHora(c.criado_em)}</div>
     </div>`).join('')
 }
 let _albumClienteEnviandoComentario = false
