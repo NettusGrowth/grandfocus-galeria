@@ -16974,6 +16974,14 @@ async function _albumApagarSpread(spreadId) {
   // quase simultâneos nos "✕" de lâminas diferentes passam os dois
   // pela confirmação antes da trava impedir qualquer coisa.
   if (_albumApagandoSpread) return
+  // achado na bateria de testes: _albumCriarSpread já barra passar do
+  // max_laminas do modelo, mas apagar nunca checava o min_laminas —
+  // dava pra apagar lâminas até sobrar menos que o mínimo que o
+  // próprio modelo diz que a gráfica exige (encadernação/impressão),
+  // sem aviso nenhum, em nenhum ponto do fluxo (nem aqui, nem ao
+  // enviar pra aprovação, nem na exportação).
+  const min = _albumEditorTemplate?.min_laminas || 1
+  if (store.albumSpreads.length <= min) { toast(`Esse modelo exige no mínimo ${min} lâmina(s) — apague o álbum inteiro em vez disso, se for o caso`); return }
   _albumApagandoSpread = true
   try {
     // achado na mesma família do Smart Layout: store.albumElements só
