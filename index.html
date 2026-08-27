@@ -16408,20 +16408,28 @@ function abrirModalAlbumProjeto() {
   abrirModal('modal-album-projeto')
 }
 
+// achado na revisão: mesma classe de bug de clique duplo já corrigida
+// em vários pontos do app (download, upload) — sem trava, 2 cliques
+// rápidos em "Criar álbum" criavam 2 projetos idênticos.
+let _albumSalvandoProjeto = false
 async function salvarAlbumProjeto() {
+  if (_albumSalvandoProjeto) return
   const nome = document.getElementById('albp-nome').value.trim()
   const evento_id = document.getElementById('albp-evento').value
   const album_template_id = document.getElementById('albp-template').value
   if (!nome) { toast('Dê um nome ao álbum'); return }
   if (!evento_id) { toast('Selecione o evento'); return }
   if (!album_template_id) { toast('Selecione o modelo'); return }
-  const { data, error } = await db.from('album_projects').insert({ nome, evento_id, album_template_id }).select('*, eventos(nome), album_templates(nome)').single()
-  if (error) { toast('Erro ao criar álbum: ' + error.message); return }
-  store.albumProjects.unshift(data)
-  renderAlbumProjetos()
-  fecharModal('modal-album-projeto')
-  toast('Álbum criado ✓')
-  registrarAuditoria('criou álbum (Digipix)', 'album_projects', data.id, nome)
+  _albumSalvandoProjeto = true
+  try {
+    const { data, error } = await db.from('album_projects').insert({ nome, evento_id, album_template_id }).select('*, eventos(nome), album_templates(nome)').single()
+    if (error) { toast('Erro ao criar álbum: ' + error.message); return }
+    store.albumProjects.unshift(data)
+    renderAlbumProjetos()
+    fecharModal('modal-album-projeto')
+    toast('Álbum criado ✓')
+    registrarAuditoria('criou álbum (Digipix)', 'album_projects', data.id, nome)
+  } finally { _albumSalvandoProjeto = false }
 }
 
 // lista fixa — mesmo espírito de outros seletores fechados do app
@@ -16494,7 +16502,9 @@ function _albumTemplateEditarForm(id) {
   _albumTagPicker('albt-papeis', ALBUM_PAPEIS_OPCOES, t.papeis_permitidos || [])
 }
 
+let _albumSalvandoTemplate = false
 async function salvarAlbumTemplate() {
+  if (_albumSalvandoTemplate) return
   const id = document.getElementById('albt-id').value || null
   const nome = document.getElementById('albt-nome').value.trim()
   if (!nome) { toast('Dê um nome ao modelo'); return }
@@ -16517,19 +16527,29 @@ async function salvarAlbumTemplate() {
     min_laminas: numCampo('albt-min-laminas') ?? 1,
     max_laminas: numCampo('albt-max-laminas') ?? 40,
   }
-  if (!payload.largura_aberta_mm || !payload.altura_aberta_mm || !payload.largura_fechada_mm || !payload.altura_fechada_mm) {
-    toast('Preencha as 4 dimensões (aberto/fechado)'); return
+  // achado na revisão: checagem antiga era só "falsy" (!valor) — um
+  // valor NEGATIVO (ex: "-5") é truthy em JS e passava direto,
+  // quebrando a proporção da lâmina (aspect-ratio negativo é inválido
+  // em CSS, o canvas simplesmente sumia sem nenhum aviso do porquê).
+  if (!(payload.largura_aberta_mm > 0) || !(payload.altura_aberta_mm > 0) || !(payload.largura_fechada_mm > 0) || !(payload.altura_fechada_mm > 0)) {
+    toast('Preencha as 4 dimensões (aberto/fechado) com valores maiores que zero'); return
   }
-  let data, error
-  if (id) ({ data, error } = await db.from('album_templates').update(payload).eq('id', id).select().single())
-  else ({ data, error } = await db.from('album_templates').insert(payload).select().single())
-  if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
-  const idx = store.albumTemplates.findIndex(t => t.id === data.id)
-  if (idx >= 0) store.albumTemplates[idx] = data; else store.albumTemplates.push(data)
-  store.albumTemplates.sort((a, b) => a.nome.localeCompare(b.nome))
-  renderAlbumTemplatesLista()
-  _albumTemplateNovoForm()
-  toast('Modelo salvo ✓')
+  if (payload.sangria_mm < 0 || payload.margem_seguranca_mm < 0) { toast('Sangria e margem não podem ser negativas'); return }
+  if (!(payload.dpi_alvo > 0)) { toast('DPI alvo precisa ser maior que zero'); return }
+  if (!(payload.min_laminas >= 1) || !(payload.max_laminas >= payload.min_laminas)) { toast('Confira o mínimo/máximo de lâminas (mínimo ≥ 1, máximo ≥ mínimo)'); return }
+  _albumSalvandoTemplate = true
+  try {
+    let data, error
+    if (id) ({ data, error } = await db.from('album_templates').update(payload).eq('id', id).select().single())
+    else ({ data, error } = await db.from('album_templates').insert(payload).select().single())
+    if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
+    const idx = store.albumTemplates.findIndex(t => t.id === data.id)
+    if (idx >= 0) store.albumTemplates[idx] = data; else store.albumTemplates.push(data)
+    store.albumTemplates.sort((a, b) => a.nome.localeCompare(b.nome))
+    renderAlbumTemplatesLista()
+    _albumTemplateNovoForm()
+    toast('Modelo salvo ✓')
+  } finally { _albumSalvandoTemplate = false }
 }
 
 // placeholder do editor de lâmina — vem no próximo commit deste mesmo
@@ -16568,7 +16588,12 @@ async function abrirAlbumEditor(projetoId) {
     <div class="section-h"><h2>${esc(projeto.nome)}</h2><button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button></div>
     <div class="album-toolbar">
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
-      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumSalvarComoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
+      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
+      <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
+        <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
+        <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
+        <button class="btn btn-sm" onclick="_albumFecharCampoPreset()">Cancelar</button>
+      </span>
     </div>
     <div class="album-spreads-tira" id="album-spreads-tira"></div>
     <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
@@ -16595,6 +16620,7 @@ async function abrirAlbumEditor(projetoId) {
 function renderAlbumFotosPainel() {
   const el = document.getElementById('album-fotos-painel')
   if (!el) return
+  if (!_albumEditorFotosEvento.length) { el.innerHTML = '<div class="empty" style="grid-column:1/-1;">Este evento ainda não tem fotos.</div>'; return }
   el.innerHTML = _albumEditorFotosEvento.map(f => `
     <div class="album-foto-mini" draggable="true" data-foto-id="${f.id}" ondragstart="_albumFotoDragStart(event,'${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
@@ -16612,19 +16638,49 @@ function renderAlbumSpreadsTira() {
   const el = document.getElementById('album-spreads-tira')
   if (!el) return
   el.innerHTML = store.albumSpreads.map((s, i) => `
-    <div class="album-spread-thumb${_albumEditorSpreadAtual?.id === s.id ? ' on' : ''}" onclick="abrirAlbumSpread('${s.id}')">Lâmina ${i + 1}</div>`).join('')
+    <div class="album-spread-thumb${_albumEditorSpreadAtual?.id === s.id ? ' on' : ''}" onclick="abrirAlbumSpread('${s.id}')">
+      Lâmina ${i + 1}
+      <span onclick="event.stopPropagation();_albumApagarSpread('${s.id}')" title="Remover lâmina" style="margin-left:4px;opacity:.7;">✕</span>
+    </div>`).join('')
     + `<div class="album-spread-thumb add" onclick="_albumCriarSpread()" title="Nova lâmina">+</div>`
 }
 
+async function _albumApagarSpread(spreadId) {
+  const temElementos = store.albumElements.some(e => e.spread_id === spreadId)
+  const idx = store.albumSpreads.findIndex(s => s.id === spreadId) + 1
+  const msg = temElementos
+    ? `Apagar a Lâmina ${idx}? As fotos já colocadas nela também somem — não dá pra desfazer.`
+    : `Apagar a Lâmina ${idx}?`
+  if (!await confirmModal(msg, { titulo: 'Remover lâmina', okLabel: 'Apagar', danger: true })) return
+  const { error } = await db.from('album_spreads').delete().eq('id', spreadId)
+  if (error) { toast('Erro ao apagar lâmina: ' + error.message); return }
+  store.albumSpreads = store.albumSpreads.filter(s => s.id !== spreadId)
+  store.albumElements = store.albumElements.filter(e => e.spread_id !== spreadId)
+  if (_albumEditorSpreadAtual?.id === spreadId) {
+    _albumEditorSpreadAtual = null
+    _albumEditorSelId = null
+    document.getElementById('album-editor-shell').style.display = 'none'
+    document.getElementById('album-btn-salvar-preset').disabled = true
+  }
+  renderAlbumSpreadsTira()
+  toast('Lâmina removida ✓')
+  if (store.albumSpreads.length && !_albumEditorSpreadAtual) await abrirAlbumSpread(store.albumSpreads[0].id)
+}
+
+let _albumCriandoSpread = false
 async function _albumCriarSpread() {
+  if (_albumCriandoSpread) return
   const max = _albumEditorTemplate?.max_laminas || 40
   if (store.albumSpreads.length >= max) { toast(`Esse modelo permite no máximo ${max} lâminas`); return }
-  const proximoIndex = store.albumSpreads.length ? Math.max(...store.albumSpreads.map(s => s.spread_index)) + 1 : 0
-  const { data, error } = await db.from('album_spreads').insert({ project_id: _albumEditorProjeto.id, spread_index: proximoIndex }).select().single()
-  if (error) { toast('Erro ao criar lâmina: ' + error.message); return }
-  store.albumSpreads.push(data)
-  renderAlbumSpreadsTira()
-  await abrirAlbumSpread(data.id)
+  _albumCriandoSpread = true
+  try {
+    const proximoIndex = store.albumSpreads.length ? Math.max(...store.albumSpreads.map(s => s.spread_index)) + 1 : 0
+    const { data, error } = await db.from('album_spreads').insert({ project_id: _albumEditorProjeto.id, spread_index: proximoIndex }).select().single()
+    if (error) { toast('Erro ao criar lâmina: ' + error.message); return }
+    store.albumSpreads.push(data)
+    renderAlbumSpreadsTira()
+    await abrirAlbumSpread(data.id)
+  } finally { _albumCriandoSpread = false }
 }
 
 async function abrirAlbumSpread(spreadId) {
@@ -16668,12 +16724,44 @@ function _albumElementoHTML(el) {
     <div class="album-el${_albumEditorSelId === el.id ? ' sel' : ''}" data-el-id="${el.id}"
          style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};">
       <div class="album-el-img-wrap">
-        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">` : ''}
+        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">`
+          : !foto ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(220,60,60,.15);color:#DBC9A8;font-size:10px;text-align:center;padding:4px;">Foto removida da galeria</div>` : ''}
       </div>
       <div class="album-el-dpi ${dpi.classe}">${dpi.texto}</div>
       <div class="album-el-rotate" data-el-handle="rotate"></div>
       <div class="album-el-resize" data-el-handle="resize"></div>
     </div>`
+}
+
+// achado na revisão (mesma classe de bug que a sessão inteira já
+// corrigiu na Galeria): chamar renderAlbumCanvas() — que reconstrói
+// TODO o innerHTML, recriando cada <img> do zero — a cada pixel de
+// pointermove/wheel/seta durante um arrasto é caro à toa e reabre a
+// mesma janela de repaint que causava "pisco" em outro lugar do app.
+// Isso só ATUALIZA o nó já existente do elemento sendo manipulado
+// (estilo + badge de DPI), sem tocar em innerHTML nem recriar <img> —
+// usado durante o gesto contínuo; o full render continua sendo usado
+// pra tudo que muda a ESTRUTURA da lâmina (criar/apagar elemento,
+// trocar seleção, trocar de lâmina).
+function _albumAtualizarElementoDOM(el) {
+  const div = document.querySelector(`.album-el[data-el-id="${el.id}"]`)
+  const t = _albumEditorTemplate
+  if (!div || !t) return
+  div.style.left = ((el.x / t.largura_aberta_mm) * 100) + '%'
+  div.style.top = ((el.y / t.altura_aberta_mm) * 100) + '%'
+  div.style.width = ((el.width / t.largura_aberta_mm) * 100) + '%'
+  div.style.height = ((el.height / t.altura_aberta_mm) * 100) + '%'
+  div.style.transform = `rotate(${el.rotation}deg)`
+  const img = div.querySelector('img')
+  if (img) {
+    img.style.width = (100 * (el.crop_scale || 1)) + '%'
+    img.style.left = (50 - (el.crop_x || 0)) + '%'
+    img.style.top = (50 - (el.crop_y || 0)) + '%'
+  }
+  const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
+  const dpi = _albumDpiInfo(el, foto)
+  const badge = div.querySelector('.album-el-dpi')
+  if (badge) { badge.className = `album-el-dpi ${dpi.classe}`; badge.textContent = dpi.texto }
 }
 
 function renderAlbumCanvas() {
@@ -16818,7 +16906,7 @@ document.addEventListener('pointermove', e => {
       el.crop_y = d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100
     }
   }
-  renderAlbumCanvas()
+  _albumAtualizarElementoDOM(el)
 })
 function _albumPararDrag() {
   if (!_albumDrag) return
@@ -16837,7 +16925,7 @@ document.addEventListener('wheel', e => {
   if (!el) return
   e.preventDefault()
   el.crop_scale = Math.min(4, Math.max(1, (el.crop_scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)))
-  renderAlbumCanvas()
+  _albumAtualizarElementoDOM(el)
   _albumSalvarElemento(el.id)
 }, { passive: false })
 // teclado: Delete apaga o elemento selecionado, setas nudge fino.
@@ -16852,7 +16940,7 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowUp') { el.y -= passo; } else if (e.key === 'ArrowDown') { el.y += passo; }
   else return
   e.preventDefault()
-  renderAlbumCanvas()
+  _albumAtualizarElementoDOM(el)
   _albumSalvarElemento(el.id)
 })
 
@@ -16879,7 +16967,12 @@ function _albumMudarCamada(direcao) {
   const zAtual = atual.z_index
   atual.z_index = vizinho.z_index
   vizinho.z_index = zAtual
-  renderAlbumCanvas()
+  // z-index é só estilo — troca direto no DOM (sem full render) é
+  // seguro aqui porque nada mais na estrutura muda.
+  const divAtual = document.querySelector(`.album-el[data-el-id="${atual.id}"]`)
+  const divVizinho = document.querySelector(`.album-el[data-el-id="${vizinho.id}"]`)
+  if (divAtual) divAtual.style.zIndex = atual.z_index
+  if (divVizinho) divVizinho.style.zIndex = vizinho.z_index
   _albumSalvarElemento(atual.id)
   _albumSalvarElemento(vizinho.id)
 }
@@ -16946,11 +17039,26 @@ async function _albumSmartLayout() {
 // salva a lâmina ATUAL como preset reutilizável — posições RELATIVAS
 // (frações 0-1 da lâmina), pra funcionar em qualquer outro
 // projeto/modelo depois, não só neste tamanho de lâmina exato.
+// campo inline em vez de window.prompt() nativo — mesma convenção do
+// resto do app (confirmModal substitui confirm() nativo em tudo;
+// aqui não existia ainda um "pedir texto curto", então esse campo
+// simples cobre esse gap sem quebrar a identidade visual da marca).
+function _albumAbrirCampoPreset() {
+  if (!_albumElementosDaSpreadAtual().length) { toast('Esta lâmina não tem fotos pra salvar como modelo'); return }
+  document.getElementById('album-preset-campo').style.display = 'inline-flex'
+  document.getElementById('album-btn-salvar-preset').style.display = 'none'
+  document.getElementById('album-preset-nome').value = ''
+  document.getElementById('album-preset-nome').focus()
+}
+function _albumFecharCampoPreset() {
+  document.getElementById('album-preset-campo').style.display = 'none'
+  document.getElementById('album-btn-salvar-preset').style.display = ''
+}
 async function _albumSalvarComoPreset() {
   const elementos = _albumElementosDaSpreadAtual()
   if (!elementos.length) { toast('Esta lâmina não tem fotos pra salvar como modelo'); return }
-  const nome = (window.prompt('Nome do modelo reutilizável:') || '').trim()
-  if (!nome) return
+  const nome = document.getElementById('album-preset-nome').value.trim()
+  if (!nome) { toast('Dê um nome ao modelo'); return }
   const t = _albumEditorTemplate
   const estrutura = elementos.map(el => ({
     xFr: el.x / t.largura_aberta_mm, yFr: el.y / t.altura_aberta_mm,
@@ -16959,6 +17067,7 @@ async function _albumSalvarComoPreset() {
   }))
   const { error } = await db.from('album_layout_presets').insert({ nome, estrutura })
   if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
+  _albumFecharCampoPreset()
   toast('Modelo salvo ✓')
 }
 
