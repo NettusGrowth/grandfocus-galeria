@@ -17336,8 +17336,18 @@ document.addEventListener('pointermove', e => {
     el.y = d.base.y + dyMm
     _albumClampPosicao(el)
   } else if (d.modo === 'redimensionar') {
-    let novaLargura = Math.max(10, d.base.width + dxMm)
-    let novaAltura = e.shiftKey ? novaLargura / d.aspecto : Math.max(10, d.base.height + dyMm)
+    // achado na bateria de testes: só havia PISO (10mm), nunca um teto —
+    // um arrasto rápido e comum (puxar o handle numa tela grande, mania
+    // real de quem redimensiona sem cuidado) jogava dxMm pra centenas de
+    // mm numa única passada, e sem overflow:visible escondendo mais isso
+    // (Passo 4), o elemento cobria o painel de fotos/resto da tela
+    // inteira — mesma classe do achado já corrigido pro "mover" sem
+    // limite. Teto generoso (3× a lâmina) ainda permite composição
+    // criativa grande de propósito, só barra o descontrole.
+    const larguraMax = (_albumEditorTemplate?.largura_aberta_mm || 1000) * 3
+    const alturaMax = (_albumEditorTemplate?.altura_aberta_mm || 1000) * 3
+    let novaLargura = Math.min(larguraMax, Math.max(10, d.base.width + dxMm))
+    let novaAltura = e.shiftKey ? novaLargura / d.aspecto : Math.min(alturaMax, Math.max(10, d.base.height + dyMm))
     // achado testando: redimensionar proporcional (Shift) só garantia o
     // piso de 10mm na LARGURA — um elemento bem "faixa" (largura muito
     // maior que altura, ex: banner) encolhia a altura pra menos de
@@ -17346,6 +17356,9 @@ document.addEventListener('pointermove', e => {
     // abaixo do piso, trava a altura em 10 e recalcula a largura a
     // partir dela — mantém a proporção sem furar o mínimo nos dois eixos.
     if (e.shiftKey && novaAltura < 10) { novaAltura = 10; novaLargura = novaAltura * d.aspecto }
+    // e o teto também precisa valer depois do recálculo proporcional
+    // (Shift pode ter jogado a largura de volta pra cima do limite).
+    if (e.shiftKey && novaLargura > larguraMax) { novaLargura = larguraMax; novaAltura = novaLargura / d.aspecto }
     el.width = novaLargura
     el.height = novaAltura
   } else if (d.modo === 'girar') {
