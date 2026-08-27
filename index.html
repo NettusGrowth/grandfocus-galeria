@@ -17049,13 +17049,18 @@ function _albumElementosDaSpreadAtual() {
 }
 
 function _albumDpiInfo(el, foto) {
-  if (!foto?.largura_original || !foto?.altura_original) return { classe: 'neutro', texto: '—' }
+  if (!foto?.largura_original || !foto?.altura_original) return { classe: 'neutro', texto: '— DPI' }
   const escala = el.crop_scale || 1
   const dpiW = (el.width > 0) ? Math.round((foto.largura_original / escala) / (el.width / 25.4)) : 0
   const dpiH = (el.height > 0) ? Math.round((foto.altura_original / escala) / (el.height / 25.4)) : 0
   const dpi = Math.min(dpiW, dpiH)
   const alvo = _albumEditorTemplate?.dpi_alvo || 300
-  return { classe: dpi >= alvo ? 'ok' : 'baixo', texto: dpi + ' DPI' }
+  // achado de design: o badge dependia só da COR (vermelho/verde) pra
+  // avisar qualidade — problema real de acessibilidade pra quem tem
+  // daltonismo (não distingue vermelho de verde, que são exatamente as
+  // duas cores usadas aqui). Ícone (✓/⚠) reforça o mesmo significado
+  // sem depender só da cor.
+  return dpi >= alvo ? { classe: 'ok', texto: '✓ ' + dpi + ' DPI' } : { classe: 'baixo', texto: '⚠ ' + dpi + ' DPI' }
 }
 
 function _albumElementoHTML(el) {
