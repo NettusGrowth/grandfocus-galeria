@@ -1739,6 +1739,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="tab" data-tab="eventos" data-tip="Álbuns &amp; Eventos" onclick="setAdminTab('eventos')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="2"/><line x1="3.5" y1="9.5" x2="20.5" y2="9.5"/><line x1="8" y1="3" x2="8" y2="6.5"/><line x1="16" y1="3" x2="16" y2="6.5"/></svg><span>Álbuns &amp; Eventos</span></div>
         <div class="tab" data-tab="ensaios" data-tip="Ensaios Avulsos" onclick="setAdminTab('ensaios')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.3"/><path d="M12 7.2v3.4M16.8 9.6l-3 1.9M16.2 16l-2.9-2M7.8 16l2.9-2M7.2 9.6l3 1.9"/></svg><span>Ensaios Avulsos</span></div>
         <div class="tab" data-tab="galeria" data-tip="Galeria" data-bn-primary data-bn-label="Mídias" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
+        <div class="tab" data-tab="albuns" data-tip="Álbuns (Digipix)" onclick="setAdminTab('albuns');iniciarAlbunsAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="9" height="14" rx="1.3"/><path d="M12 6h8v12h-8"/></svg><span>Álbuns (Digipix)</span></div>
         <div class="tab" data-tab="selecao" data-tip="Seleção de Fotos" onclick="setAdminTab('selecao');iniciarSelecaoAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8l2.4 5.1 5.6.6-4.1 3.9 1.1 5.6-4.9-2.8-4.9 2.8 1.1-5.6-4.1-3.9 5.6-.6Z"/></svg><span>Seleção de Fotos</span></div>
         <div class="navgroup-label">Social</div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" data-bn-primary data-bn-label="Social" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
@@ -2061,6 +2062,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <div class="list" id="lista-eventos"></div>
         </div>
         <div id="evento-detalhe-wrap" style="display:none;"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-albuns" style="display:none;">
+        <div id="albuns-lista-wrap">
+          <div class="section-h"><h2>Álbuns (Digipix)</h2>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-sm" onclick="abrirModalAlbumTemplate()">📐 Modelos de álbum</button>
+              <button class="btn btn-primary btn-sm" onclick="abrirModalAlbumProjeto()">+ Novo álbum</button>
+            </div>
+          </div>
+          <div class="meta" style="margin-bottom:14px;">Diagramação de álbuns físicos pra impressão — vincula um evento a um modelo (dimensão/sangria/DPI) e monta as lâminas.</div>
+          <div class="list" id="lista-album-projetos"></div>
+        </div>
+        <div id="album-editor-wrap" style="display:none;"></div>
       </div>
 
       <div class="admin-tab" id="admintab-ensaios" style="display:none;">
@@ -2706,6 +2721,68 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-ensaio')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarEnsaio()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Digipix — modelos de álbum (dimensão/sangria/DPI/dobra/capa/papel) -->
+<div class="modal-overlay" id="modal-album-template">
+  <div class="modal" style="max-width:600px;">
+    <h3>Modelos de álbum</h3>
+    <div class="meta" style="margin-bottom:14px;">Dimensão física, sangria e DPI alvo — a base de qualquer álbum novo.</div>
+    <div class="list" id="lista-album-templates" style="margin-bottom:18px;max-height:220px;overflow-y:auto;"></div>
+    <div class="filete"></div>
+    <input type="hidden" id="albt-id">
+    <h3 id="albt-form-titulo" style="font-size:16px;">Novo modelo</h3>
+    <div class="field"><label>Nome</label><input type="text" id="albt-nome" placeholder="Ex: Álbum 30x30 Layflat"></div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Largura aberta (mm)</label><input type="number" id="albt-largura-aberta" min="1" step="0.1"></div>
+      <div class="field" style="flex:1;"><label>Altura aberta (mm)</label><input type="number" id="albt-altura-aberta" min="1" step="0.1"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Largura fechada (mm)</label><input type="number" id="albt-largura-fechada" min="1" step="0.1"></div>
+      <div class="field" style="flex:1;"><label>Altura fechada (mm)</label><input type="number" id="albt-altura-fechada" min="1" step="0.1"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Sangria (mm)</label><input type="number" id="albt-sangria" min="0" step="0.1" value="5"></div>
+      <div class="field" style="flex:1;"><label>Margem de segurança (mm)</label><input type="number" id="albt-margem" min="0" step="0.1" value="10"></div>
+      <div class="field" style="flex:1;"><label>DPI alvo</label><input type="number" id="albt-dpi" min="72" step="1" value="300"></div>
+    </div>
+    <div class="field"><label>Tipo de dobra</label>
+      <select id="albt-dobra"><option value="vinco">Vinco</option><option value="layflat">Layflat</option></select>
+    </div>
+    <div class="field"><label>Capas permitidas <span style="text-transform:none;font-weight:400;color:#B39F86;">(marque as opções)</span></label>
+      <div class="tag-picker" id="albt-capas"></div>
+    </div>
+    <div class="field"><label>Papéis permitidos</label>
+      <div class="tag-picker" id="albt-papeis"></div>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <div class="field" style="flex:1;"><label>Mín. de lâminas</label><input type="number" id="albt-min-laminas" min="1" step="1" value="1"></div>
+      <div class="field" style="flex:1;"><label>Máx. de lâminas</label><input type="number" id="albt-max-laminas" min="1" step="1" value="40"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="_albumTemplateNovoForm()" type="button">Limpar / Novo</button>
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-template')">Fechar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarAlbumTemplate()">Salvar modelo</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Digipix — novo projeto de álbum (evento + modelo) -->
+<div class="modal-overlay" id="modal-album-projeto">
+  <div class="modal" style="max-width:480px;">
+    <h3>Novo álbum</h3>
+    <div class="field"><label>Nome do álbum</label><input type="text" id="albp-nome" placeholder="Ex: Álbum — Recital de Verão 2026"></div>
+    <div class="field"><label>Evento vinculado</label>
+      <select id="albp-evento"><option value="">— selecione —</option></select>
+    </div>
+    <div class="field"><label>Modelo</label>
+      <select id="albp-template"><option value="">— selecione —</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-projeto')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="salvarAlbumProjeto()">Criar álbum</button>
     </div>
   </div>
 </div>
@@ -3391,7 +3468,7 @@ const db = _configPendente ? null : createClient(SUPABASE_URL, SUPABASE_ANON_KEY
 
 let currentUser = null
 let meuPerfil = null
-let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [], crmPipelines: [], crmEtapas: [], crmLeads: [], crmMotivosPerda: [], turmas: [] }
+let store = { escolas: [], alunos: [], eventos: [], fotos: [], fotoAluno: [], fotoPessoa: [], responsaveis: [], professores: [], vinculosResponsaveis: [], professorEscolas: [], selecaoGalerias: [], clientesAvulsos: [], agendaCompromissos: [], agendaEquipeDisponivel: [], crmPipelines: [], crmEtapas: [], crmLeads: [], crmMotivosPerda: [], turmas: [], albumTemplates: [], albumProjects: [], albumSpreads: [], albumElements: [] }
 // config global chave/valor (tabela app_config), carregada no login —
 // hoje só guarda hero_bg_path (foto de fundo do Dashboard, opcional,
 // ver _aplicarHeroBg). Ver Ctrl+Shift+B (só admin/super_admin).
@@ -16237,6 +16314,190 @@ async function _selPubBaixarTodas(tipo) {
   const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
   const itens = fotos.map((f, i) => ({ url: f.url, nome: `foto-${i + 1}.jpg` }))
   await _baixarFotosEmMassa(itens, nomeBase)
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO DIGIPIX — Passo 1: banco + editor de diagramação (só admin/
+// super_admin — #view-admin inteiro já é exclusivo desses papéis,
+// sem gate extra aqui). Cria/gerencia modelos de álbum físico
+// (dimensão/sangria/DPI/dobra/capa/papel) e projetos vinculados a um
+// evento, prontos pra montar lâminas (editor de lâmina vem no próximo
+// commit deste mesmo Passo 1 — aqui só banco + modelos + lista de
+// projetos).
+// ══════════════════════════════════════════════════════════════
+async function iniciarAlbunsAdmin() {
+  document.getElementById('album-editor-wrap').style.display = 'none'
+  document.getElementById('albuns-lista-wrap').style.display = ''
+  const [{ data: templates, error: e1 }, { data: projetos, error: e2 }] = await Promise.all([
+    db.from('album_templates').select('*').order('nome'),
+    db.from('album_projects').select('*, eventos(nome), album_templates(nome)').order('atualizado_em', { ascending: false }),
+  ])
+  if (e1 || e2) { toast('Erro ao carregar álbuns: ' + (e1 || e2).message); return }
+  store.albumTemplates = templates || []
+  store.albumProjects = projetos || []
+  renderAlbumProjetos()
+}
+
+function renderAlbumProjetos() {
+  const el = document.getElementById('lista-album-projetos')
+  if (!store.albumProjects.length) { el.innerHTML = '<div class="empty">Nenhum álbum criado ainda.</div>'; return }
+  const rotuloStatus = { rascunho: 'Rascunho', em_diagramacao: 'Em diagramação', em_aprovacao: 'Em aprovação', aprovado: 'Aprovado', enviado_impressao: 'Enviado pra impressão' }
+  el.innerHTML = store.albumProjects.map(p => `
+    <div class="list-item" onclick="abrirAlbumEditor('${p.id}')">
+      <div>
+        <div class="nome">${esc(p.nome)}</div>
+        <div class="meta">${esc(p.eventos?.nome || '—')} · ${esc(p.album_templates?.nome || '—')} · ${rotuloStatus[p.status] || p.status}</div>
+      </div>
+    </div>`).join('')
+}
+
+function abrirModalAlbumProjeto() {
+  const selEvento = document.getElementById('albp-evento')
+  selEvento.innerHTML = '<option value="">— selecione —</option>' + store.eventos.map(e => `<option value="${e.id}">${esc(e.nome)}</option>`).join('')
+  const selTemplate = document.getElementById('albp-template')
+  selTemplate.innerHTML = '<option value="">— selecione —</option>' + store.albumTemplates.map(t => `<option value="${t.id}">${esc(t.nome)}</option>`).join('')
+  document.getElementById('albp-nome').value = ''
+  if (!store.albumTemplates.length) { toast('Cadastre um modelo de álbum primeiro (📐 Modelos de álbum)'); return }
+  abrirModal('modal-album-projeto')
+}
+
+async function salvarAlbumProjeto() {
+  const nome = document.getElementById('albp-nome').value.trim()
+  const evento_id = document.getElementById('albp-evento').value
+  const album_template_id = document.getElementById('albp-template').value
+  if (!nome) { toast('Dê um nome ao álbum'); return }
+  if (!evento_id) { toast('Selecione o evento'); return }
+  if (!album_template_id) { toast('Selecione o modelo'); return }
+  const { data, error } = await db.from('album_projects').insert({ nome, evento_id, album_template_id }).select('*, eventos(nome), album_templates(nome)').single()
+  if (error) { toast('Erro ao criar álbum: ' + error.message); return }
+  store.albumProjects.unshift(data)
+  renderAlbumProjetos()
+  fecharModal('modal-album-projeto')
+  toast('Álbum criado ✓')
+  registrarAuditoria('criou álbum (Digipix)', 'album_projects', data.id, nome)
+}
+
+// lista fixa — mesmo espírito de outros seletores fechados do app
+// (categoria de evento, papel de conta): opções conhecidas do negócio,
+// não um cadastro aberto à parte só pra isso.
+const ALBUM_CAPAS_OPCOES = ['Acrílico', 'Couro', 'Tecido', 'Foto']
+const ALBUM_PAPEIS_OPCOES = ['Silk', 'Lustre', 'Matte']
+
+function _albumTagPicker(containerId, opcoes, selecionadas) {
+  const el = document.getElementById(containerId)
+  el.innerHTML = opcoes.map(op => `<div class="tag-opt${selecionadas.includes(op) ? ' on' : ''}" onclick="this.classList.toggle('on')" data-valor="${esc(op)}">${esc(op)}</div>`).join('')
+}
+function _albumTagPickerValores(containerId) {
+  return [...document.getElementById(containerId).querySelectorAll('.tag-opt.on')].map(el => el.dataset.valor)
+}
+
+function abrirModalAlbumTemplate() {
+  renderAlbumTemplatesLista()
+  _albumTemplateNovoForm()
+  abrirModal('modal-album-template')
+}
+
+function renderAlbumTemplatesLista() {
+  const el = document.getElementById('lista-album-templates')
+  if (!store.albumTemplates.length) { el.innerHTML = '<div class="empty">Nenhum modelo cadastrado ainda.</div>'; return }
+  el.innerHTML = store.albumTemplates.map(t => `
+    <div class="list-item" onclick="_albumTemplateEditarForm('${t.id}')">
+      <div>
+        <div class="nome">${esc(t.nome)}</div>
+        <div class="meta">${t.largura_aberta_mm}×${t.altura_aberta_mm}mm aberto · ${t.dpi_alvo} DPI · ${t.tipo_dobra === 'layflat' ? 'Layflat' : 'Vinco'}</div>
+      </div>
+    </div>`).join('')
+}
+
+function _albumTemplateNovoForm() {
+  document.getElementById('albt-id').value = ''
+  document.getElementById('albt-form-titulo').textContent = 'Novo modelo'
+  document.getElementById('albt-nome').value = ''
+  document.getElementById('albt-largura-aberta').value = ''
+  document.getElementById('albt-altura-aberta').value = ''
+  document.getElementById('albt-largura-fechada').value = ''
+  document.getElementById('albt-altura-fechada').value = ''
+  document.getElementById('albt-sangria').value = '5'
+  document.getElementById('albt-margem').value = '10'
+  document.getElementById('albt-dpi').value = '300'
+  document.getElementById('albt-dobra').value = 'vinco'
+  document.getElementById('albt-min-laminas').value = '1'
+  document.getElementById('albt-max-laminas').value = '40'
+  _albumTagPicker('albt-capas', ALBUM_CAPAS_OPCOES, [])
+  _albumTagPicker('albt-papeis', ALBUM_PAPEIS_OPCOES, [])
+}
+
+function _albumTemplateEditarForm(id) {
+  const t = store.albumTemplates.find(x => x.id === id)
+  if (!t) return
+  document.getElementById('albt-id').value = t.id
+  document.getElementById('albt-form-titulo').textContent = 'Editar modelo'
+  document.getElementById('albt-nome').value = t.nome
+  document.getElementById('albt-largura-aberta').value = t.largura_aberta_mm
+  document.getElementById('albt-altura-aberta').value = t.altura_aberta_mm
+  document.getElementById('albt-largura-fechada').value = t.largura_fechada_mm
+  document.getElementById('albt-altura-fechada').value = t.altura_fechada_mm
+  document.getElementById('albt-sangria').value = t.sangria_mm
+  document.getElementById('albt-margem').value = t.margem_seguranca_mm
+  document.getElementById('albt-dpi').value = t.dpi_alvo
+  document.getElementById('albt-dobra').value = t.tipo_dobra
+  document.getElementById('albt-min-laminas').value = t.min_laminas
+  document.getElementById('albt-max-laminas').value = t.max_laminas
+  _albumTagPicker('albt-capas', ALBUM_CAPAS_OPCOES, t.capas_permitidas || [])
+  _albumTagPicker('albt-papeis', ALBUM_PAPEIS_OPCOES, t.papeis_permitidos || [])
+}
+
+async function salvarAlbumTemplate() {
+  const id = document.getElementById('albt-id').value || null
+  const nome = document.getElementById('albt-nome').value.trim()
+  if (!nome) { toast('Dê um nome ao modelo'); return }
+  const numCampo = campoId => {
+    const v = parseFloat(document.getElementById(campoId).value)
+    return Number.isFinite(v) ? v : null
+  }
+  const payload = {
+    nome,
+    largura_aberta_mm: numCampo('albt-largura-aberta'),
+    altura_aberta_mm: numCampo('albt-altura-aberta'),
+    largura_fechada_mm: numCampo('albt-largura-fechada'),
+    altura_fechada_mm: numCampo('albt-altura-fechada'),
+    sangria_mm: numCampo('albt-sangria') ?? 5,
+    margem_seguranca_mm: numCampo('albt-margem') ?? 10,
+    dpi_alvo: numCampo('albt-dpi') ?? 300,
+    tipo_dobra: document.getElementById('albt-dobra').value,
+    capas_permitidas: _albumTagPickerValores('albt-capas'),
+    papeis_permitidos: _albumTagPickerValores('albt-papeis'),
+    min_laminas: numCampo('albt-min-laminas') ?? 1,
+    max_laminas: numCampo('albt-max-laminas') ?? 40,
+  }
+  if (!payload.largura_aberta_mm || !payload.altura_aberta_mm || !payload.largura_fechada_mm || !payload.altura_fechada_mm) {
+    toast('Preencha as 4 dimensões (aberto/fechado)'); return
+  }
+  let data, error
+  if (id) ({ data, error } = await db.from('album_templates').update(payload).eq('id', id).select().single())
+  else ({ data, error } = await db.from('album_templates').insert(payload).select().single())
+  if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
+  const idx = store.albumTemplates.findIndex(t => t.id === data.id)
+  if (idx >= 0) store.albumTemplates[idx] = data; else store.albumTemplates.push(data)
+  store.albumTemplates.sort((a, b) => a.nome.localeCompare(b.nome))
+  renderAlbumTemplatesLista()
+  _albumTemplateNovoForm()
+  toast('Modelo salvo ✓')
+}
+
+// placeholder do editor de lâmina — vem no próximo commit deste mesmo
+// Passo 1 (linhas guia, drag/resize/rotate/crop, DPI checker, smart
+// layout, presets). Por ora só abre o projeto e mostra que a lista
+// básica (banco + modelos + projetos) já está de pé.
+function abrirAlbumEditor(projetoId) {
+  const projeto = store.albumProjects.find(p => p.id === projetoId)
+  if (!projeto) return
+  document.getElementById('albuns-lista-wrap').style.display = 'none'
+  const wrap = document.getElementById('album-editor-wrap')
+  wrap.style.display = ''
+  wrap.innerHTML = `
+    <div class="section-h"><h2>${esc(projeto.nome)}</h2><button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button></div>
+    <div class="empty">Editor de lâminas chega no próximo commit deste Passo 1.</div>`
 }
 
 // ── boot ────────────────────────────────────────────────────────
