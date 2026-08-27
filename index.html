@@ -16946,7 +16946,14 @@ async function _albumApagarSpread(spreadId) {
   if (_albumApagandoSpread) return
   _albumApagandoSpread = true
   try {
-    const temElementos = store.albumElements.some(e => e.spread_id === spreadId)
+    // achado na mesma família do Smart Layout: store.albumElements só
+    // guarda a lâmina ATUALMENTE aberta — clicar no "✕" de uma lâmina
+    // DIFERENTE (direto na tira, sem abrir ela antes) fazia o aviso
+    // mais fraco aparecer ("Apagar a Lâmina 2?" sem mencionar as
+    // fotos), mesmo quando ela já tinha fotos de verdade. Consulta
+    // fresca e pequena (só essa lâmina) pra saber de verdade.
+    const { data: elementosDaLamina } = await db.from('album_elements').select('id').eq('spread_id', spreadId).limit(1)
+    const temElementos = (elementosDaLamina?.length ?? 0) > 0
     const idx = store.albumSpreads.findIndex(s => s.id === spreadId) + 1
     const msg = temElementos
       ? `Apagar a Lâmina ${idx}? As fotos já colocadas nela também somem — não dá pra desfazer.`
