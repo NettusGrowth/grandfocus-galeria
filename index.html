@@ -1675,6 +1675,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+/* achado de design: 5 botões numa fileira só, sem separação nenhuma
+   entre "montar a lâmina" (Smart Layout/modelos) e "fluxo do álbum"
+   (enviar pro cliente/exportar) — um traço fino ajuda a escanear o
+   grupo certo rápido. Sem largura numa linha (o flex-wrap pode
+   quebrar antes dele), então também não aparece "solto" numa quebra
+   de linha, e sem interferir na tabulação (não é focável). */
+.album-toolbar-divisor{width:1px;align-self:stretch;background:rgba(200,175,127,.25);margin:2px 2px;}
 #album-btn-modo-recorte.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
 /* achado testando em viewport mobile: o botão de Modo recorte (feito
    JUSTAMENTE pra toque) saiu com ~30px de altura, do mesmo jeito que
@@ -16874,6 +16881,7 @@ async function abrirAlbumEditor(projetoId) {
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
       <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
       <button class="btn btn-sm" onclick="_albumAbrirUsarPreset()">📥 Usar modelo salvo</button>
+      <span class="album-toolbar-divisor" aria-hidden="true"></span>
       ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
       <button class="btn btn-sm" onclick="abrirExportacaoAlbum()">🖨 Exportar pra impressão</button>
       <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
