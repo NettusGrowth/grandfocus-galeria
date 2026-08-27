@@ -16789,11 +16789,20 @@ async function salvarAlbumTemplate() {
       const usando = store.albumProjects.filter(p => p.album_template_id === id)
       if (usando.length) {
         const travados = usando.filter(p => ['em_aprovacao', 'aprovado', 'enviado_impressao'].includes(p.status))
+        // achado de design (polimento de texto): quando não tem nenhum
+        // álbum travado, "aviso" fica vazio e sobrava espaço duplo na
+        // frase inteira ("nome).  Mudar..."). Junta com filter+join em
+        // vez de interpolar direto, pra nunca sobrar espaço à toa.
         const aviso = travados.length
           ? `Atenção: ${travados.length} desses já está com o cliente ou aprovado/enviado pra impressão — mudar o modelo pode distorcer a diagramação sem ele perceber.`
           : ''
+        const frase = [
+          `Este modelo já está em uso em ${usando.length} álbum(ns): ${usando.map(p => p.nome).join(', ')}.`,
+          aviso,
+          'Mudar as dimensões/sangria/margem agora vai desalinhar as fotos já posicionadas nesses álbuns. Continuar mesmo assim?',
+        ].filter(Boolean).join(' ')
         const ok = await confirmModal(
-          `Este modelo já está em uso em ${usando.length} álbum(ns): ${usando.map(p => p.nome).join(', ')}. ${aviso} Mudar as dimensões/sangria/margem agora vai desalinhar as fotos já posicionadas nesses álbuns. Continuar mesmo assim?`,
+          frase,
           { titulo: 'Modelo em uso', okLabel: 'Mudar assim mesmo', danger: true }
         )
         if (!ok) return
