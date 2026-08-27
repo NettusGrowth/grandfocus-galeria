@@ -17460,7 +17460,22 @@ async function _albumSmartLayout() {
 }
 async function _albumSmartLayoutInterno() {
   const t = _albumEditorTemplate
-  const spreadsVazias = store.albumSpreads.filter(s => !store.albumElements.some(el => el.spread_id === s.id))
+  // achado testando: store.albumElements só guarda a lâmina
+  // ATUALMENTE aberta (troca toda vez que abrirAlbumSpread roda) —
+  // decidir quais lâminas estão "vazias" com esse dado incompleto
+  // tratava qualquer lâmina nunca visitada NESTA sessão como vazia,
+  // mesmo já tendo fotos de verdade guardadas no banco. Resultado: o
+  // Smart Layout empilhava fotos novas por cima de uma lâmina que já
+  // tinha composição, sem aviso nenhum, só porque o admin não tinha
+  // clicado nela ainda. Busca fresca de TODOS os elementos do álbum
+  // antes de decidir — mesmo motivo/padrão de _albumDadosCompletosExport.
+  const spreadIds = store.albumSpreads.map(s => s.id)
+  const { data: todosOsElementos, error: erroCheck } = spreadIds.length
+    ? await db.from('album_elements').select('spread_id').in('spread_id', spreadIds)
+    : { data: [] }
+  if (erroCheck) { toast('Erro ao checar as lâminas: ' + erroCheck.message); return }
+  const spreadsComConteudo = new Set((todosOsElementos || []).map(e => e.spread_id))
+  const spreadsVazias = store.albumSpreads.filter(s => !spreadsComConteudo.has(s.id))
   if (!spreadsVazias.length) { toast('Todas as lâminas já têm fotos — crie uma lâmina nova pro Smart Layout usar'); return }
   const fotos = [..._albumEditorFotosEvento]
   const novosElementos = []
