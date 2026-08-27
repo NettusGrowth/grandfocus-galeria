@@ -17659,11 +17659,19 @@ async function _albumSalvarArquivos(arquivos, nomeBase) {
 }
 
 let _albumExportDados = null
+// achado na rodada final — mesma corrida de abrirAlbumSpread/
+// abrirAlbumEditor: abrir a exportação do Álbum A (lento), fechar,
+// abrir a do Álbum B (rápido) podia deixar a resposta atrasada de A
+// sobrescrever _albumExportDados de volta pro álbum errado DEPOIS da
+// tela já estar mostrando B — grave aqui porque significa baixar as
+// fotos do álbum ERRADO sem perceber. Mesma sequência monotônica.
+let _albumExportacaoCargaSeq = 0
 async function abrirExportacaoAlbum() {
   const projeto = _albumEditorProjeto
   const template = _albumEditorTemplate
   if (!projeto || !template) return
   if (!store.albumSpreads.length) { toast('Este álbum ainda não tem lâminas pra exportar'); return }
+  const minhaSeq = ++_albumExportacaoCargaSeq
   // limpa o cache de fotos originais a cada NOVA sessão de exportação —
   // dentro da mesma sessão (ex: exportar JPG e depois PDF do mesmo
   // álbum sem fechar o modal) o cache ainda ajuda, mas sem isso um
@@ -17677,7 +17685,8 @@ async function abrirExportacaoAlbum() {
   corpo.innerHTML = '<div class="empty">Checando qualidade das fotos…</div>'
   let dados
   try { dados = await _albumDadosCompletosExport() }
-  catch (e) { corpo.innerHTML = `<div class="empty">Erro ao carregar: ${esc(e.message)}</div>`; return }
+  catch (e) { if (minhaSeq === _albumExportacaoCargaSeq) corpo.innerHTML = `<div class="empty">Erro ao carregar: ${esc(e.message)}</div>`; return }
+  if (minhaSeq !== _albumExportacaoCargaSeq) return // uma exportação mais nova já foi aberta por cima — descarta essa resposta atrasada
   const { elementos, fotosPorId } = dados
   _albumExportDados = { projeto, template, elementos, fotosPorId }
   const semFoto = elementos.filter(e => !fotosPorId.has(e.foto_id)).length
