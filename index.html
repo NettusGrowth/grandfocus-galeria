@@ -18146,6 +18146,14 @@ async function iniciarAlbumCliente() {
   // bastante pra não travar o Passo 2 por causa disso.
   _albumClienteProjeto = projetos[0]
   _albumClienteTemplate = _albumClienteProjeto.album_templates
+  // achado sério na revisão: album_templates só tem policy de RLS pra
+  // admin/super_admin (074) — sem a policy nova de leitura do cliente
+  // (076), esse embed sempre volta null pro responsável de verdade
+  // (RLS filtra o embutido mesmo a linha de album_projects sendo
+  // visível). Sem essa guarda, toda a matemática de %→mm da lâmina
+  // (_albumClienteElementoHTML) quebra com TypeError na cara do
+  // cliente — mensagem clara em vez de tela crashada/branca.
+  if (!_albumClienteTemplate) { wrap.innerHTML = '<div class="empty">Não foi possível carregar o modelo deste álbum agora. Avise o fotógrafo, pode ser uma permissão pendente.</div>'; return }
   _albumClienteIndice = 0
 
   const { data: spreads, error: e1 } = await db.from('album_spreads').select('*').eq('project_id', _albumClienteProjeto.id).order('spread_index')
