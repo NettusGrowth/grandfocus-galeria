@@ -1647,6 +1647,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
+
+/* ── Digipix: portal do cliente (Passo 2) — flipbook CSS 3D puro,
+   sem lib de terceiro (mesmo espírito caseiro do resto do app). */
+.album-flip-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
+.album-flip-wrap{perspective:1800px;width:100%;max-width:900px;margin:0 auto;touch-action:pan-y;}
+.album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55);transform-style:preserve-3d;}
+.album-el-cliente{position:absolute;box-sizing:border-box;}
+.album-el-cliente.trocavel{cursor:pointer;}
+.album-el-cliente .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
+.album-el-cliente img{position:absolute;max-width:none;-webkit-user-drag:none;}
+.album-el-trocar-dica{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0);color:#fff;font-size:11px;font-weight:600;letter-spacing:.02em;opacity:0;transition:opacity .15s,background .15s;pointer-events:none;}
+.album-el-cliente.trocavel:hover .album-el-trocar-dica{opacity:1;background:rgba(0,0,0,.35);}
+.album-cliente-comentarios{max-width:900px;margin:18px auto 0;}
+@media(max-width:640px){.album-el-trocar-dica{opacity:1;background:linear-gradient(to top,rgba(0,0,0,.45),transparent 40%);align-items:flex-end;padding-bottom:6px;}}
 </style>
 </head>
 <body>
@@ -2300,6 +2314,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="tabs">
         <div class="tab on" data-tab="fotos" data-tip="Galeria" onclick="setRespTab('fotos');_galInit('responsavel')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg><span>Galeria</span></div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" onclick="setRespTab('comunidade');iniciarComunidadeResponsavel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
+        <div class="tab" data-tab="meualbum" id="tab-meualbum" style="display:none;" data-tip="Meu Álbum" onclick="setRespTab('meualbum');iniciarAlbumCliente()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h9v13H4z"/><path d="M13 6.5h7v11h-7"/></svg><span>Meu Álbum</span></div>
         <div class="sidebar-social">
           <span class="ss-label">Conecte-se</span>
           <div class="ss-row">
@@ -2322,6 +2337,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="resp-tab" id="resptab-comunidade" style="display:none;">
         <div id="comunidade-responsavel-header"></div>
         <div id="comunidade-responsavel-feed"></div>
+      </div>
+      <div class="resp-tab" id="resptab-meualbum" style="display:none;">
+        <div id="album-cliente-wrap"></div>
       </div>
       </div>
     </div>
@@ -2814,6 +2832,33 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-album-projeto')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="salvarAlbumProjeto()">Criar álbum</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Digipix — enviar álbum pra aprovação do cliente -->
+<div class="modal-overlay" id="modal-album-aprovacao">
+  <div class="modal" style="max-width:440px;">
+    <h3>Enviar pra aprovação</h3>
+    <div class="meta" style="margin-bottom:14px;">O responsável escolhido vai ver o álbum na Galeria dele, poder trocar fotos e aprovar pra impressão.</div>
+    <div class="field"><label>Responsável</label>
+      <select id="alba-responsavel"><option value="">— selecione —</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-aprovacao')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" onclick="_albumEnviarParaAprovacao()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Digipix — cliente troca a foto de um elemento da lâmina -->
+<div class="modal-overlay" id="modal-album-cliente-troca">
+  <div class="modal" style="max-width:480px;">
+    <h3>Trocar foto</h3>
+    <div class="meta" style="margin-bottom:12px;">Escolha outra foto sua deste álbum.</div>
+    <div class="album-fotos-painel" id="album-cliente-troca-grid" style="max-height:360px;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-cliente-troca')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -3905,6 +3950,9 @@ async function mostrarApp(user) {
     // na mão (DevTools) e a galeria já tinha carregado por trás.
     // _aceitarLgpd() é quem dispara o carregamento de verdade.
     viewPromise = data.lgpd_aceito_em ? iniciarViewResponsavel() : Promise.resolve()
+    // best-effort, não bloqueia o login — só liga a aba "Meu Álbum"
+    // se esse responsável tiver algum álbum Digipix enviado pra ele.
+    if (data.lgpd_aceito_em) _albumClienteVerificarTab()
   }
   else if (data.role === 'avulso') { document.getElementById('view-avulso').classList.add('on'); viewPromise = Promise.resolve() }
   else {
@@ -16377,7 +16425,7 @@ async function iniciarAlbunsAdmin() {
   document.getElementById('albuns-lista-wrap').style.display = ''
   const [{ data: templates, error: e1 }, { data: projetos, error: e2 }] = await Promise.all([
     db.from('album_templates').select('*').order('nome'),
-    db.from('album_projects').select('*, eventos(nome), album_templates(nome)').order('atualizado_em', { ascending: false }),
+    db.from('album_projects').select('*, eventos(nome, alunos_selecionados), album_templates(nome)').order('atualizado_em', { ascending: false }),
   ])
   if (e1 || e2) { toast('Erro ao carregar álbuns: ' + (e1 || e2).message); return }
   store.albumTemplates = templates || []
@@ -16422,7 +16470,7 @@ async function salvarAlbumProjeto() {
   if (!album_template_id) { toast('Selecione o modelo'); return }
   _albumSalvandoProjeto = true
   try {
-    const { data, error } = await db.from('album_projects').insert({ nome, evento_id, album_template_id }).select('*, eventos(nome), album_templates(nome)').single()
+    const { data, error } = await db.from('album_projects').insert({ nome, evento_id, album_template_id }).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
     if (error) { toast('Erro ao criar álbum: ' + error.message); return }
     store.albumProjects.unshift(data)
     renderAlbumProjetos()
@@ -16430,6 +16478,43 @@ async function salvarAlbumProjeto() {
     toast('Álbum criado ✓')
     registrarAuditoria('criou álbum (Digipix)', 'album_projects', data.id, nome)
   } finally { _albumSalvandoProjeto = false }
+}
+
+// ── envio pra aprovação do cliente (Passo 2) ─────────────────────
+async function _albumAbrirEnvioAprovacao() {
+  const alunoIds = _albumEditorProjeto.eventos?.alunos_selecionados || []
+  if (!alunoIds.length) { toast('Este evento não tem alunos vinculados — não dá pra saber quem é o responsável'); return }
+  const { data, error } = await db.from('responsavel_alunos').select('user_id, perfis(nome)').in('aluno_id', alunoIds)
+  if (error) { toast('Erro ao buscar responsáveis: ' + error.message); return }
+  const vistos = new Set()
+  const opcoes = []
+  for (const v of (data || [])) {
+    if (vistos.has(v.user_id)) continue
+    vistos.add(v.user_id)
+    opcoes.push({ id: v.user_id, nome: v.perfis?.nome || '—' })
+  }
+  if (!opcoes.length) { toast('Nenhum responsável encontrado pros alunos deste evento'); return }
+  const sel = document.getElementById('alba-responsavel')
+  sel.innerHTML = '<option value="">— selecione —</option>' + opcoes.map(o => `<option value="${o.id}">${esc(o.nome)}</option>`).join('')
+  abrirModal('modal-album-aprovacao')
+}
+
+let _albumEnviandoAprovacao = false
+async function _albumEnviarParaAprovacao() {
+  if (_albumEnviandoAprovacao) return
+  const clienteId = document.getElementById('alba-responsavel').value
+  if (!clienteId) { toast('Selecione um responsável'); return }
+  _albumEnviandoAprovacao = true
+  try {
+    const { data, error } = await db.from('album_projects').update({ cliente_user_id: clienteId, status: 'em_aprovacao' }).eq('id', _albumEditorProjeto.id).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
+    if (error) { toast('Erro ao enviar: ' + error.message); return }
+    const idx = store.albumProjects.findIndex(p => p.id === data.id)
+    if (idx >= 0) store.albumProjects[idx] = data
+    fecharModal('modal-album-aprovacao')
+    toast('Álbum enviado pro cliente ✓')
+    registrarAuditoria('enviou álbum pra aprovação (Digipix)', 'album_projects', data.id, data.nome)
+    await abrirAlbumEditor(data.id)
+  } finally { _albumEnviandoAprovacao = false }
 }
 
 // lista fixa — mesmo espírito de outros seletores fechados do app
@@ -16584,11 +16669,17 @@ async function abrirAlbumEditor(projetoId) {
   store.albumSpreads = spreads || []
   _albumEditorFotosEvento = _ordenarGrupoFotos(fotos || [])
 
+  const rotuloStatus = { rascunho: 'Rascunho', em_diagramacao: 'Em diagramação', em_aprovacao: 'Aguardando o cliente', aprovado: 'Aprovado ✓', enviado_impressao: 'Enviado pra impressão' }
+  const podeEnviarAprovacao = ['rascunho', 'em_diagramacao'].includes(projeto.status)
   wrap.innerHTML = `
-    <div class="section-h"><h2>${esc(projeto.nome)}</h2><button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button></div>
+    <div class="section-h">
+      <h2>${esc(projeto.nome)} <span class="meta" style="font-weight:400;">— ${rotuloStatus[projeto.status] || projeto.status}</span></h2>
+      <button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button>
+    </div>
     <div class="album-toolbar">
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
       <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
+      ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
       <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
         <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
         <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
@@ -16609,6 +16700,8 @@ async function abrirAlbumEditor(projetoId) {
       <div>
         <div class="meta" style="margin-bottom:8px;">Fotos do evento — arraste pra lâmina</div>
         <div class="album-fotos-painel" id="album-fotos-painel"></div>
+        <div class="meta" style="margin:14px 0 6px;">💬 Comentários do cliente nesta lâmina</div>
+        <div id="album-comentarios-admin" style="max-height:180px;overflow-y:auto;"></div>
       </div>
     </div>`
 
@@ -16645,26 +16738,35 @@ function renderAlbumSpreadsTira() {
     + `<div class="album-spread-thumb add" onclick="_albumCriarSpread()" title="Nova lâmina">+</div>`
 }
 
+let _albumApagandoSpread = false
 async function _albumApagarSpread(spreadId) {
-  const temElementos = store.albumElements.some(e => e.spread_id === spreadId)
-  const idx = store.albumSpreads.findIndex(s => s.id === spreadId) + 1
-  const msg = temElementos
-    ? `Apagar a Lâmina ${idx}? As fotos já colocadas nela também somem — não dá pra desfazer.`
-    : `Apagar a Lâmina ${idx}?`
-  if (!await confirmModal(msg, { titulo: 'Remover lâmina', okLabel: 'Apagar', danger: true })) return
-  const { error } = await db.from('album_spreads').delete().eq('id', spreadId)
-  if (error) { toast('Erro ao apagar lâmina: ' + error.message); return }
-  store.albumSpreads = store.albumSpreads.filter(s => s.id !== spreadId)
-  store.albumElements = store.albumElements.filter(e => e.spread_id !== spreadId)
-  if (_albumEditorSpreadAtual?.id === spreadId) {
-    _albumEditorSpreadAtual = null
-    _albumEditorSelId = null
-    document.getElementById('album-editor-shell').style.display = 'none'
-    document.getElementById('album-btn-salvar-preset').disabled = true
-  }
-  renderAlbumSpreadsTira()
-  toast('Lâmina removida ✓')
-  if (store.albumSpreads.length && !_albumEditorSpreadAtual) await abrirAlbumSpread(store.albumSpreads[0].id)
+  // mesmo achado da revisão de _albumClienteAprovar: trava ANTES do
+  // confirmModal (não só antes da chamada ao banco), senão 2 cliques
+  // quase simultâneos nos "✕" de lâminas diferentes passam os dois
+  // pela confirmação antes da trava impedir qualquer coisa.
+  if (_albumApagandoSpread) return
+  _albumApagandoSpread = true
+  try {
+    const temElementos = store.albumElements.some(e => e.spread_id === spreadId)
+    const idx = store.albumSpreads.findIndex(s => s.id === spreadId) + 1
+    const msg = temElementos
+      ? `Apagar a Lâmina ${idx}? As fotos já colocadas nela também somem — não dá pra desfazer.`
+      : `Apagar a Lâmina ${idx}?`
+    if (!await confirmModal(msg, { titulo: 'Remover lâmina', okLabel: 'Apagar', danger: true })) return
+    const { error } = await db.from('album_spreads').delete().eq('id', spreadId)
+    if (error) { toast('Erro ao apagar lâmina: ' + error.message); return }
+    store.albumSpreads = store.albumSpreads.filter(s => s.id !== spreadId)
+    store.albumElements = store.albumElements.filter(e => e.spread_id !== spreadId)
+    if (_albumEditorSpreadAtual?.id === spreadId) {
+      _albumEditorSpreadAtual = null
+      _albumEditorSelId = null
+      document.getElementById('album-editor-shell').style.display = 'none'
+      document.getElementById('album-btn-salvar-preset').disabled = true
+    }
+    renderAlbumSpreadsTira()
+    toast('Lâmina removida ✓')
+    if (store.albumSpreads.length && !_albumEditorSpreadAtual) await abrirAlbumSpread(store.albumSpreads[0].id)
+  } finally { _albumApagandoSpread = false }
 }
 
 let _albumCriandoSpread = false
@@ -16695,6 +16797,21 @@ async function abrirAlbumSpread(spreadId) {
   if (error) { toast('Erro ao carregar lâmina: ' + error.message); return }
   store.albumElements = data || []
   renderAlbumCanvas()
+  _albumCarregarComentariosAdmin(spreadId)
+}
+
+async function _albumCarregarComentariosAdmin(spreadId) {
+  const el = document.getElementById('album-comentarios-admin')
+  if (!el) return
+  const { data, error } = await db.from('album_comentarios').select('*, perfis(nome)').eq('spread_id', spreadId).order('criado_em')
+  if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar os comentários</div>'; return }
+  if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário nesta lâmina ainda.</div>'; return }
+  el.innerHTML = data.map(c => `
+    <div style="padding:6px 0;border-bottom:1px solid rgba(200,175,127,.15);">
+      <div style="font-size:12px;color:var(--ouro-luz);">${esc(c.perfis?.nome || 'Cliente')}</div>
+      <div style="font-size:13px;">${esc(c.texto)}</div>
+      <div class="meta" style="font-size:10.5px;">${fmtDataHora(c.criado_em)}</div>
+    </div>`).join('')
 }
 
 function _albumElementosDaSpreadAtual() {
@@ -17069,6 +17186,278 @@ async function _albumSalvarComoPreset() {
   if (error) { toast('Erro ao salvar modelo: ' + error.message); return }
   _albumFecharCampoPreset()
   toast('Modelo salvo ✓')
+}
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO DIGIPIX — Passo 2: portal de aprovação do cliente. O
+// cliente é o responsável já logado (não é link público novo, ver
+// system_rules/plano) — só ENXERGA o próprio álbum (RLS somada à do
+// admin) e só ESCREVE via RPC (album_trocar_foto/album_aprovar,
+// 075_digipix_portal_cliente.sql) — nunca update direto, porque as
+// duas ações têm regra de negócio real que uma policy simples não
+// valida (foto tem que ser do mesmo evento e já visível pra ele; não
+// dá pra trocar depois de aprovado; não dá pra aprovar 2x).
+// ══════════════════════════════════════════════════════════════
+let _albumClienteProjeto = null
+let _albumClienteSpreads = []
+let _albumClienteElementos = []
+let _albumClienteTemplate = null
+let _albumClienteFotosDisponiveis = []
+let _albumClienteIndice = 0
+let _albumFlipAnimando = false
+
+// best-effort, chamado no login — não deve travar nem atrasar o
+// login de responsável nenhum (a maioria não tem álbum nenhum ainda).
+async function _albumClienteVerificarTab() {
+  const tab = document.getElementById('tab-meualbum')
+  if (!tab) return
+  const { data, error } = await db.from('album_projects').select('id').eq('cliente_user_id', currentUser.id).in('status', ['em_aprovacao', 'aprovado']).limit(1)
+  if (error) { console.error('Digipix: falha ao checar álbum do cliente', error.message); return }
+  tab.style.display = data?.length ? 'flex' : 'none'
+}
+
+async function iniciarAlbumCliente() {
+  const wrap = document.getElementById('album-cliente-wrap')
+  if (!wrap) return
+  wrap.innerHTML = '<div class="empty">Carregando…</div>'
+  const { data: projetos, error } = await db.from('album_projects').select('*, album_templates(*)').eq('cliente_user_id', currentUser.id).in('status', ['em_aprovacao', 'aprovado']).order('atualizado_em', { ascending: false })
+  if (error) { wrap.innerHTML = '<div class="empty">Não foi possível carregar seu álbum agora.</div>'; return }
+  if (!projetos?.length) { wrap.innerHTML = '<div class="empty">Nenhum álbum disponível pra você no momento.</div>'; return }
+  // 1 álbum por vez — mais de um filho com álbum simultâneo mostra o
+  // mais recente por ora; múltiplos álbuns ao mesmo tempo é raro o
+  // bastante pra não travar o Passo 2 por causa disso.
+  _albumClienteProjeto = projetos[0]
+  _albumClienteTemplate = _albumClienteProjeto.album_templates
+  _albumClienteIndice = 0
+
+  const { data: spreads, error: e1 } = await db.from('album_spreads').select('*').eq('project_id', _albumClienteProjeto.id).order('spread_index')
+  if (e1) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as lâminas.</div>'; return }
+  _albumClienteSpreads = spreads || []
+  if (!_albumClienteSpreads.length) { wrap.innerHTML = '<div class="empty">Este álbum ainda não tem lâminas prontas.</div>'; return }
+
+  const [{ data: elementos, error: e2 }, { data: fotos, error: e3 }] = await Promise.all([
+    db.from('album_elements').select('*').in('spread_id', _albumClienteSpreads.map(s => s.id)),
+    db.from('fotos').select('*').eq('evento_id', _albumClienteProjeto.evento_id),
+  ])
+  if (e2 || e3) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as fotos.</div>'; return }
+  _albumClienteElementos = elementos || []
+  _albumClienteFotosDisponiveis = fotos || []
+
+  renderAlbumClienteShell()
+}
+
+function renderAlbumClienteShell() {
+  const wrap = document.getElementById('album-cliente-wrap')
+  const p = _albumClienteProjeto
+  wrap.innerHTML = `
+    <div class="section-h"><h2>${esc(p.nome)}</h2></div>
+    <div class="meta" style="margin-bottom:14px;">${p.status === 'aprovado' ? `Aprovado em ${fmtDataHora(p.aprovado_em)} ✓` : 'Confira as lâminas, toque numa foto pra trocar por outra sua, ou deixe um comentário pedindo ajuste.'}</div>
+    <div class="album-flip-nav">
+      <button class="btn btn-sm" id="album-cliente-prev" onclick="_albumClienteVirar(-1)">‹ Anterior</button>
+      <span class="meta" id="album-cliente-contador"></span>
+      <button class="btn btn-sm" id="album-cliente-next" onclick="_albumClienteVirar(1)">Próxima ›</button>
+    </div>
+    <div class="album-flip-wrap">
+      <div class="album-flip-page" id="album-flip-page"></div>
+    </div>
+    <div class="album-cliente-comentarios">
+      <div class="meta" style="margin:14px 0 6px;">💬 Comentários nesta lâmina</div>
+      <div id="album-cliente-comentarios-lista"></div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <input type="text" id="album-cliente-comentario-input" placeholder="Pedir um ajuste ao fotógrafo…" style="flex:1;" onkeydown="if(event.key==='Enter')_albumClienteEnviarComentario()">
+        <button class="btn btn-sm btn-primary" onclick="_albumClienteEnviarComentario()">Enviar</button>
+      </div>
+    </div>
+    ${p.status === 'em_aprovacao' ? `<button class="btn btn-primary" style="margin-top:20px;width:100%;" onclick="_albumClienteAprovar()">✓ Aprovar Álbum para Impressão</button>` : ''}
+  `
+  renderAlbumClienteSpread()
+}
+
+function _albumClienteSpreadAtual() { return _albumClienteSpreads[_albumClienteIndice] }
+
+function renderAlbumClienteSpread() {
+  const spread = _albumClienteSpreadAtual()
+  const t = _albumClienteTemplate
+  const page = document.getElementById('album-flip-page')
+  if (!page || !spread || !t) return
+  page.style.aspectRatio = `${t.largura_aberta_mm} / ${t.altura_aberta_mm}`
+  const elementos = _albumClienteElementos.filter(e => e.spread_id === spread.id).sort((a, b) => a.z_index - b.z_index)
+  page.innerHTML = elementos.map(el => _albumClienteElementoHTML(el)).join('')
+  _albumClienteHidratarFotos()
+  const contador = document.getElementById('album-cliente-contador')
+  if (contador) contador.textContent = `Lâmina ${_albumClienteIndice + 1} de ${_albumClienteSpreads.length}`
+  const prevBtn = document.getElementById('album-cliente-prev')
+  const nextBtn = document.getElementById('album-cliente-next')
+  if (prevBtn) prevBtn.disabled = _albumClienteIndice === 0
+  if (nextBtn) nextBtn.disabled = _albumClienteIndice === _albumClienteSpreads.length - 1
+  _albumClienteCarregarComentarios(spread.id)
+}
+
+function _albumClienteElementoHTML(el) {
+  const t = _albumClienteTemplate
+  const foto = _albumClienteFotosDisponiveis.find(f => f.id === el.foto_id)
+  const leftPct = (el.x / t.largura_aberta_mm) * 100
+  const topPct = (el.y / t.altura_aberta_mm) * 100
+  const wPct = (el.width / t.largura_aberta_mm) * 100
+  const hPct = (el.height / t.altura_aberta_mm) * 100
+  const src = foto ? (_imgCache(_fotoPreviewPath(foto)) || '') : ''
+  const podeTrocar = _albumClienteProjeto.status === 'em_aprovacao'
+  return `
+    <div class="album-el-cliente${podeTrocar ? ' trocavel' : ''}" data-el-id="${el.id}" data-foto-path="${foto ? esc(_fotoPreviewPath(foto)) : ''}"
+         style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};"
+         ${podeTrocar ? `onclick="_albumClienteAbrirTroca('${el.id}')"` : ''}>
+      <div class="album-el-img-wrap">
+        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">` : ''}
+      </div>
+      ${podeTrocar ? '<div class="album-el-trocar-dica">Trocar foto</div>' : ''}
+    </div>`
+}
+function _albumClienteHidratarFotos() {
+  document.querySelectorAll('#album-flip-page .album-el-cliente img').forEach(img => {
+    const path = img.closest('.album-el-cliente')?.dataset.fotoPath
+    if (path && !img.src) _hidratarPathImg(img, path)
+  })
+}
+
+// vira a lâmina com uma animação simples de "flip" 3D (CSS puro,
+// rotateY) — sem lib de terceiro nenhuma, mesmo espírito do resto do
+// app (canvas de thumb, lightbox, drag de reposicionar são todos
+// caseiros). Dupla requestAnimationFrame força o navegador a aplicar
+// o estado "virado" ANTES de animar de volta pro neutro — sem isso o
+// navegador otimiza as duas mudanças de estilo numa só e a página só
+// "pula" pro final, sem parecer um flip de verdade.
+function _albumClienteVirar(direcao) {
+  if (_albumFlipAnimando) return
+  const novoIndice = _albumClienteIndice + direcao
+  if (novoIndice < 0 || novoIndice >= _albumClienteSpreads.length) return
+  _albumFlipAnimando = true
+  // achado real testando (não teórico): se a aba fica em segundo plano
+  // no meio do flip (usuário troca de app no celular, minimiza),
+  // requestAnimationFrame é PAUSADO indefinidamente pelo navegador até
+  // a aba voltar a ficar visível — travava o botão de virar página pra
+  // sempre, sem erro nenhum. Trocado o "force reflow" de duplo rAF por
+  // leitura síncrona de offsetHeight (mesmo efeito de comprometer o
+  // estado antes da transição seguinte, mas funciona igual com a aba
+  // visível ou não). setTimeout também é sujeito a throttle em segundo
+  // plano, mas nunca PAUSA de vez — pior caso é uma animação atrasada,
+  // nunca travada; e o timer de segurança abaixo garante um limite
+  // absoluto de qualquer forma.
+  const seguranca = setTimeout(() => { _albumFlipAnimando = false }, 2000)
+  const page = document.getElementById('album-flip-page')
+  page.style.transition = 'transform .35s ease-in, opacity .35s ease-in'
+  page.style.transform = `rotateY(${direcao > 0 ? -80 : 80}deg)`
+  page.style.opacity = '0'
+  setTimeout(() => {
+    _albumClienteIndice = novoIndice
+    renderAlbumClienteSpread()
+    const page2 = document.getElementById('album-flip-page')
+    page2.style.transition = 'none'
+    page2.style.transform = `rotateY(${direcao > 0 ? 80 : -80}deg)`
+    page2.style.opacity = '0'
+    void page2.offsetHeight // força o navegador a "comprometer" esse estado antes da transição seguinte (reflow síncrono)
+    page2.style.transition = 'transform .35s ease-out, opacity .35s ease-out'
+    page2.style.transform = 'rotateY(0deg)'
+    page2.style.opacity = '1'
+    setTimeout(() => { clearTimeout(seguranca); _albumFlipAnimando = false }, 370)
+  }, 360)
+}
+
+// swipe pra virar (touch/mouse, Pointer Events — mesmo mecanismo já
+// generalizado no Passo 1) — guarda de distância mínima (>40px)
+// separa "foi swipe" de "foi clique numa foto pra trocar", senão
+// arrastar pra virar a página também abriria o modal de troca da foto
+// onde o dedo/mouse começou.
+let _albumClienteSwipe = null
+let _albumClienteUltimoGestoFoiSwipe = false
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('#album-flip-page')) return
+  _albumClienteSwipe = { startX: e.clientX, startY: e.clientY }
+})
+document.addEventListener('pointerup', e => {
+  if (!_albumClienteSwipe) return
+  const dx = e.clientX - _albumClienteSwipe.startX
+  const dy = e.clientY - _albumClienteSwipe.startY
+  _albumClienteSwipe = null
+  if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) { _albumClienteUltimoGestoFoiSwipe = false; return }
+  _albumClienteUltimoGestoFoiSwipe = true
+  _albumClienteVirar(dx < 0 ? 1 : -1)
+})
+
+let _albumClienteTrocandoElId = null
+function _albumClienteAbrirTroca(elementId) {
+  if (_albumClienteUltimoGestoFoiSwipe) { _albumClienteUltimoGestoFoiSwipe = false; return }
+  if (!_albumClienteFotosDisponiveis.length) { toast('Não encontramos outras fotos suas neste álbum'); return }
+  _albumClienteTrocandoElId = elementId
+  const grid = document.getElementById('album-cliente-troca-grid')
+  grid.innerHTML = _albumClienteFotosDisponiveis.map(f => `
+    <div class="album-foto-mini" onclick="_albumClienteConfirmarTroca('${f.id}')">${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}</div>`).join('')
+  _hidratarImgCache(grid)
+  abrirModal('modal-album-cliente-troca')
+}
+let _albumClienteTrocando = false
+async function _albumClienteConfirmarTroca(novaFotoId) {
+  if (_albumClienteTrocando) return
+  _albumClienteTrocando = true
+  try {
+    const { error } = await db.rpc('album_trocar_foto', { p_element_id: _albumClienteTrocandoElId, p_novo_foto_id: novaFotoId })
+    if (error) { toast('Erro ao trocar foto: ' + error.message); return }
+    const el = _albumClienteElementos.find(e => e.id === _albumClienteTrocandoElId)
+    if (el) el.foto_id = novaFotoId
+    fecharModal('modal-album-cliente-troca')
+    renderAlbumClienteSpread()
+    toast('Foto trocada ✓')
+  } finally { _albumClienteTrocando = false }
+}
+
+async function _albumClienteCarregarComentarios(spreadId) {
+  const el = document.getElementById('album-cliente-comentarios-lista')
+  if (!el) return
+  const { data, error } = await db.from('album_comentarios').select('*').eq('spread_id', spreadId).order('criado_em')
+  if (error) { el.innerHTML = '<div class="meta">Não foi possível carregar</div>'; return }
+  if (!data?.length) { el.innerHTML = '<div class="meta">Nenhum comentário ainda nesta lâmina.</div>'; return }
+  el.innerHTML = data.map(c => `
+    <div style="padding:6px 0;border-bottom:1px solid rgba(200,175,127,.15);">
+      <div style="font-size:13px;">${esc(c.texto)}</div>
+      <div class="meta" style="font-size:10.5px;">${fmtDataHora(c.criado_em)}</div>
+    </div>`).join('')
+}
+let _albumClienteEnviandoComentario = false
+async function _albumClienteEnviarComentario() {
+  if (_albumClienteEnviandoComentario) return
+  const input = document.getElementById('album-cliente-comentario-input')
+  const texto = input.value.trim()
+  if (!texto) { toast('Escreva o comentário antes de enviar'); return }
+  const spread = _albumClienteSpreadAtual()
+  if (!spread) return
+  _albumClienteEnviandoComentario = true
+  try {
+    const { error } = await db.from('album_comentarios').insert({ spread_id: spread.id, autor_user_id: currentUser.id, texto })
+    if (error) { toast('Erro ao enviar comentário: ' + error.message); return }
+    input.value = ''
+    _albumClienteCarregarComentarios(spread.id)
+    toast('Comentário enviado ✓')
+  } finally { _albumClienteEnviandoComentario = false }
+}
+
+let _albumClienteAprovando = false
+async function _albumClienteAprovar() {
+  // achado na revisão: a trava contra clique duplo estava DEPOIS do
+  // confirmModal (só protegia a chamada ao RPC, não o diálogo em si)
+  // — 2 cliques quase simultâneos passavam os dois pela confirmação
+  // antes da trava existir. Setar a trava ANTES de qualquer await
+  // (mesmo o do próprio diálogo) é o que garante bloquear o segundo
+  // clique de verdade, testado com Promise.all das duas chamadas.
+  if (_albumClienteAprovando) return
+  _albumClienteAprovando = true
+  try {
+    if (!await confirmModal('Depois de aprovar, você não vai poder mais trocar fotos sozinho — só deixar comentário pedindo ajuste. Tem certeza?', { titulo: 'Aprovar álbum pra impressão', okLabel: 'Aprovar', danger: false })) return
+    const { error } = await db.rpc('album_aprovar', { p_project_id: _albumClienteProjeto.id })
+    if (error) { toast('Erro ao aprovar: ' + error.message); return }
+    _albumClienteProjeto.status = 'aprovado'
+    _albumClienteProjeto.aprovado_em = new Date().toISOString()
+    renderAlbumClienteShell()
+    toast('Álbum aprovado ✓ Obrigado!')
+  } finally { _albumClienteAprovando = false }
 }
 
 // ── boot ────────────────────────────────────────────────────────
