@@ -16907,6 +16907,16 @@ function _albumFotoDragStart(e, fotoId) {
   _albumFotoArrastandoId = fotoId
   e.dataTransfer.effectAllowed = 'copy'
 }
+// achado testando cancelamento de arrasto: soltar fora de qualquer
+// área válida (ou apertar Esc no meio do arrasto) dispara "dragend" no
+// elemento de origem, mas NUNCA dispara "drop" em lugar nenhum — sem
+// ouvir esse evento, _albumFotoArrastandoId ficava preso com o id da
+// foto CANCELADA. Provado na prática: nesse estado, arrastar QUALQUER
+// arquivo do computador (sem relação nenhuma) pra cima do canvas
+// criava um elemento com a foto ERRADA (a antiga, presa), porque o
+// handler de "drop" só olha pra esse id preso, nunca o que foi
+// realmente solto.
+document.addEventListener('dragend', () => { _albumFotoArrastandoId = null })
 
 function renderAlbumSpreadsTira() {
   const el = document.getElementById('album-spreads-tira')
@@ -17124,6 +17134,11 @@ document.addEventListener('drop', async e => {
   if (!_albumFotoArrastandoId) return
   const canvas = e.target.closest('#album-canvas-wrap')
   if (!canvas) return
+  // 2ª camada de defesa (além do reset em "dragend" acima): um arrasto
+  // de arquivo de verdade (do sistema operacional) sempre carrega
+  // e.dataTransfer.files — o arrasto interno de foto do painel nunca
+  // usa isso. Rejeita explicitamente em vez de confiar só no estado.
+  if (e.dataTransfer?.files?.length) { _albumFotoArrastandoId = null; return }
   e.preventDefault()
   const fotoId = _albumFotoArrastandoId
   _albumFotoArrastandoId = null
