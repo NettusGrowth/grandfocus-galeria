@@ -16566,7 +16566,46 @@ function renderAlbumProjetos() {
         <div class="meta">${esc(p.eventos?.nome || '—')} · ${esc(p.album_templates?.nome || '—')}</div>
       </div>
       <span class="badge" style="${_albumStatusBadgeStyle(p.status)}">${rotuloStatus[p.status] || p.status}</span>
+      <div class="icon-btn danger" title="Apagar álbum" onclick="event.stopPropagation();_albumApagarProjeto('${p.id}')">${ICON_LIXEIRA}</div>
     </div>`).join('')
+}
+
+// achado: não existia NENHUM jeito de apagar um álbum Digipix criado
+// por engano (nome errado, evento errado, teste) — ficava preso na
+// lista pra sempre. Mesmo padrão de excluirEvento (aviso reforçado se
+// já estiver com o cliente/aprovado/enviado pra impressão, já que
+// nesses casos a família pode já estar contando com aquele álbum).
+// album_spreads/elements/comentarios já são "on delete cascade" desde
+// 074/075 — apagar o projeto limpa tudo sozinho, sem query extra.
+let _albumApagandoProjeto = false
+async function _albumApagarProjeto(id) {
+  // achado testando o próprio fix: se a trava só é setada DEPOIS do
+  // confirmModal, 2 cliques quase simultâneos no ✕ passam os dois pela
+  // confirmação antes de qualquer um travar o outro (2 diálogos na
+  // tela) — mesmo TOCTOU já corrigido em _albumClienteAprovar/
+  // _albumApagarSpread nesta mesma sessão. Setar ANTES do primeiro
+  // await (mesmo o do próprio diálogo) é o que garante bloquear de
+  // verdade o segundo clique.
+  if (_albumApagandoProjeto) return
+  _albumApagandoProjeto = true
+  try {
+    const p = store.albumProjects.find(x => x.id === id)
+    if (!p) return
+    let msg = `Apagar o álbum "${p.nome}" permanentemente? Todas as lâminas, fotos posicionadas e comentários dele somem junto — não dá pra desfazer.`
+    if (['em_aprovacao', 'aprovado', 'enviado_impressao'].includes(p.status)) {
+      msg += p.status === 'em_aprovacao'
+        ? '\n\n⚠ Este álbum já está com o cliente aguardando aprovação — apagar agora tira o acesso dele sem aviso nenhum.'
+        : '\n\n⚠ Este álbum já foi aprovado pelo cliente (ou já foi enviado pra impressão) — tem certeza que não é melhor só arquivar?'
+    }
+    const ok = await confirmModal(msg, { titulo: 'Apagar álbum', okLabel: 'Apagar', danger: true })
+    if (!ok) return
+    const { error } = await db.from('album_projects').delete().eq('id', id)
+    if (error) { toast('Erro ao apagar: ' + error.message); return }
+    store.albumProjects = store.albumProjects.filter(x => x.id !== id)
+    renderAlbumProjetos()
+    toast('Álbum apagado ✓')
+    registrarAuditoria('apagou álbum (Digipix)', 'album_projects', id, p.nome)
+  } finally { _albumApagandoProjeto = false }
 }
 
 function abrirModalAlbumProjeto() {
