@@ -1679,6 +1679,23 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-snap-linha{position:absolute;background:#ff3b6f;pointer-events:none;z-index:600;box-shadow:0 0 4px rgba(255,59,111,.8);}
 .album-snap-linha.v{width:1px;top:0;bottom:0;}
 .album-snap-linha.h{height:1px;left:0;right:0;}
+/* biblioteca de layouts (Fase 2) — grid de cards com preview em
+   miniatura (retângulos de verdade na mesma proporção relativa do
+   layout, não só um ícone genérico) + filtro por quantidade de fotos. */
+.album-layouts-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;}
+.album-layouts-filtros button{padding:4px 10px;border-radius:99px;border:1px solid rgba(200,175,127,.3);background:rgba(255,255,255,.03);color:#B39F86;font-size:12px;cursor:pointer;}
+.album-layouts-filtros button.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);font-weight:600;}
+.album-layouts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px;max-height:52vh;overflow-y:auto;padding-right:4px;}
+.album-layout-card{cursor:pointer;border:1px solid rgba(200,175,127,.2);border-radius:8px;padding:6px;background:rgba(255,255,255,.02);position:relative;}
+.album-layout-card:hover{border-color:var(--dourado);background:rgba(212,175,55,.08);}
+.album-layout-preview{position:relative;width:100%;aspect-ratio:4/3;background:#0d0508;border-radius:4px;overflow:hidden;margin-bottom:5px;}
+.album-layout-preview span{position:absolute;background:rgba(212,175,55,.55);border:1px solid rgba(212,175,55,.9);border-radius:1px;}
+.album-layout-card .rotulo{font-size:10px;color:#B39F86;line-height:1.25;text-align:center;}
+.album-layout-card .apagar-modelo{position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:rgba(20,4,8,.92);border:1px solid rgba(200,175,127,.4);display:flex;align-items:center;justify-content:center;font-size:11px;color:#DBC9A8;line-height:1;}
+.album-layout-card .apagar-modelo:hover{border-color:var(--vermelho);color:var(--vermelho);}
+.album-layouts-tabs{display:flex;gap:8px;margin-bottom:10px;border-bottom:1px solid rgba(200,175,127,.2);}
+.album-layouts-tabs button{padding:8px 4px;background:none;border:none;border-bottom:2px solid transparent;color:#B39F86;font-size:13px;cursor:pointer;}
+.album-layouts-tabs button.on{color:var(--ouro-luz);border-bottom-color:var(--dourado);font-weight:600;}
 /* Passo 4: 14px/12px é preciso demais pro dedo — achado testando com
    viewport de tablet, quase impossível acertar o handle certo sem
    zoom. Aumentado pra ~28px (ainda bem menor que os 44px de botão
@@ -2924,6 +2941,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-album-aprovacao')">Cancelar</button>
       <button class="btn btn-primary btn-sm" onclick="_albumEnviarParaAprovacao()">Enviar</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal: Digipix — biblioteca de layouts (Fase 2) -->
+<div class="modal-overlay" id="modal-album-layouts">
+  <div class="modal" style="max-width:640px;">
+    <h3 style="margin-bottom:10px;">Escolher layout da lâmina</h3>
+    <div class="album-layouts-tabs">
+      <button class="on" id="albly-tab-prontos" onclick="_albumLayoutsMudarAba('prontos')">🎨 Layouts prontos</button>
+      <button id="albly-tab-salvos" onclick="_albumLayoutsMudarAba('salvos')">💾 Meus modelos salvos</button>
+    </div>
+    <div id="albly-filtros" class="album-layouts-filtros"></div>
+    <div id="albly-grid" class="album-layouts-grid"></div>
+    <div class="modal-actions">
+      <button class="btn btn-sm" onclick="fecharModal('modal-album-layouts')">Fechar</button>
     </div>
   </div>
 </div>
@@ -16766,7 +16799,38 @@ function renderAlbumTemplatesLista() {
         <div class="nome">${esc(t.nome)}</div>
         <div class="meta">${t.largura_aberta_mm}×${t.altura_aberta_mm}mm aberto · ${t.dpi_alvo} DPI · ${t.tipo_dobra === 'layflat' ? 'Layflat' : 'Vinco'}</div>
       </div>
+      <div class="icon-btn danger" title="Apagar modelo" onclick="event.stopPropagation();_albumApagarTemplate('${t.id}')">${ICON_LIXEIRA}</div>
     </div>`).join('')
+}
+
+// achado: "hoje não da pra apagar modelo de albuns" (pedido explícito
+// do Luiz) — igual ao que já achamos pra álbum/projeto, um MODELO
+// (dimensões/sangria/DPI/etc) criado por engano também ficava preso
+// pra sempre. album_projects.album_template_id é "on delete restrict"
+// (074_digipix_editor.sql) de propósito — apagar um modelo em uso
+// derrubaria a referência de álbuns já montados com ele, então o
+// banco REJEITA isso sozinho; checar antes e avisar direito em vez de
+// deixar o admin ver um erro de SQL cru sem explicação.
+let _albumApagandoTemplate = false
+async function _albumApagarTemplate(id) {
+  if (_albumApagandoTemplate) return
+  _albumApagandoTemplate = true
+  try {
+    const t = store.albumTemplates.find(x => x.id === id)
+    if (!t) return
+    const usando = store.albumProjects.filter(p => p.album_template_id === id)
+    if (usando.length) {
+      toast(`Não dá pra apagar — ${usando.length} álbum(ns) usa(m) este modelo: ${usando.map(p => p.nome).join(', ')}. Apague (ou troque o modelo desses álbuns) primeiro.`)
+      return
+    }
+    if (!await confirmModal(`Apagar o modelo "${t.nome}" permanentemente? Não afeta nenhum álbum (nenhum usa este modelo hoje).`, { titulo: 'Apagar modelo', okLabel: 'Apagar', danger: true })) return
+    const { error } = await db.from('album_templates').delete().eq('id', id)
+    if (error) { toast('Erro ao apagar modelo: ' + error.message); return }
+    store.albumTemplates = store.albumTemplates.filter(x => x.id !== id)
+    renderAlbumTemplatesLista()
+    toast('Modelo apagado ✓')
+    registrarAuditoria('apagou modelo de álbum (Digipix)', 'album_templates', id, t.nome)
+  } finally { _albumApagandoTemplate = false }
 }
 
 function _albumTemplateNovoForm() {
@@ -16959,8 +17023,8 @@ async function abrirAlbumEditor(projetoId) {
     </div>
     <div class="album-toolbar">
       <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
-      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo reutilizável</button>
-      <button class="btn btn-sm" onclick="_albumAbrirUsarPreset()">📥 Usar modelo salvo</button>
+      <button class="btn btn-sm" onclick="_albumAbrirLayouts()">🎨 Escolher layout</button>
+      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo</button>
       <span class="album-toolbar-divisor" aria-hidden="true"></span>
       ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
       <button class="btn btn-sm" onclick="abrirExportacaoAlbum()">🖨 Exportar pra impressão</button>
@@ -16968,11 +17032,6 @@ async function abrirAlbumEditor(projetoId) {
         <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
         <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
         <button class="btn btn-sm" onclick="_albumFecharCampoPreset()">Cancelar</button>
-      </span>
-      <span id="album-usar-preset-campo" style="display:none;gap:6px;align-items:center;">
-        <select id="album-usar-preset-select" style="max-width:200px;"></select>
-        <button class="btn btn-sm btn-primary" onclick="_albumAplicarPreset()">Aplicar</button>
-        <button class="btn btn-sm" onclick="_albumFecharUsarPreset()">Cancelar</button>
       </span>
     </div>
     <div class="album-spreads-tira" id="album-spreads-tira"></div>
@@ -17322,6 +17381,27 @@ document.addEventListener('drop', async e => {
   _albumFotoArrastandoId = null
   const foto = _albumEditorFotosEvento.find(f => f.id === fotoId)
   if (!foto || !_albumEditorSpreadAtual) return
+  // Fase 2 (pedido do Luiz): "escolher quais fotos vão ocupar cada
+  // parte" de um layout — soltar uma foto do painel EM CIMA de um
+  // elemento que já existe TROCA a foto dele no lugar (mesma posição/
+  // tamanho/rotação), em vez de empilhar um elemento novo por cima.
+  // Recorte (crop_x/y/scale) reseta pro padrão — o enquadramento
+  // salvo era da foto ANTIGA, não faz sentido pra uma foto diferente.
+  const elExistente = e.target.closest('.album-el')
+  if (elExistente) {
+    const elId = elExistente.dataset.elId
+    const el = store.albumElements.find(x => x.id === elId)
+    if (el) {
+      const fotoAnteriorId = el.foto_id
+      el.foto_id = fotoId
+      el.crop_x = 0; el.crop_y = 0; el.crop_scale = 1
+      renderAlbumCanvas()
+      const { error } = await db.from('album_elements').update({ foto_id: fotoId, crop_x: 0, crop_y: 0, crop_scale: 1 }).eq('id', elId)
+      if (error) { toast('Erro ao trocar foto: ' + error.message); el.foto_id = fotoAnteriorId; renderAlbumCanvas(); return }
+      toast('Foto trocada ✓')
+    }
+    return
+  }
   const t = _albumEditorTemplate
   const rect = canvas.getBoundingClientRect()
   // guarda real: canvas sem layout ainda (largura/altura 0 — aba
@@ -17844,6 +17924,174 @@ async function _albumSmartLayoutInterno() {
   renderAlbumCanvas()
 }
 
+// ══════════════════════════════════════════════════════════════
+// MÓDULO DIGIPIX — biblioteca de layouts prontos (Fase 2 do
+// redesign, pedido explícito do Luiz: "mais de 50 variações... todas
+// as formas que um profissional possa querer"). Mesmo formato
+// RELATIVO (xFr/yFr/wFr/hFr 0-1) já usado pelos modelos salvos pelo
+// próprio admin (_albumSalvarComoPreset) — os dois tipos usam a MESMA
+// função de aplicar (_albumAplicarLayout), só a origem dos dados
+// muda. Gerados por funções pequenas (grid/faixa/split/grande+resto)
+// em vez de digitados um por um — mais fácil de auditar/estender, e
+// evita erro de digitação em 50+ arrays de coordenadas.
+function _layGrid(cols, rows, gap) {
+  gap = gap ?? 0.02
+  const cellW = (1 - gap * (cols + 1)) / cols, cellH = (1 - gap * (rows + 1)) / rows
+  const est = []
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    est.push({ xFr: gap + c * (cellW + gap), yFr: gap + r * (cellH + gap), wFr: cellW, hFr: cellH, rotation: 0, z_index: r * cols + c })
+  }
+  return est
+}
+function _laySplitV(fracs, gap) { // colunas verticais lado a lado, larguras proporcionais a `fracs`
+  gap = gap ?? 0.02
+  const somaFracs = fracs.reduce((a, b) => a + b, 0)
+  const larguraUtil = 1 - gap * (fracs.length + 1)
+  let x = gap
+  return fracs.map((f, i) => {
+    const w = (f / somaFracs) * larguraUtil
+    const item = { xFr: x, yFr: gap, wFr: w, hFr: 1 - gap * 2, rotation: 0, z_index: i }
+    x += w + gap
+    return item
+  })
+}
+function _laySplitH(fracs, gap) { // faixas horizontais empilhadas, alturas proporcionais a `fracs`
+  gap = gap ?? 0.02
+  const somaFracs = fracs.reduce((a, b) => a + b, 0)
+  const alturaUtil = 1 - gap * (fracs.length + 1)
+  let y = gap
+  return fracs.map((f, i) => {
+    const h = (f / somaFracs) * alturaUtil
+    const item = { xFr: gap, yFr: y, wFr: 1 - gap * 2, hFr: h, rotation: 0, z_index: i }
+    y += h + gap
+    return item
+  })
+}
+// 1 foto grande num dos 4 lados + N fotos menores dividindo o resto
+// (empilhadas na direção perpendicular) — cobre a família mais comum
+// de "1 destaque + apoio" de álbum profissional.
+function _layGrandeMaisResto(lado, fracGrande, n, gap) {
+  gap = gap ?? 0.02
+  const est = []
+  if (lado === 'esquerda' || lado === 'direita') {
+    const wGrande = fracGrande - gap * 1.5, wResto = 1 - fracGrande - gap * 1.5
+    const xGrande = lado === 'esquerda' ? gap : 1 - gap - wGrande
+    const xResto = lado === 'esquerda' ? 1 - gap - wResto : gap
+    est.push({ xFr: xGrande, yFr: gap, wFr: wGrande, hFr: 1 - gap * 2, rotation: 0, z_index: 0 })
+    const hCada = (1 - gap * (n + 1)) / n
+    for (let i = 0; i < n; i++) est.push({ xFr: xResto, yFr: gap + i * (hCada + gap), wFr: wResto, hFr: hCada, rotation: 0, z_index: i + 1 })
+  } else {
+    const hGrande = fracGrande - gap * 1.5, hResto = 1 - fracGrande - gap * 1.5
+    const yGrande = lado === 'topo' ? gap : 1 - gap - hGrande
+    const yResto = lado === 'topo' ? 1 - gap - hResto : gap
+    est.push({ xFr: gap, yFr: yGrande, wFr: 1 - gap * 2, hFr: hGrande, rotation: 0, z_index: 0 })
+    const wCada = (1 - gap * (n + 1)) / n
+    for (let i = 0; i < n; i++) est.push({ xFr: gap + i * (wCada + gap), yFr: yResto, wFr: wCada, hFr: hResto, rotation: 0, z_index: i + 1 })
+  }
+  return est
+}
+// mosaico: 1 grande num canto (2x2) + 3 menores preenchendo o L que
+// sobra — visual mais "revista", diferente dos grids/splits uniformes.
+function _layMosaicoCanto(canto, gap) {
+  gap = gap ?? 0.02
+  // grande ocupa 60% num canto (2x2 "virtual"); as outras 3 preenchem
+  // o L que sobra — coluna estreita do lado oposto (mesma altura do
+  // grande) + 2 células menores dividindo a faixa de baixo.
+  const g = 0.6, p = 1 - g - gap * 3
+  const pMeio = (p - gap) / 2
+  const cantos = {
+    tl: [
+      { xFr: gap, yFr: gap, wFr: g, hFr: g },
+      { xFr: gap + g + gap, yFr: gap, wFr: p, hFr: g },
+      { xFr: gap, yFr: gap + g + gap, wFr: g, hFr: p },
+      { xFr: gap + g + gap, yFr: gap + g + gap, wFr: p, hFr: p },
+    ],
+    tr: [
+      { xFr: 1 - gap - g, yFr: gap, wFr: g, hFr: g },
+      { xFr: gap, yFr: gap, wFr: p, hFr: g },
+      { xFr: 1 - gap - g, yFr: gap + g + gap, wFr: g, hFr: p },
+      { xFr: gap, yFr: gap + g + gap, wFr: p, hFr: p },
+    ],
+  }
+  const base = cantos[canto] || cantos.tl
+  return base.map((b, i) => ({ ...b, rotation: 0, z_index: i }))
+}
+const ALBUM_LAYOUTS_PADRAO = [
+  // ── 1 foto ──
+  { nome: '1 · Sangria total', fotos: 1, estrutura: [{ xFr: 0, yFr: 0, wFr: 1, hFr: 1, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Margem fina', fotos: 1, estrutura: [{ xFr: 0.03, yFr: 0.03, wFr: 0.94, hFr: 0.94, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Moldura ampla', fotos: 1, estrutura: [{ xFr: 0.12, yFr: 0.08, wFr: 0.76, hFr: 0.84, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Metade esquerda', fotos: 1, estrutura: [{ xFr: 0.02, yFr: 0.02, wFr: 0.63, hFr: 0.96, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Metade direita', fotos: 1, estrutura: [{ xFr: 0.35, yFr: 0.02, wFr: 0.63, hFr: 0.96, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Faixa superior', fotos: 1, estrutura: [{ xFr: 0.02, yFr: 0.02, wFr: 0.96, hFr: 0.7, rotation: 0, z_index: 0 }] },
+  { nome: '1 · Faixa inferior', fotos: 1, estrutura: [{ xFr: 0.02, yFr: 0.28, wFr: 0.96, hFr: 0.7, rotation: 0, z_index: 0 }] },
+  // ── 2 fotos ──
+  { nome: '2 · Divisão igual (vertical)', fotos: 2, estrutura: _laySplitV([1, 1]) },
+  { nome: '2 · 60/40 (vertical)', fotos: 2, estrutura: _laySplitV([6, 4]) },
+  { nome: '2 · 40/60 (vertical)', fotos: 2, estrutura: _laySplitV([4, 6]) },
+  { nome: '2 · 70/30 (vertical)', fotos: 2, estrutura: _laySplitV([7, 3]) },
+  { nome: '2 · 30/70 (vertical)', fotos: 2, estrutura: _laySplitV([3, 7]) },
+  { nome: '2 · Divisão igual (horizontal)', fotos: 2, estrutura: _laySplitH([1, 1]) },
+  { nome: '2 · 60/40 (horizontal)', fotos: 2, estrutura: _laySplitH([6, 4]) },
+  { nome: '2 · 40/60 (horizontal)', fotos: 2, estrutura: _laySplitH([4, 6]) },
+  { nome: '2 · 70/30 (horizontal)', fotos: 2, estrutura: _laySplitH([7, 3]) },
+  { nome: '2 · 30/70 (horizontal)', fotos: 2, estrutura: _laySplitH([3, 7]) },
+  // ── 3 fotos ──
+  { nome: '3 · Grande esquerda + 2 empilhadas', fotos: 3, estrutura: _layGrandeMaisResto('esquerda', 0.6, 2) },
+  { nome: '3 · Grande direita + 2 empilhadas', fotos: 3, estrutura: _layGrandeMaisResto('direita', 0.6, 2) },
+  { nome: '3 · Grande topo + 2 lado a lado', fotos: 3, estrutura: _layGrandeMaisResto('topo', 0.6, 2) },
+  { nome: '3 · Grande embaixo + 2 lado a lado', fotos: 3, estrutura: _layGrandeMaisResto('baixo', 0.6, 2) },
+  { nome: '3 · Colunas iguais', fotos: 3, estrutura: _layGrid(3, 1) },
+  { nome: '3 · Faixas iguais', fotos: 3, estrutura: _layGrid(1, 3) },
+  { nome: '3 · Grande esquerda (70%) + 2 empilhadas', fotos: 3, estrutura: _layGrandeMaisResto('esquerda', 0.7, 2) },
+  { nome: '3 · Grande topo (70%) + 2 lado a lado', fotos: 3, estrutura: _layGrandeMaisResto('topo', 0.7, 2) },
+  { nome: '3 · Grande direita (70%) + 2 empilhadas', fotos: 3, estrutura: _layGrandeMaisResto('direita', 0.7, 2) },
+  { nome: '3 · Grande embaixo (70%) + 2 lado a lado', fotos: 3, estrutura: _layGrandeMaisResto('baixo', 0.7, 2) },
+  // ── 4 fotos ──
+  { nome: '4 · Grade 2×2', fotos: 4, estrutura: _layGrid(2, 2) },
+  { nome: '4 · Grande topo + 3 embaixo', fotos: 4, estrutura: _layGrandeMaisResto('topo', 0.55, 3) },
+  { nome: '4 · Grande embaixo + 3 em cima', fotos: 4, estrutura: _layGrandeMaisResto('baixo', 0.55, 3) },
+  { nome: '4 · Grande esquerda + 3 empilhadas', fotos: 4, estrutura: _layGrandeMaisResto('esquerda', 0.55, 3) },
+  { nome: '4 · Grande direita + 3 empilhadas', fotos: 4, estrutura: _layGrandeMaisResto('direita', 0.55, 3) },
+  { nome: '4 · Faixa (colunas)', fotos: 4, estrutura: _layGrid(4, 1) },
+  { nome: '4 · Faixa (linhas)', fotos: 4, estrutura: _layGrid(1, 4) },
+  { nome: '4 · Mosaico canto sup. esquerdo', fotos: 4, estrutura: _layMosaicoCanto('tl') },
+  { nome: '4 · Mosaico canto sup. direito', fotos: 4, estrutura: _layMosaicoCanto('tr') },
+  { nome: '4 · Grade 2×2 compacta', fotos: 4, estrutura: _layGrid(2, 2, 0.05) },
+  { nome: '4 · Grade 2×2 sangria total', fotos: 4, estrutura: _layGrid(2, 2, 0) },
+  // ── 5 fotos ──
+  { nome: '5 · 2 em cima + 3 embaixo', fotos: 5, estrutura: [..._laySplitV([1, 1]).map(e => ({ ...e, yFr: 0.02, hFr: 0.47 })), ..._laySplitV([1, 1, 1]).map((e, i) => ({ ...e, yFr: 0.51, hFr: 0.47, z_index: i + 2 }))] },
+  { nome: '5 · 3 em cima + 2 embaixo', fotos: 5, estrutura: [..._laySplitV([1, 1, 1]).map(e => ({ ...e, yFr: 0.02, hFr: 0.47 })), ..._laySplitV([1, 1]).map((e, i) => ({ ...e, yFr: 0.51, hFr: 0.47, z_index: i + 3 }))] },
+  { nome: '5 · Faixa (colunas)', fotos: 5, estrutura: _layGrid(5, 1) },
+  { nome: '5 · Faixa (linhas)', fotos: 5, estrutura: _layGrid(1, 5) },
+  { nome: '5 · Grande esquerda + grade 2×2', fotos: 5, estrutura: [{ xFr: 0.02, yFr: 0.02, wFr: 0.46, hFr: 0.96, rotation: 0, z_index: 0 }, ..._layGrid(2, 2).map((e, i) => ({ xFr: 0.5 + e.xFr * 0.48, yFr: e.yFr, wFr: e.wFr * 0.48, hFr: e.hFr, rotation: 0, z_index: i + 1 }))] },
+  // ── 6 fotos ──
+  { nome: '6 · Grade 3×2', fotos: 6, estrutura: _layGrid(3, 2) },
+  { nome: '6 · Grade 2×3', fotos: 6, estrutura: _layGrid(2, 3) },
+  { nome: '6 · Faixa (colunas)', fotos: 6, estrutura: _layGrid(6, 1) },
+  { nome: '6 · 2 grandes em cima + 4 pequenas embaixo', fotos: 6, estrutura: [..._laySplitV([1, 1]).map(e => ({ ...e, yFr: 0.02, hFr: 0.55 })), ..._layGrid(4, 1).map((e, i) => ({ ...e, yFr: 0.59, hFr: 0.39, z_index: i + 2 }))] },
+  { nome: '6 · Grade 3×2 compacta', fotos: 6, estrutura: _layGrid(3, 2, 0.05) },
+  // ── 7-8 fotos ──
+  { nome: '8 · Grade 4×2', fotos: 8, estrutura: _layGrid(4, 2) },
+  { nome: '8 · Grade 2×4', fotos: 8, estrutura: _layGrid(2, 4) },
+  { nome: '7 · Grande topo + 6 em grade embaixo', fotos: 7, estrutura: [{ xFr: 0.02, yFr: 0.02, wFr: 0.96, hFr: 0.45, rotation: 0, z_index: 0 }, ..._layGrid(3, 2).map((e, i) => ({ ...e, yFr: 0.49 + e.yFr * 0.49, hFr: e.hFr * 0.49, z_index: i + 1 }))] },
+  { nome: '8 · Faixa dupla (2 linhas de 4)', fotos: 8, estrutura: _layGrid(4, 2, 0.015) },
+  { nome: '9 · Grade 3×3', fotos: 9, estrutura: _layGrid(3, 3) },
+]
+// achado escrevendo a biblioteca: mais fácil dar mais um teto/piso
+// aqui do que confiar em cada gerador nunca errar a conta — trava de
+// segurança pra nunca aplicar um item fora de [0,1] (arredondamento
+// de fração acumulado nos splits podia, em teoria, passar de 1.0 por
+// uma fração de ponto flutuante).
+for (const layout of ALBUM_LAYOUTS_PADRAO) {
+  for (const item of layout.estrutura) {
+    item.xFr = Math.min(1, Math.max(0, item.xFr))
+    item.yFr = Math.min(1, Math.max(0, item.yFr))
+    item.wFr = Math.min(1 - item.xFr, Math.max(0.02, item.wFr))
+    item.hFr = Math.min(1 - item.yFr, Math.max(0.02, item.hFr))
+  }
+}
+
 // salva a lâmina ATUAL como preset reutilizável — posições RELATIVAS
 // (frações 0-1 da lâmina), pra funcionar em qualquer outro
 // projeto/modelo depois, não só neste tamanho de lâmina exato.
@@ -17891,37 +18139,88 @@ async function _albumSalvarComoPreset() {
 // achado na maratona de UX: "Salvar lâmina como modelo" existia e
 // funcionava (linhas acima) há sessões inteiras, mas NUNCA existiu
 // nenhum jeito de USAR um modelo salvo depois — o botão prometia
-// reaproveitar layouts e nunca cumpria. Completando a funcionalidade:
-// aplica um preset (posições RELATIVAS, ver _albumSalvarComoPreset)
-// na lâmina atual, escalando pro tamanho físico real do modelo desta
-// vez. Só numa lâmina vazia (mesma regra do Smart Layout) pra nunca
-// sobrescrever composição alheia sem querer.
-async function _albumAbrirUsarPreset() {
-  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos — Usar modelo só funciona numa lâmina vazia'); return }
-  const { data, error } = await db.from('album_layout_presets').select('*').order('nome')
-  if (error) { toast('Erro ao buscar modelos: ' + error.message); return }
-  if (!data?.length) { toast('Nenhum modelo salvo ainda — salve uma lâmina como modelo primeiro (💾)'); return }
-  const sel = document.getElementById('album-usar-preset-select')
-  sel.innerHTML = data.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')
-  sel._presetsCarregados = data
-  document.getElementById('album-usar-preset-campo').style.display = 'inline-flex'
+// reaproveitar layouts e nunca cumpria. Completado na mesma maratona,
+// e agora (Fase 2 do redesign, pedido do Luiz) virou uma BIBLIOTECA
+// de verdade: modal com preview visual de cada layout (retângulos na
+// proporção real, não só nome), filtro por quantidade de fotos, +50
+// layouts prontos (ALBUM_LAYOUTS_PADRAO) na mesma tela dos modelos
+// salvos pelo próprio admin — os dois usam a MESMA função de aplicar.
+let _albumLayoutsAba = 'prontos'
+let _albumLayoutsFiltroFotos = 'todas'
+let _albumLayoutsPresetsSalvos = []
+let _albumLayoutsFiltrados = []
+async function _albumAbrirLayouts() {
+  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos — escolher layout só funciona numa lâmina vazia'); return }
+  _albumLayoutsAba = 'prontos'
+  _albumLayoutsFiltroFotos = 'todas'
+  document.getElementById('albly-tab-prontos').classList.add('on')
+  document.getElementById('albly-tab-salvos').classList.remove('on')
+  abrirModal('modal-album-layouts')
+  _albumLayoutsRenderGrid()
 }
-function _albumFecharUsarPreset() {
-  document.getElementById('album-usar-preset-campo').style.display = 'none'
+async function _albumLayoutsMudarAba(aba) {
+  _albumLayoutsAba = aba
+  _albumLayoutsFiltroFotos = 'todas'
+  document.getElementById('albly-tab-prontos').classList.toggle('on', aba === 'prontos')
+  document.getElementById('albly-tab-salvos').classList.toggle('on', aba === 'salvos')
+  if (aba === 'salvos') {
+    const { data, error } = await db.from('album_layout_presets').select('*').order('nome')
+    if (error) { toast('Erro ao buscar modelos salvos: ' + error.message); return }
+    _albumLayoutsPresetsSalvos = data || []
+  }
+  _albumLayoutsRenderGrid()
+}
+function _albumLayoutsFiltrar(valor) {
+  _albumLayoutsFiltroFotos = valor
+  _albumLayoutsRenderGrid()
+}
+function _albumLayoutsRenderGrid() {
+  const fonte = _albumLayoutsAba === 'prontos'
+    ? ALBUM_LAYOUTS_PADRAO.map(l => ({ nome: l.nome, fotos: l.fotos, estrutura: l.estrutura, salvo: false }))
+    : _albumLayoutsPresetsSalvos.map(p => ({ nome: p.nome, fotos: p.estrutura?.length || 0, estrutura: p.estrutura || [], id: p.id, salvo: true }))
+  const contagens = [...new Set(fonte.map(l => l.fotos))].sort((a, b) => a - b)
+  const filtrosEl = document.getElementById('albly-filtros')
+  filtrosEl.innerHTML = ['todas', ...contagens].map(c => `<button class="${_albumLayoutsFiltroFotos === String(c) ? 'on' : ''}" onclick="_albumLayoutsFiltrar('${c}')">${c === 'todas' ? 'Todas' : c + ' foto(s)'}</button>`).join('')
+  _albumLayoutsFiltrados = _albumLayoutsFiltroFotos === 'todas' ? fonte : fonte.filter(l => String(l.fotos) === _albumLayoutsFiltroFotos)
+  const grid = document.getElementById('albly-grid')
+  if (!_albumLayoutsFiltrados.length) {
+    grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">${_albumLayoutsAba === 'salvos' ? 'Nenhum modelo salvo ainda — salve uma lâmina como modelo primeiro (💾)' : 'Nenhum layout nessa categoria'}</div>`
+    return
+  }
+  grid.innerHTML = _albumLayoutsFiltrados.map((l, i) => `
+    <div class="album-layout-card" onclick="_albumAplicarLayout(${i})">
+      ${l.salvo ? `<span class="apagar-modelo" onclick="event.stopPropagation();_albumApagarPresetSalvo('${l.id}')" title="Apagar modelo">✕</span>` : ''}
+      <div class="album-layout-preview">${l.estrutura.map(item => `<span style="left:${item.xFr * 100}%;top:${item.yFr * 100}%;width:${item.wFr * 100}%;height:${item.hFr * 100}%;"></span>`).join('')}</div>
+      <div class="rotulo">${esc(l.nome)}</div>
+    </div>`).join('')
+}
+let _albumApagandoPresetSalvo = false
+async function _albumApagarPresetSalvo(id) {
+  if (_albumApagandoPresetSalvo) return
+  _albumApagandoPresetSalvo = true
+  try {
+    const preset = _albumLayoutsPresetsSalvos.find(p => p.id === id)
+    if (!preset) return
+    if (!await confirmModal(`Apagar o modelo "${preset.nome}"? Só apaga o MODELO salvo — nenhuma lâmina já montada com ele é afetada.`, { titulo: 'Apagar modelo', okLabel: 'Apagar', danger: true })) return
+    const { error } = await db.from('album_layout_presets').delete().eq('id', id)
+    if (error) { toast('Erro ao apagar modelo: ' + error.message); return }
+    _albumLayoutsPresetsSalvos = _albumLayoutsPresetsSalvos.filter(p => p.id !== id)
+    _albumLayoutsRenderGrid()
+    toast('Modelo apagado ✓')
+  } finally { _albumApagandoPresetSalvo = false }
 }
 let _albumAplicandoPreset = false
-async function _albumAplicarPreset() {
+async function _albumAplicarLayout(idxFiltrado) {
   if (_albumAplicandoPreset) return
-  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos'); _albumFecharUsarPreset(); return }
-  const sel = document.getElementById('album-usar-preset-select')
-  const preset = sel._presetsCarregados?.find(p => p.id === sel.value)
-  if (!preset?.estrutura?.length) { toast('Modelo inválido'); return }
+  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos'); fecharModal('modal-album-layouts'); return }
+  const layout = _albumLayoutsFiltrados[idxFiltrado]
+  if (!layout?.estrutura?.length) { toast('Layout inválido'); return }
   if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); return }
   _albumAplicandoPreset = true
   try {
     const t = _albumEditorTemplate
     // mesmo achado do Smart Layout: sem excluir fotos já coladas em
-    // OUTRAS lâminas do álbum, aplicar um modelo numa lâmina nova
+    // OUTRAS lâminas do álbum, aplicar um layout numa lâmina nova
     // repetia as mesmas fotos de lâminas anteriores em vez de continuar
     // com as próximas disponíveis — busca fresca (não usa
     // store.albumElements, que só guarda a lâmina aberta).
@@ -17934,7 +18233,7 @@ async function _albumAplicarPreset() {
     const fotos = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id))
     if (!fotos.length) { toast('Todas as fotos deste evento já estão usadas em alguma lâmina do álbum'); return }
     const novosElementos = []
-    for (const item of preset.estrutura) {
+    for (const item of layout.estrutura) {
       const foto = fotos.shift()
       if (!foto) break
       novosElementos.push({
@@ -17946,11 +18245,11 @@ async function _albumAplicarPreset() {
     }
     if (!novosElementos.length) return
     const { data, error } = await db.from('album_elements').insert(novosElementos).select()
-    if (error) { toast('Erro ao aplicar modelo: ' + error.message); return }
+    if (error) { toast('Erro ao aplicar layout: ' + error.message); return }
     store.albumElements.push(...data)
-    _albumFecharUsarPreset()
+    fecharModal('modal-album-layouts')
     renderAlbumCanvas()
-    toast(`Modelo aplicado ✓ (${data.length} foto(s))`)
+    toast(`Layout aplicado ✓ (${data.length} foto(s)) — arraste outra foto do painel POR CIMA de qualquer uma pra trocar`)
   } finally { _albumAplicandoPreset = false }
 }
 
