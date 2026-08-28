@@ -3030,7 +3030,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <!-- modal: Digipix — biblioteca de layouts (Fase 2) -->
 <div class="modal-overlay" id="modal-album-layouts">
   <div class="modal" style="max-width:640px;">
-    <h3 style="margin-bottom:10px;">Escolher layout da lâmina</h3>
+    <h3 id="albly-titulo" style="margin-bottom:10px;">Escolher layout da lâmina</h3>
     <div class="album-layouts-tabs">
       <button class="on" id="albly-tab-prontos" onclick="_albumLayoutsMudarAba('prontos')">🎨 Layouts prontos</button>
       <button id="albly-tab-salvos" onclick="_albumLayoutsMudarAba('salvos')">💾 Meus modelos salvos</button>
@@ -17139,7 +17139,7 @@ async function abrirAlbumEditor(projetoId) {
         <button class="icon-toolbar" id="album-btn-spread-view" onclick="_albumAlternarSpreadView()" title="Marcação de lombada (spread view)">📖</button>
       </div>
       <div class="grupo">
-        <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
+        <button class="btn btn-sm" id="album-btn-smart-layout" onclick="_albumSmartLayout()">✨ Smart Layout</button>
         <button class="btn btn-sm" onclick="_albumAbrirLayouts()">🎨 Escolher layout</button>
         <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar Lâmina como Modelo</button>
         <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
@@ -17299,7 +17299,7 @@ function renderAlbumSpreadsTira() {
       Lâmina ${i + 1}
       <span class="album-spread-thumb-remover" onclick="event.stopPropagation();_albumApagarSpread('${s.id}')" title="Remover lâmina">✕</span>
     </div>`).join('')
-    + `<div class="album-spread-thumb add" onclick="_albumCriarSpread()" title="Nova lâmina">+</div>`
+    + `<div class="album-spread-thumb add" onclick="_albumAbrirLayoutsParaNovaLamina()" title="Nova lâmina">+</div>`
 }
 
 let _albumApagandoSpread = false
@@ -17348,19 +17348,26 @@ async function _albumApagarSpread(spreadId) {
   } finally { _albumApagandoSpread = false }
 }
 
+// achado no 2º PROMPT.md (ETAPA 4): o fluxo de "+" agora SEMPRE passa
+// pelo escolher-layout-primeiro (_albumAbrirLayoutsParaNovaLamina,
+// abaixo) — essa função virou só a PARTE de criar/abrir a lâmina em
+// si (o "criar em branco" é uma opção DENTRO daquele modal agora, não
+// mais um botão separado). Continua com o mesmo guard de max_laminas
+// e a mesma trava de clique duplo de sempre.
 let _albumCriandoSpread = false
 async function _albumCriarSpread() {
-  if (_albumCriandoSpread) return
+  if (_albumCriandoSpread) return null
   const max = _albumEditorTemplate?.max_laminas || 40
-  if (store.albumSpreads.length >= max) { toast(`Esse modelo permite no máximo ${max} lâminas`); return }
+  if (store.albumSpreads.length >= max) { toast(`Esse modelo permite no máximo ${max} lâminas`); return null }
   _albumCriandoSpread = true
   try {
     const proximoIndex = store.albumSpreads.length ? Math.max(...store.albumSpreads.map(s => s.spread_index)) + 1 : 0
     const { data, error } = await db.from('album_spreads').insert({ project_id: _albumEditorProjeto.id, spread_index: proximoIndex }).select().single()
-    if (error) { toast('Erro ao criar lâmina: ' + error.message); return }
+    if (error) { toast('Erro ao criar lâmina: ' + error.message); return null }
     store.albumSpreads.push(data)
     renderAlbumSpreadsTira()
     await abrirAlbumSpread(data.id)
+    return data
   } finally { _albumCriandoSpread = false }
 }
 
@@ -17639,6 +17646,7 @@ function renderAlbumCanvas() {
   _albumAplicarGuias()
   wrap.classList.toggle('spread-view', _albumSpreadViewAtivo)
   _albumAtualizarNavLamina()
+  _albumAtualizarBotaoSmartLayout()
   _albumDesenharReguas()
 }
 
@@ -18429,6 +18437,61 @@ async function _albumSmartLayout() {
     await _albumSmartLayoutInterno()
   } finally { _albumRodandoSmartLayout = false }
 }
+// achado no 2º PROMPT.md (ETAPA 4): "Redesenhe o Smart Layout pra
+// atuar como Reorganizar Fotos (shuffle)". Smart Layout continua
+// existindo IGUAL (preenche lâminas vazias — já testado e valioso),
+// mas o MESMO botão vira "🔀 Reorganizar Fotos" quando a lâmina atual
+// já tem fotos: embaralha quais fotos ocupam quais slots do layout já
+// montado, mantendo posição/tamanho de cada slot (só troca QUAL foto
+// aparece ali). _albumAtualizarBotaoSmartLayout roda toda vez que o
+// canvas re-renderiza, então o botão nunca fica com o rótulo errado
+// (mesma classe de cuidado que _albumModoRecorteToque/Guias/Spread
+// View já tiveram nesta sessão — nunca deixar um botão MENTIR sobre o
+// que ele realmente faz agora).
+function _albumAtualizarBotaoSmartLayout() {
+  const btn = document.getElementById('album-btn-smart-layout')
+  if (!btn) return
+  const temFotos = _albumElementosDaSpreadAtual().length > 0
+  btn.textContent = temFotos ? '🔀 Reorganizar Fotos' : '✨ Smart Layout'
+  btn.setAttribute('onclick', temFotos ? '_albumReorganizarFotos()' : '_albumSmartLayout()')
+}
+let _albumReorganizando = false
+async function _albumReorganizarFotos() {
+  if (_albumReorganizando) return
+  const elementos = _albumElementosDaSpreadAtual()
+  if (elementos.length < 2) { toast('Precisa de pelo menos 2 fotos na lâmina pra reorganizar'); return }
+  _albumReorganizando = true
+  try {
+    const fotoIdsOriginais = elementos.map(e => e.foto_id)
+    // Fisher-Yates, com até 10 tentativas de garantir um resultado
+    // DIFERENTE do atual — sem isso, embaralhar 2 fotos tem 50% de
+    // chance de sortear a MESMA ordem, e "Reorganizar" pareceria não
+    // ter feito nada (sem erro, só nenhuma mudança visível).
+    let embaralhado, tentativas = 0
+    do {
+      embaralhado = [...fotoIdsOriginais]
+      for (let i = embaralhado.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        ;[embaralhado[i], embaralhado[j]] = [embaralhado[j], embaralhado[i]]
+      }
+      tentativas++
+    } while (embaralhado.every((id, i) => id === fotoIdsOriginais[i]) && tentativas < 10)
+    const mudancas = elementos.map((el, i) => ({ el, fotoNova: embaralhado[i] })).filter(m => m.fotoNova !== m.el.foto_id)
+    if (!mudancas.length) { toast('Só existe um jeito de organizar essas fotos'); return }
+    // checa o .error de CADA update individualmente — Promise.all só
+    // rejeitaria numa falha de rede/exceção; o Supabase normalmente
+    // RESOLVE com {error:{...}} mesmo numa escrita rejeitada, então só
+    // olhar se a Promise.all "deu certo" deixaria uma falha real
+    // passar batido, atualizando a foto local sem ter salvo no banco.
+    const resultados = await Promise.all(mudancas.map(m => db.from('album_elements').update({ foto_id: m.fotoNova, crop_x: 0, crop_y: 0, crop_scale: 1 }).eq('id', m.el.id)))
+    const erro = resultados.find(r => r?.error)?.error
+    if (erro) { toast('Erro ao reorganizar: ' + erro.message); return }
+    mudancas.forEach(m => { m.el.foto_id = m.fotoNova; m.el.crop_x = 0; m.el.crop_y = 0; m.el.crop_scale = 1 })
+    renderAlbumCanvas()
+    toast('Fotos reorganizadas ✓')
+    _albumHistoricoSnapshot()
+  } finally { _albumReorganizando = false }
+}
 async function _albumSmartLayoutInterno() {
   const t = _albumEditorTemplate
   // achado testando: store.albumElements só guarda a lâmina
@@ -18718,8 +18781,28 @@ let _albumLayoutsAba = 'prontos'
 let _albumLayoutsFiltroFotos = 'todas'
 let _albumLayoutsPresetsSalvos = []
 let _albumLayoutsFiltrados = []
+// achado no 2º PROMPT.md (ETAPA 4) — o modal de layouts agora serve
+// 3 fluxos diferentes, controlados por este modo:
+// 'aplicar' — lâmina atual VAZIA (comportamento original).
+// 'trocar' — lâmina atual JÁ TEM fotos: troca o layout REMAPEANDO as
+//   fotos existentes pros novos slots, sem apagar o conteúdo.
+// 'nova' — "+ lâmina" pediu layout ANTES de criar a lâmina (fluxo
+//   invertido do original: escolhe o layout primeiro, a lâmina já
+//   nasce estruturada) — ganha também a opção "Lâmina em branco".
+let _albumLayoutsModo = 'aplicar'
 async function _albumAbrirLayouts() {
-  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos — escolher layout só funciona numa lâmina vazia'); return }
+  _albumLayoutsModo = _albumElementosDaSpreadAtual().length ? 'trocar' : 'aplicar'
+  _albumLayoutsAba = 'prontos'
+  _albumLayoutsFiltroFotos = 'todas'
+  document.getElementById('albly-tab-prontos').classList.add('on')
+  document.getElementById('albly-tab-salvos').classList.remove('on')
+  abrirModal('modal-album-layouts')
+  _albumLayoutsRenderGrid()
+}
+async function _albumAbrirLayoutsParaNovaLamina() {
+  const max = _albumEditorTemplate?.max_laminas || 40
+  if (store.albumSpreads.length >= max) { toast(`Esse modelo permite no máximo ${max} lâminas`); return }
+  _albumLayoutsModo = 'nova'
   _albumLayoutsAba = 'prontos'
   _albumLayoutsFiltroFotos = 'todas'
   document.getElementById('albly-tab-prontos').classList.add('on')
@@ -18744,6 +18827,9 @@ function _albumLayoutsFiltrar(valor) {
   _albumLayoutsRenderGrid()
 }
 function _albumLayoutsRenderGrid() {
+  const titulos = { aplicar: 'Escolher layout da lâmina', trocar: 'Trocar layout — as fotos já colocadas são reaproveitadas', nova: 'Nova lâmina — escolha um layout' }
+  const tituloEl = document.getElementById('albly-titulo')
+  if (tituloEl) tituloEl.textContent = titulos[_albumLayoutsModo] || titulos.aplicar
   const fonte = _albumLayoutsAba === 'prontos'
     ? ALBUM_LAYOUTS_PADRAO.map(l => ({ nome: l.nome, fotos: l.fotos, estrutura: l.estrutura, salvo: false }))
     : _albumLayoutsPresetsSalvos.map(p => ({ nome: p.nome, fotos: p.estrutura?.length || 0, estrutura: p.estrutura || [], id: p.id, salvo: true }))
@@ -18752,16 +18838,34 @@ function _albumLayoutsRenderGrid() {
   filtrosEl.innerHTML = ['todas', ...contagens].map(c => `<button class="${_albumLayoutsFiltroFotos === String(c) ? 'on' : ''}" onclick="_albumLayoutsFiltrar('${c}')">${c === 'todas' ? 'Todas' : c + ' foto(s)'}</button>`).join('')
   _albumLayoutsFiltrados = _albumLayoutsFiltroFotos === 'todas' ? fonte : fonte.filter(l => String(l.fotos) === _albumLayoutsFiltroFotos)
   const grid = document.getElementById('albly-grid')
-  if (!_albumLayoutsFiltrados.length) {
+  // "Lâmina em branco" — só no fluxo de nova lâmina (pedido do 2º
+  // PROMPT.md era layout-primeiro, mas nunca tirou a opção de montar
+  // do zero na mão; só moveu ela pra dentro do mesmo modal, em vez de
+  // ser o padrão automático de antes).
+  const cardBranco = _albumLayoutsModo === 'nova' && _albumLayoutsFiltroFotos === 'todas'
+    ? `<div class="album-layout-card" onclick="_albumCriarLaminaEmBranco()">
+        <div class="album-layout-preview" style="display:flex;align-items:center;justify-content:center;font-size:22px;color:#6b6b70;">＋</div>
+        <div class="rotulo">Lâmina em branco</div>
+      </div>` : ''
+  if (!_albumLayoutsFiltrados.length && !cardBranco) {
     grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">${_albumLayoutsAba === 'salvos' ? 'Nenhum modelo salvo ainda — salve uma lâmina como modelo primeiro (💾)' : 'Nenhum layout nessa categoria'}</div>`
     return
   }
-  grid.innerHTML = _albumLayoutsFiltrados.map((l, i) => `
+  grid.innerHTML = cardBranco + _albumLayoutsFiltrados.map((l, i) => `
     <div class="album-layout-card" onclick="_albumAplicarLayout(${i})">
       ${l.salvo ? `<span class="apagar-modelo" onclick="event.stopPropagation();_albumApagarPresetSalvo('${l.id}')" title="Apagar modelo">✕</span>` : ''}
       <div class="album-layout-preview">${l.estrutura.map(item => `<span style="left:${item.xFr * 100}%;top:${item.yFr * 100}%;width:${item.wFr * 100}%;height:${item.hFr * 100}%;"></span>`).join('')}</div>
       <div class="rotulo">${esc(l.nome)}</div>
     </div>`).join('')
+}
+let _albumCriandoLaminaEmBranco = false
+async function _albumCriarLaminaEmBranco() {
+  if (_albumCriandoLaminaEmBranco) return
+  _albumCriandoLaminaEmBranco = true
+  try {
+    const spread = await _albumCriarSpread()
+    if (spread) fecharModal('modal-album-layouts')
+  } finally { _albumCriandoLaminaEmBranco = false }
 }
 let _albumApagandoPresetSalvo = false
 async function _albumApagarPresetSalvo(id) {
@@ -18781,47 +18885,108 @@ async function _albumApagarPresetSalvo(id) {
 let _albumAplicandoPreset = false
 async function _albumAplicarLayout(idxFiltrado) {
   if (_albumAplicandoPreset) return
-  if (_albumElementosDaSpreadAtual().length) { toast('Esta lâmina já tem fotos'); fecharModal('modal-album-layouts'); return }
   const layout = _albumLayoutsFiltrados[idxFiltrado]
   if (!layout?.estrutura?.length) { toast('Layout inválido'); return }
-  if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); return }
+  const modo = _albumLayoutsModo
   _albumAplicandoPreset = true
   try {
+    // modo 'nova' (2º PROMPT.md: escolher layout ANTES de criar a
+    // lâmina) — cria primeiro, e a partir daqui o resto trata como o
+    // caso normal de "lâmina vazia" (a recém-criada não tem elemento
+    // nenhum ainda).
+    if (modo === 'nova') {
+      const spread = await _albumCriarSpread()
+      if (!spread) return
+    }
+    if (!_albumEditorFotosEvento.length) { toast('Este evento não tem fotos ainda'); fecharModal('modal-album-layouts'); return }
     const t = _albumEditorTemplate
-    // mesmo achado do Smart Layout: sem excluir fotos já coladas em
-    // OUTRAS lâminas do álbum, aplicar um layout numa lâmina nova
-    // repetia as mesmas fotos de lâminas anteriores em vez de continuar
-    // com as próximas disponíveis — busca fresca (não usa
-    // store.albumElements, que só guarda a lâmina aberta).
+    if (modo === 'trocar') await _albumAplicarLayoutTrocando(layout, t)
+    else await _albumAplicarLayoutEmVazia(layout, t)
+    fecharModal('modal-album-layouts')
+  } finally { _albumAplicandoPreset = false }
+}
+async function _albumAplicarLayoutEmVazia(layout, t) {
+  // mesmo achado do Smart Layout: sem excluir fotos já coladas em
+  // OUTRAS lâminas do álbum, aplicar um layout numa lâmina nova
+  // repetia as mesmas fotos de lâminas anteriores em vez de continuar
+  // com as próximas disponíveis — busca fresca (não usa
+  // store.albumElements, que só guarda a lâmina aberta).
+  const spreadIds = store.albumSpreads.map(s => s.id)
+  const { data: elementosDoAlbum, error: erroCheck } = spreadIds.length
+    ? await db.from('album_elements').select('foto_id').in('spread_id', spreadIds)
+    : { data: [] }
+  if (erroCheck) { toast('Erro ao checar o álbum: ' + erroCheck.message); return }
+  const fotosJaUsadas = new Set((elementosDoAlbum || []).map(e => e.foto_id))
+  const fotos = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id))
+  if (!fotos.length) { toast('Todas as fotos deste evento já estão usadas em alguma lâmina do álbum'); return }
+  const novosElementos = []
+  for (const item of layout.estrutura) {
+    const foto = fotos.shift()
+    if (!foto) break
+    novosElementos.push({
+      spread_id: _albumEditorSpreadAtual.id, foto_id: foto.id,
+      x: item.xFr * t.largura_aberta_mm, y: item.yFr * t.altura_aberta_mm,
+      width: item.wFr * t.largura_aberta_mm, height: item.hFr * t.altura_aberta_mm,
+      rotation: item.rotation || 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: item.z_index ?? 0,
+    })
+  }
+  if (!novosElementos.length) return
+  const { data, error } = await db.from('album_elements').insert(novosElementos).select()
+  if (error) { toast('Erro ao aplicar layout: ' + error.message); return }
+  store.albumElements.push(...data)
+  renderAlbumCanvas()
+  toast(`Layout aplicado ✓ (${data.length} foto(s)) — arraste outra foto do painel POR CIMA de qualquer uma pra trocar`)
+  _albumHistoricoSnapshot()
+  _albumCarregarUsoFotos()
+}
+// achado no 2º PROMPT.md (ETAPA 4): "Permita selecionar ou trocar o
+// layout de lâminas que JÁ possuem fotos... remapeadas automaticamente
+// para os novos slots SEM APAGAR o conteúdo" — as fotos já coladas
+// nesta lâmina são reaproveitadas nos slots do layout novo, na ordem
+// em que já estavam empilhadas (z_index); se o layout novo tem MAIS
+// slots que fotos existentes, completa com fotos ainda não usadas em
+// nenhuma lâmina (mesma exclusão de sempre); se tem MENOS, as fotos
+// que sobrarem voltam pro pool de "Não usadas" — não se perdem, só
+// saem desta lâmina.
+async function _albumAplicarLayoutTrocando(layout, t) {
+  const existentes = _albumElementosDaSpreadAtual().slice().sort((a, b) => a.z_index - b.z_index)
+  if (!existentes.length) { await _albumAplicarLayoutEmVazia(layout, t); return }
+  const fotosExistentes = existentes.map(e => e.foto_id)
+  let fotosExtras = []
+  if (layout.estrutura.length > fotosExistentes.length) {
     const spreadIds = store.albumSpreads.map(s => s.id)
     const { data: elementosDoAlbum, error: erroCheck } = spreadIds.length
       ? await db.from('album_elements').select('foto_id').in('spread_id', spreadIds)
       : { data: [] }
     if (erroCheck) { toast('Erro ao checar o álbum: ' + erroCheck.message); return }
     const fotosJaUsadas = new Set((elementosDoAlbum || []).map(e => e.foto_id))
-    const fotos = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id))
-    if (!fotos.length) { toast('Todas as fotos deste evento já estão usadas em alguma lâmina do álbum'); return }
-    const novosElementos = []
-    for (const item of layout.estrutura) {
-      const foto = fotos.shift()
-      if (!foto) break
-      novosElementos.push({
-        spread_id: _albumEditorSpreadAtual.id, foto_id: foto.id,
-        x: item.xFr * t.largura_aberta_mm, y: item.yFr * t.altura_aberta_mm,
-        width: item.wFr * t.largura_aberta_mm, height: item.hFr * t.altura_aberta_mm,
-        rotation: item.rotation || 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: item.z_index ?? 0,
-      })
-    }
-    if (!novosElementos.length) return
-    const { data, error } = await db.from('album_elements').insert(novosElementos).select()
-    if (error) { toast('Erro ao aplicar layout: ' + error.message); return }
-    store.albumElements.push(...data)
-    fecharModal('modal-album-layouts')
-    renderAlbumCanvas()
-    toast(`Layout aplicado ✓ (${data.length} foto(s)) — arraste outra foto do painel POR CIMA de qualquer uma pra trocar`)
-    _albumHistoricoSnapshot()
-    _albumCarregarUsoFotos()
-  } finally { _albumAplicandoPreset = false }
+    fotosExtras = _albumEditorFotosEvento.filter(f => !fotosJaUsadas.has(f.id)).map(f => f.id)
+  }
+  const poolFotos = [...fotosExistentes, ...fotosExtras]
+  const novosElementos = []
+  for (const item of layout.estrutura) {
+    const fotoId = poolFotos.shift()
+    if (!fotoId) break
+    novosElementos.push({
+      spread_id: _albumEditorSpreadAtual.id, foto_id: fotoId,
+      x: item.xFr * t.largura_aberta_mm, y: item.yFr * t.altura_aberta_mm,
+      width: item.wFr * t.largura_aberta_mm, height: item.hFr * t.altura_aberta_mm,
+      rotation: item.rotation || 0, crop_x: 0, crop_y: 0, crop_scale: 1, z_index: item.z_index ?? 0,
+    })
+  }
+  if (!novosElementos.length) return
+  const { data, error: errIns } = await db.from('album_elements').insert(novosElementos).select()
+  if (errIns) { toast('Erro ao trocar layout: ' + errIns.message); return }
+  const idsAntigos = existentes.map(e => e.id)
+  const { error: errDel } = await db.from('album_elements').delete().in('id', idsAntigos)
+  if (errDel) toast('Layout novo aplicado, mas não consegui limpar os elementos antigos: ' + errDel.message)
+  store.albumElements = store.albumElements.filter(e => !idsAntigos.includes(e.id))
+  store.albumElements.push(...data)
+  renderAlbumCanvas()
+  const sobraram = fotosExistentes.length + fotosExtras.length - novosElementos.length
+  toast(`Layout trocado ✓ (${novosElementos.length} foto(s) reaproveitadas)${sobraram > 0 ? ` — ${sobraram} foto(s) voltaram pra "Não usadas"` : ''}`)
+  _albumHistoricoSnapshot()
+  _albumCarregarUsoFotos()
 }
 
 // ══════════════════════════════════════════════════════════════
