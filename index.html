@@ -17203,6 +17203,91 @@ async function abrirAlbumSpread(spreadId) {
   store.albumElements = data || []
   renderAlbumCanvas()
   _albumCarregarComentariosAdmin(spreadId)
+  _albumHistoricoReset()
+}
+
+// ── Desfazer/Refazer (Ctrl+Z/Ctrl+Y — pedido explícito do Luiz no
+// redesign, header estilo software profissional) ────────────────
+// histórico é POR LÂMINA (reseta ao trocar de aba — desfazer "atravessando"
+// lâminas seria confuso e arriscado). Snapshot = cópia rasa de cada
+// elemento da lâmina atual, tirada DEPOIS de cada ação completa
+// (arrastar soltar, apagar, criar, aplicar layout, reordenar camada).
+// Restaurar faz DIFF contra o estado atual (não apaga tudo e recria —
+// isso geraria UUIDs novos e quebraria qualquer referência) — só
+// grava no banco os campos que realmente mudaram.
+let _albumHistoricoPilha = []
+let _albumHistoricoIndice = -1
+const _ALBUM_HISTORICO_TETO = 50
+function _albumHistoricoReset() {
+  _albumHistoricoPilha = [_albumElementosDaSpreadAtual().map(el => ({ ...el }))]
+  _albumHistoricoIndice = 0
+  _albumHistoricoAtualizarBotoes()
+}
+function _albumHistoricoSnapshot() {
+  if (_albumHistoricoIndice < 0) { _albumHistoricoReset(); return }
+  _albumHistoricoPilha = _albumHistoricoPilha.slice(0, _albumHistoricoIndice + 1)
+  _albumHistoricoPilha.push(_albumElementosDaSpreadAtual().map(el => ({ ...el })))
+  _albumHistoricoIndice = _albumHistoricoPilha.length - 1
+  if (_albumHistoricoPilha.length > _ALBUM_HISTORICO_TETO) { _albumHistoricoPilha.shift(); _albumHistoricoIndice-- }
+  _albumHistoricoAtualizarBotoes()
+}
+function _albumHistoricoAtualizarBotoes() {
+  const btnZ = document.getElementById('album-btn-desfazer')
+  const btnY = document.getElementById('album-btn-refazer')
+  if (btnZ) btnZ.disabled = _albumHistoricoIndice <= 0
+  if (btnY) btnY.disabled = _albumHistoricoIndice >= _albumHistoricoPilha.length - 1
+}
+const CAMPOS_ELEMENTO_SALVAVEIS = ['x', 'y', 'width', 'height', 'rotation', 'crop_x', 'crop_y', 'crop_scale', 'z_index', 'foto_id']
+async function _albumHistoricoRestaurar(alvo) {
+  const atualPorId = new Map(store.albumElements.map(el => [el.id, el]))
+  const alvoPorId = new Map(alvo.map(el => [el.id, el]))
+  const operacoes = []
+  // existe nos dois -> atualiza só se algum campo mudou
+  for (const [id, elAlvo] of alvoPorId) {
+    const elAtual = atualPorId.get(id)
+    if (!elAtual) continue
+    const mudou = CAMPOS_ELEMENTO_SALVAVEIS.some(c => elAtual[c] !== elAlvo[c])
+    if (mudou) {
+      const payload = {}
+      CAMPOS_ELEMENTO_SALVAVEIS.forEach(c => { payload[c] = elAlvo[c] })
+      operacoes.push(db.from('album_elements').update(payload).eq('id', id))
+    }
+  }
+  // só no atual (foi criado DEPOIS deste ponto do histórico) -> apaga
+  for (const [id] of atualPorId) {
+    if (!alvoPorId.has(id)) operacoes.push(db.from('album_elements').delete().eq('id', id))
+  }
+  // só no alvo (foi apagado DEPOIS deste ponto do histórico) -> recria
+  // com o MESMO id (o banco aceita id explícito no insert, sobrepondo
+  // o default gen_random_uuid()) — sem isso, desfazer um "apagar"
+  // geraria um elemento com id novo, e um redo logo depois não
+  // encontraria mais o id antigo pra reverter de volta.
+  for (const [id, elAlvo] of alvoPorId) {
+    if (!atualPorId.has(id)) operacoes.push(db.from('album_elements').insert({ id, spread_id: _albumEditorSpreadAtual.id, ...Object.fromEntries(CAMPOS_ELEMENTO_SALVAVEIS.map(c => [c, elAlvo[c]])) }))
+  }
+  if (operacoes.length) { try { await Promise.all(operacoes) } catch (e) { console.error('Digipix: falha ao sincronizar desfazer/refazer', e.message) } }
+  store.albumElements = alvo.map(el => ({ ...el }))
+  _albumEditorSelId = null
+  renderAlbumCanvas()
+}
+let _albumDesfazendoRefazendo = false
+async function _albumDesfazer() {
+  if (_albumDesfazendoRefazendo || _albumHistoricoIndice <= 0) return
+  _albumDesfazendoRefazendo = true
+  try {
+    _albumHistoricoIndice--
+    await _albumHistoricoRestaurar(_albumHistoricoPilha[_albumHistoricoIndice])
+    _albumHistoricoAtualizarBotoes()
+  } finally { _albumDesfazendoRefazendo = false }
+}
+async function _albumRefazer() {
+  if (_albumDesfazendoRefazendo || _albumHistoricoIndice >= _albumHistoricoPilha.length - 1) return
+  _albumDesfazendoRefazendo = true
+  try {
+    _albumHistoricoIndice++
+    await _albumHistoricoRestaurar(_albumHistoricoPilha[_albumHistoricoIndice])
+    _albumHistoricoAtualizarBotoes()
+  } finally { _albumDesfazendoRefazendo = false }
 }
 
 // mesmo achado do lado do cliente (_albumClienteCarregarComentarios) —
@@ -17399,6 +17484,7 @@ document.addEventListener('drop', async e => {
       const { error } = await db.from('album_elements').update({ foto_id: fotoId, crop_x: 0, crop_y: 0, crop_scale: 1 }).eq('id', elId)
       if (error) { toast('Erro ao trocar foto: ' + error.message); el.foto_id = fotoAnteriorId; renderAlbumCanvas(); return }
       toast('Foto trocada ✓')
+      _albumHistoricoSnapshot()
     }
     return
   }
@@ -17429,6 +17515,7 @@ document.addEventListener('drop', async e => {
   store.albumElements.push(data)
   _albumEditorSelId = data.id
   renderAlbumCanvas()
+  _albumHistoricoSnapshot()
 })
 
 // achado na bateria de testes: mover (arrasto ou seta) não tinha
@@ -17720,6 +17807,7 @@ function _albumPararDrag() {
   _albumLimparGuiasSnap()
   _albumAtualizarToolbarFlutuante()
   _albumSalvarElemento(id)
+  _albumHistoricoSnapshot()
 }
 document.addEventListener('pointerup', _albumPararDrag)
 document.addEventListener('pointercancel', _albumPararDrag)
@@ -17779,6 +17867,25 @@ document.addEventListener('keydown', e => {
   e.preventDefault()
   _albumAtualizarElementoDOM(el)
   _albumSalvarElemento(el.id)
+  _albumHistoricoSnapshot()
+})
+// Ctrl+Z/Ctrl+Y (Cmd no Mac) — pedido explícito do Luiz no redesign
+// (header estilo software profissional). Listener SEPARADO do de
+// cima: não depende de ter um elemento selecionado (desfazer/refazer
+// vale pra qualquer ação recente, seleção ou não), só precisa do
+// editor estar de fato visível (mesma guarda de offsetParent já usada
+// acima) e não estar digitando em campo/modal.
+document.addEventListener('keydown', e => {
+  if (!(e.ctrlKey || e.metaKey)) return
+  const tecla = e.key.toLowerCase()
+  if (tecla !== 'z' && tecla !== 'y') return
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return
+  if (e.target.closest?.('.modal-overlay.show')) return
+  const canvas = document.getElementById('album-canvas-wrap')
+  if (!canvas || !canvas.offsetParent) return
+  e.preventDefault()
+  if (tecla === 'z' && !e.shiftKey) _albumDesfazer()
+  else if (tecla === 'y' || (tecla === 'z' && e.shiftKey)) _albumRefazer()
 })
 
 // achado de UX: essa era a ÚNICA ação destrutiva de todo o módulo
@@ -17793,12 +17900,18 @@ async function _albumApagarElemento(id) {
   if (_albumApagandoElemento) return
   _albumApagandoElemento = true
   try {
-    if (!await confirmModal('Apagar essa foto da lâmina? A posição/recorte dela se perdem — não dá pra desfazer.', { titulo: 'Apagar elemento', okLabel: 'Apagar', danger: true })) return
+    // achado no redesign: essa mensagem dizia "não dá pra desfazer" —
+    // ficou desatualizada assim que o Ctrl+Z/Ctrl+Y (pedido do Luiz no
+    // header) passou a existir de verdade. Ctrl+Z reverte, mas ainda
+    // vale confirmar antes (some da tela na hora, e o histórico só
+    // vive nesta sessão do navegador aberta).
+    if (!await confirmModal('Apagar essa foto da lâmina? A posição/recorte dela se perdem imediatamente (dá pra reverter com Ctrl+Z, mas só nesta sessão do navegador).', { titulo: 'Apagar elemento', okLabel: 'Apagar', danger: true })) return
     const { error } = await db.from('album_elements').delete().eq('id', id)
     if (error) { toast('Erro ao apagar: ' + error.message); return }
     store.albumElements = store.albumElements.filter(x => x.id !== id)
     _albumEditorSelId = null
     renderAlbumCanvas()
+    _albumHistoricoSnapshot()
   } finally { _albumApagandoElemento = false }
 }
 
@@ -17825,6 +17938,7 @@ function _albumMudarCamada(direcao) {
   if (divVizinho) divVizinho.style.zIndex = vizinho.z_index
   _albumSalvarElemento(atual.id)
   _albumSalvarElemento(vizinho.id)
+  _albumHistoricoSnapshot()
 }
 
 function _albumSalvarElemento(id) {
@@ -17922,6 +18036,7 @@ async function _albumSmartLayoutInterno() {
   store.albumElements.push(...data)
   toast(`Smart Layout aplicado ✓ (${data.length} foto(s) em ${spreadsVazias.length} lâmina(s))`)
   renderAlbumCanvas()
+  _albumHistoricoSnapshot()
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -18250,6 +18365,7 @@ async function _albumAplicarLayout(idxFiltrado) {
     fecharModal('modal-album-layouts')
     renderAlbumCanvas()
     toast(`Layout aplicado ✓ (${data.length} foto(s)) — arraste outra foto do painel POR CIMA de qualquer uma pra trocar`)
+    _albumHistoricoSnapshot()
   } finally { _albumAplicandoPreset = false }
 }
 
