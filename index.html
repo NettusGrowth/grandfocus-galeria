@@ -18791,6 +18791,15 @@ let _albumLayoutsFiltrados = []
 //   nasce estruturada) — ganha também a opção "Lâmina em branco".
 let _albumLayoutsModo = 'aplicar'
 async function _albumAbrirLayouts() {
+  // achado na verificação pesada: álbum recém-criado, ainda SEM
+  // nenhuma lâmina — o botão "Escolher layout" do toolbar fica visível
+  // e clicável mesmo assim (não é escondido/desabilitado conforme o
+  // estado). Sem essa guarda, _albumEditorSpreadAtual é null e aplicar
+  // um layout quebrava com TypeError ao tentar gravar spread_id de um
+  // null. Redireciona pro MESMO fluxo do "+" (escolher layout já cria
+  // a lâmina) — é exatamente o que o admin quer dizer clicando aqui
+  // nesse estado.
+  if (!_albumEditorSpreadAtual) { await _albumAbrirLayoutsParaNovaLamina(); return }
   _albumLayoutsModo = _albumElementosDaSpreadAtual().length ? 'trocar' : 'aplicar'
   _albumLayoutsAba = 'prontos'
   _albumLayoutsFiltroFotos = 'todas'
@@ -19097,8 +19106,14 @@ async function _albumRenderizarLamina(spread, elementos, fotosPorId, template, o
   return canvas
 }
 
+// achado no 2º PROMPT.md (ETAPA 6): 0,92 já era JPEG de boa qualidade
+// (a arquitetura de exportação em si já usava a foto ORIGINAL em
+// resolução real, não a tela — isso nunca foi o problema, ver Fase 3
+// da rodada anterior), mas o pedido explícito era 0,95+ — sobe o
+// padrão pro que a gráfica pediu, sem custo real (poucos % a mais de
+// tamanho de arquivo pra uma imagem já em alta resolução).
 function _albumCanvasParaBlob(canvas, qualidade) {
-  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', qualidade ?? 0.92))
+  return new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', qualidade ?? 0.95))
 }
 
 // busca fresca de TODOS os spreads/elementos/fotos do projeto aberto —
@@ -19288,7 +19303,7 @@ async function _albumExportarJPGs() {
       const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
       atualizaProgresso()
       const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
-      const blob = await _albumCanvasParaBlob(canvas, 0.92)
+      const blob = await _albumCanvasParaBlob(canvas, 0.95)
       if (blob) arquivos.push(new File([blob], `${_albumNomeArquivo(projeto.nome)}-lamina-${i + 1}.jpg`, { type: 'image/jpeg' }))
       else falhasEncode++ // achado testando com dimensão+DPI extremos: canvas grande demais pro navegador processar — toBlob volta null sem erro nenhum, sem isso virava "Nada pra exportar" (parece álbum vazio, não é)
     }
@@ -19328,7 +19343,7 @@ async function _albumExportarPDF() {
       const atualizaProgresso = () => _dlProgressMostrar(`Renderizando lâmina ${i + 1} de ${spreads.length}…`, '', { progresso: { atual: feitas, total: totalFotos } })
       atualizaProgresso()
       const canvas = await _albumRenderizarLamina(spreads[i], elementos, fotosPorId, template, () => { feitas++; atualizaProgresso() })
-      const blob = await _albumCanvasParaBlob(canvas, 0.92)
+      const blob = await _albumCanvasParaBlob(canvas, 0.95)
       if (!blob) { falhasEncode++; continue } // mesmo achado do export em JPG — canvas grande demais, toBlob volta null sem erro
       const jpegBytes = new Uint8Array(await blob.arrayBuffer())
       paginas.push({ larguraMm: template.largura_aberta_mm, alturaMm: template.altura_aberta_mm, larguraPx: canvas.width, alturaPx: canvas.height, jpegBytes })
