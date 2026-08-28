@@ -17066,6 +17066,17 @@ async function abrirAlbumEditor(projetoId) {
   // MOSTRANDO desligado enquanto o arrasto de 1 dedo continuava
   // recortando em vez de mover, sem nenhuma pista visual do motivo.
   _albumModoRecorteToque = false
+  // achado na verificação pesada pós-redesign (Fase 4): MESMA classe
+  // de bug, agora nos botões novos Guias/Spread View — o HTML nasce
+  // com a classe `.on` FIXA (Guias sempre "ligado", Spread View sempre
+  // "desligado"), mas as variáveis reais (_albumGuiasVisiveis/
+  // _albumSpreadViewAtivo) são globais que sobrevivem entre álbuns.
+  // Desligar guias/ligar spread view num álbum e abrir outro deixava
+  // os botões MENTINDO sobre o estado real (guias escondidas com o
+  // botão mostrando "ligado", e vice-versa) — reset explícito, mesmo
+  // padrão do Modo Recorte.
+  _albumGuiasVisiveis = true
+  _albumSpreadViewAtivo = false
 
   const [{ data: spreads, error: e1 }, { data: fotos, error: e2 }] = await Promise.all([
     db.from('album_spreads').select('*').eq('project_id', projetoId).order('spread_index'),
