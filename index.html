@@ -18454,6 +18454,27 @@ async function abrirExportacaoAlbum() {
   catch (e) { if (minhaSeq === _albumExportacaoCargaSeq) corpo.innerHTML = `<div class="empty">Erro ao carregar: ${esc(e.message)}</div>`; return }
   if (minhaSeq !== _albumExportacaoCargaSeq) return // uma exportação mais nova já foi aberta por cima — descarta essa resposta atrasada
   const { elementos, fotosPorId } = dados
+  // achado real revisando a exportação com ceticismo (Luiz reportou
+  // "sai tudo pixelado"): o checker de DPI dependia de
+  // fotos.largura_original/altura_original — populadas no upload
+  // desde 074, MAS fotos de ANTES dessa migration (ou onde a medição
+  // falhou silenciosamente, ver _gerarThumbGaleria) ficam com esses
+  // campos NULL pra sempre. _albumDpiClasseExport trata null como
+  // 'neutro' (nem ok nem baixo) — exatamente as fotos MAIS prováveis
+  // de ter problema (nunca foram medidas) nunca apareciam no aviso,
+  // dando falsa confiança bem na hora que mais importa. Mede de
+  // verdade agora (baixa a imagem original, igual a exportação já
+  // faria de qualquer forma) só pra quem está com o campo faltando —
+  // não deixa mais nenhuma foto escapar do checker por falta de dado.
+  if (minhaSeq === _albumExportacaoCargaSeq) corpo.innerHTML = '<div class="empty">Medindo fotos ainda não verificadas…</div>'
+  await Promise.all([...fotosPorId.values()].filter(f => !f.largura_original || !f.altura_original).map(async f => {
+    try {
+      const img = await _albumCarregarImagemOriginal(f)
+      f.largura_original = img.naturalWidth
+      f.altura_original = img.naturalHeight
+    } catch (e) { /* best-effort — se a foto nem carrega, semFoto/erro de render já cobre isso na exportação de verdade */ }
+  }))
+  if (minhaSeq !== _albumExportacaoCargaSeq) return
   _albumExportDados = { projeto, template, elementos, fotosPorId }
   const semFoto = elementos.filter(e => !fotosPorId.has(e.foto_id)).length
   const baixaDpi = elementos.filter(e => {
@@ -18463,6 +18484,7 @@ async function abrirExportacaoAlbum() {
   const avisos = []
   if (semFoto) avisos.push(`⚠ ${semFoto} elemento(s) usam foto(s) que não existem mais na galeria — vão sair em branco.`)
   if (baixaDpi) avisos.push(`⚠ ${baixaDpi} foto(s) abaixo de ${template.dpi_alvo} DPI — podem sair borradas na impressão.`)
+  _albumExportDados.temAvisoQualidade = semFoto > 0 || baixaDpi > 0
   // achado na mesma família do min_laminas que _albumApagarSpread já
   // passou a barrar — mas exportar (igual "enviar pra aprovação")
   // nunca checava isso. Um álbum com menos lâminas que o mínimo do
@@ -18508,9 +18530,19 @@ async function _albumExportarJPGs() {
   // já testada) pros dois lados: exportação espera download terminar,
   // e download já barra sozinho se uma exportação estiver rolando.
   if (_baixandoPrivado) { toast('Tem um download em andamento — aguarda terminar antes de exportar.'); return }
+  // achado direto do pedido do Luiz ("sai tudo pixelado, não serve
+  // pra gráfica"): os avisos de qualidade já existiam, mas eram só
+  // texto — dava pra ignorar sem querer e mandar assim mesmo pra
+  // gráfica. Trava ANTES de qualquer await (mesmo o do próprio
+  // diálogo), mesmo motivo de sempre nesta sessão: 2 cliques quase
+  // simultâneos não podem abrir 2 confirmações.
   _albumExportando = true
-  _baixandoPrivado = true
   try {
+    if (_albumExportDados.temAvisoQualidade) {
+      const ok = await confirmModal('Esse álbum tem foto(s) faltando ou abaixo da resolução mínima pra impressão — os JPGs vão sair borrados/pixelados na gráfica. Baixar mesmo assim?', { titulo: 'Qualidade abaixo do ideal', okLabel: 'Baixar mesmo assim', danger: true })
+      if (!ok) return
+    }
+    _baixandoPrivado = true
     const { projeto, template, elementos, fotosPorId } = _albumExportDados
     const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
     const arquivos = []
@@ -18545,8 +18577,12 @@ async function _albumExportarPDF() {
   if (_albumExportando || !_albumExportDados) return
   if (_baixandoPrivado) { toast('Tem um download em andamento — aguarda terminar antes de exportar.'); return }
   _albumExportando = true
-  _baixandoPrivado = true
   try {
+    if (_albumExportDados.temAvisoQualidade) {
+      const ok = await confirmModal('Esse álbum tem foto(s) faltando ou abaixo da resolução mínima pra impressão — o PDF vai sair borrado/pixelado na gráfica. Baixar mesmo assim?', { titulo: 'Qualidade abaixo do ideal', okLabel: 'Baixar mesmo assim', danger: true })
+      if (!ok) return
+    }
+    _baixandoPrivado = true
     const { projeto, template, elementos, fotosPorId } = _albumExportDados
     const spreads = [...store.albumSpreads].sort((a, b) => a.spread_index - b.spread_index)
     const paginas = []
