@@ -1644,13 +1644,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-btn-exportar-destaque:hover{background:#1d4ed8;border-color:#1d4ed8;}
 .album-header-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 16px;background:#150810;border-bottom:1px solid rgba(200,175,127,.12);flex-wrap:wrap;}
 .album-header-toolbar .grupo{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
-.album-header-toolbar .icon-toolbar{width:32px;height:32px;border-radius:6px;border:1px solid rgba(200,175,127,.25);background:rgba(255,255,255,.03);color:#DBC9A8;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-.album-header-toolbar .icon-toolbar:hover{border-color:var(--dourado);color:var(--ouro-luz);}
+/* pílula escura com botões circulares — mesma linguagem visual do
+   widget de zoom (que já tinha ficado bom, referência explícita do
+   Luiz) em vez da caixa quadrada antiga com emoji solto. */
+.album-header-toolbar .grupo-icones{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:99px;padding:4px;gap:2px;}
+.album-header-toolbar .icon-toolbar{width:30px;height:30px;border-radius:50%;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:#DBC9A8;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.album-header-toolbar .icon-toolbar:hover{border-color:var(--dourado);color:var(--ouro-luz);background:rgba(255,255,255,.1);}
 .album-header-toolbar .icon-toolbar:disabled{opacity:.35;cursor:default;}
 .album-header-toolbar .icon-toolbar.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
-.album-header-toolbar select#album-zoom-select{background:rgba(255,255,255,.04);border:1px solid rgba(200,175,127,.25);color:#DBC9A8;border-radius:6px;padding:5px 6px;font-size:12px;}
 .album-workspace{position:relative;background:#18181b;min-height:520px;display:flex;flex-direction:column;}
-.album-workspace-corpo{position:relative;flex:1;display:grid;grid-template-columns:22px 1fr;grid-template-rows:22px 1fr;overflow:auto;}
+.album-workspace-corpo{position:relative;flex:1;display:grid;grid-template-columns:22px 1fr;grid-template-rows:22px 1fr;overflow:auto;cursor:grab;}
 /* 2º PROMPT.md: pan (Espaço+arrastar ou botão do meio) — cursor muda
    pra "mão" assim que Espaço é pressionado (affordance de que o modo
    está pronto, mesmo antes de começar a arrastar), e pra "mão fechada"
@@ -1720,7 +1723,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    fundo claro), com sombra bem mais pronunciada, sentada em cima do
    workspace escuro (.album-workspace, abaixo) — esse contraste é o
    que separa a lâmina do resto visualmente, não só cor por cor. */
-.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#f4f1ea;border-radius:2px;overflow:visible;box-shadow:0 25px 50px -12px rgba(0,0,0,.7);user-select:none;touch-action:none;}
+/* z-index:1 aqui não é decorativo — cria um stacking context PRÓPRIO
+   pra conter o .album-el.sel{z-index:999!important} lá dentro (bug
+   real reportado pelo Luiz com print: a foto selecionada aparecia por
+   cima de QUALQUER modal aberto por cima). Sem isso, um z-index alto
+   num descendente escapa pra comparar direto com .modal-overlay no
+   stacking context do documento inteiro — 999 sempre vence 350. Com
+   isso, o navegador nunca deixa nada de dentro do canvas passar do
+   "andar" 1 no contexto do documento, não importa o z-index interno. */
+.album-canvas-wrap{position:relative;z-index:1;width:100%;max-width:900px;background:#f4f1ea;border-radius:2px;overflow:visible;box-shadow:0 25px 50px -12px rgba(0,0,0,.7);user-select:none;touch-action:none;}
 .album-guide{position:absolute;pointer-events:none;border:0;}
 .album-guide-sangria{inset:0;outline:1.5px dashed rgba(220,60,60,.75);outline-offset:-1px;}
 .album-guide-vinco{top:0;bottom:0;left:50%;width:0;border-left:1.5px dashed rgba(90,150,220,.85);}
@@ -1738,12 +1749,27 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    em JS (_albumPosicionarToolbarFlutuante) colado no topo da seleção,
    nunca reserva espaço no layout. z-index alto o bastante pra ficar
    sempre por cima do canvas/lâminas, mas abaixo de qualquer modal. */
-.album-el-toolbar-flutuante{position:fixed;z-index:500;display:none;background:#1A0A0E;border:1px solid rgba(200,175,127,.35);border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.55);gap:6px;align-items:center;flex-wrap:nowrap;}
+/* z-index abaixo de .modal-overlay (350) DE PROPÓSITO — antes era 500
+   (acima de qualquer modal), corrigido caso a caso escondendo a
+   toolbar manualmente em cada ponto que abre um modal (frágil: um
+   modal novo esquecido — como o de "Enviar pra aprovação" redesenhado
+   — reabre o mesmo bug). Abaixo de 350 resolve estrutural, pra
+   qualquer modal, presente ou futuro, sem precisar lembrar de nada. */
+/* BUG/pedido real do Luiz: "o menu que aparece quando clico na foto
+   ainda está horrível... deixe ele no padrão do botão de ZOOM" — trocado
+   pra copiar a MESMA receita visual do .album-zoom-widget (pílula escura
+   translúcida, botões circulares) em vez da caixa com botões de texto
+   cheios de emoji que tinha antes. Área de toque de 34px mantida
+   (>=44px contando a folga do padding do botão redondo). */
+.album-el-toolbar-flutuante{position:fixed;z-index:340;display:none;background:rgba(20,20,22,.9);border:1px solid rgba(255,255,255,.12);border-radius:99px;padding:6px 8px;box-shadow:0 10px 30px rgba(0,0,0,.55);gap:4px;align-items:center;flex-wrap:nowrap;}
 .album-el-toolbar-flutuante.show{display:flex;}
-.album-el-toolbar-flutuante .btn{min-height:36px;padding:6px 10px;font-size:12px;white-space:nowrap;}
-.album-el-toolbar-flutuante .divisor{width:1px;align-self:stretch;background:rgba(200,175,127,.25);}
-.album-zoom-corte{display:flex;align-items:center;gap:4px;padding:0 4px;}
-.album-zoom-corte button{width:26px;height:26px;border-radius:6px;border:1px solid rgba(200,175,127,.3);background:rgba(255,255,255,.04);color:#DBC9A8;font-size:14px;line-height:1;cursor:pointer;}
+.album-el-toolbar-flutuante .icone-flutuante{width:32px;height:32px;border-radius:50%;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);color:#e5e5e5;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;}
+.album-el-toolbar-flutuante .icone-flutuante:hover{border-color:var(--dourado);color:var(--ouro-luz);background:rgba(255,255,255,.1);}
+.album-el-toolbar-flutuante .icone-flutuante.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
+.album-el-toolbar-flutuante .icone-flutuante.perigo:hover{border-color:#e0554f;color:#ff8f89;}
+.album-el-toolbar-flutuante .divisor{width:1px;height:20px;background:rgba(255,255,255,.15);flex-shrink:0;}
+.album-zoom-corte{display:flex;align-items:center;gap:4px;padding:0 2px;}
+.album-zoom-corte button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#e5e5e5;font-size:13px;line-height:1;cursor:pointer;}
 .album-zoom-corte button:hover{border-color:var(--dourado);color:var(--ouro-luz);}
 .album-zoom-corte input[type=range]{width:70px;accent-color:var(--dourado);}
 /* linhas de imã (snapping) — aparecem só durante o arrasto, nunca no
@@ -1792,7 +1818,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    fixo — isso é sempre definido inline via JS em renderAlbumFotosPainel/
    _albumMudarThumbSize, conforme o slider de tamanho de miniatura). */
 .album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;gap:6px;}
-.album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
+.album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);content-visibility:auto;contain-intrinsic-size:0 90px;}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
 /* achado de design: 5 botões numa fileira só, sem separação nenhuma
@@ -1899,6 +1925,28 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-capa-dica{position:relative;z-index:1;margin-top:22px;font-size:11.5px;color:rgba(200,175,127,.65);animation:albumCapaPulsar 2.2s ease-in-out infinite;}
 @keyframes albumCapaPulsar{0%,100%{opacity:.5;}50%{opacity:1;}}
 @media(max-width:480px){.album-capa-livro{max-width:88vw;padding:24px;}.album-capa-titulo{font-size:24px;}}
+/* modal "Enviar pra aprovação" (bug real: "está feio, coloque em um
+   design mais atual") — cards de modo em vez de <select> cru, toggle
+   switch em vez de checkbox nativo. Os elementos funcionais por trás
+   (radio/checkbox reais com os MESMOS ids de sempre) não mudaram — só
+   a casca visual, pra não precisar reescrever a leitura de valores. */
+.alba-modal .field-label{display:block;font-size:12.5px;color:#B39F86;margin:14px 0 6px;font-weight:600;}
+.alba-modo-cards{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.alba-modo-card{position:relative;display:block;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.03);cursor:pointer;transition:border-color .15s,background .15s;}
+.alba-modo-card input{position:absolute;opacity:0;}
+.alba-modo-card.on{border-color:var(--dourado);background:rgba(200,175,127,.12);}
+.alba-modo-card-titulo{font-size:13px;font-weight:600;color:#DBC9A8;}
+.alba-modo-card-desc{font-size:11px;color:#9c8f83;margin-top:3px;line-height:1.4;}
+#alba-permissoes-wrap{display:flex;flex-direction:column;gap:6px;margin-top:12px;transition:opacity .15s;}
+.alba-permissao-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:rgba(255,255,255,.03);border-radius:8px;font-size:13px;cursor:pointer;}
+.alba-toggle{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;}
+.alba-toggle input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer;z-index:1;}
+.alba-toggle .trilho{position:absolute;inset:0;background:rgba(255,255,255,.18);border-radius:99px;transition:background .15s;pointer-events:none;}
+.alba-toggle .bola{position:absolute;top:2px;left:2px;width:18px;height:18px;background:#fff;border-radius:50%;transition:transform .15s;box-shadow:0 1px 3px rgba(0,0,0,.4);}
+.alba-toggle input:checked + .trilho{background:var(--dourado);}
+.alba-toggle input:checked + .trilho .bola{transform:translateX(16px);}
+.alba-toggle input:disabled + .trilho{opacity:.35;cursor:default;}
+.alba-toggle input:disabled{cursor:default;}
 </style>
 </head>
 <body>
@@ -3076,28 +3124,37 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <!-- modal: Digipix — enviar álbum pra aprovação do cliente -->
 <div class="modal-overlay" id="modal-album-aprovacao">
-  <div class="modal" style="max-width:460px;">
+  <div class="modal alba-modal" style="max-width:460px;">
     <h3>Enviar pra aprovação</h3>
-    <div class="meta" style="margin-bottom:14px;">O responsável escolhido vai ver o álbum na Galeria dele, com o modo e as permissões abaixo.</div>
+    <div class="meta" style="margin-bottom:16px;">O responsável escolhido vai ver o álbum na Galeria dele, com o modo e as permissões abaixo.</div>
     <div class="field"><label>Responsável</label>
       <select id="alba-responsavel"><option value="">— selecione —</option></select>
     </div>
-    <div class="field">
-      <label>Modo de compartilhamento</label>
-      <select id="alba-modo" onchange="_albumAtualizarCamposPermissao()">
-        <option value="colaborativo">Colaborativo — cliente pode interagir (com as travas abaixo)</option>
-        <option value="apreciacao">Somente Apreciação — cliente só olha, sem nenhum botão de ação</option>
-      </select>
+    <label class="field-label">Modo de compartilhamento</label>
+    <div class="alba-modo-cards">
+      <label class="alba-modo-card" id="alba-modo-card-colaborativo">
+        <input type="radio" name="alba-modo" id="alba-modo-colaborativo" value="colaborativo" checked onchange="_albumAtualizarCamposPermissao()">
+        <div class="alba-modo-card-titulo">Colaborativo</div>
+        <div class="alba-modo-card-desc">Cliente pode interagir, com as travas abaixo</div>
+      </label>
+      <label class="alba-modo-card" id="alba-modo-card-apreciacao">
+        <input type="radio" name="alba-modo" id="alba-modo-apreciacao" value="apreciacao" onchange="_albumAtualizarCamposPermissao()">
+        <div class="alba-modo-card-titulo">Somente Apreciação</div>
+        <div class="alba-modo-card-desc">Cliente só olha, sem nenhum botão de ação</div>
+      </label>
     </div>
-    <div id="alba-permissoes-wrap" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
-        <input type="checkbox" id="alba-permite-trocar"> Permitir cliente trocar fotos
+    <div id="alba-permissoes-wrap">
+      <label class="alba-permissao-row">
+        <span>Permitir cliente trocar fotos</span>
+        <span class="alba-toggle"><input type="checkbox" id="alba-permite-trocar"><span class="trilho"><span class="bola"></span></span></span>
       </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
-        <input type="checkbox" id="alba-permite-comentar" checked> Permitir comentários por lâmina
+      <label class="alba-permissao-row">
+        <span>Permitir comentários por lâmina</span>
+        <span class="alba-toggle"><input type="checkbox" id="alba-permite-comentar" checked><span class="trilho"><span class="bola"></span></span></span>
       </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
-        <input type="checkbox" id="alba-exibir-aprovar" checked> Exibir botão de aprovação de impressão
+      <label class="alba-permissao-row">
+        <span>Exibir botão de aprovação de impressão</span>
+        <span class="alba-toggle"><input type="checkbox" id="alba-exibir-aprovar" checked><span class="trilho"><span class="bola"></span></span></span>
       </label>
     </div>
     <div class="modal-actions">
@@ -16891,7 +16948,7 @@ async function _albumAbrirEnvioAprovacao() {
   // comentar+aprovar ligados, trocar foto desligado por padrão,
   // pedido explícito) toda vez que o modal abre, pra nunca herdar a
   // escolha de um envio anterior sem o admin perceber.
-  document.getElementById('alba-modo').value = 'colaborativo'
+  document.getElementById('alba-modo-colaborativo').checked = true
   document.getElementById('alba-permite-trocar').checked = false
   document.getElementById('alba-permite-comentar').checked = true
   document.getElementById('alba-exibir-aprovar').checked = true
@@ -16900,9 +16957,13 @@ async function _albumAbrirEnvioAprovacao() {
 }
 // modo "Somente Apreciação" não usa nenhuma das 3 travas modulares
 // (o cliente não tem NENHUM botão de ação) — desabilita visualmente
-// pra não sugerir que elas ainda fazem diferença nesse modo.
+// pra não sugerir que elas ainda fazem diferença nesse modo. Também
+// realça o card do modo escolhido (redesign pediu cards em vez de
+// <select>, ver bug "menu de enviar pra aprovação está feio").
 function _albumAtualizarCamposPermissao() {
-  const apreciacao = document.getElementById('alba-modo').value === 'apreciacao'
+  const apreciacao = document.getElementById('alba-modo-apreciacao').checked
+  document.getElementById('alba-modo-card-colaborativo')?.classList.toggle('on', !apreciacao)
+  document.getElementById('alba-modo-card-apreciacao')?.classList.toggle('on', apreciacao)
   document.getElementById('alba-permissoes-wrap').style.opacity = apreciacao ? '.4' : '1'
   ;['alba-permite-trocar', 'alba-permite-comentar', 'alba-exibir-aprovar'].forEach(id => { document.getElementById(id).disabled = apreciacao })
 }
@@ -16940,7 +17001,7 @@ async function _albumEnviarParaAprovacao() {
       )
       if (!ok) return
     }
-    const modo = document.getElementById('alba-modo').value
+    const modo = document.getElementById('alba-modo-apreciacao').checked ? 'apreciacao' : 'colaborativo'
     const payload = {
       cliente_user_id: clienteId, status: 'em_aprovacao', modo_compartilhamento: modo,
       // "Somente Apreciação" trava as 3 permissões desligadas de
@@ -17232,20 +17293,17 @@ async function abrirAlbumEditor(projetoId) {
       </div>
       <div class="grupo-centro"><div class="album-spreads-tira" id="album-spreads-tira"></div></div>
       <div class="grupo-direita">
-        ${podeEnviarAprovacao ? `<button class="btn btn-sm" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra Aprovação</button>` : ''}
-        <button class="btn btn-sm album-btn-exportar-destaque" onclick="abrirExportacaoAlbum()">🖨 Exportar</button>
+        ${podeEnviarAprovacao ? `<button class="btn btn-sm" onclick="_albumAbrirEnvioAprovacao()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="margin-right:5px;vertical-align:-2px;"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>Enviar pra Aprovação</button>` : ''}
+        <button class="btn btn-sm album-btn-exportar-destaque" onclick="abrirExportacaoAlbum()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="margin-right:5px;vertical-align:-2px;"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Exportar</button>
       </div>
     </div>
     <div class="album-header-toolbar">
-      <div class="grupo">
+      <div class="grupo grupo-icones">
         <button class="icon-toolbar" id="album-btn-desfazer" onclick="_albumDesfazer()" title="Desfazer (Ctrl+Z)" disabled>↶</button>
         <button class="icon-toolbar" id="album-btn-refazer" onclick="_albumRefazer()" title="Refazer (Ctrl+Y)" disabled>↷</button>
         <span class="album-toolbar-divisor" aria-hidden="true"></span>
-        <select id="album-zoom-select" onchange="_albumMudarZoom(this.value)" title="Zoom">
-          ${[30,50,65,75,100,125,150].map(p => `<option value="${p}"${p===65?' selected':''}>${p}%</option>`).join('')}
-        </select>
         <button class="icon-toolbar on" id="album-btn-guias" onclick="_albumAlternarGuias()" title="Mostrar/esconder guias (sangria/margem/vinco)">▦</button>
-        <button class="icon-toolbar" id="album-btn-spread-view" onclick="_albumAlternarSpreadView()" title="Marcação de lombada (spread view)">📖</button>
+        <button class="icon-toolbar" id="album-btn-spread-view" onclick="_albumAlternarSpreadView()" title="Marcação de lombada (spread view)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M2 5c2-1 5-1 7 0v14c-2-1-5-1-7 0V5z"/><path d="M22 5c-2-1-5-1-7 0v14c2-1 5-1 7 0V5z"/></svg></button>
       </div>
       <div class="grupo">
         <button class="btn btn-sm" id="album-btn-smart-layout" onclick="_albumSmartLayout()">✨ Smart Layout</button>
@@ -17259,17 +17317,17 @@ async function abrirAlbumEditor(projetoId) {
       </div>
     </div>
     <div class="album-el-toolbar-flutuante" id="album-el-toolbar">
-      <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
-      <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
+      <button class="icone-flutuante" onclick="_albumMudarCamada(1)" title="Trazer pra frente"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M18 15 12 9l-6 6"/></svg></button>
+      <button class="icone-flutuante" onclick="_albumMudarCamada(-1)" title="Enviar pra trás"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 9l6 6 6-6"/></svg></button>
       <span class="divisor" aria-hidden="true"></span>
-      <button class="btn btn-sm" id="album-btn-modo-recorte" onclick="_albumAlternarModoRecorteToque()" title="Sem Alt no toque — alterna o que o arrasto de 1 dedo faz">✋ Modo recorte</button>
+      <button class="icone-flutuante" id="album-btn-modo-recorte" onclick="_albumAlternarModoRecorteToque()" title="Modo recorte — sem Alt no toque, alterna o que o arrasto de 1 dedo faz"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg></button>
       <span class="album-zoom-corte" title="Zoom da foto dentro do recorte">
         <button onclick="_albumZoomCorte(-0.1)">－</button>
         <input type="range" id="album-zoom-corte-slider" min="1" max="4" step="0.05" value="1" oninput="_albumZoomCorteSlider(this.value)">
         <button onclick="_albumZoomCorte(0.1)">＋</button>
       </span>
       <span class="divisor" aria-hidden="true"></span>
-      <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
+      <button class="icone-flutuante perigo" onclick="_albumApagarElemento(_albumEditorSelId)" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" width="15" height="15"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>
     <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
       <div class="album-workspace">
@@ -17369,19 +17427,29 @@ function renderAlbumFotosPainel() {
   if (contagemTodasEl) contagemTodasEl.textContent = contagemTodas
   if (contagemNaoUsadasEl) contagemNaoUsadasEl.textContent = naoUsadas.length
   const lista = _albumPainelFiltro === 'naousadas' ? naoUsadas : _albumEditorFotosEvento
+  el.innerHTML = ''
   if (!lista.length) {
     el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${_albumPainelFiltro === 'naousadas' ? 'Todas as fotos do evento já foram usadas neste álbum.' : 'Este evento ainda não tem fotos.'}</div>`
     return
   }
-  el.innerHTML = lista.map(f => {
+  // BUG REAL reportado pelo Luiz: painel de fotos "travado, lento,
+  // infuncional... só vejo as duas primeiras fotos sempre" num evento
+  // com 80 fotos — o painel jogava TODAS de uma vez no DOM (sem o
+  // mesmo lote/paginação que a Galeria principal já usa há tempo pra
+  // esse exato problema, ver _renderGridFotosPaginado). Reaproveitando
+  // o padrão já testado/comprovado em vez de inventar um novo: só
+  // cria o que cabe na tela + folga, acrescenta mais sozinho conforme
+  // rola. Mesma causa provável do slider de tamanho "não em tempo
+  // real" e do scroll geral da página "travado" — os 80 nós de imagem
+  // decodificando de uma vez ocupavam a thread principal.
+  _renderGridFotosPaginado(el, lista, f => {
     const uso = _albumUsoFotos.get(f.id) || 0
     return `
     <div class="album-foto-mini" draggable="true" data-foto-id="${f.id}" ondragstart="_albumFotoDragStart(event,'${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
       ${uso ? `<span class="album-foto-badge-uso">${uso}x</span>` : ''}
     </div>`
-  }).join('')
-  _hidratarImgCache(el)
+  })
 }
 
 let _albumFotoArrastandoId = null
@@ -17629,6 +17697,35 @@ function _albumElementosDaSpreadAtual() {
   return store.albumElements.filter(e => e.spread_id === _albumEditorSpreadAtual?.id)
 }
 
+// BUG REAL reportado pelo Luiz (com print de produção): aplicar um
+// layout numa foto cuja proporção não bate com a moldura ("foto é
+// pequena" — na prática, aspecto diferente) deixava a foto sem cobrir
+// o quadro inteiro, sobrando fundo em branco visível — o mesmo motivo
+// por trás do PDF "de baixíssima qualidade" (a exportação usa a MESMA
+// conta, então o vão em branco ia direto pro arquivo impresso).
+// Causa raiz: crop_scale=1 sempre virava `width:100%` literal, o que
+// só cobre o frame de verdade quando a foto e a moldura têm
+// EXATAMENTE a mesma proporção — puro acaso na maioria dos layouts
+// prontos. Corrigido pra imitar object-fit:cover de verdade: calcula
+// a % de largura/altura (da CAIXA, não da imagem) que a foto precisa
+// pra cobrir o frame inteiro ANTES de aplicar o zoom extra do
+// crop_scale — a partir daqui crop_scale=1 significa "cobre certinho,
+// sem zoom a mais" em QUALQUER combinação de proporções, igual
+// object-fit:cover nativo. Usada em TODO lugar que desenha a foto
+// dentro de um frame (editor, atualização incremental, fantasma do
+// recorte, exportação offscreen, visualizador do cliente) — WYSIWYG
+// de propósito, igual o resto da exportação já garante.
+function _albumCoberturaPct(foto, el) {
+  const pw = foto?.largura_original || foto?.largura
+  const ph = foto?.altura_original || foto?.altura
+  if (!pw || !ph || !el?.width || !el?.height) return { larguraPct: 100, alturaPct: 100 }
+  const photoAspect = pw / ph
+  const boxAspect = el.width / el.height
+  return {
+    larguraPct: 100 * Math.max(1, photoAspect / boxAspect),
+    alturaPct: 100 * Math.max(1, boxAspect / photoAspect),
+  }
+}
 function _albumDpiInfo(el, foto) {
   if (!foto?.largura_original || !foto?.altura_original) return { classe: 'neutro', texto: '— DPI' }
   const escala = el.crop_scale || 1
@@ -17652,13 +17749,26 @@ function _albumElementoHTML(el) {
   const wPct = (el.width / t.largura_aberta_mm) * 100
   const hPct = (el.height / t.altura_aberta_mm) * 100
   const dpi = _albumDpiInfo(el, foto)
-  const src = foto ? (_imgCache(_fotoPreviewPath(foto)) || '') : ''
+  const cob = _albumCoberturaPct(foto, el)
+  const escalaImg = el.crop_scale || 1
+  // BUG REAL reportado pelo Luiz ("fotos não aparecem, só as
+  // primeiras"): isso usava _imgCache() (leitura SÍNCRONA do cache —
+  // devolve null se ainda não tiver sido carregada antes) e, se
+  // desse null, o <img> nem era criado no HTML — sem <img> no DOM,
+  // não tinha o que hidratar depois, a foto nunca aparecia. Só
+  // "funcionava" quando o cache já tinha sido aquecido por outra
+  // coisa antes (a sidebar de fotos, que usa _imgTagCache certo).
+  // Trocado pelo padrão já usado em TODO canto do app pra isso
+  // (_imgTagCache sempre cria o <img data-path>, mesmo sem cache
+  // ainda — _hidratarImgCache/IntersectionObserver, chamado logo
+  // abaixo, garante que carrega assim que entra perto da tela).
+  const imgHtml = foto ? _imgTagCache(_fotoPreviewPath(foto), `alt="" style="width:${cob.larguraPct * escalaImg}%;height:${cob.alturaPct * escalaImg}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);"`)
+    : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(220,60,60,.15);color:#DBC9A8;font-size:10px;text-align:center;padding:4px;">Foto removida da galeria</div>`
   return `
     <div class="album-el${_albumEditorSelId === el.id ? ' sel' : ''}" data-el-id="${el.id}"
          style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};">
       <div class="album-el-img-wrap">
-        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">`
-          : !foto ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(220,60,60,.15);color:#DBC9A8;font-size:10px;text-align:center;padding:4px;">Foto removida da galeria</div>` : ''}
+        ${imgHtml}
       </div>
       <div class="album-el-dpi ${dpi.classe}">${dpi.texto}</div>
       <div class="album-el-rotate" data-el-handle="rotate"></div>
@@ -17690,13 +17800,16 @@ function _albumAtualizarElementoDOM(el) {
   // um "img" genérico pegaria a foto ERRADA (o fantasma vem antes no
   // DOM) e pararia de atualizar a foto real durante mover/redimensionar/
   // girar, silenciosamente.
+  const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
   const img = div.querySelector('.album-el-img-wrap img')
   if (img) {
-    img.style.width = (100 * (el.crop_scale || 1)) + '%'
+    const cob = _albumCoberturaPct(foto, el)
+    const escalaImg = el.crop_scale || 1
+    img.style.width = (cob.larguraPct * escalaImg) + '%'
+    img.style.height = (cob.alturaPct * escalaImg) + '%'
     img.style.left = (50 - (el.crop_x || 0)) + '%'
     img.style.top = (50 - (el.crop_y || 0)) + '%'
   }
-  const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
   const dpi = _albumDpiInfo(el, foto)
   const badge = div.querySelector('.album-el-dpi')
   if (badge) { badge.className = `album-el-dpi ${dpi.classe}`; badge.textContent = dpi.texto }
@@ -17718,6 +17831,7 @@ function _albumMostrarFantasmaRecorte(el) {
   fantasma.className = 'album-el-fantasma-recorte'
   fantasma.alt = ''
   fantasma.style.width = imgReal.style.width
+  fantasma.style.height = imgReal.style.height
   fantasma.style.left = imgReal.style.left
   fantasma.style.top = imgReal.style.top
   div.insertBefore(fantasma, wrap)
@@ -17725,7 +17839,11 @@ function _albumMostrarFantasmaRecorte(el) {
 function _albumAtualizarFantasmaRecorte(el) {
   const fantasma = document.querySelector(`.album-el[data-el-id="${el.id}"] .album-el-fantasma-recorte`)
   if (!fantasma) return
-  fantasma.style.width = (100 * (el.crop_scale || 1)) + '%'
+  const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
+  const cob = _albumCoberturaPct(foto, el)
+  const escalaImg = el.crop_scale || 1
+  fantasma.style.width = (cob.larguraPct * escalaImg) + '%'
+  fantasma.style.height = (cob.alturaPct * escalaImg) + '%'
   fantasma.style.left = (50 - (el.crop_x || 0)) + '%'
   fantasma.style.top = (50 - (el.crop_y || 0)) + '%'
 }
@@ -17749,7 +17867,7 @@ function renderAlbumCanvas() {
     ${t.tipo_dobra === 'vinco' ? '<div class="album-guide album-guide-vinco"></div>' : ''}
     <div class="album-guide album-guide-sangria" style="inset:${sangriaPctY}% ${sangriaPctX}%;"></div>
     `
-  _albumHidratarFotosCanvas()
+  _hidratarImgCache(wrap)
   _albumAtualizarToolbarFlutuante()
   _albumAplicarZoom()
   _albumAplicarGuias()
@@ -17776,10 +17894,8 @@ function _albumAplicarZoom() {
   if (wrap) wrap.style.width = (ALBUM_ZOOM_BASE_PX * _albumZoomPct / 100) + 'px'
   const slider = document.getElementById('album-zoom-slider')
   const label = document.getElementById('album-zoom-label')
-  const select = document.getElementById('album-zoom-select')
   if (slider) slider.value = _albumZoomPct
   if (label) label.textContent = _albumZoomPct + '%'
-  if (select) select.value = String(_albumZoomPct)
 }
 function _albumMudarZoom(valor, delta) {
   if (valor != null) _albumZoomPct = Math.min(150, Math.max(30, parseInt(valor) || 65))
@@ -17896,15 +18012,6 @@ function _albumAtualizarToolbarFlutuante() {
   const elObj = store.albumElements.find(x => x.id === _albumEditorSelId)
   const slider = document.getElementById('album-zoom-corte-slider')
   if (slider && elObj) slider.value = elObj.crop_scale || 1
-}
-
-function _albumHidratarFotosCanvas() {
-  _albumElementosDaSpreadAtual().forEach(el => {
-    const foto = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
-    if (!foto) return
-    const img = document.querySelector(`.album-el[data-el-id="${el.id}"] img`)
-    if (img && !img.src) _hidratarPathImg(img, _fotoPreviewPath(foto))
-  })
 }
 
 // arrastar foto do painel lateral pra lâmina — cria um elemento novo
@@ -18130,13 +18237,29 @@ let _albumPan = null
 // registra primeiro roda primeiro. stopImmediatePropagation() quando
 // o pan realmente começa garante que aquele outro handler não tente
 // TAMBÉM selecionar/mover uma foto no mesmo clique.
+//
+// BUGS REAIS reportados pelo Luiz (testando de verdade): (1) clicar
+// "de fora" (na área escura ao redor da lâmina, não só em cima dela)
+// não desmarcava a foto selecionada — o handler de seleção só cobre
+// #album-canvas-wrap (a "folha"), não a área inteira do workspace; (2)
+// arrastar a área de trabalho sem segurar Espaço não funcionava, "nem
+// um pouco como Photoshop". Os dois têm a MESMA causa: o pan só
+// disparava com Espaço/botão do meio. Agora um clique com o botão
+// esquerdo em QUALQUER área vazia do workspace (não em cima de uma
+// foto nem de um controle/botão) já inicia o pan — e se soltar sem
+// arrastar de verdade (só um clique, sem mover), conta como "clicar de
+// fora" e desmarca a foto. Clicar EM CIMA de uma foto continua
+// selecionando/movendo ela normalmente (não entra aqui).
 document.addEventListener('pointerdown', e => {
   const corpo = document.getElementById('album-workspace-corpo')
   if (!corpo || !corpo.contains(e.target)) return
-  if (!(_albumEspacoPressionado || e.button === 1)) return
+  const emControle = !!e.target.closest('button, input, select, a, [data-el-handle]')
+  const emFoto = !!e.target.closest('.album-el')
+  const querPan = _albumEspacoPressionado || e.button === 1 || (e.button === 0 && !emControle && !emFoto)
+  if (!querPan) return
   e.preventDefault()
   e.stopImmediatePropagation()
-  _albumPan = { startX: e.clientX, startY: e.clientY, scrollLeft: corpo.scrollLeft, scrollTop: corpo.scrollTop, pointerId: e.pointerId }
+  _albumPan = { startX: e.clientX, startY: e.clientY, scrollLeft: corpo.scrollLeft, scrollTop: corpo.scrollTop, pointerId: e.pointerId, moveu: false }
   // setPointerCapture pode lançar em casos raros (ponteiro já
   // liberado/inválido) — sem o try/catch, isso interromperia a função
   // ANTES da classe visual (.pan-ativo) e não seria capturado por
@@ -18151,13 +18274,20 @@ document.addEventListener('pointermove', e => {
   if (!_albumPan || e.pointerId !== _albumPan.pointerId) return
   const corpo = document.getElementById('album-workspace-corpo')
   if (!corpo) return
-  corpo.scrollLeft = _albumPan.scrollLeft - (e.clientX - _albumPan.startX)
-  corpo.scrollTop = _albumPan.scrollTop - (e.clientY - _albumPan.startY)
+  const dx = e.clientX - _albumPan.startX, dy = e.clientY - _albumPan.startY
+  // limiar de 4px: abaixo disso ainda conta como "clique" (deselect),
+  // não como arrasto — evita desmarcar sem querer num tremor mínimo de
+  // mão, e evita iniciar pan visível num clique parado.
+  if (Math.abs(dx) > 4 || Math.abs(dy) > 4) _albumPan.moveu = true
+  corpo.scrollLeft = _albumPan.scrollLeft - dx
+  corpo.scrollTop = _albumPan.scrollTop - dy
 })
 function _albumPararPan() {
   if (!_albumPan) return
+  const moveu = _albumPan.moveu
   document.getElementById('album-workspace-corpo')?.classList.remove('pan-ativo')
   _albumPan = null
+  if (!moveu && _albumEditorSelId) { _albumEditorSelId = null; renderAlbumCanvas() }
 }
 document.addEventListener('pointerup', _albumPararPan)
 document.addEventListener('pointercancel', _albumPararPan)
@@ -18339,13 +18469,22 @@ document.addEventListener('pointermove', e => {
       // no toque) jogava crop_x/crop_y pra milhares de % — a foto
       // "sumia" da moldura (pan bem além da imagem), sem pista visual
       // de quanto arrastar de volta pra recuperar. Limite matemático:
-      // com a imagem crop_scale× maior que o frame, ela só cobre o
-      // frame inteiro enquanto o pan fica dentro de ±50*(crop_scale-1)
-      // — em zoom 1 (sem zoom) isso trava em 0, correto (não tem pra
-      // onde puxar sem abrir vão).
-      const limitePan = 50 * ((el.crop_scale || 1) - 1)
-      el.crop_x = Math.min(limitePan, Math.max(-limitePan, d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100))
-      el.crop_y = Math.min(limitePan, Math.max(-limitePan, d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100))
+      // com a imagem cobrindo o frame (_albumCoberturaPct) × o zoom
+      // extra do crop_scale, ela só cobre o frame inteiro enquanto o
+      // pan fica dentro de ±metade da sobra — em zoom 1 (sem zoom
+      // extra) isso trava em 0 no eixo que já bate exato, correto (não
+      // tem pra onde puxar sem abrir vão). Limites SEPARADOS por eixo
+      // (antes era um só, `limitePan` simétrico) — precisa ser assim
+      // desde que a cobertura deixou de ser sempre 100%/100% (foto e
+      // frame com proporções diferentes sobram tamanhos diferentes em
+      // cada eixo).
+      const fotoRecorte = store.fotos.find(f => f.id === el.foto_id) || _albumEditorFotosEvento.find(f => f.id === el.foto_id)
+      const cob = _albumCoberturaPct(fotoRecorte, el)
+      const escalaImg = el.crop_scale || 1
+      const limitePanX = Math.max(0, (cob.larguraPct * escalaImg - 100) / 2)
+      const limitePanY = Math.max(0, (cob.alturaPct * escalaImg - 100) / 2)
+      el.crop_x = Math.min(limitePanX, Math.max(-limitePanX, d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100))
+      el.crop_y = Math.min(limitePanY, Math.max(-limitePanY, d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100))
     }
     _albumAtualizarFantasmaRecorte(el)
   }
@@ -19224,8 +19363,20 @@ function _albumDesenharElementoCanvas(ctx, el, img, pxPorMm) {
   const boxX = el.x * pxPorMm, boxY = el.y * pxPorMm
   const boxW = el.width * pxPorMm, boxH = el.height * pxPorMm
   const escala = el.crop_scale || 1
-  const imgW = boxW * escala
-  const imgH = imgW * (img.naturalHeight / img.naturalWidth)
+  // mesma correção de _albumCoberturaPct (editor) — só que a partir das
+  // dimensões REAIS da imagem já carregada (img.naturalWidth/Height),
+  // não de foto.largura_original (que pode faltar em foto legada) —
+  // mais confiável aqui porque o arquivo original já está em mãos.
+  // Sem isso, foto com proporção diferente da moldura saía do PDF com
+  // vão em branco visível dentro do frame (bug real: "PDF em baixa
+  // qualidade" e "layout não posiciona foto corretamente" eram o
+  // MESMO bug, só visto em dois lugares diferentes).
+  const photoAspect = img.naturalWidth / img.naturalHeight
+  const boxAspect = el.width / el.height
+  const coberturaW = Math.max(1, photoAspect / boxAspect)
+  const coberturaH = Math.max(1, boxAspect / photoAspect)
+  const imgW = boxW * coberturaW * escala
+  const imgH = boxH * coberturaH * escala
   const imgX = (boxW * (50 - (el.crop_x || 0)) / 100) - imgW / 2
   const imgY = (boxH * (50 - (el.crop_y || 0)) / 100) - imgH / 2
   ctx.save()
@@ -19630,6 +19781,15 @@ async function _albumClienteVerificarTab() {
 async function iniciarAlbumCliente() {
   const wrap = document.getElementById('album-cliente-wrap')
   if (!wrap) return
+  // BUG REAL reportado pelo Luiz: abrir o álbum, fechar/trocar de aba
+  // e voltar deixava a capa impossível de abrir de novo ("posso clicar
+  // quantas vezes quiser") — _albumCapaAbrindo vira true dentro de
+  // _albumClienteAbrirCapa() e nunca era resetado; renderAlbumClienteShell
+  // recria a capa do ZERO a cada visita, mas a flag antiga (presa em
+  // true) fazia _albumClienteAbrirCapa() sair logo na 1ª linha sempre.
+  // Reset aqui, na entrada real da tela (mesmo padrão já usado pra
+  // _albumGuiasVisiveis/_albumSpreadViewAtivo no editor do admin).
+  _albumCapaAbrindo = false
   wrap.innerHTML = '<div class="empty">Carregando…</div>'
   const { data: projetos, error } = await db.from('album_projects').select('*, album_templates(*)').eq('cliente_user_id', currentUser.id).in('status', ['em_aprovacao', 'aprovado']).order('atualizado_em', { ascending: false })
   if (error) { wrap.innerHTML = '<div class="empty">Não foi possível carregar seu álbum agora.</div>'; return }
@@ -19794,7 +19954,7 @@ function renderAlbumClienteSpread() {
   page.style.aspectRatio = `${t.largura_aberta_mm} / ${t.altura_aberta_mm}`
   const elementos = _albumClienteElementos.filter(e => e.spread_id === spread.id).sort((a, b) => a.z_index - b.z_index)
   page.innerHTML = elementos.map(el => _albumClienteElementoHTML(el)).join('')
-  _albumClienteHidratarFotos()
+  _hidratarImgCache(page)
   const contador = document.getElementById('album-cliente-contador')
   if (contador) contador.textContent = `Lâmina ${_albumClienteIndice + 1} de ${_albumClienteSpreads.length}`
   _albumClienteAtualizarBotoesNav()
@@ -19808,29 +19968,30 @@ function _albumClienteElementoHTML(el) {
   const topPct = (el.y / t.altura_aberta_mm) * 100
   const wPct = (el.width / t.largura_aberta_mm) * 100
   const hPct = (el.height / t.altura_aberta_mm) * 100
-  const src = foto ? (_imgCache(_fotoPreviewPath(foto)) || '') : ''
-  // achado no 3º PROMPT.md (ETAPA 3.1, modos de compartilhamento):
-  // trocar foto agora também depende do que o admin liberou ao
-  // enviar — "Somente Apreciação" ou a trava "Permitir cliente trocar
-  // fotos" desligada escondem esse botão (o RPC 077 também recusa se
-  // alguém tentar chamar direto, então isso aqui é só a UI seguindo o
-  // que o banco já vai barrar de qualquer forma).
+  // BUG REAL reportado pelo Luiz ("as fotos não aparecem para a
+  // cliente, só algumas, normalmente as primeiras") — mesma causa
+  // raiz do editor do admin (ver _albumElementoHTML): _imgCache() é
+  // leitura SÍNCRONA do cache, sem nada no cliente pra "esquentar"
+  // esse cache antes (o admin tem a sidebar de fotos fazendo isso por
+  // acidente; o cliente não tem sidebar nenhuma) — na primeira visita
+  // o cache está sempre frio, o <img> nunca chegava a ser criado, e
+  // sem <img> no DOM não tinha o que hidratar depois. Trocado pro
+  // mesmo padrão comprovado do resto do app (_imgTagCache sempre cria
+  // o <img data-path>, _hidratarImgCache carrega assim que entra
+  // perto da tela via IntersectionObserver).
   const podeTrocar = _albumClienteProjeto.status === 'em_aprovacao' && _albumClienteProjeto.modo_compartilhamento !== 'apreciacao' && _albumClienteProjeto.permite_trocar_foto
+  const cob = _albumCoberturaPct(foto, el)
+  const escalaImg = el.crop_scale || 1
+  const imgHtml = foto ? _imgTagCache(_fotoPreviewPath(foto), `alt="" style="width:${cob.larguraPct * escalaImg}%;height:${cob.alturaPct * escalaImg}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);"`) : ''
   return `
-    <div class="album-el-cliente${podeTrocar ? ' trocavel' : ''}" data-el-id="${el.id}" data-foto-path="${foto ? esc(_fotoPreviewPath(foto)) : ''}"
+    <div class="album-el-cliente${podeTrocar ? ' trocavel' : ''}" data-el-id="${el.id}"
          style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};"
          ${podeTrocar ? `onclick="_albumClienteAbrirTroca('${el.id}')"` : ''}>
       <div class="album-el-img-wrap">
-        ${src ? `<img src="${src}" alt="" style="width:${100 * (el.crop_scale || 1)}%;left:${50 - (el.crop_x || 0)}%;top:${50 - (el.crop_y || 0)}%;transform:translate(-50%,-50%);">` : ''}
+        ${imgHtml}
       </div>
       ${podeTrocar ? '<div class="album-el-trocar-dica">Trocar foto</div>' : ''}
     </div>`
-}
-function _albumClienteHidratarFotos() {
-  document.querySelectorAll('#album-flip-page .album-el-cliente img').forEach(img => {
-    const path = img.closest('.album-el-cliente')?.dataset.fotoPath
-    if (path && !img.src) _hidratarPathImg(img, path)
-  })
 }
 
 // vira a lâmina com uma animação simples de "flip" 3D (CSS puro,
