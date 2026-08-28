@@ -18366,14 +18366,48 @@ async function _albumApagarElemento(id) {
     // vale confirmar antes (some da tela na hora, e o histórico só
     // vive nesta sessão do navegador aberta).
     if (!await confirmModal('Apagar essa foto da lâmina? A posição/recorte dela se perdem imediatamente (dá pra reverter com Ctrl+Z, mas só nesta sessão do navegador).', { titulo: 'Apagar elemento', okLabel: 'Apagar', danger: true })) return
+    const spreadId = store.albumElements.find(x => x.id === id)?.spread_id
     const { error } = await db.from('album_elements').delete().eq('id', id)
     if (error) { toast('Erro ao apagar: ' + error.message); return }
     store.albumElements = store.albumElements.filter(x => x.id !== id)
     _albumEditorSelId = null
+    // achado no 3º PROMPT.md (ETAPA 1, "Reorganização Dinâmica ao
+    // Deletar"): antes, apagar uma foto de uma lâmina de 4 só deixava
+    // 3 com um buraco no lugar da que saiu. Agora, se sobrou pelo menos
+    // 1 foto NESTA lâmina, reflui as remanescentes pra um layout
+    // pronto da biblioteca (mesma ALBUM_LAYOUTS_PADRAO do "Escolher
+    // layout") do tamanho certo pra quantas sobraram — preenchendo a
+    // página de novo, sem buraco. Ctrl+Z desfaz tudo de uma vez
+    // (apagar + reorganizar) se o admin não gostar do resultado.
+    if (spreadId === _albumEditorSpreadAtual?.id) await _albumReorganizarAposApagar(spreadId)
     renderAlbumCanvas()
     _albumHistoricoSnapshot()
     _albumCarregarUsoFotos()
   } finally { _albumApagandoElemento = false }
+}
+async function _albumReorganizarAposApagar(spreadId) {
+  const t = _albumEditorTemplate
+  const restantes = _albumElementosDaSpreadAtual().slice().sort((a, b) => a.z_index - b.z_index)
+  if (!restantes.length || !t) return
+  const layoutPronto = ALBUM_LAYOUTS_PADRAO.find(l => l.fotos === restantes.length)
+  const estrutura = layoutPronto ? layoutPronto.estrutura : _layGrid(restantes.length, 1)
+  const atualizacoes = restantes.map((el, i) => {
+    const item = estrutura[i]
+    if (!item) return null
+    return {
+      el, id: el.id,
+      novo: {
+        x: item.xFr * t.largura_aberta_mm, y: item.yFr * t.altura_aberta_mm,
+        width: item.wFr * t.largura_aberta_mm, height: item.hFr * t.altura_aberta_mm,
+        rotation: item.rotation || 0, z_index: item.z_index ?? i, crop_x: 0, crop_y: 0, crop_scale: 1,
+      },
+    }
+  }).filter(Boolean)
+  if (!atualizacoes.length) return
+  const resultados = await Promise.all(atualizacoes.map(a => db.from('album_elements').update(a.novo).eq('id', a.id)))
+  const erro = resultados.find(r => r?.error)?.error
+  if (erro) { console.error('Digipix: falha ao reorganizar depois de apagar', erro.message); return }
+  atualizacoes.forEach(a => Object.assign(a.el, a.novo))
 }
 
 // troca de camada — "trazer pra frente" troca o z_index com quem tá
