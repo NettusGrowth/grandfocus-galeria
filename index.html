@@ -1658,6 +1658,27 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-el.sel{outline:2px solid var(--dourado);z-index:999 !important;}
 .album-el .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
 .album-el img{position:absolute;max-width:none;pointer-events:none;-webkit-user-drag:none;}
+/* achado do Luiz testando de verdade: o menu contextual do elemento
+   (#album-el-toolbar) vivia no FLUXO normal do documento, acima do
+   canvas — abrir/fechar ele (display:none↔flex ao selecionar/
+   deselecionar) empurrava a lâmina inteira pra baixo/cima, um "pulo"
+   confuso. Vira flutuante de verdade: position:fixed, reposicionado
+   em JS (_albumPosicionarToolbarFlutuante) colado no topo da seleção,
+   nunca reserva espaço no layout. z-index alto o bastante pra ficar
+   sempre por cima do canvas/lâminas, mas abaixo de qualquer modal. */
+.album-el-toolbar-flutuante{position:fixed;z-index:500;display:none;background:#1A0A0E;border:1px solid rgba(200,175,127,.35);border-radius:10px;padding:6px;box-shadow:0 10px 30px rgba(0,0,0,.55);gap:6px;align-items:center;flex-wrap:nowrap;}
+.album-el-toolbar-flutuante.show{display:flex;}
+.album-el-toolbar-flutuante .btn{min-height:36px;padding:6px 10px;font-size:12px;white-space:nowrap;}
+.album-el-toolbar-flutuante .divisor{width:1px;align-self:stretch;background:rgba(200,175,127,.25);}
+.album-zoom-corte{display:flex;align-items:center;gap:4px;padding:0 4px;}
+.album-zoom-corte button{width:26px;height:26px;border-radius:6px;border:1px solid rgba(200,175,127,.3);background:rgba(255,255,255,.04);color:#DBC9A8;font-size:14px;line-height:1;cursor:pointer;}
+.album-zoom-corte button:hover{border-color:var(--dourado);color:var(--ouro-luz);}
+.album-zoom-corte input[type=range]{width:70px;accent-color:var(--dourado);}
+/* linhas de imã (snapping) — aparecem só durante o arrasto, nunca no
+   repouso; pointer-events:none pra nunca capturar clique. */
+.album-snap-linha{position:absolute;background:#ff3b6f;pointer-events:none;z-index:600;box-shadow:0 0 4px rgba(255,59,111,.8);}
+.album-snap-linha.v{width:1px;top:0;bottom:0;}
+.album-snap-linha.h{height:1px;left:0;right:0;}
 /* Passo 4: 14px/12px é preciso demais pro dedo — achado testando com
    viewport de tablet, quase impossível acertar o handle certo sem
    zoom. Aumentado pra ~28px (ainda bem menor que os 44px de botão
@@ -16955,15 +16976,22 @@ async function abrirAlbumEditor(projetoId) {
       </span>
     </div>
     <div class="album-spreads-tira" id="album-spreads-tira"></div>
+    <div class="album-el-toolbar-flutuante" id="album-el-toolbar">
+      <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
+      <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
+      <span class="divisor" aria-hidden="true"></span>
+      <button class="btn btn-sm" id="album-btn-modo-recorte" onclick="_albumAlternarModoRecorteToque()" title="Sem Alt no toque — alterna o que o arrasto de 1 dedo faz">✋ Modo recorte</button>
+      <span class="album-zoom-corte" title="Zoom da foto dentro do recorte">
+        <button onclick="_albumZoomCorte(-0.1)">－</button>
+        <input type="range" id="album-zoom-corte-slider" min="1" max="4" step="0.05" value="1" oninput="_albumZoomCorteSlider(this.value)">
+        <button onclick="_albumZoomCorte(0.1)">＋</button>
+      </span>
+      <span class="divisor" aria-hidden="true"></span>
+      <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
+    </div>
     <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
       <div>
-        <div id="album-el-toolbar" style="display:none;margin-bottom:8px;gap:6px;"><div style="display:flex;gap:6px;flex-wrap:wrap;">
-          <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
-          <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
-          <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
-          <button class="btn btn-sm" id="album-btn-modo-recorte" onclick="_albumAlternarModoRecorteToque()" title="Sem Alt no toque — alterna o que o arrasto de 1 dedo faz">✋ Modo recorte</button>
-          <span class="meta" style="align-self:center;">Alt+arrastar (ou botão ✋ no toque) recorta · scroll ou pinça com 2 dedos dá zoom</span>
-        </div></div>
+        <div class="meta" style="margin-bottom:8px;">Alt+arrastar (ou botão ✋ no toque) recorta · scroll, pinça ou o controle de zoom acima ajustam o corte</div>
         <div class="album-canvas-wrap" id="album-canvas-wrap"></div>
       </div>
       <div>
@@ -17095,6 +17123,18 @@ async function abrirAlbumSpread(spreadId) {
   const minhaSeq = ++_albumSpreadCargaSeq
   _albumEditorSpreadAtual = spread
   _albumEditorSelId = null
+  // achado reportado pelo Luiz ("seleciono uma foto e vou pra outra
+  // aba, buga"): trocar de lâmina nunca limpava um gesto em andamento
+  // (_albumDrag/_albumPointersAtivos) — um arrasto interrompido no
+  // meio (clicar na aba de outra lâmina sem soltar o dedo/botão antes)
+  // deixava esse estado "preso", referenciando um elemento que já nem
+  // existe mais na tela nova; o próximo pointermove tentava mover um
+  // elemento da lâmina ERRADA (ou de nenhuma), e a toolbar/guias de
+  // ímã da lâmina anterior podiam continuar visíveis por cima da nova.
+  // Reset explícito e total, sempre que a lâmina troca.
+  _albumDrag = null
+  _albumPointersAtivos.clear()
+  _albumLimparGuiasSnap()
   document.getElementById('album-editor-shell').style.display = ''
   document.getElementById('album-btn-salvar-preset').disabled = false
   renderAlbumSpreadsTira()
@@ -17202,8 +17242,6 @@ function renderAlbumCanvas() {
   const wrap = document.getElementById('album-canvas-wrap')
   const t = _albumEditorTemplate
   if (!wrap || !t) return
-  const toolbar = document.getElementById('album-el-toolbar')
-  if (toolbar) toolbar.style.display = _albumEditorSelId ? 'flex' : 'none'
   wrap.style.aspectRatio = `${t.largura_aberta_mm} / ${t.altura_aberta_mm}`
   const sangriaPctX = (t.sangria_mm / t.largura_aberta_mm) * 100
   const sangriaPctY = (t.sangria_mm / t.altura_aberta_mm) * 100
@@ -17217,6 +17255,38 @@ function renderAlbumCanvas() {
     <div class="album-guide album-guide-sangria" style="inset:${sangriaPctY}% ${sangriaPctX}%;"></div>
     `
   _albumHidratarFotosCanvas()
+  _albumAtualizarToolbarFlutuante()
+}
+
+// achado do Luiz: o menu do elemento vivia no fluxo normal (empurrava
+// a lâmina pra baixo/cima ao abrir/fechar) — agora é position:fixed,
+// SEMPRE reposicionado aqui a partir do retângulo real do elemento
+// selecionado, colado acima dele (ou abaixo, se não couber em cima —
+// lâmina selecionada perto do topo da tela é comum com zoom/scroll).
+// Nunca reserva espaço: esconder/mostrar não move mais nada ao redor.
+function _albumAtualizarToolbarFlutuante() {
+  const toolbar = document.getElementById('album-el-toolbar')
+  if (!toolbar) return
+  const el = _albumEditorSelId && document.querySelector(`.album-el[data-el-id="${_albumEditorSelId}"]`)
+  if (!el) { toolbar.classList.remove('show'); return }
+  const elRect = el.getBoundingClientRect()
+  toolbar.classList.add('show')
+  // mede DEPOIS de mostrar (display:none teria width/height 0).
+  // clientWidth/Height do <html> em vez de window.innerWidth/Height:
+  // mais robusto contra viewport ainda não assentado (mesma técnica já
+  // usada em outros lugares do app pra medir área real disponível).
+  const tbRect = toolbar.getBoundingClientRect()
+  const viewportW = document.documentElement.clientWidth || window.innerWidth || 1024
+  const viewportH = document.documentElement.clientHeight || window.innerHeight || 768
+  let top = elRect.top - tbRect.height - 10
+  if (top < 8) top = Math.min(elRect.bottom + 10, viewportH - tbRect.height - 8)
+  let left = elRect.left + elRect.width / 2 - tbRect.width / 2
+  left = Math.min(Math.max(8, left), Math.max(8, viewportW - tbRect.width - 8))
+  toolbar.style.top = top + 'px'
+  toolbar.style.left = left + 'px'
+  const elObj = store.albumElements.find(x => x.id === _albumEditorSelId)
+  const slider = document.getElementById('album-zoom-corte-slider')
+  if (slider && elObj) slider.value = elObj.crop_scale || 1
 }
 
 function _albumHidratarFotosCanvas() {
@@ -17295,6 +17365,94 @@ function _albumClampPosicao(el) {
   el.y = Math.min(Math.max(el.y, -el.height), t.altura_aberta_mm)
 }
 
+// ── Ímã / snapping (pedido explícito do Luiz) ────────────────────
+// Candidatos de alinhamento em mm, no eixo X: bordas/centro da lâmina,
+// bordas da caixa de margem de segurança (sangria+margem — onde texto/
+// composição "importante" deveria ficar dentro), e bordas/centro de
+// QUALQUER outra foto já na mesma lâmina (exceto a que está sendo
+// arrastada). Cada candidato guarda também a posição em mm pra
+// desenhar a linha-guia inteira (0 a largura/altura da lâmina).
+function _albumSnapCandidatosX(excluirId) {
+  const t = _albumEditorTemplate
+  if (!t) return []
+  const m = t.sangria_mm + t.margem_seguranca_mm
+  const cand = [0, t.largura_aberta_mm / 2, t.largura_aberta_mm, m, t.largura_aberta_mm - m]
+  for (const outro of _albumElementosDaSpreadAtual()) {
+    if (outro.id === excluirId) continue
+    cand.push(outro.x, outro.x + outro.width / 2, outro.x + outro.width)
+  }
+  return cand
+}
+function _albumSnapCandidatosY(excluirId) {
+  const t = _albumEditorTemplate
+  if (!t) return []
+  const m = t.sangria_mm + t.margem_seguranca_mm
+  const cand = [0, t.altura_aberta_mm / 2, t.altura_aberta_mm, m, t.altura_aberta_mm - m]
+  for (const outro of _albumElementosDaSpreadAtual()) {
+    if (outro.id === excluirId) continue
+    cand.push(outro.y, outro.y + outro.height / 2, outro.y + outro.height)
+  }
+  return cand
+}
+// testa os 3 pontos de referência do elemento (borda inicial, centro,
+// borda final) contra a lista de candidatos — o PRIMEIRO que cair
+// dentro do limiar "ganha" e desloca o valor de referência (base) pra
+// encaixar exato. Sem isso, cada ponto teria que ser testado por fora
+// e a chamada ficaria repetida 3x em cada eixo.
+function _albumAplicarSnapEixo(base, centro, fim, candidatos, limiarMm) {
+  let melhor = null, melhorDist = limiarMm
+  for (const c of candidatos) {
+    for (const [ref, delta] of [[base, 0], [centro, base - centro], [fim, base - fim]]) {
+      const dist = Math.abs(ref - c)
+      if (dist < melhorDist) { melhorDist = dist; melhor = { valor: c + delta, guiaMm: c } }
+    }
+  }
+  return melhor
+}
+// desenha (ou limpa) até 2 linhas-guia (1 vertical, 1 horizontal)
+// dentro do canvas — position:absolute em %, reaproveitando o mesmo
+// sistema de coordenadas dos elementos/guias de sangria.
+function _albumDesenharGuiasSnap(guiaXmm, guiaYmm) {
+  const wrap = document.getElementById('album-canvas-wrap')
+  const t = _albumEditorTemplate
+  if (!wrap || !t) return
+  let v = wrap.querySelector('.album-snap-linha.v')
+  let h = wrap.querySelector('.album-snap-linha.h')
+  if (guiaXmm != null) {
+    if (!v) { v = document.createElement('div'); v.className = 'album-snap-linha v'; wrap.appendChild(v) }
+    v.style.left = ((guiaXmm / t.largura_aberta_mm) * 100) + '%'
+  } else if (v) v.remove()
+  if (guiaYmm != null) {
+    if (!h) { h = document.createElement('div'); h.className = 'album-snap-linha h'; wrap.appendChild(h) }
+    h.style.top = ((guiaYmm / t.altura_aberta_mm) * 100) + '%'
+  } else if (h) h.remove()
+}
+function _albumLimparGuiasSnap() {
+  document.querySelectorAll('#album-canvas-wrap .album-snap-linha').forEach(el => el.remove())
+}
+// controle de zoom do corte na toolbar flutuante — mesma trava [1,4]
+// já usada no scroll/pinça, só que explícito (o scroll/pinça não é
+// nada discoverable; sem isso, "Modo recorte" parecia não fazer NADA
+// quando crop_scale ainda estava em 1: o limite de pan é exatamente 0
+// nesse zoom, então arrastar não movia a foto 1 milímetro — não era
+// bug, era falta de affordance pra zoom primeiro).
+function _albumZoomCorte(delta) {
+  const el = store.albumElements.find(x => x.id === _albumEditorSelId)
+  if (!el) return
+  el.crop_scale = Math.min(4, Math.max(1, (el.crop_scale || 1) + delta))
+  _albumAtualizarElementoDOM(el)
+  _albumSalvarElemento(el.id)
+  const slider = document.getElementById('album-zoom-corte-slider')
+  if (slider) slider.value = el.crop_scale
+}
+function _albumZoomCorteSlider(valor) {
+  const el = store.albumElements.find(x => x.id === _albumEditorSelId)
+  if (!el) return
+  el.crop_scale = Math.min(4, Math.max(1, parseFloat(valor) || 1))
+  _albumAtualizarElementoDOM(el)
+  _albumSalvarElemento(el.id)
+}
+
 // mover/redimensionar/girar/recortar um elemento já na lâmina —
 // Pointer Events delegados em document, mesmo mecanismo generalizado
 // de _abrirAjusteFoto (pointerdown/move/up/cancel + setPointerCapture
@@ -17367,6 +17525,13 @@ document.addEventListener('pointerdown', e => {
 })
 document.addEventListener('pointermove', e => {
   if (!_albumDrag) return
+  // esconde a toolbar flutuante enquanto o gesto está em andamento —
+  // reposicionar a cada pixel seria caro à toa (mesmo motivo de
+  // _albumAtualizarElementoDOM não recriar innerHTML durante o
+  // arrasto) e ela ficaria visualmente "descolada" do elemento se
+  // ficasse parada na posição de antes do movimento começar. Volta a
+  // aparecer, já realinhada, em _albumPararDrag.
+  document.getElementById('album-el-toolbar')?.classList.remove('show')
   if (_albumPointersAtivos.has(e.pointerId)) _albumPointersAtivos.set(e.pointerId, { x: e.clientX, y: e.clientY })
   const d = _albumDrag
   const el = store.albumElements.find(x => x.id === d.id)
@@ -17385,6 +17550,20 @@ document.addEventListener('pointermove', e => {
     el.x = d.base.x + dxMm
     el.y = d.base.y + dyMm
     _albumClampPosicao(el)
+    // ímã (Luiz pediu explicitamente): ao aproximar da borda/centro da
+    // lâmina, da caixa de margem de segurança ou da borda/centro de
+    // OUTRA foto já colada, a posição é puxada pro alinhamento exato —
+    // mesmo em mm, sem depender de pixel de tela (limiar convertido de
+    // px pra mm com a escala real do canvas, então "sente" igual em
+    // qualquer zoom).
+    const limiarMm = (6 / d.rectW) * (d.mmPorPctX * 100)
+    const candX = _albumSnapCandidatosX(el.id)
+    const candY = _albumSnapCandidatosY(el.id)
+    const snapX = _albumAplicarSnapEixo(el.x, el.x + el.width / 2, el.x + el.width, candX, limiarMm)
+    const snapY = _albumAplicarSnapEixo(el.y, el.y + el.height / 2, el.y + el.height, candY, limiarMm)
+    if (snapX) el.x = snapX.valor
+    if (snapY) el.y = snapY.valor
+    _albumDesenharGuiasSnap(snapX?.guiaMm ?? null, snapY?.guiaMm ?? null)
   } else if (d.modo === 'redimensionar') {
     // achado na bateria de testes: só havia PISO (10mm), nunca um teto —
     // um arrasto rápido e comum (puxar o handle numa tela grande, mania
@@ -17409,8 +17588,25 @@ document.addEventListener('pointermove', e => {
     // e o teto também precisa valer depois do recálculo proporcional
     // (Shift pode ter jogado a largura de volta pra cima do limite).
     if (e.shiftKey && novaLargura > larguraMax) { novaLargura = larguraMax; novaAltura = novaLargura / d.aspecto }
+    // ímã também no redimensionar (borda direita/inferior, que é onde
+    // o handle fica) — só fora do modo proporcional (Shift), pra não
+    // brigar com a trava de aspecto: esticar um eixo pra encaixar
+    // mudaria o outro e quebraria a proporção que o Shift promete.
+    let guiaXmm = null, guiaYmm = null
+    if (!e.shiftKey) {
+      const limiarMm = (6 / d.rectW) * (d.mmPorPctX * 100)
+      const candX = _albumSnapCandidatosX(el.id)
+      const candY = _albumSnapCandidatosY(el.id)
+      const bordaDireita = d.base.x + novaLargura
+      const bordaBaixo = d.base.y + novaAltura
+      const snapX = _albumAplicarSnapEixo(bordaDireita, bordaDireita, bordaDireita, candX, limiarMm)
+      const snapY = _albumAplicarSnapEixo(bordaBaixo, bordaBaixo, bordaBaixo, candY, limiarMm)
+      if (snapX) { novaLargura = Math.max(10, snapX.valor - d.base.x); guiaXmm = snapX.guiaMm }
+      if (snapY) { novaAltura = Math.max(10, snapY.valor - d.base.y); guiaYmm = snapY.guiaMm }
+    }
     el.width = novaLargura
     el.height = novaAltura
+    _albumDesenharGuiasSnap(guiaXmm, guiaYmm)
   } else if (d.modo === 'girar') {
     const centroX = d.rectL + ((d.base.x + d.base.width / 2) / d.mmPorPctX / 100) * d.rectW
     const centroY = d.rectT + ((d.base.y + d.base.height / 2) / d.mmPorPctY / 100) * d.rectH
@@ -17441,6 +17637,8 @@ function _albumPararDrag() {
   const id = _albumDrag.id
   _albumDrag = null
   _albumPointersAtivos.clear()
+  _albumLimparGuiasSnap()
+  _albumAtualizarToolbarFlutuante()
   _albumSalvarElemento(id)
 }
 document.addEventListener('pointerup', _albumPararDrag)
