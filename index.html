@@ -1763,15 +1763,25 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    zoom. Aumentado pra ~28px (ainda bem menor que os 44px de botão
    normal, mas handle de manipulação é sempre um alvo pequeno mesmo em
    apps profissionais — 28px é o mínimo que ainda dá pra tocar sem
-   frustração e não domina visualmente um elemento pequeno na lâmina). */
-.album-el .album-el-resize{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:nwse-resize;display:none;touch-action:none;}
-.album-el .album-el-rotate{position:absolute;left:50%;top:-36px;transform:translateX(-50%);width:28px;height:28px;border-radius:50%;background:var(--dourado);border:2px solid #1A0A0E;cursor:grab;display:none;touch-action:none;}
+   frustração e não domina visualmente um elemento pequeno na lâmina).
+   Achado no 2º PROMPT.md (polimento visual): a ÁREA de toque (28px)
+   continua a mesma — reduzir isso desfaria o teste real de toque já
+   feito antes — mas o preenchimento visual virou um anel fino em vez
+   de bola sólida dourada, então o handle ocupa o mesmo espaço mas
+   "pesa" bem menos visualmente, sem cobrir tanto a foto/texto perto
+   dele. */
+.album-el .album-el-resize{position:absolute;right:-14px;bottom:-14px;width:28px;height:28px;border-radius:50%;background:rgba(26,10,14,.55);border:2px solid var(--dourado);cursor:nwse-resize;display:none;touch-action:none;}
+.album-el .album-el-rotate{position:absolute;left:50%;top:-36px;transform:translateX(-50%);width:28px;height:28px;border-radius:50%;background:rgba(26,10,14,.55);border:2px solid var(--dourado);cursor:grab;display:none;touch-action:none;}
+.album-el .album-el-resize::after,.album-el .album-el-rotate::after{content:'';position:absolute;inset:9px;border-radius:50%;background:var(--dourado);}
 .album-el.sel .album-el-resize,.album-el.sel .album-el-rotate{display:block;}
-.album-el-dpi{position:absolute;left:3px;top:3px;font-size:9px;font-weight:700;padding:1px 5px;border-radius:99px;line-height:1.6;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.35);}
+.album-el-dpi{position:absolute;left:3px;top:3px;font-size:8px;font-weight:600;padding:1px 4px;border-radius:99px;line-height:1.5;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,.3);opacity:.88;}
 .album-el-dpi.ok{background:var(--verde);color:#0b1a0c;}
 .album-el-dpi.baixo{background:var(--vermelho);color:#fff;}
 .album-el-dpi.neutro{background:rgba(150,150,150,.85);color:#fff;}
-.album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+/* display:grid/overflow-y/max-height ficam aqui (sem grid-template-columns
+   fixo — isso é sempre definido inline via JS em renderAlbumFotosPainel/
+   _albumMudarThumbSize, conforme o slider de tamanho de miniatura). */
+.album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;gap:6px;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
@@ -17208,10 +17218,23 @@ function _albumFiltrarPainelFotos(filtro) {
   document.getElementById('album-tab-naousadas')?.classList.toggle('on', filtro === 'naousadas')
   renderAlbumFotosPainel()
 }
+// achado no 2º PROMPT.md: arrastar o slider disparava um reflow de
+// grid a CADA pixel do "input" (o navegador dispara isso dezenas de
+// vezes por segundo durante o arrasto) — com uma galeria grande, isso
+// empilha reflows mais rápido do que a tela consegue desenhar,
+// sentindo travado. rAF colapsa qualquer sequência de chamadas dentro
+// do mesmo frame em UMA só (só a ÚLTIMA leitura do slider importa,
+// as intermediárias são descartadas).
+let _albumThumbSizeRafPendente = false
 function _albumMudarThumbSize(valor) {
   _albumThumbSizePx = parseInt(valor) || 90
-  const el = document.getElementById('album-fotos-painel')
-  if (el) el.style.gridTemplateColumns = `repeat(auto-fill,minmax(${_albumThumbSizePx}px,1fr))`
+  if (_albumThumbSizeRafPendente) return
+  _albumThumbSizeRafPendente = true
+  requestAnimationFrame(() => {
+    _albumThumbSizeRafPendente = false
+    const el = document.getElementById('album-fotos-painel')
+    if (el) el.style.gridTemplateColumns = `repeat(auto-fill,minmax(${_albumThumbSizePx}px,1fr))`
+  })
 }
 function renderAlbumFotosPainel() {
   const el = document.getElementById('album-fotos-painel')
