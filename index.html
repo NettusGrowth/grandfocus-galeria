@@ -18805,6 +18805,16 @@ async function _albumAbrirLayouts() {
   _albumLayoutsFiltroFotos = 'todas'
   document.getElementById('albly-tab-prontos').classList.add('on')
   document.getElementById('albly-tab-salvos').classList.remove('on')
+  // achado na verificação pesada: a toolbar flutuante do elemento
+  // (#album-el-toolbar, position:fixed, z-index:500) fica MAIS alta
+  // que qualquer .modal-overlay (z-index:350, de propósito — ver
+  // comentário na regra) — se uma foto estava selecionada ao clicar
+  // em "Escolher layout" (bem comum: seleciona pra ver, decide trocar
+  // o layout inteiro em vez de só ajustar), a toolbar ficava boiando
+  // POR CIMA do modal, sem nenhum jeito de fechar (o clique nela não
+  // fecha o modal, e ela nem deveria estar visível com o modal
+  // aberto). abrirModal() é genérico e não sabe disso — esconde aqui.
+  document.getElementById('album-el-toolbar')?.classList.remove('show')
   abrirModal('modal-album-layouts')
   _albumLayoutsRenderGrid()
 }
@@ -18814,6 +18824,7 @@ async function _albumAbrirLayoutsParaNovaLamina() {
   _albumLayoutsModo = 'nova'
   _albumLayoutsAba = 'prontos'
   _albumLayoutsFiltroFotos = 'todas'
+  document.getElementById('album-el-toolbar')?.classList.remove('show')
   document.getElementById('albly-tab-prontos').classList.add('on')
   document.getElementById('albly-tab-salvos').classList.remove('on')
   abrirModal('modal-album-layouts')
