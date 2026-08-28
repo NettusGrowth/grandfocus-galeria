@@ -1846,7 +1846,20 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    sem lib de terceiro (mesmo espírito caseiro do resto do app). */
 #album-cliente-comentario-input{min-height:44px;}
 .album-flip-wrap{position:relative;perspective:1800px;width:100%;max-width:900px;margin:0 auto;touch-action:pan-y;}
-.album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55),0 0 0 1px rgba(212,175,55,.25);transform-style:preserve-3d;}
+.album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55),0 0 0 1px rgba(212,175,55,.25);transform-style:preserve-3d;backface-visibility:hidden;}
+/* BUG REAL reportado pelo Luiz: "hoje parece uma transição de
+   PowerPoint, quero algo natural" — a versão antiga desbotava a
+   opacidade da lâmina inteira durante o giro (exatamente o efeito
+   "Girar 3D" de slide do PowerPoint). Papel de verdade não desbota,
+   só gira — tirado o fade de opacidade do JS (_albumClienteVirar),
+   deixando só a rotação 3D fazer o trabalho visual (o encurtamento em
+   perspectiva já dá a sensação de "borda de página" sozinho). Essa
+   sombra aqui simula a luz sendo bloqueada pela própria folha
+   erguendo — mais realista que um fade genérico, e sincronizada com o
+   tempo exato da animação em JS (.35s ida + troca + .35s volta).*/
+.album-flip-page::before{content:'';position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:50;}
+.album-flip-page.virando::before{animation:albumFlipSombra .73s ease-in-out;}
+@keyframes albumFlipSombra{0%{opacity:0;}48%{opacity:.45;}52%{opacity:.45;}100%{opacity:0;}}
 /* 3º PROMPT.md (ETAPA 3.3): sombra sutil no centro da lâmina simulando
    a dobra/lombada física do álbum aberto — puramente visual, não
    precisa saber onde o vinco cai em px (ele é sempre o centro
@@ -16968,6 +16981,55 @@ function _albumAtualizarCamposPermissao() {
   ;['alba-permite-trocar', 'alba-permite-comentar', 'alba-exibir-aprovar'].forEach(id => { document.getElementById(id).disabled = apreciacao })
 }
 
+// 4º PROMPT.md (feature nova pedida pelo Luiz): "assim que eu mando
+// pra cliente, eu posso continuar configurando o álbum, a cliente vai
+// ver apenas a versão que eu enviei". Sem isso, o portal do cliente
+// lia album_spreads/album_elements AO VIVO — qualquer ajuste do admin
+// aparecia pro cliente na hora, mesmo no meio de uma edição incompleta.
+// snapshot_cliente (jsonb em album_projects, migration 078) é uma
+// cópia CONGELADA de spreads+elements no momento do envio — o cliente
+// passa a ler só isso daqui pra frente, nunca as tabelas ao vivo.
+// Atualizar essa cópia é uma ação EXPLÍCITA do admin (botão "Atualizar
+// pra Cliente", só aparece depois do primeiro envio) — troca de foto
+// feita pelo CLIENTE (RPC album_trocar_foto) também escreve direto
+// nessa cópia, então "Atualizar pra Cliente" de novo SOBRESCREVE com o
+// estado atual do editor — decisão consciente, documentada aqui e na
+// migration: é sempre o admin quem decide quando publicar, então cabe
+// a ele reparar visualmente uma troca do cliente antes de sobrescrever
+// se quiser preservá-la (equivalente a qualquer fluxo rascunho→publicar
+// onde o autor tem a palavra final).
+async function _albumConstruirSnapshotCliente(projectId) {
+  const { data: spreads, error: e1 } = await db.from('album_spreads').select('id, spread_index').eq('project_id', projectId).order('spread_index')
+  if (e1) return { snapshot: null, error: e1 }
+  const spreadIds = (spreads || []).map(s => s.id)
+  const { data: elementos, error: e2 } = spreadIds.length
+    ? await db.from('album_elements').select('id, spread_id, foto_id, x, y, width, height, rotation, crop_x, crop_y, crop_scale, z_index').in('spread_id', spreadIds)
+    : { data: [], error: null }
+  if (e2) return { snapshot: null, error: e2 }
+  return { snapshot: { spreads: spreads || [], elements: elementos || [] }, error: null }
+}
+let _albumAtualizandoParaCliente = false
+async function _albumAtualizarParaCliente() {
+  if (_albumAtualizandoParaCliente || !_albumEditorProjeto) return
+  const ok = await confirmModal(
+    'O cliente vai passar a ver exatamente o que está no editor agora — incluindo substituir qualquer troca de foto que ele mesmo tenha feito desde o último envio. Continuar?',
+    { titulo: 'Atualizar versão do cliente', okLabel: 'Atualizar' }
+  )
+  if (!ok) return
+  _albumAtualizandoParaCliente = true
+  try {
+    const { snapshot, error: erroSnapshot } = await _albumConstruirSnapshotCliente(_albumEditorProjeto.id)
+    if (erroSnapshot) { toast('Erro ao montar a versão do cliente: ' + erroSnapshot.message); return }
+    const { data, error } = await db.from('album_projects').update({ snapshot_cliente: snapshot }).eq('id', _albumEditorProjeto.id).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
+    if (error) { toast('Erro ao atualizar: ' + error.message); return }
+    const idx = store.albumProjects.findIndex(p => p.id === data.id)
+    if (idx >= 0) store.albumProjects[idx] = data
+    _albumEditorProjeto = data
+    toast('Versão do cliente atualizada ✓')
+    registrarAuditoria('atualizou a versão do cliente (Digipix)', 'album_projects', data.id, data.nome)
+  } finally { _albumAtualizandoParaCliente = false }
+}
+
 let _albumEnviandoAprovacao = false
 async function _albumEnviarParaAprovacao() {
   if (_albumEnviandoAprovacao) return
@@ -17002,8 +17064,12 @@ async function _albumEnviarParaAprovacao() {
       if (!ok) return
     }
     const modo = document.getElementById('alba-modo-apreciacao').checked ? 'apreciacao' : 'colaborativo'
+    // snapshot congelado no momento do envio — o cliente vê ISSO daqui
+    // pra frente, nunca as tabelas ao vivo (ver _albumConstruirSnapshotCliente).
+    const { snapshot, error: erroSnapshot } = await _albumConstruirSnapshotCliente(_albumEditorProjeto.id)
+    if (erroSnapshot) { toast('Erro ao montar a versão do cliente: ' + erroSnapshot.message); return }
     const payload = {
-      cliente_user_id: clienteId, status: 'em_aprovacao', modo_compartilhamento: modo,
+      cliente_user_id: clienteId, status: 'em_aprovacao', modo_compartilhamento: modo, snapshot_cliente: snapshot,
       // "Somente Apreciação" trava as 3 permissões desligadas de
       // verdade no banco (não confia só no client escondendo botão —
       // os RPCs de trocar/aprovar também checam isso, ver 077).
@@ -17279,6 +17345,11 @@ async function abrirAlbumEditor(projetoId) {
 
   const rotuloStatus = { rascunho: 'Rascunho', em_diagramacao: 'Em diagramação', em_aprovacao: 'Aguardando o cliente', aprovado: 'Aprovado ✓', enviado_impressao: 'Enviado pra impressão' }
   const podeEnviarAprovacao = ['rascunho', 'em_diagramacao'].includes(projeto.status)
+  // pedido explícito do Luiz (4º PROMPT.md): depois de enviar pra
+  // aprovação, o admin precisa poder CONTINUAR editando sem o cliente
+  // ver nada mudar — só quando clicar aqui de novo é que a versão dele
+  // atualiza (ver _albumConstruirSnapshotCliente/snapshot_cliente).
+  const jaEnviadoParaCliente = ['em_aprovacao', 'aprovado'].includes(projeto.status) && !!projeto.cliente_user_id
   // Fase 4 do redesign (pedido do Luiz, referência Canva/Lightroom Web):
   // header de 2 níveis + mesa de trabalho escura + sidebar de fotos —
   // reaproveita TODOS os ids que o resto do JS já espera encontrar
@@ -17294,6 +17365,7 @@ async function abrirAlbumEditor(projetoId) {
       <div class="grupo-centro"><div class="album-spreads-tira" id="album-spreads-tira"></div></div>
       <div class="grupo-direita">
         ${podeEnviarAprovacao ? `<button class="btn btn-sm" onclick="_albumAbrirEnvioAprovacao()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="margin-right:5px;vertical-align:-2px;"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7z"/></svg>Enviar pra Aprovação</button>` : ''}
+        ${jaEnviadoParaCliente ? `<button class="btn btn-sm" id="album-btn-atualizar-cliente" onclick="_albumAtualizarParaCliente()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="margin-right:5px;vertical-align:-2px;"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>Atualizar pra Cliente</button>` : ''}
         <button class="btn btn-sm album-btn-exportar-destaque" onclick="abrirExportacaoAlbum()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" width="14" height="14" style="margin-right:5px;vertical-align:-2px;"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Exportar</button>
       </div>
     </div>
@@ -19809,17 +19881,34 @@ async function iniciarAlbumCliente() {
   if (!_albumClienteTemplate) { wrap.innerHTML = '<div class="empty">Não foi possível carregar o modelo deste álbum agora. Avise o fotógrafo, pode ser uma permissão pendente.</div>'; return }
   _albumClienteIndice = 0
 
-  const { data: spreads, error: e1 } = await db.from('album_spreads').select('*').eq('project_id', _albumClienteProjeto.id).order('spread_index')
-  if (e1) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as lâminas.</div>'; return }
-  _albumClienteSpreads = spreads || []
+  // 4º PROMPT.md: o cliente lê a versão CONGELADA (snapshot_cliente,
+  // migration 078), nunca album_spreads/album_elements ao vivo — é
+  // assim que o admin consegue continuar editando sem o cliente ver
+  // nada mudar até clicar em "Atualizar pra Cliente" de novo.
+  if (_albumClienteProjeto.snapshot_cliente) {
+    const snap = _albumClienteProjeto.snapshot_cliente
+    _albumClienteSpreads = (snap.spreads || []).slice().sort((a, b) => a.spread_index - b.spread_index)
+    _albumClienteElementos = snap.elements || []
+  } else {
+    // fallback: álbum enviado ANTES da migration 078 rodar (sem
+    // snapshot gravado ainda) — cai no comportamento antigo (lê ao
+    // vivo) até o admin clicar em "Atualizar pra Cliente" pela 1ª vez
+    // e esse álbum passar a ter um snapshot também.
+    const { data: spreads, error: e1 } = await db.from('album_spreads').select('*').eq('project_id', _albumClienteProjeto.id).order('spread_index')
+    if (e1) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as lâminas.</div>'; return }
+    _albumClienteSpreads = spreads || []
+    if (_albumClienteSpreads.length) {
+      const { data: elementos, error: e2 } = await db.from('album_elements').select('*').in('spread_id', _albumClienteSpreads.map(s => s.id))
+      if (e2) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as fotos.</div>'; return }
+      _albumClienteElementos = elementos || []
+    } else {
+      _albumClienteElementos = []
+    }
+  }
   if (!_albumClienteSpreads.length) { wrap.innerHTML = '<div class="empty">Este álbum ainda não tem lâminas prontas.</div>'; return }
 
-  const [{ data: elementos, error: e2 }, { data: fotos, error: e3 }] = await Promise.all([
-    db.from('album_elements').select('*').in('spread_id', _albumClienteSpreads.map(s => s.id)),
-    db.from('fotos').select('*').eq('evento_id', _albumClienteProjeto.evento_id),
-  ])
-  if (e2 || e3) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as fotos.</div>'; return }
-  _albumClienteElementos = elementos || []
+  const { data: fotos, error: e3 } = await db.from('fotos').select('*').eq('evento_id', _albumClienteProjeto.evento_id)
+  if (e3) { wrap.innerHTML = '<div class="empty">Não foi possível carregar as fotos.</div>'; return }
   _albumClienteFotosDisponiveis = fotos || []
 
   renderAlbumClienteShell()
@@ -20052,9 +20141,9 @@ function _albumClienteVirar(direcao) {
   // absoluto de qualquer forma.
   const seguranca = setTimeout(() => { _albumFlipAnimando = false; _albumClienteAtualizarBotoesNav() }, 2000)
   const page = document.getElementById('album-flip-page')
-  page.style.transition = 'transform .35s ease-in, opacity .35s ease-in'
+  page.classList.add('virando') // dispara a sombra sincronizada (@keyframes albumFlipSombra, .73s = mesma duração da animação inteira)
+  page.style.transition = 'transform .35s ease-in'
   page.style.transform = `rotateY(${direcao > 0 ? -80 : 80}deg)`
-  page.style.opacity = '0'
   setTimeout(() => {
     _albumClienteIndice = novoIndice
     renderAlbumClienteSpread()
@@ -20070,12 +20159,13 @@ function _albumClienteVirar(direcao) {
     const page2 = document.getElementById('album-flip-page')
     page2.style.transition = 'none'
     page2.style.transform = `rotateY(${direcao > 0 ? 80 : -80}deg)`
-    page2.style.opacity = '0'
     void page2.offsetHeight // força o navegador a "comprometer" esse estado antes da transição seguinte (reflow síncrono)
-    page2.style.transition = 'transform .35s ease-out, opacity .35s ease-out'
+    page2.style.transition = 'transform .35s ease-out'
     page2.style.transform = 'rotateY(0deg)'
-    page2.style.opacity = '1'
-    setTimeout(() => { clearTimeout(seguranca); _albumFlipAnimando = false; _albumClienteAtualizarBotoesNav() }, 370)
+    setTimeout(() => {
+      clearTimeout(seguranca); _albumFlipAnimando = false; _albumClienteAtualizarBotoesNav()
+      document.getElementById('album-flip-page')?.classList.remove('virando')
+    }, 370)
   }, 360)
 }
 
