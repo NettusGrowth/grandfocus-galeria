@@ -1621,12 +1621,67 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    layout de 2 colunas: canvas da lâmina + painel de fotos do evento.
    canvas mantém proporção mm real via aspect-ratio (mesma técnica já
    usada em _abrirAjusteFoto — medir o container real, não chutar). */
-.album-editor-shell{display:grid;grid-template-columns:1fr 260px;gap:16px;align-items:start;}
+.album-editor-shell{display:grid;grid-template-columns:1fr 300px;gap:0;align-items:start;border-radius:10px;overflow:hidden;border:1px solid rgba(200,175,127,.18);}
 @media(max-width:900px){.album-editor-shell{grid-template-columns:1fr;}}
-.album-spreads-tira{display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:14px;}
+.album-spreads-tira{display:flex;gap:6px;overflow-x:auto;}
 .album-spread-thumb{position:relative;flex:0 0 auto;width:70px;height:44px;border-radius:6px;border:2px solid rgba(200,175,127,.25);background:rgba(75,4,22,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;color:#B39F86;}
 .album-spread-thumb.on{border-color:var(--dourado);color:var(--ouro-luz);}
 .album-spread-thumb.add{border-style:dashed;font-size:18px;}
+
+/* ── Fase 4 do redesign (pedido do Luiz, referência Canva/Lightroom
+   Web): header de 2 níveis, mesa de trabalho escura com a lâmina
+   "flutuando" como página física clara, réguas, navegação/zoom
+   flutuantes, sidebar de fotos com abas+badge+slider. Reaproveita
+   TODOS os ids/handlers já existentes (#album-canvas-wrap,
+   #album-spreads-tira, #album-fotos-painel, #album-el-toolbar,
+   #album-btn-salvar-preset) — só a casca visual muda. */
+.album-header-topo{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#17090d;border-bottom:1px solid rgba(200,175,127,.18);flex-wrap:wrap;}
+.album-header-topo .grupo-esquerda{display:flex;align-items:center;gap:10px;min-width:0;}
+.album-header-topo .grupo-esquerda h2{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:260px;}
+.album-header-topo .grupo-centro{flex:1;min-width:120px;display:flex;justify-content:center;overflow:hidden;}
+.album-header-topo .grupo-direita{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.album-btn-exportar-destaque{background:#2563eb;border-color:#2563eb;color:#fff;}
+.album-btn-exportar-destaque:hover{background:#1d4ed8;border-color:#1d4ed8;}
+.album-header-toolbar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 16px;background:#150810;border-bottom:1px solid rgba(200,175,127,.12);flex-wrap:wrap;}
+.album-header-toolbar .grupo{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.album-header-toolbar .icon-toolbar{width:32px;height:32px;border-radius:6px;border:1px solid rgba(200,175,127,.25);background:rgba(255,255,255,.03);color:#DBC9A8;font-size:13px;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.album-header-toolbar .icon-toolbar:hover{border-color:var(--dourado);color:var(--ouro-luz);}
+.album-header-toolbar .icon-toolbar:disabled{opacity:.35;cursor:default;}
+.album-header-toolbar .icon-toolbar.on{background:var(--dourado);color:#1A0A0E;border-color:var(--dourado);}
+.album-header-toolbar select#album-zoom-select{background:rgba(255,255,255,.04);border:1px solid rgba(200,175,127,.25);color:#DBC9A8;border-radius:6px;padding:5px 6px;font-size:12px;}
+.album-workspace{position:relative;background:#18181b;min-height:520px;display:flex;flex-direction:column;}
+.album-workspace-corpo{position:relative;flex:1;display:grid;grid-template-columns:22px 1fr;grid-template-rows:22px 1fr;overflow:auto;}
+.album-ruler-canto{background:#121214;border-right:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);}
+.album-ruler-h{background:#121214;border-bottom:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden;}
+.album-ruler-v{background:#121214;border-right:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden;}
+.album-ruler-tick{position:absolute;font-size:8px;color:#6b6b70;white-space:nowrap;}
+.album-ruler-h .album-ruler-tick{top:2px;border-left:1px solid #3a3a3f;padding-left:2px;height:100%;}
+.album-ruler-v .album-ruler-tick{left:2px;border-top:1px solid #3a3a3f;padding-top:1px;width:100%;}
+.album-canvas-stage{position:relative;display:flex;align-items:center;justify-content:center;padding:40px;min-height:100%;}
+/* a lâmina em si vira "papel" — fundo claro, sombra pronunciada,
+   marcação de lombada — em cima do workspace ESCURO ao redor. Antes o
+   próprio canvas-wrap era escuro (#1a0a0a), sem contraste nenhum com
+   o resto da tela ("não da pra enxergar nada, fica tudo misturado",
+   queixa direta do Luiz) — a "mesa" escura + "papel" claro é o que dá
+   esse contraste de verdade, não só cosmético.  */
+.album-canvas-wrap.spread-view::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:1px;background:rgba(0,0,0,.12);pointer-events:none;box-shadow:0 0 6px rgba(0,0,0,.15);}
+.album-nav-flutuante{position:absolute;top:50%;transform:translateY(-50%);width:38px;height:38px;border-radius:50%;background:rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.15);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;z-index:50;}
+.album-nav-flutuante:hover{background:rgba(0,0,0,.75);}
+.album-nav-flutuante:disabled{opacity:.25;cursor:default;}
+.album-nav-flutuante.prev{left:10px;}
+.album-nav-flutuante.next{right:10px;}
+.album-zoom-widget{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:6px;background:rgba(20,20,22,.85);border:1px solid rgba(255,255,255,.12);border-radius:99px;padding:6px 10px;z-index:50;}
+.album-zoom-widget button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#e5e5e5;font-size:13px;line-height:1;cursor:pointer;}
+.album-zoom-widget input[type=range]{width:80px;accent-color:var(--dourado);}
+.album-zoom-widget span{font-size:11px;color:#c9c9cc;min-width:32px;text-align:center;}
+.album-sidebar-fotos{background:#1e1e22;height:100%;padding:12px;display:flex;flex-direction:column;gap:10px;border-left:1px solid rgba(255,255,255,.06);}
+.album-sidebar-tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);border-radius:8px;padding:3px;}
+.album-sidebar-tabs button{flex:1;padding:6px 4px;border:none;background:none;color:#9a9aa0;font-size:11.5px;border-radius:6px;cursor:pointer;}
+.album-sidebar-tabs button.on{background:rgba(212,175,55,.18);color:var(--ouro-luz);font-weight:600;}
+.album-foto-mini{position:relative;}
+.album-foto-badge-uso{position:absolute;bottom:2px;right:2px;background:#22c55e;color:#062b0f;font-size:9px;font-weight:700;line-height:1;padding:2px 4px;border-radius:99px;pointer-events:none;box-shadow:0 1px 2px rgba(0,0,0,.4);}
+.album-thumb-size-row{display:flex;align-items:center;gap:8px;font-size:10.5px;color:#9a9aa0;}
+.album-thumb-size-row input[type=range]{flex:1;accent-color:var(--dourado);}
 /* achado de design: o "✕" de remover lâmina era um <span> minúsculo
    colado no texto, dentro de uma miniatura já pequena (70x44px) — alvo
    de toque bem abaixo do confortável, fácil de errar (e a intenção era
@@ -1649,7 +1704,14 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
    as guias (sangria/vinco/margem) já ficam dentro dos limites por
    `inset`, então nada realmente PRECISAVA do overflow:hidden aqui —
    só cortava sem querer o que devia continuar tocável. */
-.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#1a0a0a;border-radius:4px;overflow:visible;box-shadow:0 10px 30px rgba(0,0,0,.4);user-select:none;touch-action:none;}
+/* achado do Luiz ("não da pra enxergar nada, fica tudo misturado"): a
+   lâmina em si vivia com fundo ESCURO (#1a0a0a) dentro de uma tela já
+   escura — zero contraste entre "página" e "mesa de trabalho". Vira
+   "papel" de verdade (claro, como o mockup pediu — livro aberto em
+   fundo claro), com sombra bem mais pronunciada, sentada em cima do
+   workspace escuro (.album-workspace, abaixo) — esse contraste é o
+   que separa a lâmina do resto visualmente, não só cor por cor. */
+.album-canvas-wrap{position:relative;width:100%;max-width:900px;background:#f4f1ea;border-radius:2px;overflow:visible;box-shadow:0 25px 50px -12px rgba(0,0,0,.7);user-select:none;touch-action:none;}
 .album-guide{position:absolute;pointer-events:none;border:0;}
 .album-guide-sangria{inset:0;outline:1.5px dashed rgba(220,60,60,.75);outline-offset:-1px;}
 .album-guide-vinco{top:0;bottom:0;left:50%;width:0;border-left:1.5px dashed rgba(90,150,220,.85);}
@@ -17016,25 +17078,46 @@ async function abrirAlbumEditor(projetoId) {
 
   const rotuloStatus = { rascunho: 'Rascunho', em_diagramacao: 'Em diagramação', em_aprovacao: 'Aguardando o cliente', aprovado: 'Aprovado ✓', enviado_impressao: 'Enviado pra impressão' }
   const podeEnviarAprovacao = ['rascunho', 'em_diagramacao'].includes(projeto.status)
+  // Fase 4 do redesign (pedido do Luiz, referência Canva/Lightroom Web):
+  // header de 2 níveis + mesa de trabalho escura + sidebar de fotos —
+  // reaproveita TODOS os ids que o resto do JS já espera encontrar
+  // (#album-canvas-wrap, #album-spreads-tira, #album-fotos-painel,
+  // #album-el-toolbar, #album-btn-salvar-preset, #album-comentarios-admin),
+  // só a casca visual ao redor deles muda.
   wrap.innerHTML = `
-    <div class="section-h">
-      <h2>${esc(projeto.nome)} <span class="badge" style="${_albumStatusBadgeStyle(projeto.status)}vertical-align:middle;">${rotuloStatus[projeto.status] || projeto.status}</span></h2>
-      <button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos álbuns</button>
+    <div class="album-header-topo">
+      <div class="grupo-esquerda">
+        <button class="btn btn-sm" onclick="iniciarAlbunsAdmin()">← Voltar aos Álbuns</button>
+        <h2>${esc(projeto.nome)} <span class="badge" style="${_albumStatusBadgeStyle(projeto.status)}vertical-align:middle;">${rotuloStatus[projeto.status] || projeto.status}</span></h2>
+      </div>
+      <div class="grupo-centro"><div class="album-spreads-tira" id="album-spreads-tira"></div></div>
+      <div class="grupo-direita">
+        ${podeEnviarAprovacao ? `<button class="btn btn-sm" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra Aprovação</button>` : ''}
+        <button class="btn btn-sm album-btn-exportar-destaque" onclick="abrirExportacaoAlbum()">🖨 Exportar</button>
+      </div>
     </div>
-    <div class="album-toolbar">
-      <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
-      <button class="btn btn-sm" onclick="_albumAbrirLayouts()">🎨 Escolher layout</button>
-      <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar lâmina como modelo</button>
-      <span class="album-toolbar-divisor" aria-hidden="true"></span>
-      ${podeEnviarAprovacao ? `<button class="btn btn-sm btn-primary" onclick="_albumAbrirEnvioAprovacao()">📤 Enviar pra aprovação do cliente</button>` : ''}
-      <button class="btn btn-sm" onclick="abrirExportacaoAlbum()">🖨 Exportar pra impressão</button>
-      <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
-        <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:200px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
-        <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
-        <button class="btn btn-sm" onclick="_albumFecharCampoPreset()">Cancelar</button>
-      </span>
+    <div class="album-header-toolbar">
+      <div class="grupo">
+        <button class="icon-toolbar" id="album-btn-desfazer" onclick="_albumDesfazer()" title="Desfazer (Ctrl+Z)" disabled>↶</button>
+        <button class="icon-toolbar" id="album-btn-refazer" onclick="_albumRefazer()" title="Refazer (Ctrl+Y)" disabled>↷</button>
+        <span class="album-toolbar-divisor" aria-hidden="true"></span>
+        <select id="album-zoom-select" onchange="_albumMudarZoom(this.value)" title="Zoom">
+          ${[30,50,65,75,100,125,150].map(p => `<option value="${p}"${p===65?' selected':''}>${p}%</option>`).join('')}
+        </select>
+        <button class="icon-toolbar on" id="album-btn-guias" onclick="_albumAlternarGuias()" title="Mostrar/esconder guias (sangria/margem/vinco)">▦</button>
+        <button class="icon-toolbar" id="album-btn-spread-view" onclick="_albumAlternarSpreadView()" title="Marcação de lombada (spread view)">📖</button>
+      </div>
+      <div class="grupo">
+        <button class="btn btn-sm" onclick="_albumSmartLayout()">✨ Smart Layout</button>
+        <button class="btn btn-sm" onclick="_albumAbrirLayouts()">🎨 Escolher layout</button>
+        <button class="btn btn-sm" id="album-btn-salvar-preset" onclick="_albumAbrirCampoPreset()" disabled>💾 Salvar Lâmina como Modelo</button>
+        <span id="album-preset-campo" style="display:none;gap:6px;align-items:center;">
+          <input type="text" id="album-preset-nome" placeholder="Nome do modelo…" style="width:180px;" onkeydown="if(event.key==='Enter')_albumSalvarComoPreset();if(event.key==='Escape')_albumFecharCampoPreset();">
+          <button class="btn btn-sm btn-primary" onclick="_albumSalvarComoPreset()">Salvar</button>
+          <button class="btn btn-sm" onclick="_albumFecharCampoPreset()">Cancelar</button>
+        </span>
+      </div>
     </div>
-    <div class="album-spreads-tira" id="album-spreads-tira"></div>
     <div class="album-el-toolbar-flutuante" id="album-el-toolbar">
       <button class="btn btn-sm" onclick="_albumMudarCamada(1)" title="Trazer pra frente">⬆ Frente</button>
       <button class="btn btn-sm" onclick="_albumMudarCamada(-1)" title="Enviar pra trás">⬇ Trás</button>
@@ -17049,31 +17132,99 @@ async function abrirAlbumEditor(projetoId) {
       <button class="btn btn-sm btn-danger" onclick="_albumApagarElemento(_albumEditorSelId)">🗑 Apagar</button>
     </div>
     <div class="album-editor-shell" id="album-editor-shell" style="display:none;">
-      <div>
-        <div class="meta" style="margin-bottom:8px;">Alt+arrastar (ou botão ✋ no toque) recorta · scroll, pinça ou o controle de zoom acima ajustam o corte</div>
-        <div class="album-canvas-wrap" id="album-canvas-wrap"></div>
+      <div class="album-workspace">
+        <div class="album-workspace-corpo" id="album-workspace-corpo">
+          <div class="album-ruler-canto"></div>
+          <div class="album-ruler-h" id="album-ruler-h"></div>
+          <div class="album-ruler-v" id="album-ruler-v"></div>
+          <div class="album-canvas-stage">
+            <div class="album-canvas-wrap" id="album-canvas-wrap"></div>
+            <button class="album-nav-flutuante prev" id="album-nav-prev" onclick="_albumNavLamina(-1)" title="Lâmina anterior">‹</button>
+            <button class="album-nav-flutuante next" id="album-nav-next" onclick="_albumNavLamina(1)" title="Próxima lâmina">›</button>
+            <div class="album-zoom-widget">
+              <button onclick="_albumMudarZoom(null,-10)">－</button>
+              <input type="range" id="album-zoom-slider" min="30" max="150" value="65" oninput="_albumMudarZoom(this.value)">
+              <span id="album-zoom-label">65%</span>
+              <button onclick="_albumMudarZoom(null,10)">＋</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div>
-        <div class="meta" style="margin-bottom:8px;">Fotos do evento — arraste pra lâmina</div>
+      <div class="album-sidebar-fotos">
+        <div class="album-sidebar-tabs">
+          <button class="on" id="album-tab-todas" onclick="_albumFiltrarPainelFotos('todas')">Todas (<span id="album-count-todas">0</span>)</button>
+          <button id="album-tab-naousadas" onclick="_albumFiltrarPainelFotos('naousadas')">Não usadas (<span id="album-count-naousadas">0</span>)</button>
+        </div>
         <div class="album-fotos-painel" id="album-fotos-painel"></div>
-        <div class="meta" style="margin:14px 0 6px;">💬 Comentários do cliente nesta lâmina</div>
-        <div id="album-comentarios-admin" style="max-height:180px;overflow-y:auto;"></div>
+        <div class="album-thumb-size-row">
+          <span>Tamanho</span>
+          <input type="range" id="album-thumb-size-slider" min="60" max="160" value="90" oninput="_albumMudarThumbSize(this.value)">
+        </div>
+        <div class="meta" style="margin-top:2px;">💬 Comentários do cliente nesta lâmina</div>
+        <div id="album-comentarios-admin" style="max-height:140px;overflow-y:auto;"></div>
       </div>
     </div>`
 
+  _albumUsoFotos = new Map()
   renderAlbumFotosPainel()
   renderAlbumSpreadsTira()
+  _albumCarregarUsoFotos()
   if (store.albumSpreads.length) await abrirAlbumSpread(store.albumSpreads[0].id)
 }
 
+// Fase 4 (referência do Luiz): sidebar de fotos com abas "Todas/Não
+// usadas" + badge verde de quantas vezes cada foto já foi usada no
+// ÁLBUM INTEIRO (não só na lâmina aberta — mesma classe de "busca
+// fresca cross-spread" já usada em Smart Layout/Usar Modelo, porque
+// store.albumElements só guarda a lâmina atual).
+let _albumUsoFotos = new Map()
+let _albumPainelFiltro = 'todas'
+let _albumThumbSizePx = 90
+async function _albumCarregarUsoFotos() {
+  const spreadIds = store.albumSpreads.map(s => s.id)
+  const { data, error } = spreadIds.length
+    ? await db.from('album_elements').select('foto_id').in('spread_id', spreadIds)
+    : { data: [] }
+  if (error) { console.error('Digipix: falha ao contar uso das fotos', error.message); return }
+  const uso = new Map()
+  for (const e of (data || [])) uso.set(e.foto_id, (uso.get(e.foto_id) || 0) + 1)
+  _albumUsoFotos = uso
+  renderAlbumFotosPainel()
+}
+function _albumFiltrarPainelFotos(filtro) {
+  _albumPainelFiltro = filtro
+  document.getElementById('album-tab-todas')?.classList.toggle('on', filtro === 'todas')
+  document.getElementById('album-tab-naousadas')?.classList.toggle('on', filtro === 'naousadas')
+  renderAlbumFotosPainel()
+}
+function _albumMudarThumbSize(valor) {
+  _albumThumbSizePx = parseInt(valor) || 90
+  const el = document.getElementById('album-fotos-painel')
+  if (el) el.style.gridTemplateColumns = `repeat(auto-fill,minmax(${_albumThumbSizePx}px,1fr))`
+}
 function renderAlbumFotosPainel() {
   const el = document.getElementById('album-fotos-painel')
   if (!el) return
-  if (!_albumEditorFotosEvento.length) { el.innerHTML = '<div class="empty" style="grid-column:1/-1;">Este evento ainda não tem fotos.</div>'; return }
-  el.innerHTML = _albumEditorFotosEvento.map(f => `
+  el.style.gridTemplateColumns = `repeat(auto-fill,minmax(${_albumThumbSizePx}px,1fr))`
+  const contagemTodas = _albumEditorFotosEvento.length
+  const naoUsadas = _albumEditorFotosEvento.filter(f => !_albumUsoFotos.has(f.id))
+  const contagemTodasEl = document.getElementById('album-count-todas')
+  const contagemNaoUsadasEl = document.getElementById('album-count-naousadas')
+  if (contagemTodasEl) contagemTodasEl.textContent = contagemTodas
+  if (contagemNaoUsadasEl) contagemNaoUsadasEl.textContent = naoUsadas.length
+  const lista = _albumPainelFiltro === 'naousadas' ? naoUsadas : _albumEditorFotosEvento
+  if (!lista.length) {
+    el.innerHTML = `<div class="empty" style="grid-column:1/-1;">${_albumPainelFiltro === 'naousadas' ? 'Todas as fotos do evento já foram usadas neste álbum.' : 'Este evento ainda não tem fotos.'}</div>`
+    return
+  }
+  el.innerHTML = lista.map(f => {
+    const uso = _albumUsoFotos.get(f.id) || 0
+    return `
     <div class="album-foto-mini" draggable="true" data-foto-id="${f.id}" ondragstart="_albumFotoDragStart(event,'${f.id}')">
       ${_imgTagCache(_fotoPreviewPath(f), 'loading="lazy" alt=""')}
-    </div>`).join('')
+      ${uso ? `<span class="album-foto-badge-uso">${uso}x</span>` : ''}
+    </div>`
+  }).join('')
   _hidratarImgCache(el)
 }
 
@@ -17269,6 +17420,7 @@ async function _albumHistoricoRestaurar(alvo) {
   store.albumElements = alvo.map(el => ({ ...el }))
   _albumEditorSelId = null
   renderAlbumCanvas()
+  _albumCarregarUsoFotos()
 }
 let _albumDesfazendoRefazendo = false
 async function _albumDesfazer() {
@@ -17400,6 +17552,99 @@ function renderAlbumCanvas() {
     `
   _albumHidratarFotosCanvas()
   _albumAtualizarToolbarFlutuante()
+  _albumAplicarZoom()
+  _albumAplicarGuias()
+  wrap.classList.toggle('spread-view', _albumSpreadViewAtivo)
+  _albumAtualizarNavLamina()
+  _albumDesenharReguas()
+}
+
+// ── Fase 4 (referência do Luiz) — zoom real, guias, spread view,
+// navegação flutuante entre lâminas, réguas. Tudo cosmético/de
+// navegação — nenhum toque na matemática mm→% que move/redimensiona/
+// gira/recorta elementos (essa continua igual, testada à exaustão nas
+// fases anteriores). Zoom funciona porque getBoundingClientRect() do
+// canvas reflete o tamanho VISUAL real (pós-CSS), que é exatamente o
+// que os handlers de pointer já usam pra converter px↔mm — mudar
+// só a largura em px do wrap "just works" sem tocar em mais nada.
+let _albumZoomPct = 65
+let _albumGuiasVisiveis = true
+let _albumSpreadViewAtivo = false
+const ALBUM_ZOOM_BASE_PX = 900
+function _albumAplicarZoom() {
+  const wrap = document.getElementById('album-canvas-wrap')
+  if (wrap) wrap.style.width = (ALBUM_ZOOM_BASE_PX * _albumZoomPct / 100) + 'px'
+  const slider = document.getElementById('album-zoom-slider')
+  const label = document.getElementById('album-zoom-label')
+  const select = document.getElementById('album-zoom-select')
+  if (slider) slider.value = _albumZoomPct
+  if (label) label.textContent = _albumZoomPct + '%'
+  if (select) select.value = String(_albumZoomPct)
+}
+function _albumMudarZoom(valor, delta) {
+  if (valor != null) _albumZoomPct = Math.min(150, Math.max(30, parseInt(valor) || 65))
+  else if (delta != null) _albumZoomPct = Math.min(150, Math.max(30, _albumZoomPct + delta))
+  _albumAplicarZoom()
+  _albumDesenharReguas()
+}
+function _albumAplicarGuias() {
+  document.querySelectorAll('#album-canvas-wrap .album-guide').forEach(g => { g.style.display = _albumGuiasVisiveis ? '' : 'none' })
+}
+function _albumAlternarGuias() {
+  _albumGuiasVisiveis = !_albumGuiasVisiveis
+  document.getElementById('album-btn-guias')?.classList.toggle('on', _albumGuiasVisiveis)
+  _albumAplicarGuias()
+}
+function _albumAlternarSpreadView() {
+  _albumSpreadViewAtivo = !_albumSpreadViewAtivo
+  document.getElementById('album-btn-spread-view')?.classList.toggle('on', _albumSpreadViewAtivo)
+  document.getElementById('album-canvas-wrap')?.classList.toggle('spread-view', _albumSpreadViewAtivo)
+}
+// navegação flutuante < Anterior / Próxima > — reaproveita
+// abrirAlbumSpread (mesma função da tira de abas), só calcula o
+// vizinho pelo índice na lista já carregada.
+async function _albumNavLamina(direcao) {
+  const idxAtual = store.albumSpreads.findIndex(s => s.id === _albumEditorSpreadAtual?.id)
+  if (idxAtual < 0) return
+  const vizinho = store.albumSpreads[idxAtual + direcao]
+  if (!vizinho) return
+  await abrirAlbumSpread(vizinho.id)
+}
+function _albumAtualizarNavLamina() {
+  const idxAtual = store.albumSpreads.findIndex(s => s.id === _albumEditorSpreadAtual?.id)
+  const prev = document.getElementById('album-nav-prev')
+  const next = document.getElementById('album-nav-next')
+  if (prev) prev.disabled = idxAtual <= 0
+  if (next) next.disabled = idxAtual < 0 || idxAtual >= store.albumSpreads.length - 1
+}
+// réguas (px/mm) nas bordas do workspace — tenta se alinhar com a
+// posição REAL do canvas (que fica centralizado na "mesa", não colado
+// no canto), medindo a diferença de retângulos entre a régua e o
+// canvas. Puramente visual/cosmético (nenhum handler de gesto lê
+// essas réguas) — se o cálculo de alinhamento falhar por qualquer
+// motivo (ex: canvas ainda sem layout), só não desenha nada, sem
+// quebrar o resto do editor.
+function _albumDesenharReguas() {
+  const t = _albumEditorTemplate
+  const wrap = document.getElementById('album-canvas-wrap')
+  const rulerH = document.getElementById('album-ruler-h')
+  const rulerV = document.getElementById('album-ruler-v')
+  if (!t || !wrap || !rulerH || !rulerV) return
+  const wrapRect = wrap.getBoundingClientRect()
+  const rulerHRect = rulerH.getBoundingClientRect()
+  const rulerVRect = rulerV.getBoundingClientRect()
+  if (!wrapRect.width || !wrapRect.height) return
+  const pxPorMmX = wrapRect.width / t.largura_aberta_mm
+  const pxPorMmY = wrapRect.height / t.altura_aberta_mm
+  const offsetX = wrapRect.left - rulerHRect.left
+  const offsetY = wrapRect.top - rulerVRect.top
+  const passoMm = t.largura_aberta_mm > 300 ? 50 : 20
+  let htmlH = ''
+  for (let mm = 0; mm <= t.largura_aberta_mm; mm += passoMm) htmlH += `<div class="album-ruler-tick" style="left:${offsetX + mm * pxPorMmX}px;">${mm}</div>`
+  rulerH.innerHTML = htmlH
+  let htmlV = ''
+  for (let mm = 0; mm <= t.altura_aberta_mm; mm += passoMm) htmlV += `<div class="album-ruler-tick" style="top:${offsetY + mm * pxPorMmY}px;">${mm}</div>`
+  rulerV.innerHTML = htmlV
 }
 
 // achado do Luiz: o menu do elemento vivia no fluxo normal (empurrava
@@ -17485,6 +17730,7 @@ document.addEventListener('drop', async e => {
       if (error) { toast('Erro ao trocar foto: ' + error.message); el.foto_id = fotoAnteriorId; renderAlbumCanvas(); return }
       toast('Foto trocada ✓')
       _albumHistoricoSnapshot()
+      _albumCarregarUsoFotos()
     }
     return
   }
@@ -17516,6 +17762,7 @@ document.addEventListener('drop', async e => {
   _albumEditorSelId = data.id
   renderAlbumCanvas()
   _albumHistoricoSnapshot()
+  _albumCarregarUsoFotos()
 })
 
 // achado na bateria de testes: mover (arrasto ou seta) não tinha
@@ -17912,6 +18159,7 @@ async function _albumApagarElemento(id) {
     _albumEditorSelId = null
     renderAlbumCanvas()
     _albumHistoricoSnapshot()
+    _albumCarregarUsoFotos()
   } finally { _albumApagandoElemento = false }
 }
 
@@ -18037,6 +18285,7 @@ async function _albumSmartLayoutInterno() {
   toast(`Smart Layout aplicado ✓ (${data.length} foto(s) em ${spreadsVazias.length} lâmina(s))`)
   renderAlbumCanvas()
   _albumHistoricoSnapshot()
+  _albumCarregarUsoFotos()
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -18366,6 +18615,7 @@ async function _albumAplicarLayout(idxFiltrado) {
     renderAlbumCanvas()
     toast(`Layout aplicado ✓ (${data.length} foto(s)) — arraste outra foto do painel POR CIMA de qualquer uma pra trocar`)
     _albumHistoricoSnapshot()
+    _albumCarregarUsoFotos()
   } finally { _albumAplicandoPreset = false }
 }
 
