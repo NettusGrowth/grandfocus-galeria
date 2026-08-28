@@ -1818,17 +1818,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 /* ── Digipix: portal do cliente (Passo 2) — flipbook CSS 3D puro,
    sem lib de terceiro (mesmo espírito caseiro do resto do app). */
-.album-flip-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;}
-/* achado real testando mobile: os botões de virar página (.btn-sm
-   padrão) ficavam com ~30px de altura — bem abaixo dos ~44px
-   recomendados pra toque confortável (mesmo padrão já corrigido no
-   botão de login, #login-btn). São os controles mais usados do
-   portal do cliente no celular, então o alvo de toque maior aqui
-   importa mais que na maioria dos outros botões do app. */
-.album-flip-nav .btn{min-height:44px;padding-left:16px;padding-right:16px;}
 #album-cliente-comentario-input{min-height:44px;}
-.album-flip-wrap{perspective:1800px;width:100%;max-width:900px;margin:0 auto;touch-action:pan-y;}
+.album-flip-wrap{position:relative;perspective:1800px;width:100%;max-width:900px;margin:0 auto;touch-action:pan-y;}
 .album-flip-page{position:relative;width:100%;background:#1a0a0a;border-radius:6px;overflow:hidden;box-shadow:0 24px 60px -16px rgba(0,0,0,.55),0 0 0 1px rgba(212,175,55,.25);transform-style:preserve-3d;}
+/* 3º PROMPT.md (ETAPA 3.3): sombra sutil no centro da lâmina simulando
+   a dobra/lombada física do álbum aberto — puramente visual, não
+   precisa saber onde o vinco cai em px (ele é sempre o centro
+   horizontal da lâmina aberta, `.album-guide-vinco` do editor usa a
+   mesma referência). */
+.album-flip-page::after{content:'';position:absolute;left:50%;top:0;bottom:0;width:34px;transform:translateX(-50%);pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(0,0,0,.18) 45%, rgba(0,0,0,.28) 50%, rgba(0,0,0,.18) 55%, transparent);}
 .album-el-cliente{position:absolute;box-sizing:border-box;}
 .album-el-cliente.trocavel{cursor:pointer;}
 .album-el-cliente .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
@@ -1837,6 +1836,54 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-el-cliente.trocavel:hover .album-el-trocar-dica{opacity:1;background:rgba(0,0,0,.35);}
 .album-cliente-comentarios{max-width:900px;margin:18px auto 0;}
 @media(max-width:640px){.album-el-trocar-dica{opacity:1;background:linear-gradient(to top,rgba(0,0,0,.45),transparent 40%);align-items:flex-end;padding-bottom:6px;}}
+/* dica animada de "arraste pra folhear" (ETAPA 3.4) — some sozinha
+   assim que o cliente encosta no flipbook pela primeira vez
+   (_albumClienteEsconderOnboarding, chamado no pointerdown). */
+.album-flip-onboarding{position:absolute;left:50%;bottom:14px;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+  background:rgba(20,4,8,.85);border:1px solid rgba(212,175,55,.35);border-radius:99px;padding:8px 16px;color:#DBC9A8;font-size:12.5px;
+  pointer-events:none;opacity:1;transition:opacity .5s ease;z-index:5;white-space:nowrap;}
+.album-flip-onboarding.escondida{opacity:0;}
+.album-flip-onboarding .mao{display:inline-block;animation:albumOnboardingDeslizar 1.4s ease-in-out infinite;}
+@keyframes albumOnboardingDeslizar{0%,100%{transform:translateX(0);}50%{transform:translateX(8px);}}
+.album-flip-contador{position:absolute;left:50%;top:-28px;transform:translateX(-50%);font-size:11.5px;color:#B39F86;white-space:nowrap;}
+/* ── Capa realista 3D (ETAPA 3.2) — textura de couro aproximada só com
+   CSS (gradientes em camada, sem imagem externa nenhuma) + gravação
+   dourada da marca, abrindo com uma rotação 3D estilo capa de livro
+   de verdade ao tocar/arrastar. Reaproveita a identidade visual já
+   estabelecida (vinho/dourado, Cormorant Garamond+Jost, mesmo ícone
+   de /assets/logo-icone.png usado no resto do app) em vez de inventar
+   um visual novo. */
+.album-capa-realista{display:flex;align-items:center;justify-content:center;padding:24px 0 40px;perspective:2200px;}
+.album-capa-realista.escondida{display:none;}
+.album-capa-livro{position:relative;width:100%;max-width:380px;aspect-ratio:1/1.06;border-radius:3px 12px 12px 3px;cursor:pointer;
+  background:
+    radial-gradient(circle at 25% 15%, rgba(255,255,255,.06), transparent 42%),
+    radial-gradient(circle at 75% 85%, rgba(0,0,0,.3), transparent 55%),
+    linear-gradient(135deg, #5c0a1e 0%, #4B0416 45%, #35030f 100%);
+  box-shadow:0 30px 55px -18px rgba(0,0,0,.75), 0 0 0 1px rgba(255,255,255,.04) inset;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:32px;
+  transform-style:preserve-3d;transform-origin:left center;transform:rotateY(0deg);
+  transition:transform 1s cubic-bezier(.45,0,.2,1), box-shadow 1s;}
+.album-capa-livro.abrindo{transform:rotateY(-155deg);box-shadow:0 10px 30px rgba(0,0,0,.25);}
+.album-capa-livro::before{content:'';position:absolute;inset:0;border-radius:inherit;opacity:.55;mix-blend-mode:overlay;pointer-events:none;
+  background-image:
+    radial-gradient(circle at 20% 30%, rgba(255,255,255,.16) 0, transparent 1.6px),
+    radial-gradient(circle at 62% 12%, rgba(255,255,255,.11) 0, transparent 1.6px),
+    radial-gradient(circle at 82% 62%, rgba(0,0,0,.22) 0, transparent 1.6px),
+    radial-gradient(circle at 38% 82%, rgba(0,0,0,.16) 0, transparent 1.6px),
+    radial-gradient(circle at 10% 70%, rgba(255,255,255,.08) 0, transparent 1.6px);
+  background-size:13px 13px,17px 17px,21px 21px,15px 15px,19px 19px;}
+.album-capa-livro::after{content:'';position:absolute;left:0;top:0;bottom:0;width:24px;pointer-events:none;border-radius:3px 0 0 3px;
+  background:linear-gradient(90deg, rgba(0,0,0,.5), rgba(0,0,0,0) 90%);}
+.album-capa-logo{width:64px;height:64px;object-fit:contain;position:relative;z-index:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+.album-capa-titulo{font-family:'Cormorant Garamond',serif;font-size:30px;letter-spacing:.06em;margin:0;position:relative;z-index:1;
+  background:linear-gradient(180deg,#f4e4b8,#c8af7f 55%,#a8875a);-webkit-background-clip:text;background-clip:text;color:transparent;
+  text-shadow:0 1px 0 rgba(255,255,255,.12);}
+.album-capa-tagline{font-family:'Jost',sans-serif;font-size:10.5px;letter-spacing:.22em;color:#c8af7f;text-transform:uppercase;position:relative;z-index:1;opacity:.85;}
+.album-capa-nome{font-family:'Jost',sans-serif;font-size:13px;color:#DBC9A8;opacity:.8;position:relative;z-index:1;margin-top:10px;}
+.album-capa-dica{position:relative;z-index:1;margin-top:22px;font-size:11.5px;color:rgba(200,175,127,.65);animation:albumCapaPulsar 2.2s ease-in-out infinite;}
+@keyframes albumCapaPulsar{0%,100%{opacity:.5;}50%{opacity:1;}}
+@media(max-width:480px){.album-capa-livro{max-width:88vw;padding:24px;}.album-capa-titulo{font-size:24px;}}
 </style>
 </head>
 <body>
@@ -3014,11 +3061,29 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 <!-- modal: Digipix — enviar álbum pra aprovação do cliente -->
 <div class="modal-overlay" id="modal-album-aprovacao">
-  <div class="modal" style="max-width:440px;">
+  <div class="modal" style="max-width:460px;">
     <h3>Enviar pra aprovação</h3>
-    <div class="meta" style="margin-bottom:14px;">O responsável escolhido vai ver o álbum na Galeria dele, poder trocar fotos e aprovar pra impressão.</div>
+    <div class="meta" style="margin-bottom:14px;">O responsável escolhido vai ver o álbum na Galeria dele, com o modo e as permissões abaixo.</div>
     <div class="field"><label>Responsável</label>
       <select id="alba-responsavel"><option value="">— selecione —</option></select>
+    </div>
+    <div class="field">
+      <label>Modo de compartilhamento</label>
+      <select id="alba-modo" onchange="_albumAtualizarCamposPermissao()">
+        <option value="colaborativo">Colaborativo — cliente pode interagir (com as travas abaixo)</option>
+        <option value="apreciacao">Somente Apreciação — cliente só olha, sem nenhum botão de ação</option>
+      </select>
+    </div>
+    <div id="alba-permissoes-wrap" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
+        <input type="checkbox" id="alba-permite-trocar"> Permitir cliente trocar fotos
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
+        <input type="checkbox" id="alba-permite-comentar" checked> Permitir comentários por lâmina
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;">
+        <input type="checkbox" id="alba-exibir-aprovar" checked> Exibir botão de aprovação de impressão
+      </label>
     </div>
     <div class="modal-actions">
       <button class="btn btn-sm" onclick="fecharModal('modal-album-aprovacao')">Cancelar</button>
@@ -16805,7 +16870,25 @@ async function _albumAbrirEnvioAprovacao() {
   if (!opcoes.length) { toast('Nenhum responsável encontrado pros alunos deste evento'); return }
   const sel = document.getElementById('alba-responsavel')
   sel.innerHTML = '<option value="">— selecione —</option>' + opcoes.map(o => `<option value="${o.id}">${esc(o.nome)}</option>`).join('')
+  // achado no 3º PROMPT.md (ETAPA 3.1): modos de compartilhamento —
+  // reseta pros padrões (mesmo comportamento de sempre: colaborativo,
+  // comentar+aprovar ligados, trocar foto desligado por padrão,
+  // pedido explícito) toda vez que o modal abre, pra nunca herdar a
+  // escolha de um envio anterior sem o admin perceber.
+  document.getElementById('alba-modo').value = 'colaborativo'
+  document.getElementById('alba-permite-trocar').checked = false
+  document.getElementById('alba-permite-comentar').checked = true
+  document.getElementById('alba-exibir-aprovar').checked = true
+  _albumAtualizarCamposPermissao()
   abrirModal('modal-album-aprovacao')
+}
+// modo "Somente Apreciação" não usa nenhuma das 3 travas modulares
+// (o cliente não tem NENHUM botão de ação) — desabilita visualmente
+// pra não sugerir que elas ainda fazem diferença nesse modo.
+function _albumAtualizarCamposPermissao() {
+  const apreciacao = document.getElementById('alba-modo').value === 'apreciacao'
+  document.getElementById('alba-permissoes-wrap').style.opacity = apreciacao ? '.4' : '1'
+  ;['alba-permite-trocar', 'alba-permite-comentar', 'alba-exibir-aprovar'].forEach(id => { document.getElementById(id).disabled = apreciacao })
 }
 
 let _albumEnviandoAprovacao = false
@@ -16841,7 +16924,17 @@ async function _albumEnviarParaAprovacao() {
       )
       if (!ok) return
     }
-    const { data, error } = await db.from('album_projects').update({ cliente_user_id: clienteId, status: 'em_aprovacao' }).eq('id', _albumEditorProjeto.id).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
+    const modo = document.getElementById('alba-modo').value
+    const payload = {
+      cliente_user_id: clienteId, status: 'em_aprovacao', modo_compartilhamento: modo,
+      // "Somente Apreciação" trava as 3 permissões desligadas de
+      // verdade no banco (não confia só no client escondendo botão —
+      // os RPCs de trocar/aprovar também checam isso, ver 077).
+      permite_trocar_foto: modo === 'apreciacao' ? false : document.getElementById('alba-permite-trocar').checked,
+      permite_comentarios: modo === 'apreciacao' ? false : document.getElementById('alba-permite-comentar').checked,
+      exibir_botao_aprovar: modo === 'apreciacao' ? false : document.getElementById('alba-exibir-aprovar').checked,
+    }
+    const { data, error } = await db.from('album_projects').update(payload).eq('id', _albumEditorProjeto.id).select('*, eventos(nome, alunos_selecionados), album_templates(nome)').single()
     if (error) { toast('Erro ao enviar: ' + error.message); return }
     const idx = store.albumProjects.findIndex(p => p.id === data.id)
     if (idx >= 0) store.albumProjects[idx] = data
@@ -19559,30 +19652,75 @@ async function iniciarAlbumCliente() {
 function renderAlbumClienteShell() {
   const wrap = document.getElementById('album-cliente-wrap')
   const p = _albumClienteProjeto
+  // achado no 3º PROMPT.md (ETAPA 3.1, modos de compartilhamento): em
+  // "Somente Apreciação" o cliente não vê NENHUM botão de ação —
+  // trocar foto (já resolvido em _albumClienteElementoHTML), comentar
+  // e aprovar somem por completo, não só ficam desabilitados.
+  const modoApreciacao = p.modo_compartilhamento === 'apreciacao'
+  const podeComentar = !modoApreciacao && p.permite_comentarios !== false
+  const podeAprovar = !modoApreciacao && p.exibir_botao_aprovar !== false && p.status === 'em_aprovacao'
   wrap.innerHTML = `
-    <div class="section-h"><h2>${esc(p.nome)}</h2></div>
-    ${p.status === 'aprovado'
-      ? `<div style="background:rgba(61,207,142,.12);border:1px solid var(--verde);border-radius:8px;padding:10px 14px;margin-bottom:14px;color:var(--verde);font-size:13.5px;">✓ Aprovado em ${fmtDataHora(p.aprovado_em)} — obrigado! Seu álbum já está a caminho da impressão.</div>`
-      : `<div class="meta" style="margin-bottom:14px;">Confira as lâminas, toque numa foto pra trocar por outra sua, ou deixe um comentário pedindo ajuste.</div>`}
-    <div class="album-flip-nav">
-      <button class="btn btn-sm" id="album-cliente-prev" onclick="_albumClienteVirar(-1)">‹ Anterior</button>
-      <span class="meta" id="album-cliente-contador"></span>
-      <button class="btn btn-sm" id="album-cliente-next" onclick="_albumClienteVirar(1)">Próxima ›</button>
-    </div>
-    <div class="album-flip-wrap">
-      <div class="album-flip-page" id="album-flip-page"></div>
-    </div>
-    <div class="album-cliente-comentarios">
-      <div class="meta" style="margin:14px 0 6px;">💬 Comentários nesta lâmina</div>
-      <div id="album-cliente-comentarios-lista"></div>
-      <div style="display:flex;gap:8px;margin-top:8px;">
-        <input type="text" id="album-cliente-comentario-input" placeholder="Pedir um ajuste ao fotógrafo…" style="flex:1;" onkeydown="if(event.key==='Enter')_albumClienteEnviarComentario()">
-        <button class="btn btn-sm btn-primary" onclick="_albumClienteEnviarComentario()">Enviar</button>
+    <!-- ETAPA 3.2: capa realista — primeira tela que o cliente vê,
+         cobrindo TUDO até ele tocar/arrastar pra abrir. -->
+    <div class="album-capa-realista" id="album-capa-realista">
+      <div class="album-capa-livro" id="album-capa-livro" onclick="_albumClienteAbrirCapa()">
+        <img class="album-capa-logo" src="/assets/logo-icone.png" alt="" onerror="this.style.display='none'">
+        <h1 class="album-capa-titulo">GRAND FOCUS</h1>
+        <div class="album-capa-tagline">Photography of Performance</div>
+        <div class="album-capa-nome">${esc(p.nome)}</div>
+        <div class="album-capa-dica">Toque para abrir</div>
       </div>
     </div>
-    ${p.status === 'em_aprovacao' ? `<button class="btn btn-primary" style="margin-top:20px;width:100%;" onclick="_albumClienteAprovar()">✓ Aprovar Álbum para Impressão</button>` : ''}
+    <div class="album-cliente-conteudo" id="album-cliente-conteudo" style="display:none;">
+      <div class="section-h"><h2>${esc(p.nome)}</h2></div>
+      ${p.status === 'aprovado'
+        ? `<div style="background:rgba(61,207,142,.12);border:1px solid var(--verde);border-radius:8px;padding:10px 14px;margin-bottom:14px;color:var(--verde);font-size:13.5px;">✓ Aprovado em ${fmtDataHora(p.aprovado_em)} — obrigado! Seu álbum já está a caminho da impressão.</div>`
+        : modoApreciacao
+          ? `<div class="meta" style="margin-bottom:14px;">Confira as lâminas do seu álbum — arraste pro lado pra folhear.</div>`
+          : `<div class="meta" style="margin-bottom:14px;">Confira as lâminas${p.permite_trocar_foto ? ', toque numa foto pra trocar por outra sua,' : ''}${podeComentar ? ' ou deixe um comentário pedindo ajuste' : ''}.</div>`}
+      <div class="album-flip-wrap">
+        <span class="album-flip-contador" id="album-cliente-contador"></span>
+        <div class="album-flip-page" id="album-flip-page"></div>
+        <div class="album-flip-onboarding" id="album-flip-onboarding"><span class="mao">👆</span> Arraste para o lado para folhear</div>
+      </div>
+      ${podeComentar ? `
+      <div class="album-cliente-comentarios">
+        <div class="meta" style="margin:14px 0 6px;">💬 Comentários nesta lâmina</div>
+        <div id="album-cliente-comentarios-lista"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="album-cliente-comentario-input" placeholder="Pedir um ajuste ao fotógrafo…" style="flex:1;" onkeydown="if(event.key==='Enter')_albumClienteEnviarComentario()">
+          <button class="btn btn-sm btn-primary" onclick="_albumClienteEnviarComentario()">Enviar</button>
+        </div>
+      </div>` : ''}
+      ${podeAprovar ? `<button class="btn btn-primary" style="margin-top:20px;width:100%;" onclick="_albumClienteAprovar()">✓ Aprovar Álbum para Impressão</button>` : ''}
+    </div>
   `
+  // a lâmina só é montada quando a capa abre (_albumClienteAbrirCapa)
+  // — não tem por que gastar trabalho renderizando o que está
+  // escondido atrás da capa fechada.
+}
+// achado no 3º PROMPT.md (ETAPA 3.2): abertura animada da capa —
+// rotateY com transform-origin na esquerda simula abrir um livro de
+// verdade (a lombada é o "dobra"). Some de vez (display:none) só
+// DEPOIS da transição terminar, pra não cortar a animação no meio.
+let _albumCapaAbrindo = false
+function _albumClienteAbrirCapa() {
+  if (_albumCapaAbrindo) return
+  _albumCapaAbrindo = true
+  const capa = document.getElementById('album-capa-realista')
+  const livro = document.getElementById('album-capa-livro')
+  const conteudo = document.getElementById('album-cliente-conteudo')
+  if (!capa || !livro || !conteudo) return
+  livro.classList.add('abrindo')
+  conteudo.style.display = ''
   renderAlbumClienteSpread()
+  setTimeout(() => { capa.classList.add('escondida') }, 950)
+}
+// some com a dica "arraste pra folhear" assim que o cliente encosta
+// no flipbook pela primeira vez (não precisa completar o gesto — só
+// tentar já mostra que ele entendeu).
+function _albumClienteEsconderOnboarding() {
+  document.getElementById('album-flip-onboarding')?.classList.add('escondida')
 }
 
 function _albumClienteSpreadAtual() { return _albumClienteSpreads[_albumClienteIndice] }
@@ -19610,7 +19748,13 @@ function _albumClienteElementoHTML(el) {
   const wPct = (el.width / t.largura_aberta_mm) * 100
   const hPct = (el.height / t.altura_aberta_mm) * 100
   const src = foto ? (_imgCache(_fotoPreviewPath(foto)) || '') : ''
-  const podeTrocar = _albumClienteProjeto.status === 'em_aprovacao'
+  // achado no 3º PROMPT.md (ETAPA 3.1, modos de compartilhamento):
+  // trocar foto agora também depende do que o admin liberou ao
+  // enviar — "Somente Apreciação" ou a trava "Permitir cliente trocar
+  // fotos" desligada escondem esse botão (o RPC 077 também recusa se
+  // alguém tentar chamar direto, então isso aqui é só a UI seguindo o
+  // que o banco já vai barrar de qualquer forma).
+  const podeTrocar = _albumClienteProjeto.status === 'em_aprovacao' && _albumClienteProjeto.modo_compartilhamento !== 'apreciacao' && _albumClienteProjeto.permite_trocar_foto
   return `
     <div class="album-el-cliente${podeTrocar ? ' trocavel' : ''}" data-el-id="${el.id}" data-foto-path="${foto ? esc(_fotoPreviewPath(foto)) : ''}"
          style="left:${leftPct}%;top:${topPct}%;width:${wPct}%;height:${hPct}%;transform:rotate(${el.rotation}deg);z-index:${el.z_index};"
@@ -19723,6 +19867,7 @@ let _albumClienteUltimoGestoFoiSwipe = false
 document.addEventListener('pointerdown', e => {
   if (!e.target.closest('#album-flip-page')) return
   _albumClienteSwipe = { startX: e.clientX, startY: e.clientY }
+  _albumClienteEsconderOnboarding() // primeiro toque já basta, não precisa completar o gesto
 })
 document.addEventListener('pointerup', e => {
   if (!_albumClienteSwipe) return
