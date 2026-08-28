@@ -1817,7 +1817,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* display:grid/overflow-y/max-height ficam aqui (sem grid-template-columns
    fixo — isso é sempre definido inline via JS em renderAlbumFotosPainel/
    _albumMudarThumbSize, conforme o slider de tamanho de miniatura). */
-.album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;gap:6px;}
+/* achado na verificação pesada: sem um grid-template-columns padrão
+   aqui, o modal "Trocar foto" do CLIENTE (que reaproveita esta classe
+   mas nunca passa pelo JS do admin que define a coluna via inline
+   style) caía numa coluna só, foto empilhada em lista vertical em vez
+   de grade — funcional, mas nada parecido com o resto do app. */
+.album-fotos-painel{max-height:640px;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:6px;}
 .album-foto-mini{aspect-ratio:1;border-radius:6px;overflow:hidden;cursor:grab;border:1px solid rgba(200,175,127,.2);content-visibility:auto;contain-intrinsic-size:0 90px;}
 .album-foto-mini img{width:100%;height:100%;object-fit:cover;display:block;}
 .album-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;}
