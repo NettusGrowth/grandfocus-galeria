@@ -1651,6 +1651,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-header-toolbar select#album-zoom-select{background:rgba(255,255,255,.04);border:1px solid rgba(200,175,127,.25);color:#DBC9A8;border-radius:6px;padding:5px 6px;font-size:12px;}
 .album-workspace{position:relative;background:#18181b;min-height:520px;display:flex;flex-direction:column;}
 .album-workspace-corpo{position:relative;flex:1;display:grid;grid-template-columns:22px 1fr;grid-template-rows:22px 1fr;overflow:auto;}
+/* 2º PROMPT.md: pan (Espaço+arrastar ou botão do meio) — cursor muda
+   pra "mão" assim que Espaço é pressionado (affordance de que o modo
+   está pronto, mesmo antes de começar a arrastar), e pra "mão fechada"
+   durante o arrasto de verdade. */
+.album-workspace-corpo.pan-pronto{cursor:grab;}
+.album-workspace-corpo.pan-ativo{cursor:grabbing;}
+.album-workspace-corpo.pan-ativo *{cursor:grabbing !important;}
 .album-ruler-canto{background:#121214;border-right:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06);}
 .album-ruler-h{background:#121214;border-bottom:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden;}
 .album-ruler-v{background:#121214;border-right:1px solid rgba(255,255,255,.08);position:relative;overflow:hidden;}
@@ -1674,6 +1681,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-zoom-widget button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.06);color:#e5e5e5;font-size:13px;line-height:1;cursor:pointer;}
 .album-zoom-widget input[type=range]{width:80px;accent-color:var(--dourado);}
 .album-zoom-widget span{font-size:11px;color:#c9c9cc;min-width:32px;text-align:center;}
+.album-zoom-widget .divisor{width:1px;height:16px;background:rgba(255,255,255,.15);}
+.album-zoom-widget .album-zoom-texto{width:auto;border-radius:99px;padding:0 8px;font-size:10.5px;font-weight:600;}
 .album-sidebar-fotos{background:#1e1e22;height:100%;padding:12px;display:flex;flex-direction:column;gap:10px;border-left:1px solid rgba(255,255,255,.06);}
 .album-sidebar-tabs{display:flex;gap:4px;background:rgba(255,255,255,.04);border-radius:8px;padding:3px;}
 .album-sidebar-tabs button{flex:1;padding:6px 4px;border:none;background:none;color:#9a9aa0;font-size:11.5px;border-radius:6px;cursor:pointer;}
@@ -1720,6 +1729,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .album-el.sel{outline:2px solid var(--dourado);z-index:999 !important;}
 .album-el .album-el-img-wrap{width:100%;height:100%;overflow:hidden;position:relative;}
 .album-el img{position:absolute;max-width:none;pointer-events:none;-webkit-user-drag:none;}
+.album-el-fantasma-recorte{position:absolute;max-width:none;pointer-events:none;-webkit-user-drag:none;transform:translate(-50%,-50%);opacity:.32;filter:saturate(.7);}
 /* achado do Luiz testando de verdade: o menu contextual do elemento
    (#album-el-toolbar) vivia no FLUXO normal do documento, acima do
    canvas — abrir/fechar ele (display:none↔flex ao selecionar/
@@ -17163,10 +17173,13 @@ async function abrirAlbumEditor(projetoId) {
             <button class="album-nav-flutuante prev" id="album-nav-prev" onclick="_albumNavLamina(-1)" title="Lâmina anterior">‹</button>
             <button class="album-nav-flutuante next" id="album-nav-next" onclick="_albumNavLamina(1)" title="Próxima lâmina">›</button>
             <div class="album-zoom-widget">
-              <button onclick="_albumMudarZoom(null,-10)">－</button>
+              <button onclick="_albumMudarZoom(null,-10)" title="Zoom -">－</button>
               <input type="range" id="album-zoom-slider" min="30" max="150" value="65" oninput="_albumMudarZoom(this.value)">
               <span id="album-zoom-label">65%</span>
-              <button onclick="_albumMudarZoom(null,10)">＋</button>
+              <button onclick="_albumMudarZoom(null,10)" title="Zoom +">＋</button>
+              <span class="divisor" aria-hidden="true"></span>
+              <button class="album-zoom-texto" onclick="_albumMudarZoom('100')" title="Zoom 100%">100%</button>
+              <button class="album-zoom-texto" onclick="_albumZoomAjustarTela()" title="Ajustar à tela">Fit</button>
             </div>
           </div>
         </div>
@@ -17556,7 +17569,12 @@ function _albumAtualizarElementoDOM(el) {
   div.style.width = ((el.width / t.largura_aberta_mm) * 100) + '%'
   div.style.height = ((el.height / t.altura_aberta_mm) * 100) + '%'
   div.style.transform = `rotate(${el.rotation}deg)`
-  const img = div.querySelector('img')
+  // seletor específico (não só "img") — importante desde que o modo
+  // recorte ganhou a camada fantasma (ver _albumMostrarFantasmaRecorte):
+  // um "img" genérico pegaria a foto ERRADA (o fantasma vem antes no
+  // DOM) e pararia de atualizar a foto real durante mover/redimensionar/
+  // girar, silenciosamente.
+  const img = div.querySelector('.album-el-img-wrap img')
   if (img) {
     img.style.width = (100 * (el.crop_scale || 1)) + '%'
     img.style.left = (50 - (el.crop_x || 0)) + '%'
@@ -17566,6 +17584,37 @@ function _albumAtualizarElementoDOM(el) {
   const dpi = _albumDpiInfo(el, foto)
   const badge = div.querySelector('.album-el-dpi')
   if (badge) { badge.className = `album-el-dpi ${dpi.classe}`; badge.textContent = dpi.texto }
+}
+
+// ── Fantasma do Modo Recorte (2º PROMPT.md, ETAPA 3): enquanto o
+// admin arrasta pra recortar, mostra a foto INTEIRA (inclusive o que
+// fica fora da moldura) translúcida por baixo da versão real (essa
+// continua opaca e clipada por cima, .album-el-img-wrap{overflow:hidden}
+// nunca mudou) — só existe durante o gesto, nunca fora dele.
+function _albumMostrarFantasmaRecorte(el) {
+  _albumEsconderFantasmaRecorte()
+  const div = document.querySelector(`.album-el[data-el-id="${el.id}"]`)
+  const imgReal = div?.querySelector('.album-el-img-wrap img')
+  const wrap = div?.querySelector('.album-el-img-wrap')
+  if (!div || !imgReal?.src || !wrap) return
+  const fantasma = document.createElement('img')
+  fantasma.src = imgReal.src
+  fantasma.className = 'album-el-fantasma-recorte'
+  fantasma.alt = ''
+  fantasma.style.width = imgReal.style.width
+  fantasma.style.left = imgReal.style.left
+  fantasma.style.top = imgReal.style.top
+  div.insertBefore(fantasma, wrap)
+}
+function _albumAtualizarFantasmaRecorte(el) {
+  const fantasma = document.querySelector(`.album-el[data-el-id="${el.id}"] .album-el-fantasma-recorte`)
+  if (!fantasma) return
+  fantasma.style.width = (100 * (el.crop_scale || 1)) + '%'
+  fantasma.style.left = (50 - (el.crop_x || 0)) + '%'
+  fantasma.style.top = (50 - (el.crop_y || 0)) + '%'
+}
+function _albumEsconderFantasmaRecorte() {
+  document.querySelectorAll('.album-el-fantasma-recorte').forEach(f => f.remove())
 }
 
 function renderAlbumCanvas() {
@@ -17620,6 +17669,26 @@ function _albumMudarZoom(valor, delta) {
   else if (delta != null) _albumZoomPct = Math.min(150, Math.max(30, _albumZoomPct + delta))
   _albumAplicarZoom()
   _albumDesenharReguas()
+}
+// "Fit" (pedido no 2º PROMPT.md, controles de zoom no rodapé) — acha
+// o zoom que faz a lâmina inteira caber na área visível do workspace
+// (descontando as réguas + uma margem, pra sobrar respiro), sem
+// precisar o admin ficar tentando valores manualmente.
+function _albumZoomAjustarTela() {
+  const t = _albumEditorTemplate
+  const corpo = document.getElementById('album-workspace-corpo')
+  if (!t || !corpo) return
+  const margem = 60 // px de respiro (soma do padding do stage + folga visual)
+  const larguraDisponivel = corpo.clientWidth - 22 - margem // 22 = largura da régua vertical
+  const alturaDisponivel = corpo.clientHeight - 22 - margem // 22 = altura da régua horizontal
+  if (larguraDisponivel <= 0 || alturaDisponivel <= 0) return
+  // ALBUM_ZOOM_BASE_PX representa 100% — a lâmina em 100% tem largura
+  // ALBUM_ZOOM_BASE_PX e altura proporcional (aspect-ratio real do
+  // modelo); acha o % que faz caber nos DOIS eixos ao mesmo tempo.
+  const alturaBase100 = ALBUM_ZOOM_BASE_PX * (t.altura_aberta_mm / t.largura_aberta_mm)
+  const pctPorLargura = (larguraDisponivel / ALBUM_ZOOM_BASE_PX) * 100
+  const pctPorAltura = (alturaDisponivel / alturaBase100) * 100
+  _albumMudarZoom(String(Math.round(Math.min(pctPorLargura, pctPorAltura))))
 }
 function _albumAplicarGuias() {
   document.querySelectorAll('#album-canvas-wrap .album-guide').forEach(g => { g.style.display = _albumGuiasVisiveis ? '' : 'none' })
@@ -17915,6 +17984,67 @@ function _albumAlternarModoRecorteToque() {
   _albumModoRecorteToque = !_albumModoRecorteToque
   document.getElementById('album-btn-modo-recorte')?.classList.toggle('on', _albumModoRecorteToque)
 }
+// ── pan (Espaço+arrastar ou botão do meio) — 2º PROMPT.md pede canvas
+// "panorâmico estilo Figma/Photoshop". Em vez de reinventar um
+// transform próprio (arriscado — toda a matemática de mover/
+// redimensionar/girar/recortar depende de getBoundingClientRect do
+// canvas real), reaproveita o SCROLL nativo do container
+// (.album-workspace-corpo já é overflow:auto) — arrastar só rola esse
+// container, sem tocar em nenhuma coordenada mm↔px usada pelos
+// handlers de elemento.
+let _albumEspacoPressionado = false
+document.addEventListener('keydown', e => {
+  if (e.code !== 'Space' || e.repeat) return
+  if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) || e.target.isContentEditable) return
+  const corpo = document.getElementById('album-workspace-corpo')
+  if (!corpo || !corpo.offsetParent) return
+  e.preventDefault() // barra o scroll de página inteira que Espaço faria por padrão
+  _albumEspacoPressionado = true
+  corpo.classList.add('pan-pronto')
+})
+document.addEventListener('keyup', e => {
+  if (e.code !== 'Space') return
+  _albumEspacoPressionado = false
+  document.getElementById('album-workspace-corpo')?.classList.remove('pan-pronto')
+})
+let _albumPan = null
+// registrado ANTES do pointerdown de seleção/arrasto de elemento (logo
+// abaixo) — mesmo target (document), mesma fase (bubble): quem
+// registra primeiro roda primeiro. stopImmediatePropagation() quando
+// o pan realmente começa garante que aquele outro handler não tente
+// TAMBÉM selecionar/mover uma foto no mesmo clique.
+document.addEventListener('pointerdown', e => {
+  const corpo = document.getElementById('album-workspace-corpo')
+  if (!corpo || !corpo.contains(e.target)) return
+  if (!(_albumEspacoPressionado || e.button === 1)) return
+  e.preventDefault()
+  e.stopImmediatePropagation()
+  _albumPan = { startX: e.clientX, startY: e.clientY, scrollLeft: corpo.scrollLeft, scrollTop: corpo.scrollTop, pointerId: e.pointerId }
+  // setPointerCapture pode lançar em casos raros (ponteiro já
+  // liberado/inválido) — sem o try/catch, isso interromperia a função
+  // ANTES da classe visual (.pan-ativo) e não seria capturado por
+  // nada, deixando o cursor "grab" preso sem feedback do pan de
+  // verdade ter começado. O pan em si (scroll via _albumPan, no
+  // pointermove) não depende da captura — só ela garante que soltar
+  // fora da área ainda dispare pointerup nesse elemento.
+  try { corpo.setPointerCapture(e.pointerId) } catch (err) { /* segue mesmo assim */ }
+  corpo.classList.add('pan-ativo')
+})
+document.addEventListener('pointermove', e => {
+  if (!_albumPan || e.pointerId !== _albumPan.pointerId) return
+  const corpo = document.getElementById('album-workspace-corpo')
+  if (!corpo) return
+  corpo.scrollLeft = _albumPan.scrollLeft - (e.clientX - _albumPan.startX)
+  corpo.scrollTop = _albumPan.scrollTop - (e.clientY - _albumPan.startY)
+})
+function _albumPararPan() {
+  if (!_albumPan) return
+  document.getElementById('album-workspace-corpo')?.classList.remove('pan-ativo')
+  _albumPan = null
+}
+document.addEventListener('pointerup', _albumPararPan)
+document.addEventListener('pointercancel', _albumPararPan)
+
 // zoom por pinça (2 dedos) — equivalente touch do scroll do mouse.
 // Pointer Events dão um pointerId por dedo; _albumPointersAtivos
 // rastreia os que estão tocando no canvas AGORA. 2º dedo tocando
@@ -17940,7 +18070,12 @@ document.addEventListener('pointerdown', e => {
         _albumDrag.pinchEscalaBase = el.crop_scale || 1
       }
     }
-    canvas.setPointerCapture(e.pointerId)
+    // try/catch: setPointerCapture pode lançar em casos raros
+    // (ponteiro já liberado/inválido) — sem isso, uma exceção aqui
+    // interrompe a função ANTES de qualquer coisa depois dela (não
+    // tem nada depois aqui, mas o padrão importa pro caso simétrico
+    // abaixo, onde tem).
+    try { canvas.setPointerCapture(e.pointerId) } catch (err) { /* segue mesmo assim */ }
     e.preventDefault()
     return
   }
@@ -17967,8 +18102,25 @@ document.addEventListener('pointerdown', e => {
     aspecto: el.width / el.height, mmPorPctX: t.largura_aberta_mm / 100, mmPorPctY: t.altura_aberta_mm / 100,
   }
   _albumPointersAtivos.set(e.pointerId, { x: e.clientX, y: e.clientY })
-  canvas.setPointerCapture(e.pointerId)
+  // achado ao vivo testando o fantasma do Modo Recorte (2º PROMPT.md):
+  // sem o try/catch, um setPointerCapture que lança (ponteiro já
+  // liberado/inválido — caso raro, mas real) interrompia a função
+  // ANTES de renderAlbumCanvas() e da criação do fantasma, deixando os
+  // dois "mortos" silenciosamente numa exceção não capturada — nada
+  // no resto do app quebrava, mas a lâmina nunca re-renderizava pra
+  // mostrar a seleção nem o fantasma aparecia. O gesto em si (mover/
+  // redimensionar/girar/recortar) não depende da captura pra
+  // funcionar — só ela garante que soltar o ponteiro fora da área
+  // ainda dispare pointerup neste elemento.
+  try { canvas.setPointerCapture(e.pointerId) } catch (err) { /* segue mesmo assim */ }
   renderAlbumCanvas()
+  // achado no 2º PROMPT.md: mostrar uma "camada fantasma" translúcida
+  // da foto INTEIRA (inclusive o que fica fora da moldura) enquanto o
+  // admin ajusta o recorte — sem isso, é fácil perder a noção de pra
+  // que lado puxar quando a foto já está bem ampliada dentro do
+  // frame. Só durante o gesto (criado aqui, removido em
+  // _albumPararDrag) — nunca aparece fora do arrasto de recorte.
+  if (modo === 'recortar') _albumMostrarFantasmaRecorte(el)
   e.preventDefault()
 })
 document.addEventListener('pointermove', e => {
@@ -17990,6 +18142,7 @@ document.addEventListener('pointermove', e => {
     const distAtual = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
     el.crop_scale = Math.min(4, Math.max(1, d.pinchEscalaBase * (distAtual / d.pinchDistInicial)))
     _albumAtualizarElementoDOM(el)
+    _albumAtualizarFantasmaRecorte(el) // no-op se o gesto não começou como recorte (função sai cedo se não achar o fantasma)
     return
   }
   const dxMm = ((e.clientX - d.startX) / d.rectW) * (d.mmPorPctX * 100)
@@ -18077,6 +18230,7 @@ document.addEventListener('pointermove', e => {
       el.crop_x = Math.min(limitePan, Math.max(-limitePan, d.base.crop_x - ((e.clientX - d.startX) / elRect.width) * 100))
       el.crop_y = Math.min(limitePan, Math.max(-limitePan, d.base.crop_y - ((e.clientY - d.startY) / elRect.height) * 100))
     }
+    _albumAtualizarFantasmaRecorte(el)
   }
   _albumAtualizarElementoDOM(el)
 })
@@ -18086,6 +18240,7 @@ function _albumPararDrag() {
   _albumDrag = null
   _albumPointersAtivos.clear()
   _albumLimparGuiasSnap()
+  _albumEsconderFantasmaRecorte()
   _albumAtualizarToolbarFlutuante()
   _albumSalvarElemento(id)
   _albumHistoricoSnapshot()
@@ -18093,7 +18248,12 @@ function _albumPararDrag() {
 document.addEventListener('pointerup', _albumPararDrag)
 document.addEventListener('pointercancel', _albumPararDrag)
 // zoom do recorte — scroll do mouse sobre um elemento selecionado.
+// achado no 2º PROMPT.md: Ctrl+scroll agora é reservado pro zoom do
+// CANVAS inteiro (abaixo) — sem essa exclusão aqui, segurar Ctrl e
+// rolar sobre uma foto selecionada faria as duas coisas ao mesmo
+// tempo (canvas mudando de tamanho E o recorte da foto junto).
 document.addEventListener('wheel', e => {
+  if (e.ctrlKey) return
   if (!_albumEditorSelId) return
   const elDiv = e.target.closest(`.album-el[data-el-id="${_albumEditorSelId}"]`)
   if (!elDiv) return
@@ -18103,6 +18263,17 @@ document.addEventListener('wheel', e => {
   el.crop_scale = Math.min(4, Math.max(1, (el.crop_scale || 1) + (e.deltaY < 0 ? 0.05 : -0.05)))
   _albumAtualizarElementoDOM(el)
   _albumSalvarElemento(el.id)
+}, { passive: false })
+// zoom do CANVAS INTEIRO com Ctrl+scroll (pedido explícito do 2º
+// PROMPT.md, "estilo Figma/Photoshop") — sensibilidade pequena por
+// "tick" de roda (a maioria dos mouses reporta deltaY em múltiplos de
+// ~100, então /20 dá um zoom suave, não um salto brusco).
+document.addEventListener('wheel', e => {
+  if (!e.ctrlKey) return
+  const corpo = e.target.closest('#album-workspace-corpo')
+  if (!corpo) return
+  e.preventDefault()
+  _albumMudarZoom(null, e.deltaY < 0 ? 5 : -5)
 }, { passive: false })
 // teclado: Delete apaga o elemento selecionado, setas nudge fino.
 // Guardas essenciais (achadas em revisão, não são teóricas):
