@@ -1173,51 +1173,95 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modal-secao-titulo-row .modal-secao-titulo{margin-bottom:0;}
 
 /* ── Portfólio privado do super_admin ─────────────────────────────
-   É uma vitrine isolada da Galeria de gestão: só usa thumbnails e o
-   cache já validado do app. O z-index fica ABAIXO do lightbox (300)
-   para abrir a foto ampliada sem fechar o portfólio. */
-#modal-portfolio-admin{z-index:250;padding:12px;background:rgba(8,4,8,.84);}
-#modal-portfolio-admin .portfolio-admin-modal{
-  width:min(1500px,100%);max-width:none;height:calc(100dvh - 24px);max-height:none;
-  padding:0;overflow:hidden;display:flex;flex-direction:column;border-radius:14px;
-  background:linear-gradient(180deg,rgba(24,10,15,.98),rgba(12,7,12,.99));
+   Tela cheia, isolada da Galeria de gestão. O visual segue o boutique
+   já validado com alunos, mas as colunas são montadas em JS com
+   aspect-ratio reservado antes do download: sem relayout/pulos durante
+   o scroll e sem o bug histórico do Safari com CSS column-count. */
+#portfolio-admin-screen{
+  display:none;position:fixed;inset:0;z-index:250;background:#080508;color:#fff;overflow:hidden;
 }
-.portfolio-admin-head{
-  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
-  padding:22px 24px 18px;border-bottom:1px solid rgba(200,175,127,.16);flex-shrink:0;
+#portfolio-admin-screen.show{display:flex;flex-direction:column;}
+.portfolio-admin-topbar{
+  position:absolute;z-index:8;top:0;left:0;right:0;display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:22px 28px 44px;background:linear-gradient(180deg,rgba(8,5,8,.94) 0%,rgba(8,5,8,.62) 52%,transparent 100%);
+  pointer-events:none;
 }
-.portfolio-admin-head h3{font-size:25px;margin:3px 0 4px;}
-.portfolio-admin-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ouro-fundo);font-weight:700;}
-.portfolio-admin-resumo{font-size:12.5px;color:#B39F86;}
-.portfolio-admin-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
-.portfolio-admin-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 28px;flex:1;}
-.portfolio-admin-grid{columns:5 210px;column-gap:12px;}
+.portfolio-admin-brand,.portfolio-admin-acoes{pointer-events:auto;}
+.portfolio-admin-kicker{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#D2B978;font-weight:700;}
+.portfolio-admin-brand h2{font-family:var(--serif);font-size:25px;font-weight:500;margin:4px 0 2px;color:#fff;}
+.portfolio-admin-resumo{font-size:11.5px;color:rgba(255,255,255,.68);}
+.portfolio-admin-acoes{display:flex;gap:8px;align-items:center;}
+.portfolio-admin-acoes .btn,.portfolio-admin-acoes .icon-btn{
+  background:rgba(12,8,12,.55);border-color:rgba(255,255,255,.22);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+}
+.portfolio-admin-scroll{
+  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable;background:#080508;
+}
+.portfolio-admin-hero{
+  position:relative;width:100%;height:min(76vh,820px);min-height:480px;background:#120B10;overflow:hidden;cursor:pointer;
+}
+.portfolio-admin-hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;}
+.portfolio-admin-hero::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(8,5,8,.12) 0%,rgba(8,5,8,0) 42%,rgba(8,5,8,.92) 100%);
+}
+.portfolio-admin-hero-copy{position:absolute;z-index:2;left:clamp(22px,5vw,78px);bottom:clamp(28px,7vh,76px);max-width:650px;}
+.portfolio-admin-hero-copy .sobre{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#E4CF9A;font-weight:700;}
+.portfolio-admin-hero-copy h1{font-family:var(--serif);font-size:clamp(42px,6vw,82px);font-weight:400;line-height:.98;margin:9px 0 10px;color:#fff;text-shadow:0 5px 32px rgba(0,0,0,.42);}
+.portfolio-admin-hero-copy p{font-size:13px;line-height:1.65;color:rgba(255,255,255,.78);max-width:480px;}
+.portfolio-admin-coracao-hero{
+  position:absolute;z-index:3;right:clamp(18px,4vw,56px);bottom:clamp(24px,6vh,64px);
+  width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:rgba(8,5,8,.5);
+  color:#fff;display:grid;place-items:center;font-size:22px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);cursor:pointer;
+}
+.portfolio-admin-coracao-hero.on{color:#F3A7B8;border-color:rgba(243,167,184,.55);}
+.portfolio-admin-body{padding:54px clamp(12px,3vw,46px) 70px;max-width:1580px;width:100%;margin:0 auto;}
+.portfolio-admin-intro{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:0 0 28px;}
+.portfolio-admin-intro h3{font-family:var(--serif);font-size:clamp(28px,3.2vw,46px);font-weight:400;margin:0;color:#F6F0E8;}
+.portfolio-admin-intro p{max-width:490px;text-align:right;margin:0;color:#9F9187;font-size:12px;line-height:1.65;}
+.portfolio-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start;}
+.portfolio-admin-col{display:flex;flex-direction:column;gap:16px;min-width:0;}
 .portfolio-admin-item{
-  width:100%;display:block;position:relative;padding:0;margin:0 0 12px;border:0;border-radius:8px;
-  overflow:hidden;background:rgba(75,4,22,.22);cursor:pointer;break-inside:avoid;
-  box-shadow:0 8px 24px -18px rgba(0,0,0,.9);text-align:left;
+  width:100%;display:block;position:relative;padding:0;border:0;border-radius:8px;overflow:hidden;
+  background:#160D13;cursor:pointer;box-shadow:0 12px 34px -27px rgba(0,0,0,.92);text-align:left;transform:translateZ(0);
 }
-.portfolio-admin-item img{display:block;width:100%;height:auto;min-height:120px;object-fit:cover;transition:transform .22s ease;}
-.portfolio-admin-item:hover img{transform:scale(1.018);}
-.portfolio-admin-legenda{
-  position:absolute;left:0;right:0;bottom:0;padding:28px 10px 9px;
-  background:linear-gradient(180deg,transparent,rgba(8,4,8,.86));color:#fff;pointer-events:none;
+.portfolio-admin-item img{
+  position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover;transition:transform .32s ease,filter .32s ease;
 }
-.portfolio-admin-legenda b{display:block;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.portfolio-admin-legenda span{display:block;font-size:10.5px;color:#D8C9B7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
-.portfolio-admin-vazio{padding:60px 20px;text-align:center;color:#B39F86;}
-@media(max-width:700px){
-  #modal-portfolio-admin{padding:0;}
-  #modal-portfolio-admin .portfolio-admin-modal{height:100dvh;border-radius:0;border-left:0;border-right:0;}
-  .portfolio-admin-head{padding:16px;gap:10px;align-items:center;}
-  .portfolio-admin-head h3{font-size:21px;}
-  .portfolio-admin-resumo{font-size:11.5px;}
+.portfolio-admin-item:hover img{transform:scale(1.018);filter:brightness(.94);}
+.portfolio-admin-fav{
+  position:absolute;z-index:3;top:10px;right:10px;width:32px;height:32px;border-radius:50%;
+  display:grid;place-items:center;background:rgba(8,5,8,.46);border:1px solid rgba(255,255,255,.18);
+  color:#F3A7B8;font-size:15px;opacity:0;transition:opacity .2s;pointer-events:none;backdrop-filter:blur(6px);
+}
+.portfolio-admin-item.is-favorita .portfolio-admin-fav{opacity:1;}
+.portfolio-admin-meta{
+  position:absolute;z-index:2;left:0;right:0;bottom:0;padding:42px 12px 10px;
+  background:linear-gradient(180deg,transparent,rgba(8,5,8,.82));opacity:0;transition:opacity .2s;pointer-events:none;
+}
+.portfolio-admin-item:hover .portfolio-admin-meta{opacity:1;}
+.portfolio-admin-meta b{display:block;color:#fff;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.portfolio-admin-meta span{display:block;color:rgba(255,255,255,.66);font-size:10.5px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.portfolio-admin-vazio{grid-column:1/-1;padding:80px 20px;text-align:center;color:#9F9187;}
+#lightbox-btn-portfolio.on{color:#F3A7B8;border-color:rgba(243,167,184,.5);background:rgba(243,167,184,.1);}
+@media(max-width:900px){
+  .portfolio-admin-topbar{padding:14px 14px 40px;}
+  .portfolio-admin-brand h2{font-size:20px;}
   .portfolio-admin-acoes .portfolio-admin-misturar{display:none;}
-  .portfolio-admin-scroll{padding:8px 8px 22px;}
-  .portfolio-admin-grid{columns:2 135px;column-gap:8px;}
-  .portfolio-admin-item{margin-bottom:8px;border-radius:6px;}
+  .portfolio-admin-hero{height:64vh;min-height:430px;}
+  .portfolio-admin-hero-copy{left:18px;right:70px;bottom:30px;}
+  .portfolio-admin-hero-copy h1{font-size:44px;}
+  .portfolio-admin-hero-copy p{font-size:11.5px;}
+  .portfolio-admin-coracao-hero{right:16px;bottom:28px;width:44px;height:44px;}
+  .portfolio-admin-body{padding:34px 8px 42px;}
+  .portfolio-admin-intro{padding:0 8px;margin-bottom:16px;display:block;}
+  .portfolio-admin-intro h3{font-size:30px;}
+  .portfolio-admin-intro p{display:none;}
+  .portfolio-admin-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+  .portfolio-admin-col{gap:8px;}
+  .portfolio-admin-item{border-radius:5px;}
+  .portfolio-admin-meta{display:none;}
 }
-
 
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
 .foto-item{
@@ -3641,25 +3685,32 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </div>
 
 <!-- Portfólio privado da página inicial — somente super_admin.
-     Não substitui nem altera a aba Galeria; é só uma vitrine de leitura. -->
-<div class="modal-overlay" id="modal-portfolio-admin" onclick="if(event.target===this)_fecharPortfolioAdmin()">
-  <div class="modal portfolio-admin-modal">
-    <div class="portfolio-admin-head">
-      <div style="min-width:0;">
-        <div class="portfolio-admin-kicker">Portfólio privado · somente você</div>
-        <h3>Galeria Grand Focus</h3>
-        <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
-      </div>
-      <div class="portfolio-admin-acoes">
-        <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Misturar fotos</button>
-        <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-        </button>
-      </div>
+     Tela cheia independente: não altera a aba Galeria nem nenhum acesso de cliente. -->
+<div id="portfolio-admin-screen" aria-hidden="true">
+  <div class="portfolio-admin-topbar">
+    <div class="portfolio-admin-brand">
+      <div class="portfolio-admin-kicker">Grand Focus · Ballet</div>
+      <h2>Portfólio</h2>
+      <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
     </div>
-    <div class="portfolio-admin-scroll">
-      <div class="portfolio-admin-grid" id="portfolio-admin-grid"><div class="portfolio-admin-vazio">Carregando portfólio…</div></div>
+    <div class="portfolio-admin-acoes">
+      <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Nova seleção</button>
+      <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
     </div>
+  </div>
+  <div class="portfolio-admin-scroll" id="portfolio-admin-scroll">
+    <section class="portfolio-admin-hero" id="portfolio-admin-hero">
+      <div class="portfolio-admin-vazio">Carregando portfólio…</div>
+    </section>
+    <section class="portfolio-admin-body">
+      <div class="portfolio-admin-intro">
+        <h3>Ballet em movimento</h3>
+        <p>Uma seleção privada construída a partir dos alunos, priorizando as imagens que você marcou e, depois, as que mais despertaram interesse na galeria.</p>
+      </div>
+      <div class="portfolio-admin-grid" id="portfolio-admin-grid"><div class="portfolio-admin-vazio">Carregando seleção…</div></div>
+    </section>
   </div>
 </div>
 
@@ -3911,6 +3962,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <span id="lightbox-caption"></span>
     <button class="icon-btn" title="Compartilhar" onclick="_lightboxCompartilhar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.9M8.6 13.4l6.8 3.9" stroke-linecap="round"/></svg></button>
     <button class="icon-btn" title="Baixar" onclick="_lightboxBaixar()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13m0 0-4.5-4.5M12 16l4.5-4.5"/><path d="M4 18v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2"/></svg></button>
+    <button class="icon-btn" title="Adicionar ao portfólio" id="lightbox-btn-portfolio" style="display:none;" onclick="_portfolioToggleFavoritoAtual()">♡</button>
     <button class="icon-btn" title="Métricas da foto" id="lightbox-btn-metricas" style="display:none;" onclick="_abrirMetricasFotoAtual()">📊</button>
     <button class="icon-btn" title="Apagar" id="lightbox-btn-apagar" style="display:none;" onclick="_lightboxApagarAtual()"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0-1 14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2L4 6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
   </div>
@@ -5583,13 +5635,15 @@ function _avancarCarrosselFotosDash() {
 }
 
 // ── Portfólio privado do Dashboard ────────────────────────────────
-// Pedido específico do super_admin: clicar no card "Galeria de Fotos"
-// da HOME abre uma vitrine, sem entrar na Galeria de gestão. A sidebar
-// "Galeria" continua exatamente como antes. Se algum dia existir um
-// admin comum, o card dele também continua indo pra Galeria normal.
+// Exclusivo do super_admin. A HOME abre esta tela; a sidebar "Galeria"
+// continua chamando iniciarGaleriaAdmin() normalmente para todos.
 let _portfolioAdminBase = null
 let _portfolioAdminFotos = []
+let _portfolioAdminHero = null
 let _portfolioAdminCarregando = false
+let _portfolioFavoritos = new Set()
+let _portfolioFavoritosCarregados = false
+let _portfolioAdminNumColunasAtual = null
 
 function _abrirGaleriaOuPortfolioAdmin() {
   if (meuPerfil?.role === 'super_admin') { _abrirPortfolioAdmin(); return }
@@ -5606,40 +5660,130 @@ function _portfolioAdminEmbaralhar(lista) {
   return a
 }
 
-function _portfolioAdminGrupo(map, chave, pessoa) {
-  if (!map.has(chave)) map.set(chave, { ...pessoa, fotos: new Map() })
-  return map.get(chave)
+async function _portfolioCarregarFavoritos(forcar = false) {
+  if (meuPerfil?.role !== 'super_admin') return
+  if (_portfolioFavoritosCarregados && !forcar) return
+  const { data, error } = await db.from('portfolio_favoritos').select('foto_id')
+  if (error) {
+    console.error('Portfólio: falha ao carregar favoritos', error)
+    return
+  }
+  _portfolioFavoritos = new Set((data || []).map(x => x.foto_id))
+  _portfolioFavoritosCarregados = true
+}
+
+function _portfolioFotoIdValido(f) {
+  return !!(f && typeof f.id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(f.id))
+}
+
+async function _portfolioAtualizarBotaoLightbox() {
+  const btn = document.getElementById('lightbox-btn-portfolio')
+  if (!btn) return
+  const publico = document.getElementById('lightbox')?.dataset.modo === 'publico'
+  const f = _lightboxFotos[_lightboxIdx]
+  if (publico || meuPerfil?.role !== 'super_admin' || !_portfolioFotoIdValido(f)) {
+    btn.style.display = 'none'
+    btn.classList.remove('on')
+    return
+  }
+  btn.style.display = ''
+  if (!_portfolioFavoritosCarregados) await _portfolioCarregarFavoritos()
+  const on = _portfolioFavoritos.has(f.id)
+  btn.classList.toggle('on', on)
+  btn.textContent = on ? '♥' : '♡'
+  btn.title = on ? 'Remover do portfólio' : 'Adicionar ao portfólio'
+}
+
+async function _portfolioToggleFavoritoAtual() {
+  if (meuPerfil?.role !== 'super_admin') return
+  const f = _lightboxFotos[_lightboxIdx]
+  if (!_portfolioFotoIdValido(f)) return
+  await _portfolioCarregarFavoritos()
+  const btn = document.getElementById('lightbox-btn-portfolio')
+  if (btn) btn.disabled = true
+  const ja = _portfolioFavoritos.has(f.id)
+
+  try {
+    const { error } = ja
+      ? await db.from('portfolio_favoritos').delete().eq('foto_id', f.id)
+      : await db.from('portfolio_favoritos').insert({ foto_id: f.id })
+    if (error) throw error
+    if (ja) _portfolioFavoritos.delete(f.id)
+    else _portfolioFavoritos.add(f.id)
+    await _portfolioAtualizarBotaoLightbox()
+    if (_portfolioAdminBase) _portfolioAdminReembaralhar()
+    toast(ja ? 'Removida do portfólio' : 'Adicionada ao portfólio ♥')
+  } catch (e) {
+    console.error('Portfólio: falha ao alterar destaque', e)
+    toast('Não foi possível alterar o portfólio agora.')
+  } finally {
+    if (btn) btn.disabled = false
+  }
+}
+
+async function _portfolioToggleFotoId(fotoId) {
+  if (meuPerfil?.role !== 'super_admin' || !fotoId) return
+  await _portfolioCarregarFavoritos()
+  const ja = _portfolioFavoritos.has(fotoId)
+  try {
+    const { error } = ja
+      ? await db.from('portfolio_favoritos').delete().eq('foto_id', fotoId)
+      : await db.from('portfolio_favoritos').insert({ foto_id: fotoId })
+    if (error) throw error
+    if (ja) _portfolioFavoritos.delete(fotoId); else _portfolioFavoritos.add(fotoId)
+    _portfolioAdminReembaralhar()
+    toast(ja ? 'Removida do portfólio' : 'Adicionada ao portfólio ♥')
+  } catch (e) {
+    console.error('Portfólio: falha ao alterar destaque', e)
+    toast('Não foi possível alterar o portfólio agora.')
+  }
+}
+
+function _portfolioAdminGrupo(map, aluno) {
+  if (!map.has(aluno.id)) map.set(aluno.id, { id: aluno.id, nome: aluno.nome || 'Aluno', escola_id: aluno.escola_id, fotos: new Map() })
+  return map.get(aluno.id)
 }
 
 async function _abrirPortfolioAdmin() {
-  // Dupla trava: o modal só está no Dashboard admin, mas a função
-  // também recusa qualquer papel diferente do ÚNICO super_admin.
   if (meuPerfil?.role !== 'super_admin') return
-  const modal = document.getElementById('modal-portfolio-admin')
+  const tela = document.getElementById('portfolio-admin-screen')
   const grid = document.getElementById('portfolio-admin-grid')
-  if (!modal || !grid) return
-  abrirModal('modal-portfolio-admin')
+  const heroEl = document.getElementById('portfolio-admin-hero')
+  if (!tela || !grid || !heroEl) return
 
-  if (_portfolioAdminBase) { _portfolioAdminReembaralhar(); return }
+  if (!tela.classList.contains('show')) {
+    tela.classList.add('show')
+    tela.setAttribute('aria-hidden', 'false')
+    _travarScrollFundo()
+  }
+  document.getElementById('portfolio-admin-scroll').scrollTop = 0
+
+  if (_portfolioAdminBase) {
+    _portfolioAdminReembaralhar()
+    return
+  }
   if (_portfolioAdminCarregando) return
   _portfolioAdminCarregando = true
-  grid.innerHTML = '<div class="portfolio-admin-vazio">Carregando portfólio…</div>'
-  document.getElementById('portfolio-admin-resumo').textContent = 'Buscando uma amostra de cada pessoa…'
+  grid.innerHTML = '<div class="portfolio-admin-vazio">Carregando seleção…</div>'
+  heroEl.innerHTML = '<div class="portfolio-admin-vazio">Preparando destaque…</div>'
+  document.getElementById('portfolio-admin-resumo').textContent = 'Buscando fotos dos alunos…'
 
   try {
-    // Só METADADOS: nenhum original é baixado aqui. A renderização usa
-    // thumb_path + o mesmo cache/lazy-load já validado no resto da Galeria.
-    const [rf, rfa, rfp, rpop] = await Promise.all([
+    await _portfolioCarregarFavoritos()
+    const [rf, rfa, rpop] = await Promise.all([
       db.from('fotos').select('id,evento_id,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura'),
       db.from('foto_aluno').select('foto_id,aluno_id'),
-      db.from('foto_pessoa').select('foto_id,user_id'),
       db.rpc('fotos_mais_populares', { p_limite: 2000 }),
     ])
     if (rf.error) throw rf.error
     if (rfa.error) throw rfa.error
-    if (rfp.error) throw rfp.error
 
-    const fotos = rf.data || []
+    const eventosBallet = new Set(
+      store.eventos
+        .filter(e => e.escola_id && e.tipo !== 'ensaio')
+        .map(e => e.id)
+    )
+    const fotos = (rf.data || []).filter(f => eventosBallet.has(f.evento_id))
     const fotoPorId = new Map(fotos.map(f => [f.id, f]))
     const metrica = new Map((rpop.error ? [] : (rpop.data || [])).map(f => [
       f.foto_id,
@@ -5647,62 +5791,35 @@ async function _abrirPortfolioAdmin() {
     ]))
     const grupos = new Map()
 
-    // Alunos: vínculo foto_aluno é a fonte de verdade de "quem aparece".
     for (const v of (rfa.data || [])) {
       const aluno = store.alunos.find(a => a.id === v.aluno_id)
       const foto = fotoPorId.get(v.foto_id)
       if (!aluno || !foto) continue
-      const g = _portfolioAdminGrupo(grupos, 'aluno:' + aluno.id, {
-        id: aluno.id, tipo: 'aluno', nome: aluno.nome || 'Aluno',
-        contexto: aluno.escola_id ? (nomeEscola(aluno.escola_id) || 'Aluno') : 'Aluno',
-      })
-      g.fotos.set(foto.id, foto)
+      _portfolioAdminGrupo(grupos, aluno).fotos.set(foto.id, foto)
     }
 
-    // Professores/diretores/proprietários/responsáveis: foto_pessoa.
-    const perfisVisiveis = [...store.professores, ...store.responsaveis]
-    for (const v of (rfp.data || [])) {
-      const perfil = perfisVisiveis.find(p => p.user_id === v.user_id)
-      const foto = fotoPorId.get(v.foto_id)
-      if (!perfil || !foto || ['admin', 'super_admin'].includes(perfil.role)) continue
-      const g = _portfolioAdminGrupo(grupos, 'pessoa:' + perfil.user_id, {
-        id: perfil.user_id, tipo: 'pessoa', nome: perfil.nome || 'Pessoa',
-        contexto: ROLE_LABEL[perfil.role] || perfil.role || 'Pessoa',
-      })
-      g.fotos.set(foto.id, foto)
-    }
-
-    // Cliente avulso não tem foto_pessoa porque acessa por link privado.
-    // Nesse caso, as fotos do ensaio vinculado ao cliente representam
-    // aquela pessoa — sem alterar nenhum vínculo já existente.
-    for (const cli of store.clientesAvulsos) {
-      const eventoIds = new Set(store.eventos.filter(e => e.cliente_avulso_id === cli.id).map(e => e.id))
-      if (!eventoIds.size) continue
-      const fotosCli = fotos.filter(f => eventoIds.has(f.evento_id))
-      if (!fotosCli.length) continue
-      const g = _portfolioAdminGrupo(grupos, 'avulso:' + cli.id, {
-        id: cli.id, tipo: 'avulso', nome: cli.nome || 'Cliente avulso', contexto: 'Ensaio avulso',
-      })
-      fotosCli.forEach(f => g.fotos.set(f.id, f))
-    }
-
-    // Popularidade: usa as métricas já existentes (visualizações +
-    // downloads de clientes). Não inventa "curtida" onde o sistema não
-    // possui curtida de foto. Sem métrica, recência vira desempate.
     const baseGrupos = [...grupos.values()].filter(g => g.fotos.size).map(g => ({
       ...g,
       fotos: [...g.fotos.values()].map(f => {
         const m = metrica.get(f.id) || { views: Number(f.qtd_visualizacoes || 0), downloads: 0 }
-        return { ...f, _views: m.views, _downloads: m.downloads, _score: m.views + (m.downloads * 2) }
+        const fav = _portfolioFavoritos.has(f.id)
+        return {
+          ...f,
+          _views: m.views,
+          _downloads: m.downloads,
+          _favorita: fav,
+          _score: (fav ? 1000000 : 0) + (m.downloads * 3) + m.views,
+        }
       }).sort((a, b) => b._score - a._score || new Date(b.criado_em || 0) - new Date(a.criado_em || 0)),
     }))
 
-    _portfolioAdminBase = { grupos: baseGrupos, totalPessoas: baseGrupos.length }
+    _portfolioAdminBase = { grupos: baseGrupos, totalAlunos: baseGrupos.length }
     _portfolioAdminReembaralhar()
   } catch (e) {
     console.error('Portfólio admin: falha ao carregar', e)
     grid.innerHTML = '<div class="portfolio-admin-vazio">Não foi possível montar o portfólio agora. A Galeria normal não foi afetada.</div>'
-    document.getElementById('portfolio-admin-resumo').textContent = 'Falha isolada no portfólio · a gestão de fotos continua normal'
+    heroEl.innerHTML = ''
+    document.getElementById('portfolio-admin-resumo').textContent = 'Falha isolada no portfólio · a Galeria continua normal'
   } finally {
     _portfolioAdminCarregando = false
   }
@@ -5711,23 +5828,24 @@ async function _abrirPortfolioAdmin() {
 function _portfolioAdminReembaralhar() {
   if (meuPerfil?.role !== 'super_admin' || !_portfolioAdminBase) return
   const escolhidas = new Map()
-  const grupos = _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)
 
-  for (const g of grupos) {
-    // 2 ou 3 por pessoa. Sempre tenta incluir a melhor pontuada e
-    // mistura o restante dentro do TOP 8, para a vitrine variar sem
-    // virar um sorteio de fotos ruins/irrelevantes.
-    const alvo = Math.min(g.fotos.length, g.fotos.length >= 3 ? (Math.random() < .65 ? 3 : 2) : 2)
-    const pool = g.fotos.slice(0, Math.min(8, g.fotos.length))
-    const candidatas = pool.length ? [pool[0], ..._portfolioAdminEmbaralhar(pool.slice(1))] : []
+  for (const g of _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)) {
+    const favoritas = g.fotos.filter(f => _portfolioFavoritos.has(f.id))
+    const outras = g.fotos.filter(f => !_portfolioFavoritos.has(f.id))
+    const alvo = Math.min(3, g.fotos.length)
+    const candidatas = [
+      ...favoritas,
+      ...(outras.length ? [outras[0], ..._portfolioAdminEmbaralhar(outras.slice(1, Math.min(8, outras.length)))] : []),
+      ...outras.slice(8),
+    ]
     let usados = 0
 
     for (const f of candidatas) {
       if (usados >= alvo) break
       const existente = escolhidas.get(f.id)
       if (existente) {
-        if (!existente.pessoas.some(p => p.chave === g.tipo + ':' + g.id)) {
-          existente.pessoas.push({ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto })
+        if (!existente.alunos.some(a => a.id === g.id)) {
+          existente.alunos.push({ id: g.id, nome: g.nome, escola_id: g.escola_id })
           usados++
         }
         continue
@@ -5735,70 +5853,117 @@ function _portfolioAdminReembaralhar() {
       const evento = store.eventos.find(e => e.id === f.evento_id)
       escolhidas.set(f.id, {
         ...f,
+        _favorita: _portfolioFavoritos.has(f.id),
         evento_nome: evento?.nome || '',
-        pessoas: [{ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto }],
+        escola_nome: nomeEscola(evento?.escola_id) || '',
+        alunos: [{ id: g.id, nome: g.nome, escola_id: g.escola_id }],
       })
       usados++
     }
-
-    // Se o TOP 8 colidiu inteiro com fotos já escolhidas de outras
-    // pessoas, procura no restante antes de aceitar menos que 2/3.
-    if (usados < alvo) {
-      for (const f of g.fotos.slice(pool.length)) {
-        if (usados >= alvo) break
-        if (escolhidas.has(f.id)) continue
-        const evento = store.eventos.find(e => e.id === f.evento_id)
-        escolhidas.set(f.id, {
-          ...f,
-          evento_nome: evento?.nome || '',
-          pessoas: [{ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto }],
-        })
-        usados++
-      }
-    }
   }
 
-  _portfolioAdminFotos = _portfolioAdminEmbaralhar([...escolhidas.values()])
+  const lista = [...escolhidas.values()]
+  _portfolioAdminHero = [...lista].sort((a, b) =>
+    Number(b._favorita) - Number(a._favorita) || b._score - a._score
+  )[0] || null
+  _portfolioAdminFotos = _portfolioAdminEmbaralhar(lista.filter(f => f.id !== _portfolioAdminHero?.id))
   _renderPortfolioAdmin()
+}
+
+function _portfolioAdminNumColunas() {
+  return window.innerWidth >= 900 ? 3 : 2
+}
+
+function _portfolioAdminDistribuir(fotos, numCols) {
+  const cols = Array.from({ length: numCols }, () => ({ itens: [], altura: 0 }))
+  for (const f of fotos) {
+    const w = Number(f.largura || 0), h = Number(f.altura || 0)
+    const fator = w > 0 && h > 0 ? h / w : 1.15
+    const idx = cols.reduce((melhor, col, i, arr) => col.altura < arr[melhor].altura ? i : melhor, 0)
+    cols[idx].itens.push(f)
+    cols[idx].altura += fator
+  }
+  return cols
+}
+
+function _portfolioAdminFotoHTML(f) {
+  const w = Number(f.largura || 0), h = Number(f.altura || 0)
+  const ratio = w > 0 && h > 0 ? `${w}/${h}` : '4/5'
+  const nomes = f.alunos.map(a => a.nome)
+  return `<button class="portfolio-admin-item${_portfolioFavoritos.has(f.id) ? ' is-favorita' : ''}" type="button"
+      style="aspect-ratio:${ratio};" onclick="_portfolioAdminAbrirFoto('${f.id}')" title="${esc(nomes.join(', '))}">
+    ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
+    <span class="portfolio-admin-fav">♥</span>
+    <span class="portfolio-admin-meta"><b>${esc(nomes.slice(0,2).join(' · '))}</b><span>${esc(f.escola_nome || f.evento_nome || '')}</span></span>
+  </button>`
 }
 
 function _renderPortfolioAdmin() {
   if (meuPerfil?.role !== 'super_admin') return
   const grid = document.getElementById('portfolio-admin-grid')
+  const heroEl = document.getElementById('portfolio-admin-hero')
   const resumo = document.getElementById('portfolio-admin-resumo')
-  if (!grid || !resumo) return
-  resumo.textContent = `${_portfolioAdminBase?.totalPessoas || 0} pessoas representadas · ${_portfolioAdminFotos.length} fotos · seleção muda a cada abertura`
+  if (!grid || !heroEl || !resumo) return
 
-  if (!_portfolioAdminFotos.length) {
-    grid.innerHTML = '<div class="portfolio-admin-vazio">Ainda não há fotos vinculadas a pessoas suficientes para montar o portfólio.</div>'
+  const total = _portfolioAdminFotos.length + (_portfolioAdminHero ? 1 : 0)
+  resumo.textContent = `${_portfolioAdminBase?.totalAlunos || 0} alunos · ${total} fotos · ♥ ${_portfolioFavoritos.size} selecionada(s) por você`
+
+  if (!_portfolioAdminHero || !total) {
+    heroEl.innerHTML = ''
+    grid.innerHTML = '<div class="portfolio-admin-vazio">Ainda não há fotos de alunos suficientes para montar o portfólio.</div>'
     return
   }
 
-  grid.innerHTML = _portfolioAdminFotos.map(f => {
-    const nomes = f.pessoas.map(p => p.nome)
-    const nomesTxt = nomes.slice(0, 2).join(' · ') + (nomes.length > 2 ? ` +${nomes.length - 2}` : '')
-    const contexto = f.evento_nome || f.pessoas[0]?.contexto || ''
-    return `<button class="portfolio-admin-item" type="button" onclick="_portfolioAdminAbrirFoto('${f.id}')" title="${esc(nomes.join(', '))}">
-      ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
-      <span class="portfolio-admin-legenda"><b>${esc(nomesTxt)}</b><span>${esc(contexto)}</span></span>
-    </button>`
-  }).join('')
+  const heroFoto = _portfolioAdminHero
+  const nomesHero = heroFoto.alunos.map(a => a.nome).slice(0,2).join(' · ')
+  const heroPath = heroFoto.thumb_path || heroFoto.storage_path
+  heroEl.innerHTML = `
+    ${_imgTagCache(heroPath, 'alt=""')}
+    <div class="portfolio-admin-hero-copy">
+      <div class="sobre">Fotografia de Ballet</div>
+      <h1>Movimento<br>que permanece.</h1>
+      <p>${esc([nomesHero, heroFoto.escola_nome || heroFoto.evento_nome].filter(Boolean).join(' · '))}</p>
+    </div>
+    <button class="portfolio-admin-coracao-hero${_portfolioFavoritos.has(heroFoto.id) ? ' on' : ''}" type="button"
+      title="${_portfolioFavoritos.has(heroFoto.id) ? 'Remover do portfólio' : 'Adicionar ao portfólio'}"
+      onclick="event.stopPropagation();_portfolioToggleFotoId('${heroFoto.id}')">${_portfolioFavoritos.has(heroFoto.id) ? '♥' : '♡'}</button>
+  `
+  heroEl.onclick = e => {
+    if (e.target.closest('.portfolio-admin-coracao-hero')) return
+    _portfolioAdminAbrirFoto(heroFoto.id)
+  }
+  _hidratarImgCache(heroEl)
+
+  const n = _portfolioAdminNumColunas()
+  _portfolioAdminNumColunasAtual = n
+  const cols = _portfolioAdminDistribuir(_portfolioAdminFotos, n)
+  grid.innerHTML = cols.map(col => `<div class="portfolio-admin-col">${col.itens.map(_portfolioAdminFotoHTML).join('')}</div>`).join('')
   _hidratarImgCache(grid)
 }
 
 function _portfolioAdminAbrirFoto(fotoId) {
   if (meuPerfil?.role !== 'super_admin') return
-  _lightboxFotos = _portfolioAdminFotos.map(f => ({
+  const todas = [_portfolioAdminHero, ..._portfolioAdminFotos].filter(Boolean)
+  _lightboxFotos = todas.map(f => ({
     id: f.id, storage_path: f.storage_path, thumb_path: f.thumb_path, evento_id: f.evento_id,
   }))
   abrirLightbox(fotoId)
 }
 
 function _fecharPortfolioAdmin() {
-  const modal = document.getElementById('modal-portfolio-admin')
-  if (!modal?.classList.contains('show')) return
-  fecharModal('modal-portfolio-admin')
+  const tela = document.getElementById('portfolio-admin-screen')
+  if (!tela?.classList.contains('show')) return
+  tela.classList.remove('show')
+  tela.setAttribute('aria-hidden', 'true')
+  _destravarScrollFundo()
 }
+
+window.addEventListener('resize', () => {
+  const tela = document.getElementById('portfolio-admin-screen')
+  if (!tela?.classList.contains('show') || !_portfolioAdminBase) return
+  const n = _portfolioAdminNumColunas()
+  if (n !== _portfolioAdminNumColunasAtual) _renderPortfolioAdmin()
+})
 
 
 // Próximos Eventos — substitui a contagem seca do card "Eventos &
@@ -10816,6 +10981,7 @@ function abrirLightbox(fotoId, aposApagar) {
   // admin comum nem pra galeria pública/seleção.
   const btnMetricas = document.getElementById('lightbox-btn-metricas')
   if (btnMetricas) btnMetricas.style.display = meuPerfil?.role === 'super_admin' ? '' : 'none'
+  _portfolioAtualizarBotaoLightbox()
   renderLightboxAtual()
   document.getElementById('lightbox').classList.add('show')
   _travarScrollFundo()
@@ -10845,6 +11011,7 @@ function lightboxNav(delta) {
   _lightboxIdx = (_lightboxIdx + delta + lista.length) % lista.length
   document.getElementById('lightbox-img-wrap').classList.remove('zoomed')
   if (publico) _renderPublicaLightboxAtual(); else renderLightboxAtual()
+  _portfolioAtualizarBotaoLightbox()
 }
 function _lightboxToggleZoom() {
   document.getElementById('lightbox-img-wrap').classList.toggle('zoomed')
@@ -15672,6 +15839,8 @@ function _publicaAbrirLightbox(idx) {
   // um link público.
   const btnMetricas = document.getElementById('lightbox-btn-metricas')
   if (btnMetricas) btnMetricas.style.display = 'none'
+  const btnPortfolio = document.getElementById('lightbox-btn-portfolio')
+  if (btnPortfolio) btnPortfolio.style.display = 'none'
 }
 function _renderPublicaLightboxAtual() {
   const f = _publicaFotos[_lightboxIdx]
