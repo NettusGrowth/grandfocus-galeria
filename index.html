@@ -1198,19 +1198,42 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable;background:#080508;
 }
 .portfolio-admin-hero{
-  position:relative;width:100%;height:min(76vh,820px);min-height:480px;background:#120B10;overflow:hidden;cursor:pointer;
+  position:relative;width:100%;height:min(82vh,900px);min-height:560px;background:#0B070A;overflow:hidden;cursor:pointer;
 }
-.portfolio-admin-hero img{display:block;width:100%;height:100%;object-fit:cover;object-position:center 38%;}
+.portfolio-admin-hero-bg{
+  position:absolute;inset:-7%;z-index:0;overflow:hidden;pointer-events:none;
+}
+.portfolio-admin-hero-bg img{
+  display:block;width:100%;height:100%;object-fit:cover;filter:blur(30px) brightness(.34) saturate(.72);transform:scale(1.08);
+}
+.portfolio-admin-hero-bg::after{
+  content:'';position:absolute;inset:0;background:
+    radial-gradient(circle at 72% 46%,rgba(84,39,55,.20),transparent 46%),
+    linear-gradient(90deg,rgba(8,5,8,.98) 0%,rgba(8,5,8,.86) 32%,rgba(8,5,8,.30) 68%,rgba(8,5,8,.58) 100%);
+}
+.portfolio-admin-hero-stage{
+  position:absolute;z-index:1;top:9%;right:clamp(24px,5vw,84px);bottom:6%;width:min(58vw,780px);
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+}
+.portfolio-admin-hero-stage img{
+  display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;
+  box-shadow:0 34px 90px -34px rgba(0,0,0,.96),0 0 0 1px rgba(255,255,255,.07);
+  transition:opacity .35s ease,filter .35s ease;filter:brightness(.98);background:#100A0E;
+}
+.portfolio-admin-hero-stage img.original-ok{filter:none;}
 .portfolio-admin-hero::after{
-  content:'';position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(180deg,rgba(8,5,8,.12) 0%,rgba(8,5,8,0) 42%,rgba(8,5,8,.92) 100%);
+  content:'';position:absolute;z-index:1;inset:0;pointer-events:none;
+  background:linear-gradient(180deg,rgba(8,5,8,.18) 0%,transparent 28%,transparent 68%,rgba(8,5,8,.74) 100%);
 }
-.portfolio-admin-hero-copy{position:absolute;z-index:2;left:clamp(22px,5vw,78px);bottom:clamp(28px,7vh,76px);max-width:650px;}
-.portfolio-admin-hero-copy .sobre{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:#E4CF9A;font-weight:700;}
-.portfolio-admin-hero-copy h1{font-family:var(--serif);font-size:clamp(42px,6vw,82px);font-weight:400;line-height:.98;margin:9px 0 10px;color:#fff;text-shadow:0 5px 32px rgba(0,0,0,.42);}
-.portfolio-admin-hero-copy p{font-size:13px;line-height:1.65;color:rgba(255,255,255,.78);max-width:480px;}
+.portfolio-admin-hero-copy{
+  position:absolute;z-index:2;left:clamp(28px,6vw,96px);top:50%;transform:translateY(-42%);
+  width:min(38vw,560px);max-width:560px;
+}
+.portfolio-admin-hero-copy .sobre{font-size:10px;letter-spacing:.24em;text-transform:uppercase;color:#E4CF9A;font-weight:700;}
+.portfolio-admin-hero-copy h1{font-family:var(--serif);font-size:clamp(48px,5.7vw,88px);font-weight:400;line-height:.94;margin:12px 0 18px;color:#fff;text-shadow:0 8px 34px rgba(0,0,0,.48);}
+.portfolio-admin-hero-copy p{font-size:12.5px;line-height:1.7;color:rgba(255,255,255,.70);max-width:430px;}
 .portfolio-admin-coracao-hero{
-  position:absolute;z-index:3;right:clamp(18px,4vw,56px);bottom:clamp(24px,6vh,64px);
+  position:absolute;z-index:3;right:clamp(18px,4vw,56px);bottom:clamp(24px,5vh,54px);
   width:48px;height:48px;border-radius:50%;border:1px solid rgba(255,255,255,.28);background:rgba(8,5,8,.5);
   color:#fff;display:grid;place-items:center;font-size:22px;backdrop-filter:blur(9px);-webkit-backdrop-filter:blur(9px);cursor:pointer;
 }
@@ -1248,10 +1271,13 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   .portfolio-admin-topbar{padding:14px 14px 40px;}
   .portfolio-admin-brand h2{font-size:20px;}
   .portfolio-admin-acoes .portfolio-admin-misturar{display:none;}
-  .portfolio-admin-hero{height:64vh;min-height:430px;}
-  .portfolio-admin-hero-copy{left:18px;right:70px;bottom:30px;}
-  .portfolio-admin-hero-copy h1{font-size:44px;}
-  .portfolio-admin-hero-copy p{font-size:11.5px;}
+  .portfolio-admin-hero{height:76vh;min-height:540px;}
+  .portfolio-admin-hero-bg::after{background:linear-gradient(180deg,rgba(8,5,8,.44) 0%,rgba(8,5,8,.06) 35%,rgba(8,5,8,.78) 100%);}
+  .portfolio-admin-hero-stage{top:9%;left:12px;right:12px;bottom:18%;width:auto;}
+  .portfolio-admin-hero-stage img{max-height:100%;max-width:96%;}
+  .portfolio-admin-hero-copy{left:18px;right:74px;top:auto;bottom:24px;transform:none;width:auto;max-width:none;}
+  .portfolio-admin-hero-copy h1{font-size:42px;margin:7px 0 8px;line-height:.98;}
+  .portfolio-admin-hero-copy p{font-size:11px;line-height:1.45;}
   .portfolio-admin-coracao-hero{right:16px;bottom:28px;width:44px;height:44px;}
   .portfolio-admin-body{padding:34px 8px 42px;}
   .portfolio-admin-intro{padding:0 8px;margin-bottom:16px;display:block;}
@@ -5771,7 +5797,7 @@ async function _abrirPortfolioAdmin() {
   try {
     await _portfolioCarregarFavoritos()
     const [rf, rfa, rpop] = await Promise.all([
-      db.from('fotos').select('id,evento_id,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura'),
+      db.from('fotos').select('id,evento_id,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura,largura_original,altura_original'),
       db.from('foto_aluno').select('foto_id,aluno_id'),
       db.rpc('fotos_mais_populares', { p_limite: 2000 }),
     ])
@@ -5863,8 +5889,12 @@ function _portfolioAdminReembaralhar() {
   }
 
   const lista = [...escolhidas.values()]
-  _portfolioAdminHero = [...lista].sort((a, b) =>
-    Number(b._favorita) - Number(a._favorita) || b._score - a._score
+  const heroAlta = lista.filter(f => Math.max(Number(f.largura_original || 0), Number(f.altura_original || 0)) >= 2800)
+  const heroPool = heroAlta.length ? heroAlta : lista
+  _portfolioAdminHero = [...heroPool].sort((a, b) =>
+    Number(b._favorita) - Number(a._favorita) ||
+    b._score - a._score ||
+    (Number(b.largura_original || 0) * Number(b.altura_original || 0)) - (Number(a.largura_original || 0) * Number(a.altura_original || 0))
   )[0] || null
   _portfolioAdminFotos = _portfolioAdminEmbaralhar(lista.filter(f => f.id !== _portfolioAdminHero?.id))
   _renderPortfolioAdmin()
@@ -5898,6 +5928,30 @@ function _portfolioAdminFotoHTML(f) {
   </button>`
 }
 
+let _portfolioHeroCargaSeq = 0
+async function _portfolioHeroCarregarOriginal(foto) {
+  if (!foto?.storage_path) return
+  const seq = ++_portfolioHeroCargaSeq
+  try {
+    const url = await _urlAssinada(foto.storage_path)
+    if (!url || seq !== _portfolioHeroCargaSeq || _portfolioAdminHero?.id !== foto.id) return
+    const pre = new Image()
+    pre.decoding = 'async'
+    pre.src = url
+    try { await pre.decode() } catch (_) {
+      await new Promise((resolve, reject) => { pre.onload = resolve; pre.onerror = reject })
+    }
+    if (seq !== _portfolioHeroCargaSeq || _portfolioAdminHero?.id !== foto.id) return
+    const img = document.getElementById('portfolio-admin-hero-img')
+    if (!img) return
+    img.src = url
+    img.classList.add('original-ok')
+  } catch (e) {
+    // Falha só na promoção pra alta: mantém o thumbnail já visível.
+    console.warn('Portfólio: original da capa não carregou, mantendo prévia.', e)
+  }
+}
+
 function _renderPortfolioAdmin() {
   if (meuPerfil?.role !== 'super_admin') return
   const grid = document.getElementById('portfolio-admin-grid')
@@ -5917,8 +5971,10 @@ function _renderPortfolioAdmin() {
   const heroFoto = _portfolioAdminHero
   const nomesHero = heroFoto.alunos.map(a => a.nome).slice(0,2).join(' · ')
   const heroPath = heroFoto.thumb_path || heroFoto.storage_path
+  const heroThumb = _imgTagCache(heroPath, 'id="portfolio-admin-hero-img" alt=""')
   heroEl.innerHTML = `
-    ${_imgTagCache(heroPath, 'alt=""')}
+    <div class="portfolio-admin-hero-bg">${_imgTagCache(heroPath, 'alt="" aria-hidden="true"')}</div>
+    <div class="portfolio-admin-hero-stage">${heroThumb}</div>
     <div class="portfolio-admin-hero-copy">
       <div class="sobre">Fotografia de Ballet</div>
       <h1>Movimento<br>que permanece.</h1>
@@ -5933,6 +5989,7 @@ function _renderPortfolioAdmin() {
     _portfolioAdminAbrirFoto(heroFoto.id)
   }
   _hidratarImgCache(heroEl)
+  _portfolioHeroCarregarOriginal(heroFoto)
 
   const n = _portfolioAdminNumColunas()
   _portfolioAdminNumColunasAtual = n
