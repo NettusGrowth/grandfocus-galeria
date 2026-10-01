@@ -1169,7 +1169,55 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .modal-secao{border-bottom:1px solid rgba(200,175,127,.14);padding-bottom:20px;margin-bottom:20px;}
 .modal-secao-titulo{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ouro-fundo);margin-bottom:14px;}
 .modal-secao-titulo-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+
 .modal-secao-titulo-row .modal-secao-titulo{margin-bottom:0;}
+
+/* ── Portfólio privado do super_admin ─────────────────────────────
+   É uma vitrine isolada da Galeria de gestão: só usa thumbnails e o
+   cache já validado do app. O z-index fica ABAIXO do lightbox (300)
+   para abrir a foto ampliada sem fechar o portfólio. */
+#modal-portfolio-admin{z-index:250;padding:12px;background:rgba(8,4,8,.84);}
+#modal-portfolio-admin .portfolio-admin-modal{
+  width:min(1500px,100%);max-width:none;height:calc(100dvh - 24px);max-height:none;
+  padding:0;overflow:hidden;display:flex;flex-direction:column;border-radius:14px;
+  background:linear-gradient(180deg,rgba(24,10,15,.98),rgba(12,7,12,.99));
+}
+.portfolio-admin-head{
+  display:flex;align-items:flex-start;justify-content:space-between;gap:18px;
+  padding:22px 24px 18px;border-bottom:1px solid rgba(200,175,127,.16);flex-shrink:0;
+}
+.portfolio-admin-head h3{font-size:25px;margin:3px 0 4px;}
+.portfolio-admin-kicker{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--ouro-fundo);font-weight:700;}
+.portfolio-admin-resumo{font-size:12.5px;color:#B39F86;}
+.portfolio-admin-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;}
+.portfolio-admin-scroll{overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px 16px 28px;flex:1;}
+.portfolio-admin-grid{columns:5 210px;column-gap:12px;}
+.portfolio-admin-item{
+  width:100%;display:block;position:relative;padding:0;margin:0 0 12px;border:0;border-radius:8px;
+  overflow:hidden;background:rgba(75,4,22,.22);cursor:pointer;break-inside:avoid;
+  box-shadow:0 8px 24px -18px rgba(0,0,0,.9);text-align:left;
+}
+.portfolio-admin-item img{display:block;width:100%;height:auto;min-height:120px;object-fit:cover;transition:transform .22s ease;}
+.portfolio-admin-item:hover img{transform:scale(1.018);}
+.portfolio-admin-legenda{
+  position:absolute;left:0;right:0;bottom:0;padding:28px 10px 9px;
+  background:linear-gradient(180deg,transparent,rgba(8,4,8,.86));color:#fff;pointer-events:none;
+}
+.portfolio-admin-legenda b{display:block;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.portfolio-admin-legenda span{display:block;font-size:10.5px;color:#D8C9B7;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;}
+.portfolio-admin-vazio{padding:60px 20px;text-align:center;color:#B39F86;}
+@media(max-width:700px){
+  #modal-portfolio-admin{padding:0;}
+  #modal-portfolio-admin .portfolio-admin-modal{height:100dvh;border-radius:0;border-left:0;border-right:0;}
+  .portfolio-admin-head{padding:16px;gap:10px;align-items:center;}
+  .portfolio-admin-head h3{font-size:21px;}
+  .portfolio-admin-resumo{font-size:11.5px;}
+  .portfolio-admin-acoes .portfolio-admin-misturar{display:none;}
+  .portfolio-admin-scroll{padding:8px 8px 22px;}
+  .portfolio-admin-grid{columns:2 135px;column-gap:8px;}
+  .portfolio-admin-item{margin-bottom:8px;border-radius:6px;}
+}
+
 
 .foto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
 .foto-item{
@@ -2158,7 +2206,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             <div><span class="mv num" id="dash-mod-alunos">—</span><span class="ms">matriculados</span></div>
             <div id="dash-mod-alunos-spark"></div>
           </div>
-          <div class="modulo-card t-bronze" onclick="setAdminTab('galeria');iniciarGaleriaAdmin()">
+          <div class="modulo-card t-bronze" onclick="_abrirGaleriaOuPortfolioAdmin()">
             <div class="mkpi-topo">
               <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="15" rx="2"/><circle cx="9.3" cy="10.3" r="1.9"/><path d="M4 17.3l4.8-4.5a1.6 1.6 0 0 1 2.1-.05L15 16.5"/><path d="M14 15l1.9-2a1.6 1.6 0 0 1 2.2 0L21 15.7"/></svg></div>
             </div>
@@ -3588,6 +3636,29 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     <div id="detalhe-popularidade-lista" style="max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:2px;"></div>
     <div class="modal-actions">
       <button class="btn btn-sm btn-primary" onclick="fecharModal('modal-detalhe-popularidade')">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Portfólio privado da página inicial — somente super_admin.
+     Não substitui nem altera a aba Galeria; é só uma vitrine de leitura. -->
+<div class="modal-overlay" id="modal-portfolio-admin" onclick="if(event.target===this)_fecharPortfolioAdmin()">
+  <div class="modal portfolio-admin-modal">
+    <div class="portfolio-admin-head">
+      <div style="min-width:0;">
+        <div class="portfolio-admin-kicker">Portfólio privado · somente você</div>
+        <h3>Galeria Grand Focus</h3>
+        <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
+      </div>
+      <div class="portfolio-admin-acoes">
+        <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Misturar fotos</button>
+        <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="portfolio-admin-scroll">
+      <div class="portfolio-admin-grid" id="portfolio-admin-grid"><div class="portfolio-admin-vazio">Carregando portfólio…</div></div>
     </div>
   </div>
 </div>
@@ -5510,6 +5581,225 @@ function _avancarCarrosselFotosDash() {
   const el = document.getElementById('dash-mod-fotos-preview')
   if (el) el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'smooth' })
 }
+
+// ── Portfólio privado do Dashboard ────────────────────────────────
+// Pedido específico do super_admin: clicar no card "Galeria de Fotos"
+// da HOME abre uma vitrine, sem entrar na Galeria de gestão. A sidebar
+// "Galeria" continua exatamente como antes. Se algum dia existir um
+// admin comum, o card dele também continua indo pra Galeria normal.
+let _portfolioAdminBase = null
+let _portfolioAdminFotos = []
+let _portfolioAdminCarregando = false
+
+function _abrirGaleriaOuPortfolioAdmin() {
+  if (meuPerfil?.role === 'super_admin') { _abrirPortfolioAdmin(); return }
+  setAdminTab('galeria')
+  iniciarGaleriaAdmin()
+}
+
+function _portfolioAdminEmbaralhar(lista) {
+  const a = [...lista]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function _portfolioAdminGrupo(map, chave, pessoa) {
+  if (!map.has(chave)) map.set(chave, { ...pessoa, fotos: new Map() })
+  return map.get(chave)
+}
+
+async function _abrirPortfolioAdmin() {
+  // Dupla trava: o modal só está no Dashboard admin, mas a função
+  // também recusa qualquer papel diferente do ÚNICO super_admin.
+  if (meuPerfil?.role !== 'super_admin') return
+  const modal = document.getElementById('modal-portfolio-admin')
+  const grid = document.getElementById('portfolio-admin-grid')
+  if (!modal || !grid) return
+  abrirModal('modal-portfolio-admin')
+
+  if (_portfolioAdminBase) { _portfolioAdminReembaralhar(); return }
+  if (_portfolioAdminCarregando) return
+  _portfolioAdminCarregando = true
+  grid.innerHTML = '<div class="portfolio-admin-vazio">Carregando portfólio…</div>'
+  document.getElementById('portfolio-admin-resumo').textContent = 'Buscando uma amostra de cada pessoa…'
+
+  try {
+    // Só METADADOS: nenhum original é baixado aqui. A renderização usa
+    // thumb_path + o mesmo cache/lazy-load já validado no resto da Galeria.
+    const [rf, rfa, rfp, rpop] = await Promise.all([
+      db.from('fotos').select('id,evento_id,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura'),
+      db.from('foto_aluno').select('foto_id,aluno_id'),
+      db.from('foto_pessoa').select('foto_id,user_id'),
+      db.rpc('fotos_mais_populares', { p_limite: 2000 }),
+    ])
+    if (rf.error) throw rf.error
+    if (rfa.error) throw rfa.error
+    if (rfp.error) throw rfp.error
+
+    const fotos = rf.data || []
+    const fotoPorId = new Map(fotos.map(f => [f.id, f]))
+    const metrica = new Map((rpop.error ? [] : (rpop.data || [])).map(f => [
+      f.foto_id,
+      { views: Number(f.qtd_visualizacoes || 0), downloads: Number(f.qtd_downloads || 0) },
+    ]))
+    const grupos = new Map()
+
+    // Alunos: vínculo foto_aluno é a fonte de verdade de "quem aparece".
+    for (const v of (rfa.data || [])) {
+      const aluno = store.alunos.find(a => a.id === v.aluno_id)
+      const foto = fotoPorId.get(v.foto_id)
+      if (!aluno || !foto) continue
+      const g = _portfolioAdminGrupo(grupos, 'aluno:' + aluno.id, {
+        id: aluno.id, tipo: 'aluno', nome: aluno.nome || 'Aluno',
+        contexto: aluno.escola_id ? (nomeEscola(aluno.escola_id) || 'Aluno') : 'Aluno',
+      })
+      g.fotos.set(foto.id, foto)
+    }
+
+    // Professores/diretores/proprietários/responsáveis: foto_pessoa.
+    const perfisVisiveis = [...store.professores, ...store.responsaveis]
+    for (const v of (rfp.data || [])) {
+      const perfil = perfisVisiveis.find(p => p.user_id === v.user_id)
+      const foto = fotoPorId.get(v.foto_id)
+      if (!perfil || !foto || ['admin', 'super_admin'].includes(perfil.role)) continue
+      const g = _portfolioAdminGrupo(grupos, 'pessoa:' + perfil.user_id, {
+        id: perfil.user_id, tipo: 'pessoa', nome: perfil.nome || 'Pessoa',
+        contexto: ROLE_LABEL[perfil.role] || perfil.role || 'Pessoa',
+      })
+      g.fotos.set(foto.id, foto)
+    }
+
+    // Cliente avulso não tem foto_pessoa porque acessa por link privado.
+    // Nesse caso, as fotos do ensaio vinculado ao cliente representam
+    // aquela pessoa — sem alterar nenhum vínculo já existente.
+    for (const cli of store.clientesAvulsos) {
+      const eventoIds = new Set(store.eventos.filter(e => e.cliente_avulso_id === cli.id).map(e => e.id))
+      if (!eventoIds.size) continue
+      const fotosCli = fotos.filter(f => eventoIds.has(f.evento_id))
+      if (!fotosCli.length) continue
+      const g = _portfolioAdminGrupo(grupos, 'avulso:' + cli.id, {
+        id: cli.id, tipo: 'avulso', nome: cli.nome || 'Cliente avulso', contexto: 'Ensaio avulso',
+      })
+      fotosCli.forEach(f => g.fotos.set(f.id, f))
+    }
+
+    // Popularidade: usa as métricas já existentes (visualizações +
+    // downloads de clientes). Não inventa "curtida" onde o sistema não
+    // possui curtida de foto. Sem métrica, recência vira desempate.
+    const baseGrupos = [...grupos.values()].filter(g => g.fotos.size).map(g => ({
+      ...g,
+      fotos: [...g.fotos.values()].map(f => {
+        const m = metrica.get(f.id) || { views: Number(f.qtd_visualizacoes || 0), downloads: 0 }
+        return { ...f, _views: m.views, _downloads: m.downloads, _score: m.views + (m.downloads * 2) }
+      }).sort((a, b) => b._score - a._score || new Date(b.criado_em || 0) - new Date(a.criado_em || 0)),
+    }))
+
+    _portfolioAdminBase = { grupos: baseGrupos, totalPessoas: baseGrupos.length }
+    _portfolioAdminReembaralhar()
+  } catch (e) {
+    console.error('Portfólio admin: falha ao carregar', e)
+    grid.innerHTML = '<div class="portfolio-admin-vazio">Não foi possível montar o portfólio agora. A Galeria normal não foi afetada.</div>'
+    document.getElementById('portfolio-admin-resumo').textContent = 'Falha isolada no portfólio · a gestão de fotos continua normal'
+  } finally {
+    _portfolioAdminCarregando = false
+  }
+}
+
+function _portfolioAdminReembaralhar() {
+  if (meuPerfil?.role !== 'super_admin' || !_portfolioAdminBase) return
+  const escolhidas = new Map()
+  const grupos = _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)
+
+  for (const g of grupos) {
+    // 2 ou 3 por pessoa. Sempre tenta incluir a melhor pontuada e
+    // mistura o restante dentro do TOP 8, para a vitrine variar sem
+    // virar um sorteio de fotos ruins/irrelevantes.
+    const alvo = Math.min(g.fotos.length, g.fotos.length >= 3 ? (Math.random() < .65 ? 3 : 2) : 2)
+    const pool = g.fotos.slice(0, Math.min(8, g.fotos.length))
+    const candidatas = pool.length ? [pool[0], ..._portfolioAdminEmbaralhar(pool.slice(1))] : []
+    let usados = 0
+
+    for (const f of candidatas) {
+      if (usados >= alvo) break
+      const existente = escolhidas.get(f.id)
+      if (existente) {
+        if (!existente.pessoas.some(p => p.chave === g.tipo + ':' + g.id)) {
+          existente.pessoas.push({ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto })
+          usados++
+        }
+        continue
+      }
+      const evento = store.eventos.find(e => e.id === f.evento_id)
+      escolhidas.set(f.id, {
+        ...f,
+        evento_nome: evento?.nome || '',
+        pessoas: [{ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto }],
+      })
+      usados++
+    }
+
+    // Se o TOP 8 colidiu inteiro com fotos já escolhidas de outras
+    // pessoas, procura no restante antes de aceitar menos que 2/3.
+    if (usados < alvo) {
+      for (const f of g.fotos.slice(pool.length)) {
+        if (usados >= alvo) break
+        if (escolhidas.has(f.id)) continue
+        const evento = store.eventos.find(e => e.id === f.evento_id)
+        escolhidas.set(f.id, {
+          ...f,
+          evento_nome: evento?.nome || '',
+          pessoas: [{ chave: g.tipo + ':' + g.id, nome: g.nome, contexto: g.contexto }],
+        })
+        usados++
+      }
+    }
+  }
+
+  _portfolioAdminFotos = _portfolioAdminEmbaralhar([...escolhidas.values()])
+  _renderPortfolioAdmin()
+}
+
+function _renderPortfolioAdmin() {
+  if (meuPerfil?.role !== 'super_admin') return
+  const grid = document.getElementById('portfolio-admin-grid')
+  const resumo = document.getElementById('portfolio-admin-resumo')
+  if (!grid || !resumo) return
+  resumo.textContent = `${_portfolioAdminBase?.totalPessoas || 0} pessoas representadas · ${_portfolioAdminFotos.length} fotos · seleção muda a cada abertura`
+
+  if (!_portfolioAdminFotos.length) {
+    grid.innerHTML = '<div class="portfolio-admin-vazio">Ainda não há fotos vinculadas a pessoas suficientes para montar o portfólio.</div>'
+    return
+  }
+
+  grid.innerHTML = _portfolioAdminFotos.map(f => {
+    const nomes = f.pessoas.map(p => p.nome)
+    const nomesTxt = nomes.slice(0, 2).join(' · ') + (nomes.length > 2 ? ` +${nomes.length - 2}` : '')
+    const contexto = f.evento_nome || f.pessoas[0]?.contexto || ''
+    return `<button class="portfolio-admin-item" type="button" onclick="_portfolioAdminAbrirFoto('${f.id}')" title="${esc(nomes.join(', '))}">
+      ${_imgTagCache(f.thumb_path || f.storage_path, 'alt=""')}
+      <span class="portfolio-admin-legenda"><b>${esc(nomesTxt)}</b><span>${esc(contexto)}</span></span>
+    </button>`
+  }).join('')
+  _hidratarImgCache(grid)
+}
+
+function _portfolioAdminAbrirFoto(fotoId) {
+  if (meuPerfil?.role !== 'super_admin') return
+  _lightboxFotos = _portfolioAdminFotos.map(f => ({
+    id: f.id, storage_path: f.storage_path, thumb_path: f.thumb_path, evento_id: f.evento_id,
+  }))
+  abrirLightbox(fotoId)
+}
+
+function _fecharPortfolioAdmin() {
+  const modal = document.getElementById('modal-portfolio-admin')
+  if (!modal?.classList.contains('show')) return
+  fecharModal('modal-portfolio-admin')
+}
+
 
 // Próximos Eventos — substitui a contagem seca do card "Eventos &
 // Ensaios" por uma prévia dos 2 mais próximos (store.eventos já está
