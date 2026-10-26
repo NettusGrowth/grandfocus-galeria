@@ -46,6 +46,19 @@ Configurar no projeto de teste/preview ou, somente na etapa de lançamento aprov
 
 Como o adaptador fornece URLs de upload e exclusão, as credenciais do servidor precisam permitir leitura e escrita/exclusão do bucket conforme a necessidade do código. Preferir credencial dedicada ao bucket de destino, sem permissões em outros buckets. Não reutilizar no navegador e não usar prefixos públicos como `NEXT_PUBLIC_`.
 
+### Como cadastrar os secrets no Supabase
+
+No painel do Supabase, abra o projeto **GrandFocus** e acesse **Edge Functions → Secrets** (ou abra diretamente a página de secrets pelo menu Functions). Cadastre os quatro nomes abaixo, cada um com o valor correspondente da conta R2. É possível salvar vários de uma vez.
+
+```dotenv
+R2_ENDPOINT=https://763a7874d95665cbe09a06871e44e04b.r2.cloudflarestorage.com
+R2_ACCESS_KEY_ID=COLE_AQUI_O_ID_DA_CHAVE_NOVA
+R2_SECRET_ACCESS_KEY=COLE_AQUI_O_SEGREDO_DA_CHAVE_NOVA
+R2_BUCKET=grandfocus-fotos
+```
+
+O bloco acima é um modelo: substituir os dois marcadores pelas credenciais novas, nunca por credenciais antigas que já foram compartilhadas. Não enviar as chaves por WhatsApp, chat, issues ou GitHub. Depois de salvar, a função só poderá usar os secrets quando for implantada; cadastrar secrets por si só não ativa a migração. Não implantar as funções alteradas na produção até concluir os testes e aprovar a troca.
+
 ### CORS do bucket R2
 
 A política CORS foi configurada via API Cloudflare e conferida por uma leitura posterior. Regra `grandfocus-galeria-site`:
