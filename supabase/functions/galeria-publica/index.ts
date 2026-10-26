@@ -15,7 +15,7 @@
 // no index.html.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { signR2Object } from '../_shared/r2.ts'
+import { signR2Object, r2ObjectExists } from '../_shared/r2.ts'
 
 const BUCKET = 'fotos-grandfocus'
 const R2_GALLERY_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+$/i
@@ -82,7 +82,14 @@ async function assinarR2ComSeguranca(key: string, admin: any): Promise<string | 
   try {
     // Só os objetos de foto/miniatura UUID-raiz foram migrados nesta fase.
     // Capas de evento e demais assets permanecem no bucket privado do Supabase.
-    if (R2_GALLERY_KEY.test(key)) return await signR2Object(key, 3600)
+    if (R2_GALLERY_KEY.test(key)) {
+      try {
+        if (await r2ObjectExists(key)) return await signR2Object(key, 3600)
+      } catch (r2Error) {
+        console.warn('galeria-publica: R2 lookup failed; trying preserved Supabase copy', { key, message: String(r2Error) })
+      }
+      // Backward-compatible while older tabs or uploads still use Supabase Storage.
+    }
     const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
     if (error) throw error
     return data?.signedUrl || null
