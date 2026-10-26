@@ -1,49 +1,116 @@
-# Plano de migração do Storage para Cloudflare R2
+# Migração do armazenamento Grand Focus para Cloudflare R2
 
-## Estado
-Preparação apenas. A produção continua apontando para Supabase Storage. Não excluir objetos, alterar DNS nem publicar mudanças de armazenamento nesta etapa.
+Atualizado em 26/10/2026.
 
-## Arquitetura alvo
-- Supabase continua responsável por PostgreSQL, Auth, sessões, perfis, permissões e regras de negócio.
-- Cloudflare R2 guarda os arquivos de imagem.
-- Um endpoint server-side autenticado/validado gera URLs temporárias para objetos privados. Credenciais S3 do R2 nunca vão para o navegador.
-- Galeria autenticada, links privados de evento e seleção paga devem manter seus controles de acesso atuais.
+## Objetivo e limites
 
-## Compatibilidade que precisa ser preservada
-- Bucket de origem no Supabase: `fotos-grandfocus` (privado). Bucket de destino no Cloudflare R2: `grandfocus-fotos`. Os nomes são diferentes intencionalmente; `R2_BUCKET` deve apontar para o nome do bucket no R2.
-- Os registros de fotos têm caminhos de original e, quando aplicável, `thumb_path` para prévia.
-- Links públicos de evento usam token/senha e URLs assinadas temporárias.
-- Seleção paga só libera alta resolução após confirmação do pagamento pelo fluxo atual; não tornar originais públicos.
-- Downloads desktop/Android são sequenciais, com download nativo; no iOS o fluxo usa Web Share em lotes de até 4 fotos e exige novo toque por lote.
-- As imagens do grid/lightbox precisam terminar com uma URL HTTPS real para o menu nativo “Salvar Imagem” no Safari; não deixar blob URL como URL final.
-- Não gerar ZIP de downloads em massa.
+Mover fotografias de galeria, miniaturas e arquivos da Seleção de Fotos para o Cloudflare R2, mantendo o Supabase para PostgreSQL, autenticação, perfis, permissões, tokens privados e regras de negócio. O armazenamento R2 é o custo recorrente aceito pelo projeto; a arquitetura não deve criar serviços Supabase pagos nem depender de uma branch Supabase paga.
 
-## Implementação preparada na branch de migração
-- Adaptador compartilhado `supabase/functions/_shared/r2.ts` gera URLs GET assinadas para objetos privados usando AWS SDK S3 e credenciais apenas no ambiente das Edge Functions.
-- `galeria-publica` e `selecao-publica` foram adaptadas para usar o adaptador R2; RPCs, tokens, senha e verificação de liberação de pagamento continuam no Supabase.
-- Esta alteração está somente na branch `migration/cloudflare-r2-prep`. Não publicar em produção antes de configurar secrets, executar testes e validar previews/downloads.
+A produção continua sem alteração. Esta documentação descreve trabalho preparado na branch `migration/cloudflare-r2-prep`; não significa que a migração já esteja ativa.
 
-### Secrets necessários nas Supabase Edge Functions
-Configurar no ambiente de teste, sem commitar valores no repositório:
-- `R2_ENDPOINT` — endpoint S3 do bucket/account Cloudflare.
-- `R2_ACCESS_KEY_ID` — Access Key ID do token R2 com permissão mínima necessária de leitura.
-- `R2_SECRET_ACCESS_KEY` — secret correspondente.
-- `R2_BUCKET` — `grandfocus-fotos`.
+## Arquitetura preparada
 
-Não usar prefixo `NEXT_PUBLIC_`, não inserir valores nos arquivos e nunca enviar segredos ao navegador. Para gerar URLs GET, o token deve permitir leitura dos objetos. Se também for usado para upload pela aplicação, separar credenciais e permissões.
+- Bucket Supabase de origem: `fotos-grandfocus` (privado).
+- Bucket R2 de destino: `grandfocus-fotos` (deve permanecer privado; não ativar acesso público ao bucket).
+- Fotos principais e miniaturas: caminhos da forma `<uuid-do-evento>/<nome-do-arquivo>`.
+- Fotos de Seleção: caminhos da forma `selecoes/<uuid-da-galeria>/<nome-do-arquivo>`.
+- Outros assets — imagens de alunos, perfis, escolas, capas de evento, posts e configuração — continuam no Storage do Supabase nesta primeira fase. A regra é que um caminho só seja tratado como R2 quando coincidir com os formatos acima.
 
-## Fases e critérios de aceite
-1. Criar bucket R2 privado e credenciais S3 com permissões mínimas.
-2. Criar adaptador server-side para assinar URLs e ler/escrever objetos R2 sem expor segredos.
-3. Criar script de cópia idempotente usando os caminhos exatos dos metadados, registrando sucesso/erro, tamanho e hash quando possível.
-4. Conferir contagens, tamanhos e hashes. Auditoria completa do R2 concluída: 2.225 objetos, aproximadamente 14,586 GB (decimal), e SHA-256 idêntico para os 2.225 arquivos locais, sem divergências ou erros. Antes da virada, ainda investigar a discrepância histórica entre 2.225 arquivos locais e 2.224 linhas de uma exportação anterior de `storage.objects`, para garantir que todos os caminhos referenciados pelo banco tenham objeto correspondente.
-5. Adaptar galerias autenticadas, galerias por link e seleção paga sem alterar regras de autorização.
-6. Testar login, perfis, acesso por escola/aluno, link privado, senha, pagamento/liberação e downloads no Safari/WebKit e Android.
-7. Publicar primeiro em preview/staging. Produção só muda após validação explícita.
-8. Manter Supabase Storage intacto durante período de observação; remoção só depois de cópia e recuperação comprovadas.
+As credenciais S3 do R2 permanecem exclusivamente em secrets da Edge Function. O navegador recebe apenas URLs pré-assinadas com prazo limitado, não a chave secreta.
 
-## Bloqueios antes da publicação
-- Configurar os quatro secrets R2 no ambiente de teste das Supabase Edge Functions.
-- Validar compilação/deploy em ambiente de teste, assinatura de URL e acesso aos objetos reais.
-- Fazer testes funcionais completos antes de qualquer publicação em produção.
-- A cópia foi verificada por tamanho e por SHA-256 para todos os 2.225 arquivos locais; os conteúdos são idênticos e houve zero erros. A investigação da discrepância histórica dos metadados e os testes funcionais permanecem pendentes.
+## Código preparado na branch
+
+- `supabase/functions/_shared/r2.ts`: cria URLs GET/PUT pré-assinadas e permite exclusão controlada de objetos no servidor.
+- `supabase/functions/r2-storage/index.ts`: adaptador autenticado para assinar URLs, preparar upload direto e apagar objetos R2.
+  - Lê a sessão Supabase do solicitante e valida o JWT.
+  - Usa `meu_perfil()` para obter o papel.
+  - Para usuários que não são administradores, confere os caminhos da galeria contra `storage_paths_visiveis()` antes de gerar URL.
+  - Somente `admin` e `super_admin` podem solicitar upload ou exclusão pelo adaptador.
+  - Limita a quantidade de caminhos por chamada e valida o formato da chave.
+- `supabase/functions/galeria-publica/index.ts`: gera links R2 para capas, miniaturas e originais de links privados de evento. A RPC do banco continua validando token/senha.
+- `supabase/functions/selecao-publica/index.ts`: gera links R2 para prévias e arquivos de seleção. A função de download continua consultando `selecao_download_liberado()`; a alta resolução não deve ser liberada antes da autorização de pagamento no banco.
+- `index.html`: roteia assinatura, upload, download, processamento de miniaturas e exclusão de fotos de galeria/seleção por meio do adaptador R2. Os caminhos de perfil/escola/aluno/post que não correspondem aos padrões de fotos principais continuam no Supabase.
+- `scripts/check-inline-js.mjs`: verifica sintaxe dos scripts JavaScript inline de `index.html`.
+- `.github/workflows/edge-functions-check.yml`: executa o verificador de sintaxe do app e `deno check` nas Edge Functions da migração.
+
+## Configuração necessária no Cloudflare
+
+### Secrets das Supabase Edge Functions
+
+Configurar no projeto de teste/preview ou, somente na etapa de lançamento aprovada, no projeto de produção. Nunca versionar valores:
+
+- `R2_ENDPOINT`: endpoint S3 da conta R2.
+- `R2_ACCESS_KEY_ID`: ID da chave R2 com a permissão mínima necessária.
+- `R2_SECRET_ACCESS_KEY`: segredo correspondente.
+- `R2_BUCKET`: `grandfocus-fotos`.
+
+Como o adaptador fornece URLs de upload e exclusão, as credenciais do servidor precisam permitir leitura e escrita/exclusão do bucket conforme a necessidade do código. Preferir credencial dedicada ao bucket de destino, sem permissões em outros buckets. Não reutilizar no navegador e não usar prefixos públicos como `NEXT_PUBLIC_`.
+
+### CORS do bucket R2
+
+Uploads por `fetch(PUT)` e leituras pela origem do site exigem uma política CORS no bucket R2. Isso ainda precisa ser configurado e testado; não foi alterado automaticamente nesta etapa.
+
+No painel Cloudflare, abrir R2 → bucket `grandfocus-fotos` → Settings → CORS Policy e configurar uma regra com a origem real do site, métodos `GET`, `PUT` e `HEAD`, cabeçalho permitido `Content-Type` e cache preflight com duração razoável. Acrescentar somente as origens de preview e localhost efetivamente usadas durante testes; substituir os placeholders antes de salvar. Não usar um wildcard de origem como solução permanente. A política CORS do bucket é diferente dos cabeçalhos CORS da Edge Function.
+
+Documentação oficial: https://developers.cloudflare.com/r2/buckets/cors/
+
+## Cópia e integridade dos arquivos
+
+Auditoria executada anteriormente no ambiente local:
+
+- 2.225 objetos no R2.
+- Aproximadamente 14,586 GB em bytes decimais (aprox. 13,584 GiB), conforme inventário da cópia.
+- SHA-256 comparado para os 2.225 arquivos locais: 2.225 idênticos, zero divergências, zero erros e zero arquivos locais ausentes.
+- Log local: `C:\\GrandFocusBackup\\r2-transfer\\auditoria-sha256.jsonl`.
+- Originais locais: `C:\\GrandFocusBackup\\backup\\fotos\\fotos-grandfocus`.
+
+A auditoria SHA-256 confirma igualdade entre os arquivos locais e os objetos verificados do R2; ela, isoladamente, não comprova que cada registro de metadados do banco tenha caminho correspondente nem valida o comportamento do site.
+
+## Observações sobre o inventário Supabase
+
+Consultas de leitura no banco encontraram:
+
+- 925 linhas em `public.fotos`, com 925 `storage_path` e 925 `thumb_path` distintos.
+- Nenhuma linha atual em `public.selecao_fotos` ou `public.post_midias` na consulta de inventário.
+- 5 capas referenciadas em `eventos.capa_url`; capas/logos de escola e imagens de perfil/aluno usam outros prefixos, que não são roteados para R2 pelo adaptador da galeria.
+- Em `storage.objects`, 2.145 objetos estão no grupo de caminhos UUID-raiz usado para fotos/miniaturas, com soma de tamanhos de metadados de 13.499,61 MiB; 80 objetos restantes somam 410,67 MiB. Essa soma precisa ser reconciliada com as leituras anteriores do painel de quotas do Supabase antes de tomar qualquer decisão de limpeza, pois os números de quota observados em momentos anteriores eram diferentes.
+- Existe diferença histórica entre 2.225 arquivos locais e uma exportação anterior com 2.224 linhas de `storage.objects`. A contagem atual do banco mostrou 2.225 objetos. Manter essa discrepância documentada até a comparação completa dos caminhos e tamanhos.
+
+Não excluir objetos do Supabase com base apenas nessas contagens.
+
+## Segurança e comportamento esperado
+
+- O bucket R2 deve permanecer privado. Não ativar “public bucket” para simplificar os links.
+- As URLs são temporárias. A validade é definida na assinatura.
+- Credenciais S3 não devem aparecer no HTML, GitHub, logs de aplicação nem respostas para o navegador.
+- A galeria autenticada usa a lista `storage_paths_visiveis()` para restringir acesso aos caminhos próprios do usuário. Os testes precisam cobrir administrador, escola, professor, responsável e aluno com fixtures reais existentes.
+- Link privado de evento continua usando as RPCs que validam token e senha.
+- A seleção paga continua usando `selecao_download_liberado()`. O webhook InfinitePay deve continuar reconfirmando o pagamento server-to-server antes de liberar pedido; não alterar esse fluxo como parte da migração de arquivos.
+- Downloads desktop/Android e iOS, lightbox, edição de álbum e processamento de marca-d'água precisam ser testados em navegador real.
+- Uploads diretos com URLs pré-assinadas só funcionam com CORS correto e com `Content-Type` igual ao assinado.
+- Após expirar uma URL, o app deve solicitar outra. Não guardar URL pré-assinada como valor permanente no banco.
+
+## Plano de testes antes da virada
+
+1. Obter uma branch/ambiente de teste sem custo adicional. No levantamento atual, a API não retornou branches de desenvolvimento Supabase. Não criar branch Supabase que possa cobrar por hora.
+2. Configurar secrets de teste e política CORS de R2 em origens restritas.
+3. Executar o workflow. A checagem de tipos anterior das funções originais passou, mas os testes após a ampliação da migração ainda precisam terminar.
+4. Conferir por amostragem que os caminhos referenciados por `fotos.storage_path`, `fotos.thumb_path`, capas privadas e seleção existem no R2; incluir a checagem de todos os caminhos, não apenas amostra.
+5. Validar a função autenticada `r2-storage`: sessão inexistente/expirada, usuário sem permissão, acesso a foto visível, tentativa de assinar foto alheia, tentativa de upload não administrativo e tentativa de excluir sem papel de administrador.
+6. Validar upload de foto original, upload de miniatura, miniatura ausente/regerada, lightbox/original e downloads de alta resolução.
+7. Validar links privados com senha correta/incorreta, link expirado, envio de seleção e download negado antes de pagamento confirmado.
+8. Validar pagamento no fluxo de teste/ambiente controlado sem realizar cobrança real.
+9. Testar Chrome/Edge desktop, Android e Safari/iOS, incluindo salvar imagem, Web Share e URLs que expiram.
+10. Fazer um período de observação e confirmar uso/cotas do Supabase após as solicitações passarem a servir fotos do R2.
+11. Somente após os testes, aprovar uma virada reversível. Manter o bucket Supabase até confirmar a aplicação, os uploads novos e a recuperação via backup.
+12. Remover objetos da origem apenas em uma etapa separada, com inventário de caminhos, contagens, tamanho e export de recuperação verificados.
+
+## Estado atual e bloqueios
+
+- Preparação em branch; Pull Request #1 continua draft/aberto: https://github.com/NettusGrowth/grandfocus-galeria/pull/1
+- O deploy de produção não foi executado por esta migração.
+- Nenhum objeto do bucket Supabase foi apagado por esta migração.
+- A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
+- O adaptador e o app foram ampliados, mas a execução de CI após as últimas mudanças, testes funcionais e configuração de CORS/secrets ainda precisam ser confirmados.
+- Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
+- Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
