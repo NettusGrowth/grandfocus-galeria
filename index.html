@@ -4045,9 +4045,14 @@ function _ehChaveR2Migrada(path) {
   if (typeof path !== 'string') return false
   const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
   return new RegExp('^' + uuid + '/[^/]+$', 'i').test(path) ||
-    new RegExp('^selecoes/' + uuid + '/[^/]+$', 'i').test(path)
+    new RegExp('^selecoes/' + uuid + '/[^/]+$', 'i').test(path) ||
+    new RegExp('^config/hero-bg-[0-9]+\\.webp$', 'i').test(path) ||
+    new RegExp('^perfis/' + uuid + '/(?:foto\\.[a-z0-9]+|capa\\.[a-z0-9]+|[a-z0-9_-]+\\.webp)$', 'i').test(path) ||
+    new RegExp('^escolas/' + uuid + '/(?:capa\\.[a-z0-9]+|logo\\.[a-z0-9]+|comunidade-capa\\.[a-z0-9]+)$', 'i').test(path) ||
+    new RegExp('^alunos/' + uuid + '/foto\\.[a-z0-9]+$', 'i').test(path) ||
+    new RegExp('^eventos-capa/' + uuid + '/capa\\.(?:jpg|jpeg|png|webp)$', 'i').test(path) ||
+    new RegExp('^posts/' + uuid + '/midia-[0-9]+\\.[a-z0-9]+$', 'i').test(path)
 }
-
 async function _r2Api(action, payload = {}) {
   const { data: { session }, error: sessionError } = await db.auth.getSession()
   if (sessionError || !session?.access_token) throw new Error('Sua sessão expirou. Entre novamente.')
@@ -4087,15 +4092,18 @@ async function _r2Upload(path, body, contentType) {
   }
 }
 
-// Transitional dual-write for auxiliary assets. Keep Supabase as the live
-// read source for these paths until their R2 read permissions and fallbacks
-// have been verified. New uploads are mirrored to R2 first, then stored in
-// Supabase so existing profile, school, student and event pages keep working.
+// All new auxiliary assets are written to Cloudflare R2 only.
+// The read path has a controlled Supabase fallback for old/missing objects
+// until the inventory and final cleanup are fully verified.
 async function _uploadStorage(path, body, options = {}) {
   const contentType = options.contentType || body?.type || 'application/octet-stream'
-  const { error: r2Error } = await _r2Upload(path, body, contentType)
-  if (r2Error) console.warn('Upload auxiliar não espelhado no R2; Supabase segue como origem:', path, r2Error)
-  return await db.storage.from(BUCKET).upload(path, body, options)
+  const { error } = await _r2Upload(path, body, contentType)
+  if (error) {
+    console.error('Upload para Cloudflare R2 falhou; arquivo não enviado ao Supabase Storage:', path, error)
+    return { data: null, error }
+  }
+  _invalidarUrlCache(path)
+  return { data: { path, fullPath: path }, error: null }
 }
 
 async function _baixarObjetoStorage(path) {
