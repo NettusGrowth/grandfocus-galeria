@@ -2,7 +2,7 @@
 // Only the main gallery photos and selection-photo objects are handled here.
 // Other small assets continue to use the existing Supabase Storage policies.
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { signR2Object, signR2Upload, deleteR2Objects } from '../_shared/r2.ts'
+import { signR2Object, signR2Upload, deleteR2Objects, r2ObjectExists } from '../_shared/r2.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -63,8 +63,24 @@ Deno.serve(async (req) => {
   // Pass the bearer token explicitly: this client has persistSession:false
   // and intentionally has no browser/local session to fall back to.
   const accessToken = authHeader.replace(/^Bearer\s+/i, '')
-  const { data: authData, error: authError } = await userDb.auth.getUser(accessToken)
-  if (authError || !authData?.user) return json({ error: 'Sessão inválida ou expirada.' }, 401)
+  // Validate the token directly with Supabase Auth REST, avoiding ambiguity
+  // in Auth SDK session resolution for tokens already accepted by the gateway.
+  let authUser: any = null
+  try {
+    const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+    })
+    if (!authResp.ok) {
+      const detail = (await authResp.text()).slice(0, 240)
+      console.error('r2-storage: bearer validation failed', { status: authResp.status, detail })
+      return json({ error: 'Sessão inválida ou expirada.' }, 401)
+    }
+    authUser = await authResp.json()
+  } catch (error) {
+    console.error('r2-storage: bearer validation unavailable', String(error))
+    return json({ error: 'Não foi possível validar sua sessão agora.' }, 503)
+  }
+  if (!authUser?.id) return json({ error: 'Sessão inválida ou expirada.' }, 401)
 
   const { data: perfis, error: perfilError } = await userDb.rpc('meu_perfil')
   if (perfilError) {
@@ -107,13 +123,23 @@ Deno.serve(async (req) => {
       const authorized = isAdmin || (GALLERY_KEY.test(key) && visiblePaths.has(key))
       if (!authorized) return { key, url: null }
       try {
-        const url = await signR2Object(key, expiresIn, keys.length === 1 ? downloadName : null)
+        let url: string | null = null
+        try {
+          if (await r2ObjectExists(key)) {
+            url = await signR2Object(key, expiresIn, keys.length === 1 ? downloadName : null)
+          }
+        } catch (r2Error) {
+          console.warn('r2-storage: R2 lookup failed; trying Supabase fallback', { key, message: String(r2Error) })
+        }
+        if (!url) {
+          const options = keys.length === 1 && downloadName ? { download: downloadName } : undefined
+          const { data, error } = await userDb.storage.from('fotos-grandfocus').createSignedUrl(key, expiresIn, options)
+          if (error) throw error
+          url = data?.signedUrl || null
+        }
         return { key, url }
       } catch (error) {
-        console.error('r2-storage: falha ao assinar objeto', {
-          key,
-          message: String(error),
-        })
+        console.error('r2-storage: falha ao assinar objeto', { key, message: String(error) })
         return { key, url: null }
       }
     }))

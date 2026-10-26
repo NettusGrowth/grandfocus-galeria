@@ -15,7 +15,7 @@
 // _selecaoPublicaFetch() no index.html.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
-import { signR2Object } from '../_shared/r2.ts'
+import { signR2Object, r2ObjectExists } from '../_shared/r2.ts'
 
 const BUCKET = 'fotos-grandfocus'
 const R2_KEY = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/|selecoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/).+$/i
@@ -70,7 +70,13 @@ async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
       if (typeof key !== 'string' || !key.trim()) {
         throw new Error(`Chave R2 ausente no campo ${campoPath}`)
       }
-      if (R2_KEY.test(key)) return { id: f.id, url: await signR2Object(key, 3600) }
+      if (R2_KEY.test(key)) {
+        try {
+          if (await r2ObjectExists(key)) return { id: f.id, url: await signR2Object(key, 3600) }
+        } catch (r2Error) {
+          console.warn('selecao-publica: R2 lookup failed; trying preserved Supabase copy', { id: f?.id ?? null, message: String(r2Error) })
+        }
+      }
       const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
       if (error) throw error
       return { id: f.id, url: data?.signedUrl || null }
