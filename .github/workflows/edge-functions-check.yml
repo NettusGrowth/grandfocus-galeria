@@ -52,7 +52,6 @@ jobs:
           deno check supabase/functions/r2-storage/index.ts
 
       - name: Smoke test deployed R2 adapter boot
-        if: github.event_name == 'push'
         env:
           SUPABASE_URL: https://selnsjtumkxjrtnqofqx.supabase.co
           SUPABASE_PUBLISHABLE_KEY: sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0
