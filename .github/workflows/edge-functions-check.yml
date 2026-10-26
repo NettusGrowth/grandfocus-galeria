@@ -39,6 +39,7 @@ jobs:
       - name: Check R2 adapter and migrated functions
         run: |
           deno check supabase/functions/_shared/r2.ts
+          deno test supabase/functions/_shared/r2_mime_test.ts
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
