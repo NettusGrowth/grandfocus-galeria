@@ -11,7 +11,7 @@ main{max-width:720px;width:100%;background:var(--panel);border:1px solid var(--l
 h1{font:500 32px/1.1 Georgia,serif;color:var(--gold);margin:0 0 10px}p{color:var(--muted);margin:8px 0 16px}
 button{border:0;border-radius:8px;background:var(--gold);color:#20120e;font-weight:700;padding:13px 18px;font-size:15px;cursor:pointer}
 button:disabled{opacity:.55;cursor:wait}.notice{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:18px 0;background:#0002}
-ol{padding-left:24px;margin:18px 0}li{margin:9px 0;color:var(--muted)}li.ok{color:var(--ok)}li.bad{color:var(--bad)}code{font-size:.92em;overflow-wrap:anywhere}#result{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:13px;margin-top:16px}
+ol{padding-left:24px;margin:18px 0}li{margin:9px 0;color:var(--muted)}li.ok{color:var(--ok)}li.bad{color:var(--bad)}#result{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font-size:13px;margin-top:16px}
 a{color:var(--gold)}.small{font-size:13px}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -22,32 +22,32 @@ a{color:var(--gold)}.small{font-size:13px}
 <p>Teste temporário da prévia da Grand Focus. Usa um arquivo JPEG minúsculo, com nome aleatório, não cria registros de galeria e tenta removê-lo mesmo se alguma etapa falhar.</p>
 <div class="notice" id="guard">Verificando ambiente da prévia…</div>
 <button id="run" disabled>Executar teste completo</button>
-<ol id="steps">
+<ol>
 <li id="s0">Sessão administrativa</li>
 <li id="s1">Leitura de uma foto já existente no R2</li>
-<li id="s2">CORS da prévia e URL de envio assinada</li>
+<li id="s2">URL PUT e preflight CORS do navegador</li>
 <li id="s3">Envio PUT de arquivo temporário</li>
 <li id="s4">Leitura do arquivo e comparação SHA-256</li>
 <li id="s5">Exclusão e conferência de limpeza</li>
 </ol>
 <div id="result" aria-live="polite"></div>
-<p class="small">Esta página só deve ser usada no endereço de prévia informado pela equipe. Não insira senhas nem compartilhe capturas que mostrem tokens ou URLs assinadas.</p>
+<p class="small">Esta página só funciona no endereço de prévia indicado. Não insira senhas nem compartilhe capturas que mostrem tokens ou URLs assinadas.</p>
 </main>
 <script>
 (function(){
   'use strict';
-  var previewHost = 'grandfocus-galeria-iy2wmxo2q-nettu-s-projects.vercel.app';
+  var previewHost = 'grandfocus-galeria-git-migration-cloudf-56086a-nettu-s-projects.vercel.app';
   var projectUrl = 'https://selnsjtumkxjrtnqofqx.supabase.co';
   var anonKey = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0';
   var existingKey = 'c1791dd5-4253-412f-acfa-d5b6b043b42c/1788996761362_5lee04.jpg';
-  var fixtureBase64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3/9oADAMBAAIRAxEAPwD2aiiigD//2Q==';
+  var fixtureBase64 = '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAoHBwgHBgoICAgLCgoLDhgQDg0NDh0VFhEYIx8lJCIfIiEmKzcvJik0KSEiMEExNDk7Pj4+JS5ESUM8SDc9Pjv/2wBDAQoLCw4NDhwQEBw7KCIoOzs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozv/wAARCAABAAEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3/9oADAMBAAIRAxEAPwD2aiiigD//2Q==';
   var button = document.getElementById('run');
   var guard = document.getElementById('guard');
   var result = document.getElementById('result');
-  var stepNames = ['Sessão administrativa','Leitura existente no R2','CORS e URL PUT','Envio temporário','Leitura e SHA-256','Exclusão e limpeza'];
+  var stepNames = ['Sessão administrativa','Leitura existente no R2','URL PUT e preflight CORS','Envio temporário','Leitura e SHA-256','Exclusão e limpeza'];
 
   if (location.hostname !== previewHost) {
-    guard.textContent = 'Bloqueado: esta ferramenta funciona exclusivamente na URL temporária de prévia.';
+    guard.textContent = 'Bloqueado: esta ferramenta funciona exclusivamente na URL estável de prévia.';
     guard.style.color = 'var(--bad)';
     return;
   }
@@ -100,17 +100,19 @@ a{color:var(--gold)}.small{font-size:13px}
     button.disabled = true;
     result.textContent = '';
     for (var i=0;i<stepNames.length;i++) mark(i,'','aguardando');
-    var session = null, key = null, testBytes = bytesFromBase64(fixtureBase64), uploaded = false;
+    var session = null, key = null, mayExist = false, testBytes = bytesFromBase64(fixtureBase64);
     var checks = {existing:false,cors:false,put:false,readback:false,delete:false,absent:false};
+    var stage = 0;
     try {
       var sessionResult = await supa.auth.getSession();
       session = sessionResult.data && sessionResult.data.session;
       if (sessionResult.error || !session || !session.access_token) {
         throw new Error('Não encontrei sessão nesta prévia. Abra o painel, entre com sua conta administradora e volte a esta página.');
       }
-      mark(0,'ok','sessão presente; conferindo permissão administrativa');
+      mark(0,'ok','sessão presente; conferindo permissões');
       key = crypto.randomUUID() + '/__r2_smoke_' + Date.now() + '.jpg';
 
+      stage = 1;
       var oldUrl = await signedUrl(session, existingKey, 120);
       var oldRead = await readUrl(oldUrl);
       var oldMime = (oldRead.response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
@@ -120,36 +122,32 @@ a{color:var(--gold)}.small{font-size:13px}
       checks.existing = true;
       mark(1,'ok','GET assinado funcionou (' + oldRead.bytes.length + ' bytes; image/jpeg)');
 
+      stage = 2;
       var uploadInfo = await api(session,'upload-url',{key:key,content_type:'image/jpeg'});
       if (!uploadInfo.upload_url) throw new Error('Não foi gerada URL PUT assinada.');
-      var preflight = await fetch(uploadInfo.upload_url,{
-        method:'OPTIONS',
-        headers:{
-          'Origin':location.origin,
-          'Access-Control-Request-Method':'PUT',
-          'Access-Control-Request-Headers':'content-type'
-        }
-      });
-      var allowOrigin = preflight.headers.get('access-control-allow-origin') || '';
-      var allowMethods = preflight.headers.get('access-control-allow-methods') || '';
-      var allowHeaders = preflight.headers.get('access-control-allow-headers') || '';
-      checks.cors = preflight.status >= 200 && preflight.status < 300 &&
-        allowOrigin === location.origin && allowMethods.toUpperCase().indexOf('PUT') >= 0 &&
-        allowHeaders.toLowerCase().indexOf('content-type') >= 0;
-      if (!checks.cors) throw new Error('O preflight CORS não aceitou a origem/método/cabeçalho da prévia. HTTP ' + preflight.status + ', origem permitida: ' + allowOrigin + '.');
-      mark(2,'ok','CORS permitiu PUT desta origem e Content-Type');
+      mayExist = true;
+      mark(2,'','URL assinada recebida; o PUT real verificará o preflight CORS automático');
 
-      var put = await fetch(uploadInfo.upload_url,{
-        method:'PUT',
-        headers:{'Content-Type':'image/jpeg'},
-        body:testBytes
-      });
+      stage = 3;
+      var put;
+      try {
+        put = await fetch(uploadInfo.upload_url,{
+          method:'PUT',
+          headers:{'Content-Type':'image/jpeg'},
+          body:testBytes
+        });
+        checks.cors = true;
+        mark(2,'ok','preflight CORS automático do navegador aprovado');
+      } catch (error) {
+        mark(2,'bad','PUT bloqueado antes da resposta; provável erro de CORS ou rede');
+        throw error;
+      }
       var putText = await put.text();
       if (!put.ok) throw new Error('PUT falhou com HTTP ' + put.status + '. Resposta: ' + putText.slice(0,240));
-      uploaded = true;
       checks.put = true;
       mark(3,'ok','PUT aceito (HTTP ' + put.status + ')');
 
+      stage = 4;
       var getUrl = await signedUrl(session,key,120);
       var back = await readUrl(getUrl);
       var backMime = (back.response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
@@ -162,12 +160,14 @@ a{color:var(--gold)}.small{font-size:13px}
       mark(4,'ok','GET confirmou o mesmo SHA-256 e image/jpeg (' + back.bytes.length + ' bytes)');
     } catch (error) {
       log('FALHA: ' + (error && error.message ? error.message : String(error)));
-      for (var i=0;i<stepNames.length;i++) {
-        var el = document.getElementById('s' + i);
-        if (el.className === '') mark(i,'','não executado por causa da falha anterior');
-      }
+      if (stage === 0) mark(0,'bad','falha na sessão');
+      if (stage === 1) mark(1,'bad','falha na leitura do objeto existente');
+      if (stage === 2) mark(2,'bad','não foi possível emitir a URL de envio; confira sessão/permissão');
+      if (stage === 3) mark(3,'bad','PUT não concluído');
+      if (stage === 4) mark(4,'bad','leitura/Content-Type/SHA-256 não correspondeu');
     } finally {
-      if (session && key) {
+      if (session && key && mayExist) {
+        stage = 5;
         try {
           await api(session,'delete',{keys:[key]});
           checks.delete = true;
@@ -185,7 +185,7 @@ a{color:var(--gold)}.small{font-size:13px}
         if (checks.delete && checks.absent) mark(5,'ok','objeto temporário removido; GET posterior retornou 404');
         else {
           mark(5,'bad','limpeza não pôde ser totalmente confirmada; key de teste: ' + key);
-          log('AÇÃO NECESSÁRIA: se a verificação de limpeza falhou, informe o resultado sem apagar outros objetos.');
+          log('AÇÃO NECESSÁRIA: informe esse resultado antes de qualquer outra alteração.');
         }
       } else {
         mark(5,'','nenhum objeto temporário foi criado');
