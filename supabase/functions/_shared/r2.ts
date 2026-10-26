@@ -1,8 +1,11 @@
-// Server-side Cloudflare R2 URL signing for private objects.
-// Required Edge Function secrets: R2_ENDPOINT, R2_ACCESS_KEY_ID,
-// R2_SECRET_ACCESS_KEY, R2_BUCKET (usually "grandfocus-fotos").
-// Never expose these values to the browser.
-import { S3Client, GetObjectCommand } from 'npm:@aws-sdk/client-s3'
+// Server-side Cloudflare R2 helpers for private objects.
+// All R2 credentials must remain in Edge Function secrets; never expose them to the browser.
+import {
+  S3Client,
+  GetObjectCommand,
+  PutObjectCommand,
+  DeleteObjectCommand,
+} from 'npm:@aws-sdk/client-s3'
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner'
 
 const endpoint = Deno.env.get('R2_ENDPOINT')
@@ -24,13 +27,60 @@ const client = new S3Client({
   },
 })
 
-export async function signR2Object(key: string, expiresIn = 3600): Promise<string> {
-  if (!key || key.startsWith('/') || key.split('/').some((part) => part === '..')) {
+function validateKey(key: string) {
+  if (
+    !key ||
+    key.length > 1024 ||
+    key.startsWith('/') ||
+    key.split('/').some((part) => part === '..' || part === '.')
+  ) {
     throw new Error('Invalid R2 object key')
+  }
+  return key
+}
+
+export async function signR2Object(
+  key: string,
+  expiresIn = 3600,
+  downloadName?: string | null,
+): Promise<string> {
+  validateKey(key)
+  const safeName = typeof downloadName === 'string'
+    ? downloadName.replace(/[\\r\\n"\\\\]/g, '').slice(0, 180)
+    : ''
+  const responseContentDisposition = safeName
+    ? `attachment; filename="${safeName}"`
+    : undefined
+  return await getSignedUrl(
+    client,
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: key,
+      ...(responseContentDisposition ? { ResponseContentDisposition: responseContentDisposition } : {}),
+    }),
+    { expiresIn },
+  )
+}
+
+export async function signR2Upload(
+  key: string,
+  contentType: string,
+  expiresIn = 300,
+): Promise<string> {
+  validateKey(key)
+  if (!contentType || contentType.length > 150 || /[\\r\\n]/.test(contentType)) {
+    throw new Error('Invalid content type')
   }
   return await getSignedUrl(
     client,
-    new GetObjectCommand({ Bucket: bucket, Key: key }),
+    new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType }),
     { expiresIn },
   )
+}
+
+export async function deleteR2Objects(keys: string[]): Promise<void> {
+  for (const key of keys) validateKey(key)
+  await Promise.all(keys.map((key) =>
+    client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
+  ))
 }
