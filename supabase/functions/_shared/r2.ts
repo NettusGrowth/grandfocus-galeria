@@ -3,6 +3,7 @@
 import {
   S3Client,
   GetObjectCommand,
+  HeadObjectCommand,
   PutObjectCommand,
   DeleteObjectCommand,
 } from 'npm:@aws-sdk/client-s3'
@@ -38,6 +39,18 @@ function validateKey(key: string) {
     throw new Error('Invalid R2 object key')
   }
   return key
+}
+
+export async function r2ObjectExists(key: string): Promise<boolean> {
+  validateKey(key)
+  try {
+    await client.send(new HeadObjectCommand({ Bucket: bucket, Key: key }))
+    return true
+  } catch (error) {
+    const e = error as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number } }
+    if (e?.$metadata?.httpStatusCode === 404 || e?.name === 'NotFound' || e?.name === 'NoSuchKey' || e?.Code === 'NotFound') return false
+    throw error
+  }
 }
 
 export async function signR2Object(
