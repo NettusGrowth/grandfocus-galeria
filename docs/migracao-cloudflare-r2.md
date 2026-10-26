@@ -98,6 +98,12 @@ Consultas de leitura no banco encontraram:
 - Em `storage.objects`, 2.145 objetos estão no grupo de caminhos UUID-raiz usado para fotos/miniaturas, com soma de tamanhos de metadados de 13.499,61 MiB; 80 objetos restantes somam 410,67 MiB. Essa soma precisa ser reconciliada com as leituras anteriores do painel de quotas do Supabase antes de tomar qualquer decisão de limpeza, pois os números de quota observados em momentos anteriores eram diferentes.
 - Existe diferença histórica entre 2.225 arquivos locais e uma exportação anterior com 2.224 linhas de `storage.objects`. A contagem atual do banco mostrou 2.225 objetos. Manter essa discrepância documentada até a comparação completa dos caminhos e tamanhos.
 
+### Conferência dos caminhos atuais da galeria com o R2
+
+Em 26/10/2026, todos os 1.850 caminhos atualmente referenciados por `public.fotos.storage_path` e `public.fotos.thumb_path` foram comparados com a listagem do R2, agrupados pelos cinco diretórios de evento ativos. Resultado: **1.850 correspondências, zero caminhos ausentes e zero objetos extras nesses cinco diretórios**. A verificação contou 1.160, 374, 160, 134 e 22 objetos por diretório, respectivamente.
+
+O bucket de origem também possui 2.145 objetos em 17 diretórios no padrão UUID-raiz. Destes, 295 objetos (em outros 12 diretórios) não estão referenciados pela tabela `public.fotos` atual. Esses arquivos permanecem no R2 e no Supabase; podem ser históricos ou pertencer a outros fluxos. **Não excluir nem migrar a rota desses 295 arquivos sem inventariar seus usos primeiro.** Os outros 80 objetos usam prefixos como `alunos`, `config`, `escolas`, `eventos-capa`, `perfis` e `posts`, e continuam fora do roteamento R2 inicial.
+
 Não excluir objetos do Supabase com base apenas nessas contagens.
 
 ## Segurança e comportamento esperado
