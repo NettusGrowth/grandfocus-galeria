@@ -46,7 +46,7 @@ jobs:
           R2_BUCKET: grandfocus-fotos
         run: |
           deno check supabase/functions/_shared/r2.ts
-          deno test --allow-env=R2_ENDPOINT,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_BUCKET,SMITHY_NEW_RETRIES_2026,AWS_LAMBDA_NODEJS_NO_GLOBAL_AWSLAMBDA,AWS_LAMBDA_BENCHMARK_MODE,AWS_NEW_RETRIES_2026,AWS_SDK_JS_NODE_VERSION_SUPPORT_WARNING_DISABLED --allow-sys=osRelease supabase/functions/_shared/r2_mime_test.ts supabase/functions/_shared/r2_signing_test.ts
+          deno test --allow-env=R2_ENDPOINT,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY,R2_BUCKET,SMITHY_NEW_RETRIES_2026,AWS_LAMBDA_NODEJS_NO_GLOBAL_AWSLAMBDA,AWS_LAMBDA_BENCHMARK_MODE,AWS_NEW_RETRIES_2026,AWS_SDK_JS_NODE_VERSION_SUPPORT_WARNING_DISABLED,AWS_PROFILE --allow-sys=osRelease supabase/functions/_shared/r2_mime_test.ts supabase/functions/_shared/r2_signing_test.ts
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
