@@ -4125,9 +4125,9 @@ let _r2AuxMigracaoEmExecucao = false
 // O endpoint valida novamente a sessão e o papel de administrador, limita os
 // caminhos a uma lista fechada e compara SHA-256 antes de considerar a cópia pronta.
 async function _r2MigrarAuxiliaresPendentes() {
-  if (_r2AuxMigracaoEmExecucao || !['admin', 'super_admin'].includes(meuPerfil?.role)) return
+  if (_r2AuxMigracaoEmExecucao || !['admin', 'super_admin'].includes(meuPerfil?.role)) return false
   try {
-    if (localStorage.getItem(_R2_AUX_MIGRATION_FLAG) === 'verified') return
+    if (localStorage.getItem(_R2_AUX_MIGRATION_FLAG) === 'verified') return true
   } catch (_) { /* continua sem cache local; a operação é idempotente */ }
 
   _r2AuxMigracaoEmExecucao = true
@@ -4167,15 +4167,272 @@ async function _r2MigrarAuxiliaresPendentes() {
       try { localStorage.setItem(_R2_AUX_MIGRATION_FLAG, 'verified') } catch (_) {}
       console.info('Grand Focus R2: arquivos auxiliares copiados/verificados por SHA-256', results)
       toast('Migração R2 verificada ✓ 9 de 9 arquivos auxiliares conferidos.')
+      return true
     } else {
       console.error('Grand Focus R2: migração auxiliar incompleta; as origens do Supabase foram preservadas.', results)
       toast(`Migração R2 parcial: ${verifiedCount} de 9 arquivos verificados. Nenhum original foi apagado.`)
+      return false
     }
   } catch (error) {
     console.error('Grand Focus R2: não foi possível iniciar a migração auxiliar.', String(error))
     toast('Migração R2 não iniciada. Os arquivos originais foram preservados.')
+    return false
   } finally {
     _r2AuxMigracaoEmExecucao = false
+  }
+}
+
+
+
+const _R2_FULL_STORAGE_FLAG = 'grandfocus-r2-full-storage-clean-v1'
+const _R2_SMOKE_TEST_FLAG = 'grandfocus-r2-authenticated-smoke-v1'
+let _r2FullStorageMigrationBusy = false
+
+function _r2NormalizeEtag(value) {
+  return String(value || '').replaceAll('\\', '').replaceAll('"', '').trim().toLowerCase()
+}
+
+async function _r2Sha256Hex(bytes) {
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function _r2AdminMigrationPost(session, payload) {
+  const response = await fetch(SUPABASE_URL + '/functions/v1/r2-migration-admin-temp', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: 'Bearer ' + session.access_token
+    },
+    body: JSON.stringify(payload)
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || result.error) {
+    throw new Error(result.error || result.message || ('HTTP ' + response.status))
+  }
+  return result
+}
+
+async function _r2SmokeTestAuthenticated(session) {
+  try {
+    if (localStorage.getItem(_R2_SMOKE_TEST_FLAG) === 'passed') return true
+  } catch (_) {}
+
+  let key = null
+  let bytes = null
+  let expectedSha = null
+  let uploaded = false
+  let cleaned = false
+  try {
+    const prepared = await _r2AdminMigrationPost(session, { action: 'smoke-start' })
+    key = prepared.key
+    if (!key) throw new Error('O serviço não reservou um caminho de teste seguro.')
+
+    const base64 = 'UklGRhwAAABXRUJQVlA4TA8AAAAvAAAAAAcQ/Y/+ByKi/wEA'
+    bytes = Uint8Array.from(atob(base64), char => char.charCodeAt(0))
+    expectedSha = await _r2Sha256Hex(bytes)
+    const blob = new Blob([bytes], { type: 'image/webp' })
+    const upload = await _r2Upload(key, blob, 'image/webp')
+    if (upload.error) throw upload.error
+    uploaded = true
+
+    const signedUrl = await _r2SignedUrl(key, 300)
+    if (!signedUrl) throw new Error('O R2 não assinou a URL de leitura do arquivo de teste.')
+    const response = await fetch(signedUrl, { cache: 'no-store' })
+    if (!response.ok) throw new Error('A leitura do R2 retornou HTTP ' + response.status)
+    const readback = new Uint8Array(await response.arrayBuffer())
+    const readbackSha = await _r2Sha256Hex(readback)
+    if (readback.byteLength !== bytes.byteLength || readbackSha !== expectedSha) {
+      throw new Error('Os bytes lidos não correspondem ao arquivo de teste enviado.')
+    }
+
+    const cleanup = await _r2AdminMigrationPost(session, {
+      action: 'smoke-clean', key, size: bytes.byteLength, sha256: expectedSha
+    })
+    if (cleanup.deletedTestObject !== true) throw new Error('Não foi possível confirmar a limpeza do objeto temporário de teste.')
+    cleaned = true
+    try { localStorage.setItem(_R2_SMOKE_TEST_FLAG, 'passed') } catch (_) {}
+    console.info('Grand Focus R2: upload autenticado, leitura assinada, SHA-256 e limpeza confirmados.', {
+      size: bytes.byteLength, sha256: expectedSha
+    })
+    toast('Teste real do R2 aprovado. Iniciando a limpeza segura do armazenamento antigo.')
+    return true
+  } catch (error) {
+    if (uploaded && key && bytes && expectedSha && !cleaned) {
+      try {
+        await _r2AdminMigrationPost(session, {
+          action: 'smoke-clean', key, size: bytes.byteLength, sha256: expectedSha
+        })
+      } catch (_) {}
+    }
+    console.error('Grand Focus R2: o teste autenticado não passou; a limpeza foi bloqueada.', String(error))
+    toast('Teste autenticado do R2 falhou. Nenhuma cópia original foi apagada nesta etapa. Abra o console para ver o erro.')
+    return false
+  }
+}
+
+async function _r2ListAllSupabaseStorageObjects() {
+  const found = new Map()
+  const visitedFolders = new Set()
+  const pageSize = 1000
+
+  async function walk(folder) {
+    if (visitedFolders.has(folder)) return
+    visitedFolders.add(folder)
+    let offset = 0
+    while (true) {
+      const { data, error } = await db.storage.from(BUCKET).list(folder, {
+        limit: pageSize,
+        offset,
+        sortBy: { column: 'name', order: 'asc' }
+      })
+      if (error) throw new Error('Falha ao listar o caminho ' + (folder || '/') + ': ' + error.message)
+      const entries = data || []
+      for (const item of entries) {
+        if (!item || !item.name) continue
+        const key = folder ? folder + '/' + item.name : item.name
+        if (!item.id) {
+          await walk(key)
+          continue
+        }
+        const metadata = item.metadata || {}
+        if (metadata.size === undefined || metadata.size === null || metadata.size === '' ||
+            !Number.isFinite(Number(metadata.size))) {
+          throw new Error('Metadados de tamanho ausentes para ' + key + '. Nenhuma limpeza será executada.')
+        }
+        found.set(key, {
+          key,
+          size: Number(metadata.size),
+          etag: metadata.eTag || metadata.etag || ''
+        })
+      }
+      if (entries.length < pageSize) break
+      offset += entries.length
+    }
+  }
+
+  await walk('')
+  return Array.from(found.values()).sort((left, right) => left.key.localeCompare(right.key))
+}
+
+async function _r2FinalizarMigracaoStorage() {
+  if (_r2FullStorageMigrationBusy || !['admin', 'super_admin'].includes(meuPerfil?.role)) return
+  try {
+    if (localStorage.getItem(_R2_FULL_STORAGE_FLAG) === 'verified-empty') return
+  } catch (_) {}
+
+  _r2FullStorageMigrationBusy = true
+  try {
+    const { data: sessionData, error: sessionError } = await db.auth.getSession()
+    const session = sessionData?.session
+    if (sessionError || !session?.access_token) throw new Error('Sessão administrativa ausente ou expirada.')
+
+    if (!(await _r2SmokeTestAuthenticated(session))) return
+
+    toast('R2: conferindo o inventário do armazenamento antigo...')
+    const initial = await _r2ListAllSupabaseStorageObjects()
+    if (initial.length === 0) {
+      console.warn('Grand Focus R2: a listagem do Supabase voltou vazia; a limpeza foi interrompida para evitar falso positivo.')
+      toast('A listagem do Supabase voltou vazia. A limpeza foi interrompida por segurança.')
+      return
+    }
+
+    const singlePart = initial.filter(item => /^[a-f0-9]{32}$/i.test(_r2NormalizeEtag(item.etag)))
+    const cleanupBatches = []
+    for (let i = 0; i < singlePart.length; i += 100) cleanupBatches.push(singlePart.slice(i, i + 100))
+
+    let metadataDeleted = 0
+    let metadataPreserved = 0
+    const failures = []
+    for (let i = 0; i < cleanupBatches.length; i++) {
+      const batch = cleanupBatches[i]
+      try {
+        const result = await _r2AdminMigrationPost(session, {
+          action: 'cleanup-metadata-matches',
+          items: batch.map(item => ({ key: item.key, size: item.size, etag: _r2NormalizeEtag(item.etag) }))
+        })
+        metadataDeleted += Number(result.deletedCount || 0)
+        metadataPreserved += Number(result.preserved?.length || 0)
+        if (Array.isArray(result.preserved)) failures.push(...result.preserved)
+      } catch (error) {
+        failures.push({ stage: 'metadata-cleanup', batch: i + 1, error: String(error) })
+      }
+      if ((i + 1) % 4 === 0 || i === cleanupBatches.length - 1) {
+        console.info('Grand Focus R2: progresso da limpeza por ETag', {
+          batch: i + 1, totalBatches: cleanupBatches.length, metadataDeleted, metadataPreserved
+        })
+        toast('R2: cópias idênticas confirmadas e removidas ' + metadataDeleted + ' de ' + singlePart.length + '.')
+      }
+    }
+
+    // Read the bucket again. Anything left, including an object with unusual
+    // metadata, must pass full SHA-256 comparison before its Supabase copy is removed.
+    const afterMetadata = await _r2ListAllSupabaseStorageObjects()
+    let shaChecked = 0
+    let shaDeleted = 0
+    const hashBatches = []
+    for (let i = 0; i < afterMetadata.length; i += 3) hashBatches.push(afterMetadata.slice(i, i + 3))
+    for (let i = 0; i < hashBatches.length; i += 3) {
+      const concurrentBatches = hashBatches.slice(i, i + 3)
+      const batchResults = await Promise.all(concurrentBatches.map(async batch => {
+        try {
+          return await _r2AdminMigrationPost(session, {
+            action: 'sha256-verify-delete-batch',
+            keys: batch.map(item => item.key)
+          })
+        } catch (error) {
+          return {
+            checked: 0, verifiedCount: 0, deletedCount: 0, preservedCount: batch.length,
+            results: batch.map(item => ({ key: item.key, verified: false, deleted: false, reason: String(error) }))
+          }
+        }
+      }))
+      for (const result of batchResults) {
+        shaChecked += Number(result.checked || 0)
+        shaDeleted += Number(result.deletedCount || 0)
+        if (Array.isArray(result.results)) failures.push(...result.results.filter(item => item.deleted !== true))
+      }
+      if ((i + 3) % 9 === 0 || i + 3 >= hashBatches.length) {
+        console.info('Grand Focus R2: progresso da verificação SHA-256', {
+          batchGroups: Math.min(i + 3, hashBatches.length),
+          totalGroups: hashBatches.length,
+          shaChecked,
+          shaDeleted
+        })
+        toast('R2: SHA-256 conferido ' + shaChecked + ' arquivos; removidos com conteúdo idêntico ' + shaDeleted + '.')
+      }
+    }
+
+    const remaining = await _r2ListAllSupabaseStorageObjects()
+    const report = {
+      initialObjects: initial.length,
+      singlePartEtagCandidates: singlePart.length,
+      metadataDeleted,
+      metadataPreserved,
+      shaChecked,
+      shaDeleted,
+      failedChecks: failures.length,
+      remainingCount: remaining.length,
+      remainingKeys: remaining.slice(0, 100).map(item => item.key),
+      timestamp: new Date().toISOString()
+    }
+    try { localStorage.setItem(_R2_FULL_STORAGE_FLAG + ':last-report', JSON.stringify(report)) } catch (_) {}
+    console.info('Grand Focus R2: relatório de limpeza', report)
+
+    if (remaining.length === 0 && failures.length === 0 &&
+        metadataDeleted === singlePart.length && shaChecked === afterMetadata.length &&
+        shaDeleted === afterMetadata.length) {
+      try { localStorage.setItem(_R2_FULL_STORAGE_FLAG, 'verified-empty') } catch (_) {}
+      toast('Migração concluída: todas as fotos estão no R2 e o armazenamento antigo está vazio.')
+    } else {
+      toast('Migração parcial por segurança. Restam ' + remaining.length + ' objetos no Supabase; os que não passaram na verificação foram preservados.')
+    }
+  } catch (error) {
+    console.error('Grand Focus R2: migração final interrompida sem executar exclusões inseguras.', String(error))
+    toast('A migração foi interrompida com segurança. Abra o console para ver o erro.')
+  } finally {
+    _r2FullStorageMigrationBusy = false
   }
 }
 
@@ -4641,7 +4898,12 @@ async function mostrarApp(user) {
   }
   await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
   _renderBottomNav()
-  if (['admin', 'super_admin'].includes(data.role)) setTimeout(() => { void _r2MigrarAuxiliaresPendentes() }, 1200)
+  if (['admin', 'super_admin'].includes(data.role)) setTimeout(() => {
+    void (async function () {
+      const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()
+      if (auxiliaryReady) await _r2FinalizarMigracaoStorage()
+    })()
+  }, 1200)
 }
 
 // config global (chave/valor) — hoje só hero_bg_path. Não bloqueia
