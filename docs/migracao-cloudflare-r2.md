@@ -111,6 +111,6 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 - O deploy de produção não foi executado por esta migração.
 - Nenhum objeto do bucket Supabase foi apagado por esta migração.
 - A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
-- O adaptador e o app foram ampliados, mas a execução de CI após as últimas mudanças, testes funcionais e configuração de CORS/secrets ainda precisam ser confirmados.
+- O GitHub Actions terminou com sucesso no commit `b4108ca35bd385057db6248867eca77890b7d8be` (run `40270737052`): verificação de sintaxe do JavaScript inline e `deno check` das quatro Edge Functions. Essa checagem é estática; testes funcionais e configuração de CORS/secrets ainda estão pendentes.
 - Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
 - Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
