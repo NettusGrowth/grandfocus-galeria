@@ -31,7 +31,7 @@ As credenciais S3 do R2 permanecem exclusivamente em secrets da Edge Function. O
 - `supabase/functions/selecao-publica/index.ts`: gera links R2 para prévias e arquivos de seleção. A função de download continua consultando `selecao_download_liberado()`; a alta resolução não deve ser liberada antes da autorização de pagamento no banco.
 - `index.html`: roteia assinatura, upload, download, processamento de miniaturas e exclusão de fotos de galeria/seleção por meio do adaptador R2. Os caminhos de perfil/escola/aluno/post que não correspondem aos padrões de fotos principais continuam no Supabase.
 - `scripts/check-inline-js.mjs`: verifica sintaxe dos scripts JavaScript inline de `index.html`.
-- `.github/workflows/edge-functions-check.yml`: executa o verificador de sintaxe do app e `deno check` nas Edge Functions da migração.
+- `.github/workflows/edge-functions-check.yml`: executa o verificador de sintaxe do app, `deno check` nas Edge Functions da migração e o teste unitário `deno test supabase/functions/_shared/r2_mime_test.ts`.
 
 ## Configuração necessária no Cloudflare
 
@@ -114,7 +114,7 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 
 1. Obter uma branch/ambiente de teste sem custo adicional. No levantamento atual, a API não retornou branches de desenvolvimento Supabase. Não criar branch Supabase que possa cobrar por hora.
 2. Configurar secrets de teste e política CORS de R2 em origens restritas.
-3. Executar o workflow. A checagem de tipos anterior das funções originais passou, mas os testes após a ampliação da migração ainda precisam terminar.
+3. Executar o workflow. A checagem estática e o teste unitário do mapeamento MIME passam no commit atual; isso não substitui os testes funcionais contra o R2 e o navegador.
 4. Conferir por amostragem que os caminhos referenciados por `fotos.storage_path`, `fotos.thumb_path`, capas privadas e seleção existem no R2; incluir a checagem de todos os caminhos, não apenas amostra.
 5. Validar a função autenticada `r2-storage`: sessão inexistente/expirada, usuário sem permissão, acesso a foto visível, tentativa de assinar foto alheia, tentativa de upload não administrativo e tentativa de excluir sem papel de administrador.
 6. Validar upload de foto original, upload de miniatura, miniatura ausente/regerada, lightbox/original e downloads de alta resolução.
@@ -131,6 +131,6 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 - O deploy de produção não foi executado por esta migração.
 - Nenhum objeto do bucket Supabase foi apagado por esta migração.
 - A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
-- O GitHub Actions terminou com sucesso no commit `1a6f00a83dfa3de8fa2f78d8c8c9e94802f77a33` (run `40272461917`, execução 27): verificação de sintaxe do JavaScript inline e `deno check` das quatro Edge Functions. Essa checagem é estática; testes funcionais e configuração de CORS/secrets ainda estão pendentes. A execução identificou e permitiu corrigir a tipagem do cliente Supabase em `galeria-publica` antes da validação verde.
+- O GitHub Actions terminou com sucesso no commit `ecf210d37fe2b9203898da7fdb57ddb249f91f39` (runs `40272991630` e `40272994647`, eventos push e pull request): sintaxe do JavaScript inline, `deno check` das quatro Edge Functions e teste unitário do mapeamento MIME. Essa checagem é estática; testes funcionais e configuração de secrets ainda estão pendentes. Uma falha de tipagem em `galeria-publica` foi corrigida antes dessas execuções verdes.
 - Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
 - Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
