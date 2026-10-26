@@ -67,6 +67,7 @@ A política CORS foi configurada via API Cloudflare e conferida por uma leitura 
 - Métodos: `GET`, `HEAD`, `PUT`.
 - Cabeçalho permitido: `Content-Type`.
 - `ETag` exposto e cache de preflight de 3.600 segundos.
+- Verificação da API Cloudflare em 26/10/2026: o domínio gerenciado `r2.dev` está desativado (`enabled: false`) e não há domínios personalizados vinculados ao bucket. O acesso permanece privado, por URLs pré-assinadas.
 
 Isso é uma configuração de infraestrutura realizada, mas não equivale a teste funcional de upload/download. Deploys de preview do Vercel podem usar hosts individuais que não estão nesta lista; só adicionar uma origem de preview quando houver necessidade e ela for conhecida. Não usar wildcard como solução permanente. A política CORS do bucket é diferente dos cabeçalhos CORS da Edge Function.
 
