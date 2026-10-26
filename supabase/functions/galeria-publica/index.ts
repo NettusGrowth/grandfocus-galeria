@@ -78,7 +78,7 @@ Deno.serve(async (req) => {
   })
 })
 
-async function assinarR2ComSeguranca(key: string, admin: ReturnType<typeof createClient>): Promise<string | null> {
+async function assinarR2ComSeguranca(key: string, admin: any): Promise<string | null> {
   try {
     // Só os objetos de foto/miniatura UUID-raiz foram migrados nesta fase.
     // Capas de evento e demais assets permanecem no bucket privado do Supabase.
