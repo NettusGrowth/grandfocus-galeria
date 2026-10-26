@@ -15,8 +15,8 @@
 // _selecaoPublicaFetch() no index.html.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { signR2Object } from '../_shared/r2.ts'
 
-const BUCKET = 'fotos-grandfocus'
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -61,12 +61,12 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
 // aparecer após o pagamento). createSignedUrls (plural) resolve tudo
 // numa única chamada à Storage API, igual ao cache em lote que o client
 // já usa pra thumbnails/avatares.
-async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
+async function assinarEmLote(_admin: any, lista: any[], campoPath: string) {
   if (!lista.length) return []
-  const paths = lista.map((f) => f[campoPath])
-  const { data: assinadas, error } = await admin.storage.from(BUCKET).createSignedUrls(paths, 3600)
-  if (error) { console.error('selecao-publica: createSignedUrls falhou', error.message); return lista.map((f) => ({ id: f.id, url: null })) }
-  return lista.map((f, i) => ({ id: f.id, url: assinadas[i]?.signedUrl || null }))
+  return await Promise.all(lista.map(async (f) => {
+    try { return { id: f.id, url: await signR2Object(f[campoPath], 3600) }
+    catch (e) { console.error('selecao-publica: falha ao assinar objeto R2', { id: f.id, message: String(e) }); return { id: f.id, url: null } }
+  }))
 }
 
 // gera um link de checkout InfinitePay pro pedido já registrado (o
