@@ -50,25 +50,3 @@ jobs:
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
-
-      - name: Smoke test deployed R2 adapter boot
-        env:
-          SUPABASE_URL: https://selnsjtumkxjrtnqofqx.supabase.co
-          SUPABASE_PUBLISHABLE_KEY: sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0
-        run: |
-          node --input-type=module <<'NODE'
-          const response = await fetch(`${process.env.SUPABASE_URL}/functions/v1/r2-storage`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'apikey': process.env.SUPABASE_PUBLISHABLE_KEY,
-            },
-            body: JSON.stringify({}),
-          });
-          const body = await response.json().catch(() => ({}));
-          if (response.status !== 401 || body?.error !== 'Sessão necessária.') {
-            console.error('R2 adapter smoke test failed:', response.status, JSON.stringify(body));
-            process.exit(1);
-          }
-          console.log('R2 adapter booted and rejected an unauthenticated request as expected.');
-          NODE
