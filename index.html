@@ -4106,6 +4106,79 @@ async function _uploadStorage(path, body, options = {}) {
   return { data: { path, fullPath: path }, error: null }
 }
 
+
+const _R2_AUX_MIGRATION_FLAG = 'grandfocus-r2-aux-migration-sha256-v1'
+const _R2_AUX_MIGRATION_KEYS = [
+  'alunos/08449c2c-f153-4848-9d04-42cd60725468/foto.jpg',
+  'alunos/256e800c-13f2-42fb-8720-02fee5586f06/foto.jpg',
+  'alunos/ad24e1da-b8c3-46cc-8a32-9537ca7e15bc/foto.jpg',
+  'escolas/25dc92d0-a606-415a-b456-b7af4de1f4b3/capa.webp',
+  'escolas/25dc92d0-a606-415a-b456-b7af4de1f4b3/logo.webp',
+  'eventos-capa/ab1001ab-04cd-4be3-92a3-e4845c995890/capa.webp',
+  'perfis/506e5fad-637c-42e0-97ea-1204886a17fb/foto.jpg',
+  'perfis/b2bd9b14-4073-44c0-9afc-b40cc0c7dcac/foto.jpg',
+  'perfis/b8b45c51-eeb5-4595-ad47-a2aa29529ea8/foto.jpg'
+]
+let _r2AuxMigracaoEmExecucao = false
+
+// Conclui os nove arquivos auxiliares que a auditoria encontrou ausentes no R2.
+// O endpoint valida novamente a sessão e o papel de administrador, limita os
+// caminhos a uma lista fechada e compara SHA-256 antes de considerar a cópia pronta.
+async function _r2MigrarAuxiliaresPendentes() {
+  if (_r2AuxMigracaoEmExecucao || !['admin', 'super_admin'].includes(meuPerfil?.role)) return
+  try {
+    if (localStorage.getItem(_R2_AUX_MIGRATION_FLAG) === 'verified') return
+  } catch (_) { /* continua sem cache local; a operação é idempotente */ }
+
+  _r2AuxMigracaoEmExecucao = true
+  const results = []
+  try {
+    const { data: { session }, error: sessionError } = await db.auth.getSession()
+    if (sessionError || !session?.access_token) throw new Error('Sessão administrativa ausente ou expirada.')
+
+    for (const key of _R2_AUX_MIGRATION_KEYS) {
+      try {
+        const response = await fetch(`${SUPABASE_URL}/functions/v1/r2-migration-admin-temp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${session.access_token}`
+          },
+          body: JSON.stringify({ action: 'copy-aux', key })
+        })
+        const result = await response.json().catch(() => ({}))
+        const verified = response.ok && ['copied_and_sha256_verified', 'already_verified'].includes(result.status)
+        results.push({
+          key,
+          status: verified ? result.status : 'ERROR',
+          size: Number.isFinite(Number(result.size)) ? Number(result.size) : null,
+          sha256: result.sha256 || null,
+          error: verified ? null : (result.error || result.message || `HTTP ${response.status}`)
+        })
+        if (response.status === 401 || response.status === 403) break
+      } catch (error) {
+        results.push({ key, status: 'ERROR', size: null, sha256: null, error: String(error?.message || error) })
+      }
+    }
+
+    const verifiedCount = results.filter(r => ['copied_and_sha256_verified', 'already_verified'].includes(r.status)).length
+    if (verifiedCount === _R2_AUX_MIGRATION_KEYS.length) {
+      try { localStorage.setItem(_R2_AUX_MIGRATION_FLAG, 'verified') } catch (_) {}
+      console.info('Grand Focus R2: arquivos auxiliares copiados/verificados por SHA-256', results)
+      toast('Migração R2 verificada ✓ 9 de 9 arquivos auxiliares conferidos.')
+    } else {
+      console.error('Grand Focus R2: migração auxiliar incompleta; as origens do Supabase foram preservadas.', results)
+      toast(`Migração R2 parcial: ${verifiedCount} de 9 arquivos verificados. Nenhum original foi apagado.`)
+    }
+  } catch (error) {
+    console.error('Grand Focus R2: não foi possível iniciar a migração auxiliar.', String(error))
+    toast('Migração R2 não iniciada. Os arquivos originais foram preservados.')
+  } finally {
+    _r2AuxMigracaoEmExecucao = false
+  }
+}
+
 async function _baixarObjetoStorage(path) {
   if (_ehChaveR2Migrada(path)) {
     try {
@@ -4568,6 +4641,7 @@ async function mostrarApp(user) {
   }
   await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
   _renderBottomNav()
+  if (['admin', 'super_admin'].includes(data.role)) setTimeout(() => { void _r2MigrarAuxiliaresPendentes() }, 1200)
 }
 
 // config global (chave/valor) — hoje só hero_bg_path. Não bloqueia
