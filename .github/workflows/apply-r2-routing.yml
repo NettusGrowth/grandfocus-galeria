@@ -1,0 +1,29 @@
+name: One-time R2 routing patch
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/apply-r2-routing.yml
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Apply validated patch and remove temporary patcher
+        run: node .github/scripts/apply-r2-routing.mjs
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Route auxiliary assets through R2 with Supabase fallback"
+          git push origin main
