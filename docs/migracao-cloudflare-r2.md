@@ -84,6 +84,8 @@ Auditoria executada anteriormente no ambiente local:
 
 A auditoria SHA-256 confirma igualdade entre os arquivos locais e os objetos verificados do R2; ela, isoladamente, não comprova que cada registro de metadados do banco tenha caminho correspondente nem valida o comportamento do site.
 
+**Metadados HTTP dos objetos:** em 26/10/2026, a listagem da API Cloudflare confirmou 2.225 objetos (14.585.988.073 bytes) e todos os 2.225 estavam com `Content-Type: application/octet-stream`, apesar das extensões `.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf` e `.mp4`. Isso não altera a integridade dos bytes, mas pode afetar a interpretação de imagens/arquivos no navegador. O helper `signR2Object` agora assina `ResponseContentType` coerente com a extensão, sem precisar retransferir os arquivos existentes; uploads novos já assinam o `Content-Type` correto. Essa correção ainda exige teste funcional com secrets configurados, confirmando o cabeçalho HTTP real de cada tipo de arquivo.
+
 ## Observações sobre o inventário Supabase
 
 Consultas de leitura no banco encontraram:
