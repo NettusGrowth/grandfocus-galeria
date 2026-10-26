@@ -46,7 +46,7 @@ export async function signR2Object(
 ): Promise<string> {
   validateKey(key)
   const safeName = typeof downloadName === 'string'
-    ? downloadName.replace(/[\\r\\n"\\\\]/g, '').slice(0, 180)
+    ? downloadName.replaceAll('\r', '').replaceAll('\n', '').replaceAll('"', '').replaceAll('\\', '').slice(0, 180)
     : ''
   const responseContentDisposition = safeName
     ? `attachment; filename="${safeName}"`
@@ -68,7 +68,7 @@ export async function signR2Upload(
   expiresIn = 300,
 ): Promise<string> {
   validateKey(key)
-  if (!contentType || contentType.length > 150 || /[\\r\\n]/.test(contentType)) {
+  if (!contentType || contentType.length > 150 || contentType.includes('\r') || contentType.includes('\n')) {
     throw new Error('Invalid content type')
   }
   return await getSignedUrl(
