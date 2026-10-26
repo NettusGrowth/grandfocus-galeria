@@ -4087,6 +4087,17 @@ async function _r2Upload(path, body, contentType) {
   }
 }
 
+// Transitional dual-write for auxiliary assets. Keep Supabase as the live
+// read source for these paths until their R2 read permissions and fallbacks
+// have been verified. New uploads are mirrored to R2 first, then stored in
+// Supabase so existing profile, school, student and event pages keep working.
+async function _uploadStorage(path, body, options = {}) {
+  const contentType = options.contentType || body?.type || 'application/octet-stream'
+  const { error: r2Error } = await _r2Upload(path, body, contentType)
+  if (r2Error) console.warn('Upload auxiliar não espelhado no R2; Supabase segue como origem:', path, r2Error)
+  return await db.storage.from(BUCKET).upload(path, body, options)
+}
+
 async function _baixarObjetoStorage(path) {
   if (_ehChaveR2Migrada(path)) {
     try {
@@ -4699,7 +4710,7 @@ async function _salvarHeroBg() {
   try {
     const blob = await _comprimirParaWebp(_heroBgArquivo, 2400)
     const path = `config/hero-bg-${Date.now()}.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, blob, { cacheControl: '31536000', contentType: 'image/webp' })
+    const { error: upErr } = await _uploadStorage(path, blob, { cacheControl: '31536000', contentType: 'image/webp' })
     if (upErr) { toast('Erro ao enviar: ' + upErr.message); return }
     const anterior = _appConfig.hero_bg_path
     const posValor = `${_heroBgPosicao.x.toFixed(1)}% ${_heroBgPosicao.y.toFixed(1)}%`
@@ -5315,7 +5326,7 @@ async function salvarPerfil() {
     if (!file) continue
     const leve = await _comprimirParaWebp(file, tipo === 'foto' ? 400 : 1600)
     const path = `perfis/${currentUser.id}/${tipo}.webp`
-    const { error } = await db.storage.from(BUCKET).upload(path, leve, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error } = await _uploadStorage(path, leve, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (error) { toast(`Erro ao enviar ${tipo === 'foto' ? 'a foto' : 'a capa'}: ` + error.message); btn.disabled = false; btn.textContent = 'Salvar alterações'; return }
     _invalidarUrlCache(path)
     if (tipo === 'foto') fotoPath = path; else capaPath = path
@@ -8684,7 +8695,7 @@ async function salvarEscola() {
     // suficiente pra qualquer card/hero, e sempre vira .webp.
     const comprimida = await _comprimirParaWebp(_escolaCapaArquivo, 1600)
     const path = `escolas/${escolaId}/capa.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error: upErr } = await _uploadStorage(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
@@ -8694,7 +8705,7 @@ async function salvarEscola() {
   if (_escolaLogoArquivo) {
     const comprimido = await _comprimirParaWebp(_escolaLogoArquivo, 800)
     const path = `escolas/${escolaId}/logo.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimido, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error: upErr } = await _uploadStorage(path, comprimido, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar o logo: ' + upErr.message); return }
     _invalidarUrlCache(path)
     logo_url = path
@@ -8823,7 +8834,7 @@ async function _escolaDetalheCapaSelecionada(inputEl) {
   const escolaId = _escolaDetalheAtual
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
   const path = `escolas/${escolaId}/capa.${ext}`
-  const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
+  const { error: upErr } = await _uploadStorage(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
   if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
   _invalidarUrlCache(path)
   const { data, error } = await db.from('escolas').update({ capa_url: path }).eq('id', escolaId).select().single()
@@ -9123,13 +9134,13 @@ async function _uploadFotoCapaProfessor(userId) {
   if (_profFotoArquivo) {
     const ext = (_profFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${userId}/foto.${ext}`
-    const { error } = await db.storage.from(BUCKET).upload(path, _profFotoArquivo, { cacheControl: '31536000', contentType: _profFotoArquivo.type, upsert: true })
+    const { error } = await _uploadStorage(path, _profFotoArquivo, { cacheControl: '31536000', contentType: _profFotoArquivo.type, upsert: true })
     if (!error) { foto_url = path; _invalidarUrlCache(path) }
   }
   if (_profCapaArquivo) {
     const comprimida = await _comprimirParaWebp(_profCapaArquivo, 1600)
     const path = `perfis/${userId}/capa.webp`
-    const { error } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error } = await _uploadStorage(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (!error) { capa_url = path; _invalidarUrlCache(path) }
   }
   return { foto_url, capa_url }
@@ -9362,7 +9373,7 @@ async function salvarPai() {
     if (_paiFotoArquivo) {
       const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
       const path = `perfis/${id}/foto.${ext}`
-      const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
+      const { error: upErr } = await _uploadStorage(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
       if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
     }
     const payload = { nome, email, telefone, foto_pos: _posValor('pai-foto-preview') }
@@ -9395,7 +9406,7 @@ async function salvarPai() {
   if (_paiFotoArquivo) {
     const ext = (_paiFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `perfis/${suData.user?.id}/foto.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
+    const { error: upErr } = await _uploadStorage(path, _paiFotoArquivo, { cacheControl: '31536000', contentType: _paiFotoArquivo.type, upsert: true })
     if (!upErr) { foto_url = path; _invalidarUrlCache(path) }
   }
   const perfilPayload = { user_id: suData.user?.id, role: 'responsavel', nome, username, email }
@@ -9579,7 +9590,7 @@ async function salvarAluno() {
   if (_alunoFotoArquivo) {
     const ext = (_alunoFotoArquivo.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `alunos/${alunoId}/foto.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, _alunoFotoArquivo, { cacheControl: '31536000', contentType: _alunoFotoArquivo.type, upsert: true })
+    const { error: upErr } = await _uploadStorage(path, _alunoFotoArquivo, { cacheControl: '31536000', contentType: _alunoFotoArquivo.type, upsert: true })
     if (upErr) { toast('Erro ao enviar a foto: ' + upErr.message); return }
     _invalidarUrlCache(path)
     foto_url = path
@@ -10121,7 +10132,7 @@ async function salvarEvento() {
     // papel), e era a que tinha o arquivo mais pesado no trace real.
     const comprimida = await _comprimirParaWebp(_eventoCapaArquivo, 1600)
     const path = `eventos-capa/${eventoId}/capa.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error: upErr } = await _uploadStorage(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
@@ -12455,7 +12466,7 @@ async function publicarPost() {
     const extPadrao = tipo === 'video' ? 'mp4' : tipo === 'audio' ? 'mp3' : (tipo === 'documento' ? 'pdf' : 'jpg')
     const ext = (file.name.split('.').pop() || extPadrao).toLowerCase().replace(/[^a-z0-9]/g, '')
     const path = `posts/${post.id}/midia-${i}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
+    const { error: upErr } = await _uploadStorage(path, file, { cacheControl: '31536000', contentType: file.type, upsert: true })
     if (upErr) { toast(`Publicação criada, mas uma mídia falhou: ${upErr.message}`); continue }
     const { error: midiaErr } = await db.from('post_midias').insert({ post_id: post.id, tipo, storage_path: path, ordem: i })
     if (midiaErr) toast(`Publicação criada, mas uma mídia falhou: ${midiaErr.message}`)
@@ -12528,7 +12539,7 @@ async function _salvarComunidadeHeader() {
   if (_chCapaArquivo) {
     const comprimida = await _comprimirParaWebp(_chCapaArquivo, 1600)
     const path = `escolas/${escolaId}/comunidade-capa.webp`
-    const { error } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error } = await _uploadStorage(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (error) { toast('Erro ao enviar capa: ' + error.message); return }
     _invalidarUrlCache(path)
     capaPath = path
@@ -14616,7 +14627,7 @@ async function salvarEnsaio() {
   if (_ensaioCapaArquivo) {
     const comprimida = await _comprimirParaWebp(_ensaioCapaArquivo, 1600)
     const path = `eventos-capa/${ensaioId}/capa.webp`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
+    const { error: upErr } = await _uploadStorage(path, comprimida, { cacheControl: '31536000', contentType: 'image/webp', upsert: true })
     if (upErr) { toast('Erro ao enviar a capa: ' + upErr.message); return }
     _invalidarUrlCache(path)
     capa_url = path
