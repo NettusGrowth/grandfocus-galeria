@@ -17,6 +17,9 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { signR2Object } from '../_shared/r2.ts'
 
+const BUCKET = 'fotos-grandfocus'
+const R2_KEY = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+|selecoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+)$/i
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -50,7 +53,7 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_publica_dados', { p_token: token, p_senha: senha })
   if (error) { console.error('selecao-publica[dados]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
-  const fotos = await assinarEmLote(data.fotos || [], 'storage_path')
+  const fotos = await assinarEmLote(admin, data.fotos || [], 'storage_path')
 
   return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
 }
@@ -59,7 +62,7 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
 // server-side, em paralelo. Cada URL é temporária; a leitura do objeto
 // só acontece quando o navegador abre o link, e nunca expomos credenciais
 // S3 ao cliente.
-async function assinarEmLote(lista: any[], campoPath: string) {
+async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
   if (!Array.isArray(lista) || lista.length === 0) return []
   return await Promise.all(lista.map(async (f) => {
     try {
@@ -67,7 +70,10 @@ async function assinarEmLote(lista: any[], campoPath: string) {
       if (typeof key !== 'string' || !key.trim()) {
         throw new Error(`Chave R2 ausente no campo ${campoPath}`)
       }
-      return { id: f.id, url: await signR2Object(key, 3600) }
+      if (R2_KEY.test(key)) return { id: f.id, url: await signR2Object(key, 3600) }
+      const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
+      if (error) throw error
+      return { id: f.id, url: data?.signedUrl || null }
     } catch (e) {
       console.error('selecao-publica: falha ao assinar objeto R2', {
         id: f?.id ?? null,
@@ -161,8 +167,8 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
   if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
   const [fotos, bastidores] = await Promise.all([
-    assinarEmLote(data.fotos || [], 'storage_path_alta'),
-    assinarEmLote(data.bastidores || [], 'storage_path_alta'),
+    assinarEmLote(admin, data.fotos || [], 'storage_path_alta'),
+    assinarEmLote(admin, data.bastidores || [], 'storage_path_alta'),
   ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
 }
