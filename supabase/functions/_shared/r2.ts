@@ -27,6 +27,26 @@ const client = new S3Client({
   },
 })
 
+function responseContentTypeForKey(key: string): string {
+  const filename = key.toLowerCase().split('/').pop() || ''
+  const extension = filename.includes('.') ? filename.split('.').pop() || '' : ''
+  switch (extension) {
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg'
+    case 'png':
+      return 'image/png'
+    case 'webp':
+      return 'image/webp'
+    case 'pdf':
+      return 'application/pdf'
+    case 'mp4':
+      return 'video/mp4'
+    default:
+      return 'application/octet-stream'
+  }
+}
+
 function validateKey(key: string) {
   if (
     !key ||
@@ -56,6 +76,10 @@ export async function signR2Object(
     new GetObjectCommand({
       Bucket: bucket,
       Key: key,
+      // A cópia inicial de 2.225 objetos preservou os bytes, mas gravou
+      // application/octet-stream como metadado. Esse override assinado
+      // devolve o MIME correto sem retransferir os 14,6 GB existentes.
+      ResponseContentType: responseContentTypeForKey(key),
       ...(responseContentDisposition ? { ResponseContentDisposition: responseContentDisposition } : {}),
     }),
     { expiresIn },
