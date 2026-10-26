@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Grand Focus · Migração R2</title>
+<style>
+:root{color-scheme:light dark;--bg:#f5f6f8;--panel:#fff;--text:#18202b;--muted:#647184;--line:#d9dee7;--good:#176b42;--bad:#a22c2c;--accent:#394b70}
+@media(prefers-color-scheme:dark){:root{--bg:#101318;--panel:#181d25;--text:#e8edf4;--muted:#a8b2c1;--line:#343b47;--good:#74d69d;--bad:#ff9292;--accent:#a8bde8}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:880px;margin:38px auto;padding:0 18px 40px}.eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-size:clamp(26px,4vw,38px);line-height:1.15;margin:8px 0 12px}p{margin:8px 0}.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px;margin-top:18px}.notice{border-left:4px solid var(--accent);padding:11px 14px;background:color-mix(in srgb,var(--accent) 8%,var(--panel));border-radius:6px;margin:18px 0}.muted{color:var(--muted);font-size:14px}button{font:inherit;font-weight:700;border:0;border-radius:10px;background:var(--accent);color:#fff;padding:13px 18px;cursor:pointer}button:disabled{opacity:.55;cursor:progress}.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px}a{color:var(--accent)}#status{white-space:pre-wrap;overflow-wrap:anywhere;margin-top:16px;font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:14px;min-height:80px;max-height:420px;overflow:auto}.good{color:var(--good)}.bad{color:var(--bad)}.row{display:grid;grid-template-columns:1fr auto;gap:12px;border-top:1px solid var(--line);padding:9px 0}.row:first-child{border-top:0}.pill{font-size:12px;font-weight:800}.checklist{padding-left:18px}.checklist li{margin:5px 0}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">Grand Focus · Ferramenta temporária de manutenção</div>
+<h1>Migração dos arquivos para Cloudflare R2</h1>
+<p>Esta página copia os nove arquivos auxiliares que ainda faltam no R2 e testa o envio, a leitura, o SHA-256 e a limpeza de um arquivo de teste descartável.</p>
+<div class="notice"><strong>Importante.</strong> O processo é restrito a uma conta administradora. Ele não apaga fotos do Supabase nem altera registros do banco. Cada arquivo copiado é relido do R2 e comparado por tamanho e SHA-256 antes de ser marcado como verificado.</div>
+<section class="panel">
+<h2>1. Sessão administrativa</h2>
+<p id="sessionState" class="muted">Verificando se este navegador já tem uma sessão da galeria…</p>
+<p id="loginHelp" hidden>Entre na galeria usando a conta administradora, neste mesmo navegador, e abra esta página novamente. <a href="/" target="_blank" rel="noreferrer">Abrir a galeria</a>.</p>
+</section>
+<section class="panel">
+<h2>2. Executar verificação e cópia</h2>
+<p class="muted">O teste de envio é feito primeiro. Em seguida, os nove arquivos são processados um por vez para reduzir o risco de timeout. Se um arquivo falhar, os outros ainda serão tentados. A cópia original do Supabase permanece intacta.</p>
+<div class="actions"><button id="runBtn" disabled>Testar R2 e copiar os 9 arquivos</button><a href="/" rel="noreferrer">Voltar para a galeria</a></div>
+<div id="status" role="status" aria-live="polite">Aguardando uma sessão autenticada.</div>
+</section>
+<section class="panel">
+<h2>O que esta página verifica</h2>
+<ul class="checklist">
+<li>Envio autenticado para um caminho de teste único.</li>
+<li>Leitura do mesmo objeto pelo R2 e comparação SHA-256.</li>
+<li>Exclusão somente do arquivo de teste que acabou de ser verificado.</li>
+<li>Cópia dos nove arquivos auxiliares conhecidos e comparação SHA-256 de cada um.</li>
+<li>Nenhuma exclusão de fotos reais ou do banco de dados.</li>
+</ul>
+<p class="muted">Depois que a etapa terminar, envie o resultado exibido no final para continuar a troca dos caminhos de leitura do site e a auditoria final.</p>
+</section>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+(() => {
+  const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0';
+  const MIGRATION_FN = 'r2-migration-admin-temp';
+  const STORAGE_FN = 'r2-storage';
+  const AUX_KEYS = [
+    'alunos/08449c2c-f153-4848-9d04-42cd60725468/foto.jpg',
+    'alunos/256e800c-13f2-42fb-8720-02fee5586f06/foto.jpg',
+    'alunos/ad24e1da-b8c3-46cc-8a32-9537ca7e15bc/foto.jpg',
+    'escolas/25dc92d0-a606-415a-b456-b7af4de1f4b3/capa.webp',
+    'escolas/25dc92d0-a606-415a-b456-b7af4de1f4b3/logo.webp',
+    'eventos-capa/ab1001ab-04cd-4be3-92a3-e4845c995890/capa.webp',
+    'perfis/506e5fad-637c-42e0-97ea-1204886a17fb/foto.jpg',
+    'perfis/b2bd9b14-4073-44c0-9afc-b40cc0c7dcac/foto.jpg',
+    'perfis/b8b45c51-eeb5-4595-ad47-a2aa29529ea8/foto.jpg'
+  ];
+  const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const state = document.getElementById('sessionState');
+  const loginHelp = document.getElementById('loginHelp');
+  const button = document.getElementById('runBtn');
+  const output = document.getElementById('status');
+  let session = null;
+  let busy = false;
+
+  function log(message, kind='') {
+    const line = document.createElement('div');
+    if (kind) line.className = kind;
+    line.textContent = message;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+  async function getSession() {
+    const {data,error}=await client.auth.getSession();
+    if(error) throw error;
+    session=data?.session||null;
+    if(!session?.access_token) {
+      state.textContent='Nenhuma sessão ativa foi encontrada neste navegador.';
+      loginHelp.hidden=false;
+      button.disabled=true;
+      return false;
+    }
+    state.textContent='Sessão encontrada. As permissões administrativas serão confirmadas pelo servidor antes de qualquer cópia.';
+    loginHelp.hidden=true;
+    button.disabled=false;
+    return true;
+  }
+  async function invoke(functionName, payload, activeSession=session) {
+    if(!activeSession?.access_token) throw new Error('Sessão ausente. Entre na galeria e abra novamente esta página.');
+    const response=await fetch(SUPABASE_URL+'/functions/v1/'+functionName,{
+      method:'POST',
+      headers:{'Content-Type':'application/json',apikey:SUPABASE_ANON_KEY,Authorization:'Bearer '+activeSession.access_token},
+      body:JSON.stringify(payload)
+    });
+    let data={};
+    try{data=await response.json()}catch{}
+    if(!response.ok || data.error) throw new Error(data.error || ('HTTP '+response.status+' na função '+functionName));
+    return data;
+  }
+  function hex(bytes){return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('')}
+  async function sha256(bytes){return hex(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))}
+  async function smokeTest(){
+    log('TESTE R2 — reservando um caminho temporário único…');
+    const {key}=await invoke(MIGRATION_FN,{action:'smoke-start'});
+    log('Caminho de teste reservado: '+key);
+    const base64='UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJaQAA3AA/v89WAAAAA==';
+    const bytes=Uint8Array.from(atob(base64),c=>c.charCodeAt(0));
+    const blob=new Blob([bytes],{type:'image/webp'});
+    const expectedSha=await sha256(bytes);
+    let uploadConfirmed=false, cleanConfirmed=false;
+    try {
+      const {upload_url}=await invoke(STORAGE_FN,{action:'upload-url',key,content_type:'image/webp'});
+      if(!upload_url) throw new Error('O servidor não retornou URL de upload R2.');
+      const put=await fetch(upload_url,{method:'PUT',headers:{'Content-Type':'image/webp'},body:blob});
+      if(!put.ok) throw new Error('PUT para R2 falhou com HTTP '+put.status);
+      uploadConfirmed=true;
+      log('PUT autenticado concluído; conferindo leitura e SHA-256…','good');
+      const signed=await invoke(STORAGE_FN,{action:'sign',keys:[key],expires_in:300});
+      const readUrl=signed.urls?.find(x=>x.key===key)?.url;
+      if(!readUrl) throw new Error('R2 não retornou uma URL de leitura para o arquivo de teste.');
+      const get=await fetch(readUrl);
+      if(!get.ok) throw new Error('GET de leitura do R2 falhou com HTTP '+get.status);
+      const got=new Uint8Array(await get.arrayBuffer());
+      const gotSha=await sha256(got);
+      if(got.length!==bytes.length || gotSha!==expectedSha) throw new Error('O conteúdo lido do R2 não corresponde ao arquivo enviado.');
+      const clean=await invoke(MIGRATION_FN,{action:'smoke-clean',key,size:got.length,sha256:gotSha});
+      cleanConfirmed=!!clean.deletedTestObject;
+      if(!cleanConfirmed) throw new Error('O R2 não confirmou a limpeza do objeto descartável.');
+      log('TESTE R2 APROVADO — PUT, GET e SHA-256 corretos; arquivo de teste removido e ausência confirmada.','good');
+      return true;
+    } catch(error) {
+      if(uploadConfirmed && !cleanConfirmed) {
+        try {
+          const clean=await invoke(MIGRATION_FN,{action:'smoke-clean',key,size:bytes.length,sha256:expectedSha});
+          if(clean.deletedTestObject) log('Arquivo temporário removido com verificação SHA-256 apesar da falha no teste principal.','good');
+          else log('A limpeza segura do arquivo de teste não foi confirmada. Ele foi preservado se o conteúdo não bateu.','bad');
+        } catch(cleanError) {
+          log('AVISO: não foi possível confirmar a limpeza do arquivo temporário: '+cleanError.message,'bad');
+        }
+      }
+      log('TESTE R2 FALHOU: '+error.message,'bad');
+      return false;
+    }
+  }
+  async function copyOne(key,index){
+    log('['+index+'/'+AUX_KEYS.length+'] Verificando e copiando '+key+' …');
+    try {
+      const result=await invoke(MIGRATION_FN,{action:'copy-aux',key});
+      const status=result.status==='already_verified'?'já estava igual e foi verificado':'copiado e verificado';
+      log('OK — '+status+' · '+result.size.toLocaleString('pt-BR')+' bytes · SHA-256 '+result.sha256,'good');
+      return {key,ok:true,result};
+    } catch(error) {
+      log('FALHA — '+key+' · '+error.message,'bad');
+      return {key,ok:false,error:error.message};
+    }
+  }
+  async function run(){
+    if(busy)return;
+    busy=true;button.disabled=true;output.textContent='';
+    let smoke=false;const results=[];
+    try {
+      if(!await getSession()) throw new Error('Faça login com uma conta administradora e tente novamente.');
+      log('Início da execução autenticada. O servidor ainda validará a função de administrador.');
+      smoke=await smokeTest();
+      log('Iniciando cópia dos arquivos auxiliares; nenhuma cópia de origem será excluída.');
+      for(let i=0;i<AUX_KEYS.length;i++) results.push(await copyOne(AUX_KEYS[i],i+1));
+      const ok=results.filter(x=>x.ok).length;
+      log('RESUMO: teste de upload/readback '+(smoke?'APROVADO':'PENDENTE')+'; arquivos auxiliares verificados '+ok+'/'+AUX_KEYS.length+'.',ok===AUX_KEYS.length?'good':'bad');
+      if(ok===AUX_KEYS.length) log('Todos os nove arquivos auxiliares da lista estão copiados e verificados por tamanho e SHA-256. O Supabase ainda contém as origens; não houve exclusões.','good');
+      else log('Alguns arquivos precisam de investigação. As cópias originais do Supabase foram preservadas.','bad');
+    } catch(error) {
+      log('EXECUÇÃO INTERROMPIDA: '+error.message,'bad');
+    } finally {
+      busy=false;
+      try { await getSession(); } catch {}
+      if(session?.access_token) button.disabled=false;
+      log('Fim desta execução. Nenhuma foto original do Supabase ou registro do banco foi apagado.');
+    }
+  }
+  button.addEventListener('click',run);
+  getSession().catch(error=>{state.textContent='Falha ao verificar sessão: '+error.message;loginHelp.hidden=false;});
+})();
+</script>
+</body>
+</html>
