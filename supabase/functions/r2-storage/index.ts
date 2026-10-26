@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     if (
       typeof contentType !== 'string' ||
       contentType.length > 150 ||
-      /[\\r\\n]/.test(contentType) ||
+      (contentType.includes('\r') || contentType.includes('\n')) ||
       !(contentType.startsWith('image/') || contentType === 'application/octet-stream')
     ) {
       return json({ error: 'Tipo de arquivo inválido.' }, 400)
