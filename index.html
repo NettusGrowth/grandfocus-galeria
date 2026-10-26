@@ -4041,6 +4041,86 @@ const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co'
 const SUPABASE_ANON_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const BUCKET = 'fotos-grandfocus'
 
+function _ehChaveR2Migrada(path) {
+  if (typeof path !== 'string') return false
+  const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  return new RegExp('^' + uuid + '/[^/]+$', 'i').test(path) ||
+    new RegExp('^selecoes/' + uuid + '/[^/]+$', 'i').test(path)
+}
+
+async function _r2Api(action, payload = {}) {
+  const { data: { session }, error: sessionError } = await db.auth.getSession()
+  if (sessionError || !session?.access_token) throw new Error('Sua sessão expirou. Entre novamente.')
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/r2-storage`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ action, ...payload }),
+  })
+  const data = await resp.json().catch(() => ({}))
+  if (!resp.ok || data.error) throw new Error(data.error || `Erro no armazenamento (HTTP ${resp.status})`)
+  return data
+}
+
+async function _r2SignedUrl(path, expiresIn = 300, downloadName = null) {
+  const data = await _r2Api('sign', {
+    keys: [path],
+    expires_in: expiresIn,
+    ...(downloadName ? { download_name: downloadName } : {}),
+  })
+  return data.urls?.find(item => item.key === path)?.url || null
+}
+
+async function _r2Upload(path, body, contentType) {
+  try {
+    const tipo = contentType || 'application/octet-stream'
+    const { upload_url: uploadUrl } = await _r2Api('upload-url', { key: path, content_type: tipo })
+    if (!uploadUrl) throw new Error('O R2 não retornou a URL de envio.')
+    const resp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': tipo }, body })
+    if (!resp.ok) throw new Error(`Falha ao enviar arquivo ao R2 (HTTP ${resp.status}).`)
+    return { data: { path }, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+async function _baixarObjetoStorage(path) {
+  if (_ehChaveR2Migrada(path)) {
+    try {
+      const url = await _r2SignedUrl(path, 300)
+      if (!url) throw new Error('Acesso à foto negado ou URL indisponível.')
+      const resp = await fetch(url)
+      if (!resp.ok) throw new Error(`Falha ao baixar do R2 (HTTP ${resp.status}).`)
+      return { data: await resp.blob(), error: null }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }
+  return await db.storage.from(BUCKET).download(path)
+}
+
+async function _removerArquivosStorage(paths) {
+  const unicos = [...new Set((paths || []).filter(path => typeof path === 'string' && path))]
+  const r2Paths = unicos.filter(_ehChaveR2Migrada)
+  const supabasePaths = unicos.filter(path => !_ehChaveR2Migrada(path))
+  try {
+    for (let i = 0; i < r2Paths.length; i += 100) {
+      await _r2Api('delete', { keys: r2Paths.slice(i, i + 100) })
+    }
+    if (supabasePaths.length) {
+      const { error } = await db.storage.from(BUCKET).remove(supabasePaths)
+      if (error) return { data: null, error }
+    }
+    return { data: null, error: null }
+  } catch (error) {
+    return { data: null, error }
+  }
+}
+
+
 // createClient() quebra com uma URL inválida (o placeholder acima) e
 // derruba o script inteiro sem aviso nenhum na tela — por isso checa
 // antes de tentar, e mostra um recado claro em vez de deixar o botão
@@ -4633,7 +4713,7 @@ async function _salvarHeroBg() {
     _appConfig.hero_bg_path = path
     _appConfig.hero_bg_pos = posValor
     _appConfig.hero_bg_zoom = zoomValor
-    if (anterior) db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
+    if (anterior) _removerArquivosStorage([anterior]).catch(() => {}) // best-effort
     await _aplicarHeroBg()
     toast('Fundo do Dashboard atualizado ✓')
     fecharModal('modal-hero-bg')
@@ -4653,7 +4733,7 @@ async function _restaurarHeroBgPadrao() {
   _appConfig.hero_bg_path = null
   _appConfig.hero_bg_pos = null
   _appConfig.hero_bg_zoom = null
-  db.storage.from(BUCKET).remove([anterior]).catch(() => {}) // best-effort
+  _removerArquivosStorage([anterior]).catch(() => {}) // best-effort
   await _aplicarHeroBg()
   toast('Fundo padrão restaurado ✓')
   fecharModal('modal-hero-bg')
@@ -10103,7 +10183,7 @@ async function excluirEvento(id, aposApagar) {
   const paths = store.fotos.filter(f => f.evento_id === id).map(f => f.storage_path)
   const { error } = await db.from('eventos').delete().eq('id', id)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
-  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  if (paths.length) { try { await _removerArquivosStorage(paths) } catch (e) { /* best-effort */ } }
   store.eventos = store.eventos.filter(x => x.id !== id)
   store.fotos = store.fotos.filter(f => f.evento_id !== id)
   toast('Apagado ✓')
@@ -10460,7 +10540,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type })
+    const { error: upErr } = await _r2Upload(path, file, file.type || 'application/octet-stream')
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // marca d'água só faz sentido na Seleção de Fotos (onde protege
     // contra baixar antes de pagar) — na Galeria/Álbuns quem vê já tem
@@ -10472,7 +10552,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
+      const { error: thumbErr } = await _r2Upload(thumbPath, thumb.blob, 'image/jpeg')
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
@@ -10547,19 +10627,30 @@ function _disparaLoteUrlAssinada() {
 // retentativa curta cobre a maioria dos casos sozinha.
 async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
   const resolverTodos = url => paths.forEach(p => (lote.get(p) || []).forEach(r => r(url)))
-  let data, error
-  try { ({ data, error } = await db.storage.from(BUCKET).createSignedUrls(paths, 300)) }
-  catch (e) { error = e }
-  if (error) {
+  const urls = new Map()
+  const chavesR2 = paths.filter(_ehChaveR2Migrada)
+  const chavesSupabase = paths.filter(p => !_ehChaveR2Migrada(p))
+  try {
+    for (let i = 0; i < chavesR2.length; i += 80) {
+      const loteR2 = chavesR2.slice(i, i + 80)
+      const resposta = await _r2Api('sign', { keys: loteR2, expires_in: 300 })
+      ;(resposta.urls || []).forEach(item => urls.set(item.key, item.url || null))
+    }
+    if (chavesSupabase.length) {
+      const { data, error } = await db.storage.from(BUCKET).createSignedUrls(chavesSupabase, 300)
+      if (error) throw error
+      ;(data || []).forEach(item => urls.set(item.path, item.signedUrl || null))
+    }
+  } catch (error) {
     console.error('_processarLoteUrlAssinada falhou' + (tentativa === 1 ? ', tentando de novo em 1.5s' : ''), error)
     if (tentativa === 1) { setTimeout(() => _processarLoteUrlAssinada(paths, lote, 2), 1500); return }
     resolverTodos(null)
     return
   }
-  (data || []).forEach(item => {
-    const url = item.signedUrl || null
-    if (url) _cacheUrlAssinada.set(item.path, { url, expira: Date.now() + 270000 })
-    ;(lote.get(item.path) || []).forEach(r => r(url))
+  paths.forEach(path => {
+    const url = urls.get(path) || null
+    if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+    ;(lote.get(path) || []).forEach(resolve => resolve(url))
   })
 }
 // chamar depois de QUALQUER upload com upsert:true num caminho fixo
@@ -10989,13 +11080,13 @@ async function _otimizarThumbsFotos(fotos, statusElId, aoTerminar) {
   for (const f of pendentes) {
     if (status) status.textContent = `Otimizando ${feitas + falhas + 1} de ${pendentes.length}…`
     try {
-      const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(f.storage_path)
+      const { data: blob, error: dlErr } = await _baixarObjetoStorage(f.storage_path)
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
       const thumb = await _gerarThumbGaleria(blob)
       const precisaThumbNovo = !f.thumb_path
       const thumbPath = precisaThumbNovo ? _thumbPathDe(f.storage_path) : f.thumb_path
       if (precisaThumbNovo) {
-        const { error: upErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
+        const { error: upErr } = await _r2Upload(thumbPath, thumb.blob, 'image/jpeg')
         if (upErr) throw upErr
       }
       const { error: dbErr } = await db.from('fotos').update({ thumb_path: thumbPath, largura: thumb.largura, altura: thumb.altura, largura_original: thumb.larguraOriginal, altura_original: thumb.alturaOriginal }).eq('id', f.id)
@@ -11379,9 +11470,14 @@ async function _baixarFotosPrivadoNativoInterno(paths, nomeBase) {
       const nome = paths[i].split('/').pop() || 'foto.jpg'
       let signedUrl = null
       try {
-        const { data, error } = await db.storage.from(BUCKET).createSignedUrl(paths[i], 120, { download: nome })
-        if (error) throw error
-        signedUrl = data?.signedUrl || null
+        if (_ehChaveR2Migrada(paths[i])) {
+          signedUrl = await _r2SignedUrl(paths[i], 120, nome)
+        } else {
+          const { data, error } = await db.storage.from(BUCKET).createSignedUrl(paths[i], 120, { download: nome })
+          if (error) throw error
+          signedUrl = data?.signedUrl || null
+        }
+        if (!signedUrl) throw new Error('URL temporária indisponível')
       } catch (e) { console.error('_baixarFotosPrivadoNativo: falha ao gerar link', paths[i], e) }
       if (!signedUrl) { falhas++; continue }
       const a = document.createElement('a')
@@ -11422,9 +11518,9 @@ async function _dlPrepararLoteIOS() {
   for (const path of alvo) {
     try {
       const nome = path.split('/').pop() || 'foto.jpg'
-      const { data, error } = await db.storage.from(BUCKET).createSignedUrl(path, 120)
-      if (error || !data?.signedUrl) throw error || new Error('sem link assinado')
-      const resp = await fetch(data.signedUrl)
+      const signedUrl = _ehChaveR2Migrada(path) ? await _r2SignedUrl(path, 120) : (await db.storage.from(BUCKET).createSignedUrl(path, 120)).data?.signedUrl
+      if (!signedUrl) throw new Error('sem link assinado')
+      const resp = await fetch(signedUrl)
       if (!resp.ok) throw new Error('HTTP ' + resp.status)
       const blob = await resp.blob()
       arquivos.push(new File([blob], nome, { type: blob.type || 'image/jpeg' }))
@@ -12152,7 +12248,7 @@ async function apagarPost(postId) {
   const { error } = await db.from('posts').delete().eq('id', postId)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   const paths = [post?.imagem_url, ...(_feedMidias[postId] || []).map(m => m.storage_path)].filter(Boolean)
-  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  if (paths.length) { try { await _removerArquivosStorage(paths) } catch (e) { /* best-effort */ } }
   _feedPosts = _feedPosts.filter(p => p.id !== postId)
   delete _feedReacoes[postId]; delete _feedComentCount[postId]; delete _feedComentariosCache[postId]; delete _feedMidias[postId]
   registrarAuditoria('apagou uma publicação da comunidade', 'posts', postId, post?.texto ? post.texto.slice(0, 80) : null)
@@ -13268,7 +13364,7 @@ async function excluirFoto(fotoId, aposApagar) {
   const foto = store.fotos.find(f => f.id === fotoId)
   const { error: dbErr } = await db.from('fotos').delete().eq('id', fotoId)
   if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return }
-  if (foto?.storage_path) { try { await db.storage.from(BUCKET).remove([foto.storage_path, foto.thumb_path].filter(Boolean)) } catch (e) { /* best-effort */ } }
+  if (foto?.storage_path) { try { await _removerArquivosStorage([foto.storage_path, foto.thumb_path].filter(Boolean)) } catch (e) { /* best-effort */ } }
   store.fotos = store.fotos.filter(f => f.id !== fotoId)
   store.fotoAluno = store.fotoAluno.filter(x => x.foto_id !== fotoId)
   toast('Foto apagada ✓')
@@ -13288,7 +13384,7 @@ async function _apagarFotosSemConfirmar(fotoIds) {
   const digipix = await _fotosDigipixEmUso(fotoIds)
   const { error: dbErr } = await db.from('fotos').delete().in('id', fotoIds)
   if (dbErr) { toast('Erro ao apagar: ' + dbErr.message); return false }
-  if (paths.length) { try { await db.storage.from(BUCKET).remove(paths) } catch (e) { /* best-effort */ } }
+  if (paths.length) { try { await _removerArquivosStorage(paths) } catch (e) { /* best-effort */ } }
   store.fotos = store.fotos.filter(f => !fotoIds.includes(f.id))
   store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id))
   store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id))
@@ -13327,14 +13423,22 @@ async function baixarComoZip(paths, nomeArquivo) {
 async function compartilharFoto(fotoId) {
   const foto = store.fotos.find(f => f.id === fotoId)
   if (!foto) return
-  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(foto.storage_path, 60 * 60 * 24)
-  if (error || !data?.signedUrl) { toast('Erro ao gerar link: ' + (error?.message || '')); return }
+  let signedUrl = null
   try {
-    await navigator.clipboard.writeText(data.signedUrl)
+    signedUrl = _ehChaveR2Migrada(foto.storage_path)
+      ? await _r2SignedUrl(foto.storage_path, 60 * 60 * 24, foto.storage_path.split('/').pop())
+      : (await db.storage.from(BUCKET).createSignedUrl(foto.storage_path, 60 * 60 * 24)).data?.signedUrl
+  } catch (error) {
+    toast('Erro ao gerar link: ' + (error?.message || ''))
+    return
+  }
+  if (!signedUrl) { toast('Erro ao gerar link temporário.'); return }
+  try {
+    await navigator.clipboard.writeText(signedUrl)
     toast('Link copiado ✓ (válido por 24h)')
   } catch (e) {
     toast('Link gerado (válido por 24h), mas não consegui copiar automático — confere o console.')
-    console.log('Link pra compartilhar:', data.signedUrl)
+    console.log('Link pra compartilhar:', signedUrl)
   }
   registrarAuditoria('gerou link de compartilhamento', 'fotos', fotoId, foto.storage_path)
 }
@@ -14771,7 +14875,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(path, file, { cacheControl: '31536000', contentType: file.type })
+    const { error: upErr } = await _r2Upload(path, file, file.type || 'application/octet-stream')
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     // mesmo motivo do uploadFotosEvento: marca d'água só existe na
     // Seleção de Fotos, aqui a prévia é só redimensionada.
@@ -14779,7 +14883,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
     try {
       const thumb = await _gerarThumbGaleria(file)
       thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await db.storage.from(BUCKET).upload(thumbPath, thumb.blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
+      const { error: thumbErr } = await _r2Upload(thumbPath, thumb.blob, 'image/jpeg')
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
@@ -16431,10 +16535,10 @@ async function _selecaoReprocessarMarcaDagua() {
     if (status) status.textContent = `Reprocessando ${feitas + falhas + 1} de ${g.fotos.length}…`
     try {
       const origemPath = f.storage_path_alta || f.storage_path
-      const { data: blob, error: dlErr } = await db.storage.from(BUCKET).download(origemPath)
+      const { data: blob, error: dlErr } = await _baixarObjetoStorage(origemPath)
       if (dlErr || !blob) throw dlErr || new Error('download vazio')
       const novoBlob = await _gerarThumbWatermark(blob)
-      const { error: upErr } = await db.storage.from(BUCKET).upload(f.storage_path, novoBlob, { cacheControl: '31536000', contentType: 'image/jpeg', upsert: true })
+      const { error: upErr } = await _r2Upload(f.storage_path, novoBlob, 'image/jpeg')
       if (upErr) throw upErr
       _invalidarUrlCache(f.storage_path)
       feitas++
@@ -16511,13 +16615,13 @@ async function uploadFotosSelecao(files, bonus) {
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
     const sufixo = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     const altaPath = `selecoes/${galeriaId}/alta-${sufixo}.${ext}`
-    const { error: upErr } = await db.storage.from(BUCKET).upload(altaPath, file, { cacheControl: '31536000', contentType: file.type })
+    const { error: upErr } = await _r2Upload(altaPath, file, file.type || 'application/octet-stream')
     if (upErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
     let levePath
     try {
       const blob = await _gerarThumbWatermark(file)
       levePath = `selecoes/${galeriaId}/leve-${sufixo}.jpg`
-      const { error: upLeveErr } = await db.storage.from(BUCKET).upload(levePath, blob, { cacheControl: '31536000', contentType: 'image/jpeg' })
+      const { error: upLeveErr } = await _r2Upload(levePath, blob, 'image/jpeg')
       if (upLeveErr) throw upLeveErr
     } catch (e) {
       estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
@@ -16578,7 +16682,7 @@ async function _apagarFotoSelecao(fotoId) {
   if (!ok) return
   const f = _selecaoDetalheAtual?.fotos.find(x => x.id === fotoId)
   if (!f) return
-  await db.storage.from(BUCKET).remove([f.storage_path, f.storage_path_alta].filter(Boolean))
+  await _removerArquivosStorage([f.storage_path, f.storage_path_alta].filter(Boolean))
   const { error } = await db.from('selecao_fotos').delete().eq('id', fotoId)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   _selecaoDetalheAtual.fotos = _selecaoDetalheAtual.fotos.filter(x => x.id !== fotoId)
@@ -16592,7 +16696,7 @@ async function _apagarSelecaoGaleria() {
   const ok = await confirmModal('Apagar essa galeria de seleção inteira? Isso remove as fotos e o pedido associado, se houver. Não pode ser desfeito.', { titulo: 'Apagar galeria', okLabel: 'Apagar', danger: true })
   if (!ok) return
   const paths = g.fotos.flatMap(f => [f.storage_path, f.storage_path_alta].filter(Boolean))
-  if (paths.length) await db.storage.from(BUCKET).remove(paths)
+  if (paths.length) await _removerArquivosStorage(paths)
   const { error } = await db.from('selecao_galerias').delete().eq('id', g.id)
   if (error) { toast('Erro ao apagar: ' + error.message); return }
   registrarAuditoria('apagou galeria de seleção', 'selecao_galerias', g.id, g.titulo)
@@ -19915,9 +20019,9 @@ function _albumLimparCacheImagens() {
 }
 async function _albumCarregarImagemOriginal(foto) {
   if (_albumImagemOriginalCache.has(foto.id)) return _albumImagemOriginalCache.get(foto.id).img
-  const { data, error } = await db.storage.from(BUCKET).createSignedUrl(foto.storage_path, 300)
-  if (error || !data?.signedUrl) throw new Error('link da foto original: ' + (error?.message || 'falhou'))
-  const resp = await fetch(data.signedUrl)
+  const signedUrl = await _urlAssinada(foto.storage_path)
+  if (!signedUrl) throw new Error('link da foto original: falhou')
+  const resp = await fetch(signedUrl)
   if (!resp.ok) throw new Error('download da foto original: HTTP ' + resp.status)
   const blob = await resp.blob()
   // blob: é sempre same-origin — desenhar no canvas a partir daqui nunca

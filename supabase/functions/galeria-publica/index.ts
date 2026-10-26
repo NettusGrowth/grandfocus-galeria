@@ -15,8 +15,11 @@
 // no index.html.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { signR2Object } from '../_shared/r2.ts'
 
 const BUCKET = 'fotos-grandfocus'
+const R2_GALLERY_KEY = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+$/i
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -58,18 +61,15 @@ Deno.serve(async (req) => {
   const linhasComFoto = linhas.filter((l: any) => l.foto_id)
 
   let capaUrl = null
-  if (primeira?.capa_url) {
-    const { data } = await admin.storage.from(BUCKET).createSignedUrl(primeira.capa_url, 3600)
-    capaUrl = data?.signedUrl || null
-  }
+  if (primeira?.capa_url) capaUrl = await assinarR2ComSeguranca(primeira.capa_url, admin)
 
   const fotos = await Promise.all(linhasComFoto.map(async (l: any) => {
     const previewPath = l.thumb_path || l.storage_path
-    const [preview, original] = await Promise.all([
-      admin.storage.from(BUCKET).createSignedUrl(previewPath, 3600),
-      admin.storage.from(BUCKET).createSignedUrl(l.storage_path, 3600),
+    const [url, urlOriginal] = await Promise.all([
+      assinarR2ComSeguranca(previewPath, admin),
+      assinarR2ComSeguranca(l.storage_path, admin),
     ])
-    return { id: l.foto_id, url: preview.data?.signedUrl || null, urlOriginal: original.data?.signedUrl || null }
+    return { id: l.foto_id, url, urlOriginal }
   }))
 
   return json({
@@ -77,6 +77,20 @@ Deno.serve(async (req) => {
     fotos: fotos.filter(f => f.url),
   })
 })
+
+async function assinarR2ComSeguranca(key: string, admin: any): Promise<string | null> {
+  try {
+    // Só os objetos de foto/miniatura UUID-raiz foram migrados nesta fase.
+    // Capas de evento e demais assets permanecem no bucket privado do Supabase.
+    if (R2_GALLERY_KEY.test(key)) return await signR2Object(key, 3600)
+    const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
+    if (error) throw error
+    return data?.signedUrl || null
+  } catch (e) {
+    console.error('galeria-publica: falha ao assinar objeto', { key, message: String(e) })
+    return null
+  }
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })

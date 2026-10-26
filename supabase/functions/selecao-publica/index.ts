@@ -15,8 +15,11 @@
 // _selecaoPublicaFetch() no index.html.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { signR2Object } from '../_shared/r2.ts'
 
 const BUCKET = 'fotos-grandfocus'
+const R2_KEY = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/|selecoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/).+$/i
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -55,18 +58,31 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
   return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
 }
 
-// createSignedUrl (singular) faz uma chamada de rede por foto — com uma
-// galeria de 20-30 fotos isso empilha centenas de ms cada e vira uma
-// espera visível (era a causa real dos "30 segundos" pra alta resolução
-// aparecer após o pagamento). createSignedUrls (plural) resolve tudo
-// numa única chamada à Storage API, igual ao cache em lote que o client
-// já usa pra thumbnails/avatares.
+// A assinatura das URLs do R2 é feita localmente com as credenciais
+// server-side, em paralelo. Cada URL é temporária; a leitura do objeto
+// só acontece quando o navegador abre o link, e nunca expomos credenciais
+// S3 ao cliente.
 async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
-  if (!lista.length) return []
-  const paths = lista.map((f) => f[campoPath])
-  const { data: assinadas, error } = await admin.storage.from(BUCKET).createSignedUrls(paths, 3600)
-  if (error) { console.error('selecao-publica: createSignedUrls falhou', error.message); return lista.map((f) => ({ id: f.id, url: null })) }
-  return lista.map((f, i) => ({ id: f.id, url: assinadas[i]?.signedUrl || null }))
+  if (!Array.isArray(lista) || lista.length === 0) return []
+  return await Promise.all(lista.map(async (f) => {
+    try {
+      const key = f?.[campoPath]
+      if (typeof key !== 'string' || !key.trim()) {
+        throw new Error(`Chave R2 ausente no campo ${campoPath}`)
+      }
+      if (R2_KEY.test(key)) return { id: f.id, url: await signR2Object(key, 3600) }
+      const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
+      if (error) throw error
+      return { id: f.id, url: data?.signedUrl || null }
+    } catch (e) {
+      console.error('selecao-publica: falha ao assinar objeto R2', {
+        id: f?.id ?? null,
+        campoPath,
+        message: String(e),
+      })
+      return { id: f?.id ?? null, url: null }
+    }
+  }))
 }
 
 // gera um link de checkout InfinitePay pro pedido já registrado (o
