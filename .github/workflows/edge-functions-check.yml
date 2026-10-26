@@ -1,0 +1,33 @@
+name: Check Supabase Edge Functions
+
+on:
+  pull_request:
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/edge-functions-check.yml"
+  push:
+    branches:
+      - migration/cloudflare-r2-prep
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/edge-functions-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deno-check:
+    name: Deno type-check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Check R2 adapter and migrated functions
+        run: |
+          deno check supabase/functions/_shared/r2.ts
+          deno check supabase/functions/galeria-publica/index.ts
+          deno check supabase/functions/selecao-publica/index.ts
