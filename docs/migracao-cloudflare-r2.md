@@ -81,6 +81,7 @@ Auditoria executada anteriormente no ambiente local:
 - Aproximadamente 14,586 GB em bytes decimais (aprox. 13,584 GiB), conforme inventário da cópia.
 - SHA-256 comparado para os 2.225 arquivos locais: 2.225 idênticos, zero divergências, zero erros e zero arquivos locais ausentes.
 - Log local: `C:\\GrandFocusBackup\\r2-transfer\\auditoria-sha256.jsonl`.
+- Verificação adicional via SQL no Supabase em 26/10/2026: o bucket de origem ainda contém 2.225 objetos e 2.225 caminhos únicos; a soma de `metadata.size` é `14.585.988.073` bytes, igual à soma da listagem Cloudflare R2. Os objetos originais continuam no Supabase e não foram apagados.
 - Originais locais: `C:\\GrandFocusBackup\\backup\\fotos\\fotos-grandfocus`.
 
 A auditoria SHA-256 confirma igualdade entre os arquivos locais e os objetos verificados do R2; ela, isoladamente, não comprova que cada registro de metadados do banco tenha caminho correspondente nem valida o comportamento do site.
