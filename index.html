@@ -4354,9 +4354,9 @@ async function _r2FinalizarMigracaoStorage() {
         })
         metadataDeleted += Number(result.deletedCount || 0)
         metadataPreserved += Number(result.preserved?.length || 0)
-        if (Array.isArray(result.preserved)) failures.push(...result.preserved)
+        if (Array.isArray(result.preserved)) console.warn('Grand Focus R2: preservados para conferência SHA-256 posterior', result.preserved)
       } catch (error) {
-        failures.push({ stage: 'metadata-cleanup', batch: i + 1, error: String(error) })
+        console.error('Grand Focus R2: lote de limpeza por ETag falhou; o restante será conferido por SHA-256.', { batch: i + 1, error: String(error) })
       }
       if ((i + 1) % 4 === 0 || i === cleanupBatches.length - 1) {
         console.info('Grand Focus R2: progresso da limpeza por ETag', {
@@ -4421,8 +4421,7 @@ async function _r2FinalizarMigracaoStorage() {
     console.info('Grand Focus R2: relatório de limpeza', report)
 
     if (remaining.length === 0 && failures.length === 0 &&
-        metadataDeleted === singlePart.length && shaChecked === afterMetadata.length &&
-        shaDeleted === afterMetadata.length) {
+        shaChecked === afterMetadata.length && shaDeleted === afterMetadata.length) {
       try { localStorage.setItem(_R2_FULL_STORAGE_FLAG, 'verified-empty') } catch (_) {}
       toast('Migração concluída: todas as fotos estão no R2 e o armazenamento antigo está vazio.')
     } else {
