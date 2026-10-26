@@ -18,6 +18,20 @@ Preparação apenas. A produção continua apontando para Supabase Storage. Não
 - As imagens do grid/lightbox precisam terminar com uma URL HTTPS real para o menu nativo “Salvar Imagem” no Safari; não deixar blob URL como URL final.
 - Não gerar ZIP de downloads em massa.
 
+## Implementação preparada na branch de migração
+- Adaptador compartilhado `supabase/functions/_shared/r2.ts` gera URLs GET assinadas para objetos privados usando AWS SDK S3 e credenciais apenas no ambiente das Edge Functions.
+- `galeria-publica` e `selecao-publica` foram adaptadas para usar o adaptador R2; RPCs, tokens, senha e verificação de liberação de pagamento continuam no Supabase.
+- Esta alteração está somente na branch `migration/cloudflare-r2-prep`. Não publicar em produção antes de configurar secrets, executar testes e validar previews/downloads.
+
+### Secrets necessários nas Supabase Edge Functions
+Configurar no ambiente de teste, sem commitar valores no repositório:
+- `R2_ENDPOINT` — endpoint S3 do bucket/account Cloudflare.
+- `R2_ACCESS_KEY_ID` — Access Key ID do token R2 com permissão mínima necessária de leitura.
+- `R2_SECRET_ACCESS_KEY` — secret correspondente.
+- `R2_BUCKET` — `grandfocus-fotos`.
+
+Não usar prefixo `NEXT_PUBLIC_`, não inserir valores nos arquivos e nunca enviar segredos ao navegador. Para gerar URLs GET, o token deve permitir leitura dos objetos. Se também for usado para upload pela aplicação, separar credenciais e permissões.
+
 ## Fases e critérios de aceite
 1. Criar bucket R2 privado e credenciais S3 com permissões mínimas.
 2. Criar adaptador server-side para assinar URLs e ler/escrever objetos R2 sem expor segredos.
@@ -28,7 +42,8 @@ Preparação apenas. A produção continua apontando para Supabase Storage. Não
 7. Publicar primeiro em preview/staging. Produção só muda após validação explícita.
 8. Manter Supabase Storage intacto durante período de observação; remoção só depois de cópia e recuperação comprovadas.
 
-## Bloqueios antes da implementação completa
-- É necessário criar o bucket R2 na conta Cloudflare e obter endpoint, Access Key ID e Secret Access Key. Não colocar segredos no GitHub nem em variáveis públicas `NEXT_PUBLIC_*`.
-- Confirmar como o ambiente de deploy vai armazenar segredos server-side.
-- A cópia local de fotos ainda não está comprovada como completa; validar os 2.225 arquivos e resolver a diferença de metadados antes de declarar backup íntegro.
+## Bloqueios antes da publicação
+- Configurar os quatro secrets R2 no ambiente de teste das Supabase Edge Functions.
+- Validar compilação/deploy em ambiente de teste, assinatura de URL e acesso aos objetos reais.
+- Fazer testes funcionais completos antes de qualquer publicação em produção.
+- A cópia teve zero erros e os tamanhos foram conferidos, mas ainda falta auditoria por hash e investigação da diferença de metadados.
