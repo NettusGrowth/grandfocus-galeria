@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       ? Math.min(86400, Math.max(60, Math.floor(expiresInRaw)))
       : 300
     const downloadName = typeof body?.download_name === 'string'
-      ? body.download_name.replace(/[\\r\\n"\\\\]/g, '').slice(0, 180)
+      ? body.download_name.replaceAll('\r', '').replaceAll('\n', '').replaceAll('"', '').replaceAll('\\', '').slice(0, 180)
       : null
 
     const urls = await Promise.all(keys.map(async (key: string) => {
