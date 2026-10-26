@@ -31,7 +31,7 @@ As credenciais S3 do R2 permanecem exclusivamente em secrets da Edge Function. O
 - `supabase/functions/selecao-publica/index.ts`: gera links R2 para prévias e arquivos de seleção. A função de download continua consultando `selecao_download_liberado()`; a alta resolução não deve ser liberada antes da autorização de pagamento no banco.
 - `index.html`: roteia assinatura, upload, download, processamento de miniaturas e exclusão de fotos de galeria/seleção por meio do adaptador R2. Os caminhos de perfil/escola/aluno/post que não correspondem aos padrões de fotos principais continuam no Supabase.
 - `scripts/check-inline-js.mjs`: verifica sintaxe dos scripts JavaScript inline de `index.html`.
-- `.github/workflows/edge-functions-check.yml`: executa o verificador de sintaxe do app, `deno check` nas Edge Functions da migração e o teste unitário `deno test supabase/functions/_shared/r2_mime_test.ts`.
+- `.github/workflows/edge-functions-check.yml`: executa o verificador de sintaxe do app, `deno check` nas Edge Functions da migração, testes unitários de tipos MIME e testes offline para montagem das URLs pré-assinadas GET/PUT.
 
 ## Configuração necessária no Cloudflare
 
