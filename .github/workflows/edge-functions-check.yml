@@ -37,9 +37,16 @@ jobs:
         with:
           deno-version: v2.x
       - name: Check R2 adapter and migrated functions
+        env:
+          # Dummy credentials are used only to calculate presigned URLs locally.
+          # The test never sends a request to this endpoint.
+          R2_ENDPOINT: https://00000000000000000000000000000000.r2.cloudflarestorage.com
+          R2_ACCESS_KEY_ID: test-access-key
+          R2_SECRET_ACCESS_KEY: test-secret-key
+          R2_BUCKET: grandfocus-fotos
         run: |
           deno check supabase/functions/_shared/r2.ts
-          deno test supabase/functions/_shared/r2_mime_test.ts
+          deno test --allow-env supabase/functions/_shared/r2_mime_test.ts supabase/functions/_shared/r2_signing_test.ts
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
