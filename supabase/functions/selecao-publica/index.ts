@@ -18,7 +18,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 import { signR2Object } from '../_shared/r2.ts'
 
 const BUCKET = 'fotos-grandfocus'
-const R2_KEY = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+|selecoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/[^/]+)$/i
+const R2_KEY = /^(?:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/|selecoes\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/).+$/i
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
