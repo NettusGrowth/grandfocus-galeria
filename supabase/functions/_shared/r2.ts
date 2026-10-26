@@ -79,7 +79,11 @@ export async function signR2Upload(
   return await getSignedUrl(
     client,
     new PutObjectCommand({ Bucket: bucket, Key: key, ContentType: contentType }),
-    { expiresIn },
+    {
+      expiresIn,
+      // The browser must send exactly the Content-Type covered by the signature.
+      signableHeaders: new Set(['content-type']),
+    },
   )
 }
 
