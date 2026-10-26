@@ -20,7 +20,7 @@ As credenciais S3 do R2 permanecem exclusivamente em secrets da Edge Function. O
 
 ## Código preparado na branch
 
-- `supabase/functions/_shared/r2.ts`: cria URLs GET/PUT pré-assinadas e permite exclusão controlada de objetos no servidor.
+- `supabase/functions/_shared/r2.ts`: cria URLs GET/PUT pré-assinadas e permite exclusão controlada de objetos no servidor. A assinatura GET define o MIME de resposta pela extensão; a assinatura PUT inclui explicitamente `content-type` entre os cabeçalhos assinados.
 - `supabase/functions/r2-storage/index.ts`: adaptador autenticado para assinar URLs, preparar upload direto e apagar objetos R2.
   - Extrai o bearer token do cabeçalho e o passa explicitamente a `auth.getUser(token)` porque o cliente foi criado com `persistSession: false`; assim não depende de uma sessão local inexistente.
   - Usa `meu_perfil()` para obter o papel.
