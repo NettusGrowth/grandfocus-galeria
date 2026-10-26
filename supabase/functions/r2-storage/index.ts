@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
   })
   // Pass the bearer token explicitly: this client has persistSession:false
   // and intentionally has no browser/local session to fall back to.
-  const accessToken = authHeader.replace(/^Bearer\\s+/i, '')
+  const accessToken = authHeader.replace(/^Bearer\s+/i, '')
   const { data: authData, error: authError } = await userDb.auth.getUser(accessToken)
   if (authError || !authData?.user) return json({ error: 'Sessão inválida ou expirada.' }, 401)
 
