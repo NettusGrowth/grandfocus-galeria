@@ -139,6 +139,6 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 - O deploy de produção não foi executado por esta migração.
 - Nenhum objeto do bucket Supabase foi apagado por esta migração.
 - A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
-- O GitHub Actions terminou com sucesso no commit `ecf210d37fe2b9203898da7fdb57ddb249f91f39` (runs `40272991630` e `40272994647`, eventos push e pull request): sintaxe do JavaScript inline, `deno check` das quatro Edge Functions e teste unitário do mapeamento MIME. Essa checagem é estática; testes funcionais e configuração de secrets ainda estão pendentes. Uma falha de tipagem em `galeria-publica` foi corrigida antes dessas execuções verdes.
+- O GitHub Actions terminou com sucesso no commit `3a140684cd9187c727ce13591dbe8d4a3862d160` (runs `40273628618` e `40273633674`, push e pull request): sintaxe do JavaScript inline, `deno check` das quatro Edge Functions e teste unitário do mapeamento MIME. Essa checagem é estática; testes funcionais e configuração dos secrets ainda estão pendentes. As rodadas anteriores também corrigiram a tipagem de `galeria-publica` e ajustaram a validação do bearer JWT no adaptador autenticado para passar o token explicitamente a `auth.getUser(token)`.
 - Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
 - Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
