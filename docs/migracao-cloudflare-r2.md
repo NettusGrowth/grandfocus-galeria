@@ -48,9 +48,14 @@ Como o adaptador fornece URLs de upload e exclusão, as credenciais do servidor 
 
 ### CORS do bucket R2
 
-Uploads por `fetch(PUT)` e leituras pela origem do site exigem uma política CORS no bucket R2. Isso ainda precisa ser configurado e testado; não foi alterado automaticamente nesta etapa.
+A política CORS foi configurada via API Cloudflare e conferida por uma leitura posterior. Regra `grandfocus-galeria-site`:
 
-No painel Cloudflare, abrir R2 → bucket `grandfocus-fotos` → Settings → CORS Policy e configurar uma regra com a origem real do site, métodos `GET`, `PUT` e `HEAD`, cabeçalho permitido `Content-Type` e cache preflight com duração razoável. Acrescentar somente as origens de preview e localhost efetivamente usadas durante testes; substituir os placeholders antes de salvar. Não usar um wildcard de origem como solução permanente. A política CORS do bucket é diferente dos cabeçalhos CORS da Edge Function.
+- Origens: `https://galeria.grandfocus.com.br` e `https://grandfocus-galeria.vercel.app`.
+- Métodos: `GET`, `HEAD`, `PUT`.
+- Cabeçalho permitido: `Content-Type`.
+- `ETag` exposto e cache de preflight de 3.600 segundos.
+
+Isso é uma configuração de infraestrutura realizada, mas não equivale a teste funcional de upload/download. Deploys de preview do Vercel podem usar hosts individuais que não estão nesta lista; só adicionar uma origem de preview quando houver necessidade e ela for conhecida. Não usar wildcard como solução permanente. A política CORS do bucket é diferente dos cabeçalhos CORS da Edge Function.
 
 Documentação oficial: https://developers.cloudflare.com/r2/buckets/cors/
 
