@@ -48,7 +48,7 @@ Como o adaptador fornece URLs de upload e exclusão, as credenciais do servidor 
 
 ### Como cadastrar os secrets no Supabase
 
-No painel do Supabase, abra o projeto **GrandFocus** e acesse **Edge Functions → Secrets** (ou abra diretamente a página de secrets pelo menu Functions). Cadastre os quatro nomes abaixo, cada um com o valor correspondente da conta R2. É possível salvar vários de uma vez.
+No painel do Supabase, abra [GrandFocus → Edge Function Secrets](https://supabase.com/dashboard/project/selnsjtumkxjrtnqofqx/functions/secrets). Cadastre os quatro nomes abaixo, cada um com o valor correspondente da conta R2. É possível salvar vários de uma vez.
 
 ```dotenv
 R2_ENDPOINT=https://763a7874d95665cbe09a06871e44e04b.r2.cloudflarestorage.com
