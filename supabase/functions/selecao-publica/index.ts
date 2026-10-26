@@ -55,12 +55,10 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
   return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
 }
 
-// createSignedUrl (singular) faz uma chamada de rede por foto — com uma
-// galeria de 20-30 fotos isso empilha centenas de ms cada e vira uma
-// espera visível (era a causa real dos "30 segundos" pra alta resolução
-// aparecer após o pagamento). createSignedUrls (plural) resolve tudo
-// numa única chamada à Storage API, igual ao cache em lote que o client
-// já usa pra thumbnails/avatares.
+// A assinatura das URLs do R2 é feita localmente com as credenciais
+// server-side, em paralelo. Cada URL é temporária; a leitura do objeto
+// só acontece quando o navegador abre o link, e nunca expomos credenciais
+// S3 ao cliente.
 async function assinarEmLote(lista: any[], campoPath: string) {
   if (!Array.isArray(lista) || lista.length === 0) return []
   return await Promise.all(lista.map(async (f) => {
