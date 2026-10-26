@@ -11276,7 +11276,10 @@ async function _baixarUrl(url, nomeArquivo) {
 async function _baixarFotoComRetentativa(it) {
   for (let tentativa = 1; tentativa <= 2; tentativa++) {
     try {
-      const resp = await fetch(it.url)
+      // A <img> may have cached this signed R2 URL as a no-cors response.
+      // Bypass that cache entry so the subsequent CORS fetch gets R2's
+      // Access-Control-Allow-Origin header and can read bytes for download.
+      const resp = await fetch(it.url, { cache: 'no-store' })
       if (!resp.ok) throw new Error('HTTP ' + resp.status)
       const blob = await resp.blob()
       return new File([blob], it.nome, { type: blob.type || 'image/jpeg' })
