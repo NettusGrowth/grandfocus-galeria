@@ -88,7 +88,7 @@ Auditoria executada anteriormente no ambiente local:
 
 A auditoria SHA-256 confirma igualdade entre os arquivos locais e os objetos verificados do R2; ela, isoladamente, não comprova que cada registro de metadados do banco tenha caminho correspondente nem valida o comportamento do site.
 
-**Metadados HTTP dos objetos:** em 26/10/2026, a listagem da API Cloudflare confirmou 2.225 objetos (14.585.988.073 bytes) e todos os 2.225 estavam com `Content-Type: application/octet-stream`, apesar das extensões `.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf` e `.mp4`. Isso não altera a integridade dos bytes, mas pode afetar a interpretação de imagens/arquivos no navegador. O helper `signR2Object` agora assina `ResponseContentType` coerente com a extensão, sem precisar retransferir os arquivos existentes; uploads novos já assinam o `Content-Type` correto. Essa correção ainda exige teste funcional com secrets configurados, confirmando o cabeçalho HTTP real de cada tipo de arquivo.
+**Metadados HTTP dos objetos:** em 26/10/2026, a listagem da API Cloudflare confirmou 2.225 objetos (14.585.988.073 bytes) e todos os 2.225 estavam com `Content-Type: application/octet-stream`, apesar das extensões `.jpg`, `.jpeg`, `.png`, `.webp`, `.pdf` e `.mp4`. Isso não altera a integridade dos bytes, mas pode afetar a interpretação de imagens/arquivos no navegador. O helper `signR2Object` agora assina `ResponseContentType` coerente com a extensão, sem precisar retransferir os arquivos existentes; uploads novos já assinam o `Content-Type` correto. Essa correção foi validada em teste funcional real no navegador da prévia em 26/10/2026: um GET assinado de uma foto existente devolveu `image/jpeg`; o envio via PUT pré-assinado passou pelo CORS real do navegador; a leitura de volta devolveu os mesmos bytes e SHA-256; e a exclusão foi confirmada. O teste usou um objeto temporário e não alterou linhas do banco. O CORS temporário da prévia foi retirado ao fim.
 
 ## Observações sobre o inventário Supabase
 
@@ -124,7 +124,7 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 
 1. Obter uma branch/ambiente de teste sem custo adicional. No levantamento atual, a API não retornou branches de desenvolvimento Supabase. Não criar branch Supabase que possa cobrar por hora.
 2. Configurar secrets de teste e política CORS de R2 em origens restritas.
-3. Executar o workflow. A checagem estática e o teste unitário do mapeamento MIME passam no commit atual; isso não substitui os testes funcionais contra o R2 e o navegador.
+3. Executar o workflow e os testes funcionais. Em 26/10/2026, o workflow passou e o teste real no navegador da prévia aprovou leitura de foto existente, PUT com URL assinada e CORS automático do browser, GET de volta com SHA-256 idêntico e exclusão confirmada. Esse smoke test não gravou linhas no banco. O teste valida a camada assinada R2, mas não substitui o teste do fluxo completo de cadastro de foto/miniatura do app, nem os fluxos de seleção e pagamento.
 4. Conferir por amostragem que os caminhos referenciados por `fotos.storage_path`, `fotos.thumb_path`, capas privadas e seleção existem no R2; incluir a checagem de todos os caminhos, não apenas amostra.
 5. Validar a função autenticada `r2-storage`: sessão inexistente/expirada, usuário sem permissão, acesso a foto visível, tentativa de assinar foto alheia, tentativa de upload não administrativo e tentativa de excluir sem papel de administrador.
 6. Validar upload de foto original, upload de miniatura, miniatura ausente/regerada, lightbox/original e downloads de alta resolução.
@@ -137,10 +137,13 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 
 ## Estado atual e bloqueios
 
+- Teste funcional de acesso ao R2 executado na prévia em 26/10/2026: leitura assinada de um JPEG existente, PUT assinado através do CORS do navegador, leitura posterior com SHA-256 idêntico e exclusão do objeto temporário com confirmação de ausência. Resultado informado na interface: `APROVADO`. Nenhuma linha foi criada ou alterada no banco.
+- A origem temporária de prévia foi retirada da política CORS depois do teste; a política foi restaurada para `https://galeria.grandfocus.com.br` e `https://grandfocus-galeria.vercel.app`. A página de smoke test foi removida da branch.
+
 - Preparação em branch; Pull Request #1 continua draft/aberto: https://github.com/NettusGrowth/grandfocus-galeria/pull/1
-- O deploy de produção não foi executado por esta migração.
+- O deploy de produção não foi executado por esta migração; o domínio oficial ainda usa o HTML da branch `main`.
 - Nenhum objeto do bucket Supabase foi apagado por esta migração.
 - A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
 - O GitHub Actions terminou com sucesso no commit `5ce0baaf5d693c346e33d879c96fd96380302ab3` (run `40274574271`, push) e no commit atual da documentação `470f9b661eaf6bbaab075687d021ebd81304a950` (run `40274643033`, pull request): sintaxe do JavaScript inline, `deno check` das quatro Edge Functions, teste MIME e três testes offline de geração SigV4. Os testes confirmam o MIME de resposta, o nome de download e que `content-type` está entre os cabeçalhos assinados do PUT. A validação usa credenciais fictícias, permite apenas variáveis necessárias da família R2/AWS/Smithy e metadados do ambiente de teste, e não dá permissão de rede ao código dos testes. Ela não substitui os testes funcionais com o projeto e as origens reais. As rodadas anteriores corrigiram a tipagem de `galeria-publica`, a validação do bearer JWT com `auth.getUser(token)` e a assinatura do `Content-Type` em URLs PUT.
-- Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
+- Teste funcional confirmado em 26/10/2026 para leitura assinada, CORS/PUT via navegador, leitura de volta, SHA-256 e exclusão de objeto temporário. Ainda não foram concluídos os testes com papéis não administrativos, o fluxo completo de upload e registro da foto/miniatura, seleção/pagamento, nem a validação em Android e Safari/iOS.
 - Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
