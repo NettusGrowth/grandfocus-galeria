@@ -129,6 +129,6 @@ Não excluir objetos do Supabase com base apenas nessas contagens.
 - O deploy de produção não foi executado por esta migração.
 - Nenhum objeto do bucket Supabase foi apagado por esta migração.
 - A cópia local→R2 tem auditoria SHA-256 completa documentada acima.
-- O GitHub Actions terminou com sucesso no commit `b4108ca35bd385057db6248867eca77890b7d8be` (run `40270737052`): verificação de sintaxe do JavaScript inline e `deno check` das quatro Edge Functions. Essa checagem é estática; testes funcionais e configuração de CORS/secrets ainda estão pendentes.
+- O GitHub Actions terminou com sucesso no commit `1a6f00a83dfa3de8fa2f78d8c8c9e94802f77a33` (run `40272461917`, execução 27): verificação de sintaxe do JavaScript inline e `deno check` das quatro Edge Functions. Essa checagem é estática; testes funcionais e configuração de CORS/secrets ainda estão pendentes. A execução identificou e permitiu corrigir a tipagem do cliente Supabase em `galeria-publica` antes da validação verde.
 - Não há confirmação automática nesta documentação de que todas as URLs R2 estejam funcionais no browser, nem de que o limite de quota do Supabase já tenha sido sanado.
 - Não mergear nem publicar até resolver os bloqueios e validar uma forma de rollback.
