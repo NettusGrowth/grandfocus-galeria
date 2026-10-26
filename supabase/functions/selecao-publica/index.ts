@@ -50,7 +50,7 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
   const { data, error } = await admin.rpc('selecao_publica_dados', { p_token: token, p_senha: senha })
   if (error) { console.error('selecao-publica[dados]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
-  const fotos = await assinarEmLote(admin, data.fotos || [], 'storage_path')
+  const fotos = await assinarEmLote(data.fotos || [], 'storage_path')
 
   return json({ galeria: data.galeria, fotos: fotos.filter((f) => f.url), pedido: data.pedido, pix: data.pix, pagamento_automatico: !!data.pagamento_automatico })
 }
@@ -61,11 +61,23 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
 // aparecer após o pagamento). createSignedUrls (plural) resolve tudo
 // numa única chamada à Storage API, igual ao cache em lote que o client
 // já usa pra thumbnails/avatares.
-async function assinarEmLote(_admin: any, lista: any[], campoPath: string) {
-  if (!lista.length) return []
+async function assinarEmLote(lista: any[], campoPath: string) {
+  if (!Array.isArray(lista) || lista.length === 0) return []
   return await Promise.all(lista.map(async (f) => {
-    try { return { id: f.id, url: await signR2Object(f[campoPath], 3600) }
-    catch (e) { console.error('selecao-publica: falha ao assinar objeto R2', { id: f.id, message: String(e) }); return { id: f.id, url: null } }
+    try {
+      const key = f?.[campoPath]
+      if (typeof key !== 'string' || !key.trim()) {
+        throw new Error(`Chave R2 ausente no campo ${campoPath}`)
+      }
+      return { id: f.id, url: await signR2Object(key, 3600) }
+    } catch (e) {
+      console.error('selecao-publica: falha ao assinar objeto R2', {
+        id: f?.id ?? null,
+        campoPath,
+        message: String(e),
+      })
+      return { id: f?.id ?? null, url: null }
+    }
   }))
 }
 
@@ -151,8 +163,8 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
   if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
   const [fotos, bastidores] = await Promise.all([
-    assinarEmLote(admin, data.fotos || [], 'storage_path_alta'),
-    assinarEmLote(admin, data.bastidores || [], 'storage_path_alta'),
+    assinarEmLote(data.fotos || [], 'storage_path_alta'),
+    assinarEmLote(data.bastidores || [], 'storage_path_alta'),
   ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
 }
