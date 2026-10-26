@@ -7,6 +7,7 @@ import {
   DeleteObjectCommand,
 } from 'npm:@aws-sdk/client-s3'
 import { getSignedUrl } from 'npm:@aws-sdk/s3-request-presigner'
+import { responseContentTypeForKey } from './r2_mime.ts'
 
 const endpoint = Deno.env.get('R2_ENDPOINT')
 const accessKeyId = Deno.env.get('R2_ACCESS_KEY_ID')
@@ -26,26 +27,6 @@ const client = new S3Client({
     secretAccessKey: required(secretAccessKey, 'R2_SECRET_ACCESS_KEY'),
   },
 })
-
-function responseContentTypeForKey(key: string): string {
-  const filename = key.toLowerCase().split('/').pop() || ''
-  const extension = filename.includes('.') ? filename.split('.').pop() || '' : ''
-  switch (extension) {
-    case 'jpg':
-    case 'jpeg':
-      return 'image/jpeg'
-    case 'png':
-      return 'image/png'
-    case 'webp':
-      return 'image/webp'
-    case 'pdf':
-      return 'application/pdf'
-    case 'mp4':
-      return 'video/mp4'
-    default:
-      return 'application/octet-stream'
-  }
-}
 
 function validateKey(key: string) {
   if (
