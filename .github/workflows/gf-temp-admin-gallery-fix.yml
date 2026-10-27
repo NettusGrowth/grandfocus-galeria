@@ -1,0 +1,40 @@
+name: Temporary admin gallery repair
+
+on:
+  push:
+    branches:
+      - fix/admin-gallery-refresh-20261027
+    paths:
+      - .github/workflows/gf-temp-admin-gallery-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.ref_name == 'fix/admin-gallery-refresh-20261027'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out isolated repair branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/admin-gallery-refresh-20261027
+          persist-credentials: true
+
+      - name: Apply narrow, guarded source patch
+        run: python3 scripts/gf-temp-apply-admin-gallery-fix.py
+
+      - name: Validate JavaScript syntax and whitespace
+        run: |
+          node scripts/check-inline-js.mjs
+          git diff --check -- index.html
+
+      - name: Commit only the gallery page change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git diff --cached --check
+          git commit -m "Refresh admin album data before rendering folders"
+          git push origin HEAD:fix/admin-gallery-refresh-20261027
