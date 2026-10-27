@@ -36,6 +36,8 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
+      - name: Enable Deno npm dependency auto-install for CI
+        run: echo '{"nodeModulesDir":"auto"}' > deno.json
       - name: Check R2 adapter and migrated functions
         env:
           # Dummy credentials are used only to calculate presigned URLs locally.
