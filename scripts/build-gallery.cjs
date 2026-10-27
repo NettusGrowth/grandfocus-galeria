@@ -16,6 +16,21 @@ function copyTree(src, dst) {
 }
 
 function patchIndex(html) {
+  const migrationAutostart = [
+    "  if (['admin', 'super_admin'].includes(data.role)) setTimeout(() => {",
+    '    void (async function () {',
+    '      const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()',
+    '      if (auxiliaryReady) await _r2FinalizarMigracaoStorage()',
+    '    })()',
+    '  }, 1200)'
+  ].join('\n')
+  if (html.split(migrationAutostart).length !== 2) {
+    throw new Error('Expected one stale R2 migration autostart block; refusing to deploy it on administrator login.')
+  }
+  html = html.replace(migrationAutostart, [
+    '  // A migração/limpeza do R2 é manutenção pontual, não faz parte do login.',
+    '  // Não reexecutar a cópia auxiliar em cada abertura do painel administrativo.'
+  ].join('\n'))
   const gridStart = html.indexOf('function _hidratarPathImg(img, path) {');
   const gridCall = html.indexOf('  _urlAssinada(path).then(urlReal => {', gridStart);
   const gridEndStart = html.indexOf('\n  })', gridCall);
@@ -24,8 +39,9 @@ function patchIndex(html) {
   }
   const gridEnd = gridEndStart + '\n  })'.length;
   const newGridCall = [
+    '  _ativarFallbackImagemVisivel(img, path)',
     '  _urlPreviewValidada(path).then(urlReal => {',
-    '    if (!urlReal) return',
+    '    if (!urlReal || img._gfFallbackIntentado) return',
     '    realAplicada = true',
     '    if (!img.isConnected || urlReal === img.src) return',
     '    img.src = urlReal',
@@ -103,6 +119,28 @@ function patchIndex(html) {
     '  if (fallbackUrl && await _precarregarUrlImagem(fallbackUrl).catch(() => false)) return fallbackUrl',
     '  return null',
     '}',
+    '',
+    'function _ativarFallbackImagemVisivel(img, path, originalPath = null, deveAplicar = () => true) {',
+    '  if (!img) return',
+    '  if (img._gfFallbackHandler) img.removeEventListener(\'error\', img._gfFallbackHandler)',
+    '  img._gfFallbackIntentado = false',
+    '  const fallbackPath = originalPath && originalPath !== path',
+    '    ? originalPath',
+    '    : _originalPathDaMiniatura(path)',
+    '  if (!fallbackPath || fallbackPath === path) { img._gfFallbackHandler = null; return }',
+    '  let tentado = false',
+    '  const handler = () => {',
+    '    if (tentado) return',
+    '    tentado = true',
+    '    img._gfFallbackIntentado = true',
+    '    _urlAssinadaComLimite(fallbackPath).then(url => {',
+    '      if (!url || !img.isConnected || !deveAplicar()) return',
+    '      img.src = url',
+    '    }).catch(() => {})',
+    '  }',
+    '  img._gfFallbackHandler = handler',
+    '  img.addEventListener(\'error\', handler, { once: true })',
+    '}',
     ''
   ].join('\n');
   html = html.replace(helperMarker, '\n' + helper + helperMarker);
@@ -114,13 +152,14 @@ function patchIndex(html) {
     throw new Error('Could not find the expected lightbox image-loading code; refusing to patch.');
   }
   const newLightboxCall = [
+    '  _ativarFallbackImagemVisivel(img, path, f.storage_path, () => _lightboxFotos[_lightboxIdx] === f)',
     "  img.src = _imgCache(path) || ''",
     '  let urlRealAplicada = false',
     '  _carregarImgCache(path).then(blobUrl => {',
-    '    if (blobUrl && !urlRealAplicada && _lightboxFotos[_lightboxIdx] === f) img.src = blobUrl',
+    '    if (blobUrl && !urlRealAplicada && !img._gfFallbackIntentado && _lightboxFotos[_lightboxIdx] === f) img.src = blobUrl',
     '  }).catch(() => {})',
     '  const urlReal = await _urlPreviewValidada(path, f.storage_path)',
-    '  if (urlReal && _lightboxFotos[_lightboxIdx] === f) {',
+    '  if (urlReal && !img._gfFallbackIntentado && _lightboxFotos[_lightboxIdx] === f) {',
     '    urlRealAplicada = true',
     '    if (urlReal !== img.src) img.src = urlReal',
     '  }'
@@ -144,7 +183,9 @@ function main() {
   if (!deployed.includes('_urlPreviewValidada(path, f.storage_path)')) throw new Error('Lightbox fallback missing.');
   if (!deployed.includes('timeoutMs = 8000')) throw new Error('Image timeout fallback missing.');
   if (!deployed.includes('_carregarImgCache(path).then(blobUrl =>')) throw new Error('Non-blocking lightbox cache missing.');
-  console.log('Gallery build passed: timeout fallback and non-blocking lightbox cache.');
+  if (deployed.includes('const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()')) throw new Error('Stale R2 migration autostart must not run on administrator login.');
+  if (!deployed.includes('_ativarFallbackImagemVisivel(img, path)')) throw new Error('Visible image error fallback missing.');
+  console.log('Gallery build passed: timeout fallback, visible-image fallback, and no migration autostart.');
   console.log('Static output:', dist, 'index bytes:', Buffer.byteLength(deployed));
 }
 
