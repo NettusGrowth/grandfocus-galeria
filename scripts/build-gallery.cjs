@@ -47,15 +47,26 @@ function patchIndex(html) {
     '  return path.slice(0, baseStart + marker) + path.slice(baseStart + marker + 6)',
     '}',
     '',
-    'function _precarregarUrlImagem(url) {',
+    'function _precarregarUrlImagem(url, timeoutMs = 8000) {',
     '  return new Promise(resolve => {',
     '    const pre = new Image()',
+    '    let settled = false',
+    '    let timer',
+    '    const finish = ok => {',
+    '      if (settled) return',
+    '      settled = true',
+    '      clearTimeout(timer)',
+    '      pre.onload = null',
+    '      pre.onerror = null',
+    '      resolve(ok)',
+    '    }',
+    '    timer = setTimeout(() => finish(false), timeoutMs)',
+    '    pre.onerror = () => finish(false)',
     "    if (typeof pre.decode === 'function') {",
     '      pre.src = url',
-    '      pre.decode().then(() => resolve(true)).catch(() => resolve(false))',
+    '      pre.decode().then(() => finish(true)).catch(() => finish(false))',
     '    } else {',
-    '      pre.onload = () => resolve(true)',
-    '      pre.onerror = () => resolve(false)',
+    '      pre.onload = () => finish(true)',
     '      pre.src = url',
     '    }',
     '  })',
@@ -82,15 +93,21 @@ function patchIndex(html) {
   html = html.replace(helperMarker, '\n' + helper + helperMarker);
 
   const lightboxStart = html.indexOf('async function renderLightboxAtual() {');
-  const lightboxCall = html.indexOf('  const urlReal = await _urlAssinada(path)', lightboxStart);
+  const lightboxCall = html.indexOf("  img.src = _imgCache(path) || ''", lightboxStart);
   const lightboxEnd = html.indexOf('\n  const evento = store.eventos.find', lightboxCall);
   if (lightboxStart < 0 || lightboxCall < 0 || lightboxEnd < 0) {
     throw new Error('Could not find the expected lightbox image-loading code; refusing to patch.');
   }
   const newLightboxCall = [
+    "  img.src = _imgCache(path) || ''",
+    '  let urlRealAplicada = false',
+    '  _carregarImgCache(path).then(blobUrl => {',
+    '    if (blobUrl && !urlRealAplicada && _lightboxFotos[_lightboxIdx] === f) img.src = blobUrl',
+    '  }).catch(() => {})',
     '  const urlReal = await _urlPreviewValidada(path, f.storage_path)',
-    '  if (urlReal && urlReal !== img.src && _lightboxFotos[_lightboxIdx] === f) {',
-    '    img.src = urlReal',
+    '  if (urlReal && _lightboxFotos[_lightboxIdx] === f) {',
+    '    urlRealAplicada = true',
+    '    if (urlReal !== img.src) img.src = urlReal',
     '  }'
   ].join('\n');
   html = html.slice(0, lightboxCall) + newLightboxCall + html.slice(lightboxEnd);
@@ -110,7 +127,9 @@ function main() {
   const deployed = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
   if ((deployed.match(/function _urlPreviewValidada/g) || []).length !== 1) throw new Error('Fallback helper missing/duplicated.');
   if (!deployed.includes('_urlPreviewValidada(path, f.storage_path)')) throw new Error('Lightbox fallback missing.');
-  console.log('Preview build passed: fallback added only to grid/lightbox image loading.');
+  if (!deployed.includes('timeoutMs = 8000')) throw new Error('Image timeout fallback missing.');
+  if (!deployed.includes('_carregarImgCache(path).then(blobUrl =>')) throw new Error('Non-blocking lightbox cache missing.');
+  console.log('Gallery build passed: timeout fallback and non-blocking lightbox cache.');
   console.log('Static output:', dist, 'index bytes:', Buffer.byteLength(deployed));
 }
 
