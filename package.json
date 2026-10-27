@@ -1,6 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "build": "node scripts/build-preview.cjs"
+    "build": "node scripts/build-gallery.cjs"
   }
 }
