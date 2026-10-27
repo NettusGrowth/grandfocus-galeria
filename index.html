@@ -14207,7 +14207,7 @@ function renderGaleriaAlbunsDaEscola(wrap) {
   const itemHTML = ev => {
     const contagem = ev.fotos?.[0]?.count ?? store.fotos.filter(f => f.evento_id === ev.id).length
     return `
-    <div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
+    <div class="list-item pasta-item" onclick="_galAbrirAlbum('${ev.id}')">
       ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), contagem, _galCapaEvento(ev.id), ev.categoria)}
       <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${contagem} foto(s)</div>
     </div>`
@@ -14250,8 +14250,90 @@ function renderGaleriaAlunosDaEscola(wrap) {
 // o álbum não tem nenhuma subpasta criada (caso mais comum), pra não
 // forçar um clique extra à toa. Reaproveitado por Escolas e Avulsos,
 // os dois caminhos que passam por um evento/ensaio de verdade.
+let _galPastasPorAlbum = new Map()
+let _galAlbumAberturaSeq = 0
+
 function _galSubpastasDisponiveis(eventoId) {
-  return [...new Set(store.fotos.filter(f => f.evento_id === eventoId && f.subpasta).map(f => f.subpasta))].sort()
+  const pelasFotos = store.fotos
+    .filter(f => f.evento_id === eventoId && f.subpasta)
+    .map(f => f.subpasta)
+  // O cache de pastas cadastradas só complementa a galeria administrativa.
+  // Outras contas continuam dependendo exclusivamente dos dados sob a própria RLS.
+  const cadastradas = _galRole === 'admin' ? (_galPastasPorAlbum.get(eventoId) || []) : []
+  return [...new Set([...pelasFotos, ...cadastradas])].sort()
+}
+
+async function _galBuscarVinculosFotosAlbum(tabela, ids, campoOrdem) {
+  const linhas = []
+  // Mantém as consultas pequenas para eventos com centenas ou milhares de fotos.
+  for (let i = 0; i < ids.length; i += 80) {
+    const loteIds = ids.slice(i, i + 80)
+    const lote = await _galBuscarTodasAsLinhas(() => db.from(tabela)
+      .select('*')
+      .in('foto_id', loteIds)
+      .order('foto_id', { ascending: true })
+      .order(campoOrdem, { ascending: true }))
+    linhas.push(...lote)
+  }
+  return linhas
+}
+
+function _galAbrirAlbum(eventoId) {
+  _galAlbumId = eventoId
+  _galSubpasta = null
+  _galFiltroPessoaAlbum = null
+  if (_galRole !== 'admin') {
+    renderGaleriaAdmin()
+    return
+  }
+  return _galAbrirAlbumAtualizado(eventoId)
+}
+
+async function _galAbrirAlbumAtualizado(eventoId) {
+  const seq = ++_galAlbumAberturaSeq
+  try {
+    const [fotosResult, pastasResult] = await Promise.all([
+      _galBuscarTodasAsLinhas(() => db.from('fotos').select('*')
+        .eq('evento_id', eventoId).order('id', { ascending: true })),
+      db.from('evento_subpastas').select('nome').eq('evento_id', eventoId),
+    ])
+    if (seq !== _galAlbumAberturaSeq) return
+
+    const fotos = Array.isArray(fotosResult) ? fotosResult : []
+    const nomesPastas = (pastasResult?.data || [])
+      .map(p => p.nome).filter(nome => typeof nome === 'string' && nome.length > 0)
+    const idsAntigos = new Set(store.fotos
+      .filter(f => f.evento_id === eventoId).map(f => f.id))
+    const idsNovos = new Set(fotos.map(f => f.id))
+    const idsAtualizados = new Set([...idsAntigos, ...idsNovos])
+    const idsConsulta = [...idsNovos]
+    const [fa, fp] = idsConsulta.length
+      ? await Promise.all([
+          _galBuscarVinculosFotosAlbum('foto_aluno', idsConsulta, 'aluno_id'),
+          _galBuscarVinculosFotosAlbum('foto_pessoa', idsConsulta, 'user_id'),
+        ])
+      : [[], []]
+    if (seq !== _galAlbumAberturaSeq) return
+
+    // Substitui só este álbum. RLS continua filtrando cada consulta e nada
+    // é inserido/alterado no banco; outros eventos ficam intocados.
+    store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(fotos)
+    store.fotoAluno = store.fotoAluno.filter(x => !idsAtualizados.has(x.foto_id)).concat(fa)
+    store.fotoPessoa = store.fotoPessoa.filter(x => !idsAtualizados.has(x.foto_id)).concat(fp)
+
+    if (pastasResult?.error) {
+      console.warn('Galeria: não foi possível carregar metadados das pastas', pastasResult.error)
+      _galPastasPorAlbum.delete(eventoId)
+    } else {
+      _galPastasPorAlbum.set(eventoId, [...new Set(nomesPastas)])
+    }
+    renderGaleriaAdmin()
+  } catch (error) {
+    if (seq === _galAlbumAberturaSeq) {
+      console.error('Galeria: falha ao atualizar álbum antes de exibir', error)
+      toast('Não foi possível carregar todas as fotos deste álbum. Tente novamente.')
+    }
+  }
 }
 // capa de pasta — prioriza a capa escolhida pelo admin (eventos.capa_url,
 // a mesma usada no cabeçalho do álbum) pra ficar igual pra todo mundo
