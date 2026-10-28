@@ -2084,6 +2084,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .alba-toggle input:disabled + .trilho{opacity:.35;cursor:default;}
 .alba-toggle input:disabled{cursor:default;}
 </style>
+<style id="digipix-disabled">
+/* Digipix desativado temporariamente sem remover o código nem os dados. */
+#view-admin .tabs .tab[data-tab="albuns"],
+#view-responsavel .tabs .tab[data-tab="meualbum"],
+#resptab-meualbum { display: none !important; }
+</style>
 </head>
 <body>
 
@@ -6672,7 +6678,10 @@ async function carregarResponsaveis() {
   store.responsaveis = data || []
 }
 
+const DIGIPIX_ATIVO = false;
+
 function setAdminTab(tab) {
+  if (tab === 'albuns' && !DIGIPIX_ATIVO) return;
   document.querySelectorAll('#view-admin .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none')
   document.getElementById('admintab-' + tab).style.display = 'block'
@@ -8640,6 +8649,7 @@ function setEscolaTab(tab) {
   _bnSyncActive()
 }
 function setRespTab(tab) {
+  if (tab === 'meualbum' && !DIGIPIX_ATIVO) return;
   if (tab !== 'meualbum') _albumClienteSairTelaCheiaForcado()
   document.querySelectorAll('#view-responsavel .tabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab))
   document.querySelectorAll('#view-responsavel .resp-tab').forEach(el => el.style.display = 'none')
@@ -17901,6 +17911,7 @@ async function _selPubBaixarTodas(tipo) {
 // projetos).
 // ══════════════════════════════════════════════════════════════
 async function iniciarAlbunsAdmin() {
+  if (!DIGIPIX_ATIVO) return;
   document.getElementById('album-editor-wrap').style.display = 'none'
   document.getElementById('albuns-lista-wrap').style.display = ''
   const [{ data: templates, error: e1 }, { data: projetos, error: e2 }] = await Promise.all([
@@ -20933,6 +20944,7 @@ async function _albumClienteVerificarTab() {
 }
 
 async function iniciarAlbumCliente() {
+  if (!DIGIPIX_ATIVO) return;
   const wrap = document.getElementById('album-cliente-wrap')
   if (!wrap) return
   // BUG REAL reportado pelo Luiz: abrir o álbum, fechar/trocar de aba
