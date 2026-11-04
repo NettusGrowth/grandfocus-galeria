@@ -6,6 +6,7 @@ const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório au
 
 const migration = read('supabase/sql/080_contratacao_experiencias.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
+const sharedContracting = read('supabase/functions/_shared/contratacao.ts')
 const webhook = read('supabase/functions/contratacao-webhook/index.ts')
 const adminApi = read('supabase/functions/contratacao-admin/index.ts')
 const build = read('scripts/build-gallery.cjs')
@@ -63,7 +64,7 @@ assert.ok(adminApi.includes("evento_provedor', 'refunded'"), 'A conciliação au
 assert.ok(migration.includes("não corresponde à resposta validada da InfinitePay"), 'A RPC de pagamento precisa conferir os valores contra payment_check.')
 assert.ok(webhook.includes('normalizeInfinitePayEventType'), 'Webhook deve normalizar eventos do corpo e dos cabeçalhos.')
 assert.ok(webhook.includes('constantTimeTokenMatch'), 'Webhook deve exigir um token secreto antes de acessar o banco.')
-assert.ok(publicApi.includes('CONTRATACAO_WEBHOOK_TOKEN'), 'Checkout só pode ser criado quando o token do webhook estiver configurado.')
+assert.ok(publicApi.includes('getContratacaoWebhookToken()') && sharedContracting.includes('CONTRATACAO_WEBHOOK_TOKEN'), 'Checkout só pode ser criado quando o token do webhook estiver configurado no helper servidor.')
 assert.ok(webhook.includes('shouldRetryInfinitePayPaymentCheck'), 'Webhook deve aplicar política de tentativas em pagamentos sem confirmação.')
 assert.ok(read('supabase/functions/_shared/infinitepay_webhook_test.ts').includes('Deno.test'), 'A política do webhook deve ter testes unitários.')
 assert.ok(webhook.includes('payment_check_nao_validou_identificadores'), 'Webhook não pode alterar pedidos com notificações não validadas.')
