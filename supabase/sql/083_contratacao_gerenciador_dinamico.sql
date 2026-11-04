@@ -452,7 +452,7 @@ begin
       and ativo = true;
 
     if not found then
-      raise exception 'Pacote inválido para esta campanha.';
+      raise exception 'Experiência inválida para esta campanha.';
     end if;
 
     if v_item ? 'coreografias'
@@ -676,7 +676,7 @@ begin
     or length(v_documento) not between 11 and 14
     or coalesce(v_evento.fornecedor_email,'') !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$'
     or (v_evento.autorizacao_imagem_conteudo is not null and v_evento.autorizacao_imagem_versao is null) then
-    raise exception 'Faltam dados obrigatórios ou há informações inválidas. Revise data, local, horários, capacidade, prazo, termos, privacidade e identificação do fornecedor.';
+    raise exception 'Faltam dados obrigatórios ou há informações inválidas. Revise data, local, horários e capacidade quando houver miniensaio, prazo de vendas, termos, privacidade e identificação do fornecedor.';
   end if;
 
   if v_evento.whatsapp_atendimento is not null
@@ -691,7 +691,7 @@ begin
     and preco_centavos > 0;
 
   if v_pacotes < 1 then
-    raise exception 'Ative ao menos um pacote com preço válido.';
+    raise exception 'Ative ao menos uma experiência com preço válido.';
   end if;
 
   if exists (
@@ -701,7 +701,7 @@ begin
       and inclui_palco = true
       and minimo_fotos_por_coreografia < 10
   ) then
-    raise exception 'Pacotes com fotos de palco precisam manter o mínimo de 10 fotos por coreografia.';
+    raise exception 'Experiências com fotos de palco precisam manter o mínimo de 10 fotos por coreografia.';
   end if;
 
   -- A capacidade nunca pode ser reduzida abaixo das vagas já vendidas
