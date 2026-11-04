@@ -204,7 +204,7 @@ begin
     v_ordem := coalesce(nullif(v_item->>'ordem','')::integer,v_count);
 
     if v_preco is null or v_preco not between 100 and 100000000 then
-      raise exception 'O valor de cada experiência deve ficar entre R$ 1,00 e R$ 1.000.000,00.';
+      raise exception 'O preço de cada experiência deve ficar entre R$ 1,00 e R$ 1.000.000,00.';
     end if;
     if v_minimo < 0 or v_minimo > 1000 then
       raise exception 'O mínimo de fotografias por coreografia é inválido.';
