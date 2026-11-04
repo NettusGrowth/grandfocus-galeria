@@ -79,6 +79,8 @@ jobs:
         run: echo '{"nodeModulesDir":"auto"}' > deno.json
       - name: Test InfinitePay webhook normalization and retry policy
         run: deno test supabase/functions/_shared/infinitepay_webhook_test.ts
+      - name: Test InfinitePay checkout URL allowlist
+        run: deno test supabase/functions/_shared/infinitepay_checkout_test.ts
       - name: Check R2 adapter and migrated functions
         env:
           # Dummy credentials are used only to calculate presigned URLs locally.
