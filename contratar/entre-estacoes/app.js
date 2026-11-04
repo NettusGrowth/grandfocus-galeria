@@ -358,8 +358,7 @@ function renderCampaign(data) {
   }
 
   document.getElementById('supplier-footer').textContent =
-    campaign.fornecedor_nome + ' • Documento ' + campaign.fornecedor_documento + ' • ' +
-    campaign.fornecedor_endereco + ' • ' + campaign.fornecedor_email
+    campaign.fornecedor_nome + ' • CNPJ ' + campaign.fornecedor_documento + ' • ' + campaign.fornecedor_email
 
   if (campaign.whatsapp_atendimento) {
     const contact = document.createElement('span')
