@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#182432">
+  <meta name="description" content="Contratação de experiências fotográficas Grand Focus para o espetáculo Entre Estações.">
+  <title>Entre Estações | Grand Focus Fotografia</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">GRAND FOCUS<small>FOTOGRAFIA</small></a>
+    <span class="header-note">Experiência fotográfica • Contratação online</span>
+  </header>
+
+  <main class="page-shell">
+    <section class="hero">
+      <p class="eyebrow">Uma lembrança para guardar</p>
+      <h1>Entre Estações</h1>
+      <p class="hero-copy">
+        Registre a presença, a dedicação e a beleza de cada bailarina nesta etapa da sua trajetória.
+        Escolha a experiência de cada participante e conclua a contratação com segurança.
+      </p>
+      <div class="event-meta" id="event-meta" aria-live="polite">
+        <span class="meta-chip">Grand Focus Fotografia</span>
+        <span class="meta-chip">Studio Entrepliés</span>
+      </div>
+    </section>
+
+    <section class="status-card" id="loading-state">
+      <h2>Preparando a contratação</h2>
+      <p>Estamos carregando as informações oficiais da experiência.</p>
+    </section>
+
+    <section class="status-card warning hidden" id="closed-state">
+      <h2>Contratações ainda não liberadas</h2>
+      <p id="closed-message">Esta experiência ainda está sendo configurada. Assim que a campanha for liberada, as opções de contratação aparecerão aqui.</p>
+    </section>
+
+    <section class="status-card hidden" id="return-state" aria-live="polite">
+      <h2 id="return-title">Estamos conferindo seu pagamento</h2>
+      <p id="return-message">Aguarde enquanto confirmamos a informação diretamente com a InfinitePay.</p>
+      <div class="action-row" id="return-actions"></div>
+    </section>
+
+    <form id="contract-form" class="hidden" novalidate>
+      <section class="panel">
+        <h2>Escolha a experiência</h2>
+        <p class="panel-intro">
+          Você pode incluir mais de uma bailarina no mesmo pedido. Cada participante terá seu próprio pacote e suas próprias coreografias.
+        </p>
+        <div id="participants-list"></div>
+        <div class="action-row">
+          <button class="btn btn-secondary" type="button" id="add-participant">Adicionar outra bailarina</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Dados do responsável</h2>
+        <p class="panel-intro">Informe os dados de quem está realizando a contratação e receberá as atualizações do pedido.</p>
+        <div class="field-grid">
+          <div class="field full">
+            <label for="responsavel-nome">Nome completo</label>
+            <input id="responsavel-nome" name="responsavel_nome" autocomplete="name" maxlength="120" required>
+          </div>
+          <div class="field">
+            <label for="responsavel-whatsapp">WhatsApp com DDD</label>
+            <input id="responsavel-whatsapp" name="responsavel_whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="(34) 99999-9999" maxlength="20" required>
+          </div>
+          <div class="field">
+            <label for="responsavel-email">E-mail</label>
+            <input id="responsavel-email" name="responsavel_email" type="email" autocomplete="email" maxlength="180" required>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Termos da contratação</h2>
+        <p class="panel-intro">Leia as condições antes de concluir. O aceite será registrado junto ao pedido e à versão apresentada.</p>
+        <div class="terms-box" id="terms-content"></div>
+        <p class="hint" id="terms-version"></p>
+        <div class="consent-list">
+          <label class="consent">
+            <input id="responsavel-legal" type="checkbox" required>
+            <span>Declaro que sou responsável legal pela bailarina menor de idade ou que tenho autorização para realizar esta contratação.</span>
+          </label>
+          <label class="consent">
+            <input id="terms-accepted" type="checkbox" required>
+            <span>Li e aceito os termos da contratação e a política de privacidade informada nesta página.</span>
+          </label>
+          <div class="hidden" id="image-consent-area">
+            <div class="terms-box" id="image-consent-content"></div>
+            <p class="hint" id="image-consent-version"></p>
+            <label class="consent">
+              <input id="image-consent" type="checkbox">
+              <span>Autorizo, de forma opcional e separada, o uso de imagem conforme o texto acima. Esta autorização não é condição para contratar os pacotes.</span>
+            </label>
+          </div>
+        </div>
+        <p class="hint" id="privacy-link"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Resumo do pedido</h2>
+        <div id="order-summary"></div>
+        <div class="total-bar">
+          <div>
+            <div class="total-label">Total da contratação</div>
+            <div class="hint">O pagamento será concluído no ambiente seguro da InfinitePay.</div>
+          </div>
+          <div class="total-value" id="order-total">R$ 0,00</div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" type="submit" id="submit-order">Continuar para pagamento</button>
+          <span class="hint">A disponibilidade do miniensaio é reservada temporariamente durante a finalização do pagamento.</span>
+        </div>
+        <p class="admin-message hidden" id="form-message" role="alert"></p>
+      </section>
+    </form>
+
+    <footer class="site-footer">
+      <strong>Grand Focus Fotografia</strong><br>
+      A experiência de contratação é independente da galeria de fotografias.<br>
+      <span id="supplier-footer"></span>
+    </footer>
+  </main>
+</body>
+</html>
