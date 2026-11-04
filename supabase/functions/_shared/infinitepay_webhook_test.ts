@@ -47,6 +47,12 @@ Deno.test('repete payment_check para paid/settled explícitos e payload pago pro
   }, 'pagamento_pendente'), true)
 })
 
+Deno.test('não repete payment_check em aviso paid de pedido já confirmado', () => {
+  assert.equal(shouldRetryInfinitePayPaymentCheck('paid', {}, 'pago'), false)
+  assert.equal(shouldRetryInfinitePayPaymentCheck('settled', {}, 'reembolsado'), false)
+  assert.equal(shouldRetryInfinitePayPaymentCheck('settled', {}, 'conciliacao_pendente'), true)
+})
+
 Deno.test('não cria loop de retry para refund/cancel ou notificação desconhecida de pedido já pago', () => {
   const paidPayload = {
     invoice_slug: 'invoice-123',

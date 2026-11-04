@@ -85,10 +85,9 @@ export function shouldRetryInfinitePayPaymentCheck(
   body: unknown,
   orderStatus: string,
 ): boolean {
-  if (eventType === 'paid' || eventType === 'settled') return true
-  if (eventType) return false
   const alreadyPaid = orderStatus === 'pago' ||
-    orderStatus === 'conciliacao_pendente' ||
     orderStatus === 'reembolsado'
+  if (eventType === 'paid' || eventType === 'settled') return !alreadyPaid
+  if (eventType) return false
   return !alreadyPaid && isLikelyPaidInfinitePayWebhook(body)
 }

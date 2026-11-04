@@ -191,6 +191,8 @@ Deno.serve(async (req: Request) => {
         : new Response('ok', { status: 200 })
     }
 
+    const previousPayment = pedido.status === 'pago' ||
+      pedido.status === 'conciliacao_pendente'
     await registrarWebhook(admin, {
       pedido_id: pedido.pedido_id,
       order_nsu: orderNsu,
@@ -198,7 +200,9 @@ Deno.serve(async (req: Request) => {
       evento_provedor: eventType,
       payload: body,
       payment_check: check,
-      resultado: eventType + '_validado_sem_pagamento',
+      resultado: previousPayment
+        ? eventType + '_pedido_previamente_pago_exige_revisao_manual'
+        : eventType + '_validado_sem_pagamento',
     })
     // O bloqueio temporário de vaga termina no prazo da reserva; nenhum pagamento é confirmado.
     return new Response('ok', { status: 200 })
