@@ -129,17 +129,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
     return jsonResponse(req, { error: reservaError?.message || 'Não foi possível reservar a experiência.' }, 409)
   }
 
-  if (reserva.checkout_url) {
-    return jsonResponse(req, {
-      checkout_url: reserva.checkout_url,
-      order_nsu: reserva.order_nsu,
-      valor_total_centavos: reserva.valor_total_centavos,
-      reserva_expira_em: reserva.reserva_expira_em,
-      reutilizado: true,
-    })
-  }
-
-  if (reserva.status === 'pago' || reserva.status === 'conciliacao_pendente' || reserva.status === 'expirado') {
+  if (['pago','conciliacao_pendente','expirado','cancelado','reembolsado'].includes(reserva.status)) {
     return jsonResponse(req, {
       error: 'Este pedido não está mais disponível para iniciar um pagamento.',
       status: reserva.status,
@@ -154,6 +144,16 @@ async function actionContratar(req: Request, admin: any, body: any) {
   }
   if (validUntilDate.getTime() > Date.now() + 366 * 24 * 60 * 60 * 1000) {
     return jsonResponse(req, { error: 'O prazo de pagamento configurado excede o limite aceito pelo provedor.' }, 409)
+  }
+
+  if (reserva.checkout_url) {
+    return jsonResponse(req, {
+      checkout_url: reserva.checkout_url,
+      order_nsu: reserva.order_nsu,
+      valor_total_centavos: reserva.valor_total_centavos,
+      reserva_expira_em: reserva.reserva_expira_em,
+      reutilizado: true,
+    })
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
