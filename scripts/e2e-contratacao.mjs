@@ -301,6 +301,7 @@ try {
   assert.equal(await managerPage.locator('#campaign-slug').inputValue(), 'espetaculo-de-teste')
   await managerPage.locator('#create-campaign-button').click()
   await managerPage.waitForURL(url => url.pathname === '/contratar/espetaculo-de-teste/admin/', { timeout:10000 })
+  await managerPage.waitForSelector('#admin-area:not(.hidden)', { timeout:10000 })
   assert.equal(createdCampaign.evento_nome, 'Espetáculo de Teste')
   assert.equal(createdCampaign.data_evento, '2026-12-12')
   assert.equal(createdCampaign.escola_id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
