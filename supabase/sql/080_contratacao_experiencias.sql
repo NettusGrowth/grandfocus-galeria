@@ -798,16 +798,27 @@ set search_path = pg_catalog, public, extensions
 as $$
 declare
   v_pedido public.gf_contratacao_pedidos%rowtype;
+  v_evento_id uuid;
   v_tem_mini boolean;
 begin
-  select * into v_pedido
+  select evento_contratacao_id into v_evento_id
   from public.gf_contratacao_pedidos
-  where order_nsu = p_order_nsu
-  for update;
+  where order_nsu = p_order_nsu;
 
   if not found then
     raise exception 'Pedido não encontrado para conciliação.';
   end if;
+
+  -- Mesma ordem de locks da reserva e da confirmação de pagamento.
+  perform 1
+  from public.gf_contratacao_eventos
+  where id = v_evento_id
+  for update;
+
+  select * into v_pedido
+  from public.gf_contratacao_pedidos
+  where order_nsu = p_order_nsu
+  for update;
 
   if v_pedido.status = 'pago' then
     return jsonb_build_object('status','pago','ja_pago',true);
@@ -823,13 +834,22 @@ begin
       atualizado_em = now()
   where id = v_pedido.id;
 
-  update public.gf_contratacao_pagamentos
-  set transaction_nsu = coalesce(transaction_nsu,p_transaction_nsu),
-      slug = coalesce(slug,p_slug),
+  update public.gf_contratacao_pagamentos p
+  set transaction_nsu = case
+        when p_transaction_nsu is not null
+          and not exists (
+            select 1 from public.gf_contratacao_pagamentos outro
+            where outro.transaction_nsu = p_transaction_nsu
+              and outro.pedido_id <> v_pedido.id
+          )
+          then coalesce(p.transaction_nsu,p_transaction_nsu)
+        else p.transaction_nsu
+      end,
+      slug = coalesce(p.slug,p_slug),
       status = 'conciliacao_pendente',
       ultimo_payment_check = coalesce(p_payment_check,'{}'::jsonb),
       atualizado_em = now()
-  where pedido_id = v_pedido.id;
+  where p.pedido_id = v_pedido.id;
 
   insert into public.gf_contratacao_auditoria(
     evento_contratacao_id,pedido_id,acao,detalhes
@@ -981,6 +1001,78 @@ $$;
 
 -- Publicação somente quando todos os dados operacionais, comerciais e legais
 -- estiverem preenchidos. A campanha começa e permanece como rascunho.
+create or replace function public.gf_contratacao_marcar_reembolsado(
+  p_order_nsu text,
+  p_motivo text,
+  p_usuario_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, extensions
+as $$
+declare
+  v_pedido public.gf_contratacao_pedidos%rowtype;
+  v_evento_id uuid;
+  v_tem_mini boolean;
+begin
+  if length(btrim(coalesce(p_motivo,''))) < 10 then
+    raise exception 'Informe o motivo da conferência do estorno.';
+  end if;
+
+  select evento_contratacao_id into v_evento_id
+  from public.gf_contratacao_pedidos
+  where order_nsu = p_order_nsu;
+
+  if not found then
+    raise exception 'Pedido não encontrado.';
+  end if;
+
+  perform 1
+  from public.gf_contratacao_eventos
+  where id = v_evento_id
+  for update;
+
+  select * into v_pedido
+  from public.gf_contratacao_pedidos
+  where order_nsu = p_order_nsu
+  for update;
+
+  if v_pedido.status = 'reembolsado' then
+    return jsonb_build_object('ok',true,'ja_reembolsado',true);
+  end if;
+
+  if v_pedido.status not in ('pago','conciliacao_pendente') then
+    raise exception 'Somente pedidos pagos ou em conciliação podem ser marcados como reembolsados.';
+  end if;
+
+  select coalesce(bool_or(consome_miniensaio),false) into v_tem_mini
+  from public.gf_contratacao_participantes
+  where pedido_id = v_pedido.id;
+
+  update public.gf_contratacao_pedidos
+  set status = 'reembolsado',
+      reserva_status = case when v_tem_mini then 'expirada' else 'nao_aplicavel' end,
+      atualizado_em = now()
+  where id = v_pedido.id;
+
+  update public.gf_contratacao_pagamentos
+  set status = 'refunded',
+      atualizado_em = now()
+  where pedido_id = v_pedido.id;
+
+  insert into public.gf_contratacao_auditoria(
+    evento_contratacao_id,pedido_id,usuario_id,acao,detalhes
+  ) values (
+    v_pedido.evento_contratacao_id,v_pedido.id,p_usuario_id,
+    'reembolso_confirmado_manualmente',
+    jsonb_build_object('motivo',left(btrim(p_motivo),500))
+  );
+
+  return jsonb_build_object('ok',true,'status','reembolsado','ja_reembolsado',false);
+end;
+$$;
+
 create or replace function public.gf_contratacao_admin_publicar(p_slug text)
 returns jsonb
 language plpgsql
@@ -1015,6 +1107,7 @@ begin
     or v_evento.capacidade_miniensaios < 1
     or v_evento.vendas_encerram_em is null
     or v_evento.vendas_encerram_em <= now()
+    or v_evento.vendas_encerram_em > now() + interval '366 days'
     or v_evento.vendas_encerram_em >= v_evento.miniensaio_inicio
     or v_evento.prazo_entrega_dias is null
     or v_evento.prazo_entrega_dias < 1
@@ -1078,6 +1171,7 @@ revoke all on function public.gf_contratacao_webhook_dados(text) from public, an
 revoke all on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_admin_publicar(text) from public, anon, authenticated;
+revoke all on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) from public, anon, authenticated;
 
 grant execute on function public.gf_contratacao_publica_dados(text) to service_role;
 grant execute on function public.gf_contratacao_payment_config() to service_role;
@@ -1088,3 +1182,4 @@ grant execute on function public.gf_contratacao_webhook_dados(text) to service_r
 grant execute on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) to service_role;
 grant execute on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) to service_role;
 grant execute on function public.gf_contratacao_admin_publicar(text) to service_role;
+grant execute on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) to service_role;
