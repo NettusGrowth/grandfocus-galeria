@@ -429,7 +429,7 @@ document.getElementById('publish-button').addEventListener('click', async () => 
 document.getElementById('pause-button').addEventListener('click', () =>
   changeCampaign('pausar', 'Pausar a campanha? Novas contratações serão bloqueadas.'))
 document.getElementById('close-button').addEventListener('click', () =>
-  changeCampaign('encerrar', 'Encerrar a campanha? Novas contratações serão bloqueadas.'))
+  changeCampaign('encerrar', 'Encerrar definitivamente a campanha? Essa ação não poderá ser desfeita. Para um novo evento, será necessário criar uma nova campanha.'))
 document.getElementById('refresh-orders').addEventListener('click', loadOrders)
 
 const { data: sessionData } = await supabase.auth.getSession()
