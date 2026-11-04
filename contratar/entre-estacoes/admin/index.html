@@ -45,8 +45,9 @@
         <div class="participant-head">
           <div>
             <p class="eyebrow">Painel da campanha</p>
-            <h2>Entre Estações</h2>
+            <h2 id="campaign-title">Configuração da contratação</h2>
             <p class="panel-intro" id="campaign-status">Carregando configuração…</p>
+            <a id="public-link" class="text-button" href="#" target="_blank" rel="noopener noreferrer">Abrir página pública</a>
           </div>
           <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
         </div>
@@ -65,6 +66,10 @@
           <h2>Informações do evento</h2>
           <p class="panel-intro">Os horários e a capacidade precisam ser confirmados antes da publicação.</p>
           <div class="admin-grid">
+            <div class="field full">
+              <label for="campaign-name">Nome público da contratação e do evento</label>
+              <input id="campaign-name" maxlength="120" required>
+            </div>
             <div class="field">
               <label for="event-date">Data do evento</label>
               <input id="event-date" type="date">
@@ -169,8 +174,8 @@
         </section>
 
         <section class="panel">
-          <h2>Experiências e valores</h2>
-          <p class="panel-intro">Os valores são cadastrados em reais e convertidos em centavos no servidor.</p>
+          <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
+          <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
           <div id="package-fields" class="admin-grid"></div>
         </section>
       </form>
