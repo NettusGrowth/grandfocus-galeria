@@ -88,6 +88,7 @@ async function loadConfig() {
   document.getElementById('campaign-title').textContent = currentEvent.nome_publico || 'Configuração da contratação'
   const publicLink = document.getElementById('public-link')
   publicLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/'
+  publicLink.hidden = currentEvent.status !== 'publicado'
   setField('event-date', currentEvent.data_evento)
   setField('event-place', currentEvent.local)
   setField('mini-start', toLocalInput(currentEvent.miniensaio_inicio))
