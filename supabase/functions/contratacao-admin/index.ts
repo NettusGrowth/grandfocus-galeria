@@ -229,19 +229,13 @@ async function actionPublicar(req: Request, admin: any, userId: string) {
 }
 
 async function actionStatus(req: Request, admin: any, userId: string, status: string) {
-  const evento = await getCampaign(admin)
-  const { error } = await admin
-    .from('gf_contratacao_eventos')
-    .update({ status, atualizado_em: new Date().toISOString() })
-    .eq('id', evento.id)
-  if (error) throw new Error('Não foi possível atualizar o status da campanha.')
-  await admin.from('gf_contratacao_auditoria').insert({
-    evento_contratacao_id: evento.id,
-    usuario_id: userId,
-    acao: status === 'pausado' ? 'campanha_pausada' : 'campanha_encerrada',
-    detalhes: {},
+  const { data, error } = await admin.rpc('gf_contratacao_admin_alterar_status', {
+    p_slug: CAMPAIGN_SLUG,
+    p_status: status,
+    p_usuario_id: userId,
   })
-  return jsonResponse(req, { ok: true, status })
+  if (error) return jsonResponse(req, { error: error.message }, 409)
+  return jsonResponse(req, data || { ok: true, status })
 }
 
 async function actionPedidos(req: Request, admin: any) {
