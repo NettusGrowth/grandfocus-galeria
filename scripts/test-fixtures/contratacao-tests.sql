@@ -4,6 +4,7 @@ declare
   v_palco uuid;
   v_idempotency uuid;
   v_mini_result jsonb;
+  v_mini_two_result jsonb;
   v_retry_result jsonb;
   v_palco_result jsonb;
   v_confirm_result jsonb;
@@ -422,6 +423,48 @@ begin
   v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
   if v_status_result->>'status' <> 'reembolsado' then
     raise exception 'A consulta privada do status do pedido reembolsado falhou.';
+  end if;
+
+  -- Uma campanha não pode ser republicada com capacidade menor que
+  -- o número de participantes com miniensaio já vendidos/reservados.
+  update public.gf_contratacao_eventos
+  set capacidade_miniensaios = 2
+  where slug = 'entre-estacoes';
+  v_mini_two_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Segunda Vaga","whatsapp":"34955555555","email":"segunda.vaga@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_mini,
+      'nome','Bailarina Segunda Vaga',
+      'turma','Intermediário',
+      'idade',12,
+      'coreografias','[]'::jsonb
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
+    repeat('a',64),
+    gen_random_uuid()::text,
+    repeat('b',64)
+  );
+  if v_mini_two_result->>'status' <> 'aguardando_pagamento' then
+    raise exception 'A segunda vaga deveria ser reservada quando a capacidade fosse dois.';
+  end if;
+
+  update public.gf_contratacao_eventos
+  set status = 'pausado',
+      capacidade_miniensaios = 1
+  where slug = 'entre-estacoes';
+
+  begin
+    perform public.gf_contratacao_admin_publicar('entre-estacoes');
+    raise exception 'A publicação deveria rejeitar uma capacidade menor que as vagas já vendidas ou reservadas.';
+  exception when others then
+    if sqlerrm not like '%capacidade informada é menor%' then
+      raise;
+    end if;
+  end;
+
+  if (select status from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'pausado' then
+    raise exception 'A campanha não deveria ser publicada quando a capacidade é insuficiente.';
   end if;
 end
 $test$;
