@@ -1235,6 +1235,7 @@ declare
   v_evento public.gf_contratacao_eventos%rowtype;
   v_pacotes integer;
   v_documento text;
+  v_vagas_ocupadas integer := 0;
 begin
   select * into v_evento
   from public.gf_contratacao_eventos
@@ -1301,6 +1302,29 @@ begin
       and minimo_fotos_por_coreografia < 10
   ) then
     raise exception 'Pacotes com fotos de palco precisam manter o mínimo de 10 fotos por coreografia.';
+  end if;
+
+  -- A capacidade nunca pode ser reduzida abaixo das vagas já vendidas
+  -- ou temporariamente reservadas. O lock na linha do evento serializa
+  -- esta conferência com novas reservas e confirmações de pagamento.
+  select count(*)::integer into v_vagas_ocupadas
+  from public.gf_contratacao_participantes p
+  join public.gf_contratacao_pedidos o on o.id = p.pedido_id
+  where o.evento_contratacao_id = v_evento.id
+    and p.consome_miniensaio = true
+    and (
+      o.status in ('pago','conciliacao_pendente')
+      or (
+        o.status in ('aguardando_pagamento','pagamento_pendente')
+        and (
+          o.reserva_expira_em > now()
+          or o.reserva_status = 'conciliacao_pendente'
+        )
+      )
+    );
+
+  if v_vagas_ocupadas > v_evento.capacidade_miniensaios then
+    raise exception 'A capacidade informada é menor que os miniensaios já vendidos ou reservados. Revise as vagas antes de publicar.';
   end if;
 
   update public.gf_contratacao_eventos
