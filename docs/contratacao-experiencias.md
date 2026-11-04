@@ -4,14 +4,20 @@ Módulo isolado da galeria Grand Focus. A página pública fica em
 https://galeria.grandfocus.com.br/contratar/entre-estacoes/ e a administração em
 https://galeria.grandfocus.com.br/contratar/entre-estacoes/admin/.
 
-## Estado desta implementação
+## Estado verificado em 04/11/2026
 
-- Código preparado na branch feature/contratacao-experiencias.
-- A migration 080_contratacao_experiencias.sql ainda não foi executada no Supabase.
-- As Edge Functions contratacao-publica, contratacao-webhook e contratacao-admin ainda não foram publicadas.
-- Nenhum domínio, DNS, configuração de produção ou arquivo principal da galeria foi alterado.
-- Nenhum link de pagamento foi criado e nenhuma cobrança foi realizada.
-- A campanha entre-estacoes nasce como rascunho. Horários, local, capacidade, prazos, fornecedor e termos não são presumidos.
+- As tabelas de contratação já existem no Supabase e a campanha `entre-estacoes` está marcada como `publicado`.
+- As Edge Functions `contratacao-publica`, `contratacao-webhook` e `contratacao-admin` estão implantadas no Supabase.
+- A página e a administração existem no código da branch principal, mas a produção do Vercel ainda aponta para o commit `90d54ce4088e548862281324699ebdefa2167882`, de 28/10/2026. A versão com as páginas de contratação ainda precisa de implantação de produção.
+- A administração atual é isolada e fixa na campanha Entre Estações. Ela permite editar os dados dessa campanha, os três itens de experiência e consultar pedidos, mas não cria campanhas novas nem adiciona experiências novas.
+- A administração não está integrada ao menu principal da galeria.
+- Há um pedido preservado como aguardando pagamento. O registro de pagamento existe, mas não há URL de checkout salva nem confirmação de pagamento.
+- O código ativo foi encontrado sem a verificação real do secret `CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS`, apesar de o comentário e esta documentação dizerem que ela deveria existir. A correção está sendo preparada em branch separada e não deve ser considerada implantada até ser publicada no Supabase.
+- Nenhuma cobrança foi confirmada.
+
+## Limite atual do gerenciador
+
+Ainda não existe um criador reutilizável de campanhas dentro da galeria. Para atender ao uso contínuo, a próxima etapa deve adicionar uma área administrativa chamada **Contratações e experiências**, com listagem de campanhas, criação de nova campanha, edição de experiências e geração automática do link público. A página atual de Entre Estações deve passar a ser apenas uma campanha dentro desse gerenciador.
 
 ## Rotas e arquivos
 
@@ -71,7 +77,7 @@ https://www.infinitepay.io/checkout-documentacao
 - O painel administrativo não devolve ao navegador os hashes de acesso, de idempotência ou de requisição dos pedidos.
 - As configurações da campanha e dos três pacotes são salvas em uma única transação. Uma falha cancela todas as alterações daquela tentativa.
 
-A página pública permanece fechada enquanto CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS não estiver explicitamente ativado. O painel mostra apenas indicadores de presença das credenciais, nunca seus valores.
+A página pode exibir a apresentação da campanha, mas a criação de reserva e checkout deve permanecer bloqueada enquanto CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS não estiver explicitamente ativado. O painel mostra apenas indicadores de presença das credenciais, nunca seus valores.
 
 ## Publicação da campanha
 
