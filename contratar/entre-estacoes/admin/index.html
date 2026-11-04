@@ -53,6 +53,7 @@
           <button class="btn btn-danger" type="button" id="close-button">Encerrar campanha</button>
         </div>
         <p class="admin-message hidden" id="admin-message" role="status"></p>
+        <div class="status-card" id="integration-status" aria-live="polite">Verificando a integração de pagamentos…</div>
       </div>
 
       <form id="config-form">
@@ -127,6 +128,14 @@
             <div class="field">
               <label for="privacy-url">URL da política de privacidade</label>
               <input id="privacy-url" type="url" maxlength="500" placeholder="https://">
+            </div>
+            <div class="field">
+              <label for="privacy-version">Versão da política de privacidade</label>
+              <input id="privacy-version" maxlength="40" placeholder="Exemplo 1.0">
+            </div>
+            <div class="field full">
+              <label for="privacy-text">Texto integral da política de privacidade</label>
+              <textarea id="privacy-text" maxlength="30000" rows="10"></textarea>
             </div>
           </div>
         </section>
