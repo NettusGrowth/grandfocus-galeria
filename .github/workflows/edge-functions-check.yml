@@ -5,6 +5,8 @@ on:
     paths:
       - "index.html"
       - "scripts/**"
+      - "contratar/**"
+      - "supabase/sql/**"
       - "supabase/functions/**"
       - ".github/workflows/edge-functions-check.yml"
   push:
@@ -32,6 +34,12 @@ jobs:
           node-version: 22
       - name: Check embedded app JavaScript syntax
         run: node scripts/check-inline-js.mjs
+      - name: Check contracting page JavaScript syntax
+        run: |
+          node --check contratar/entre-estacoes/app.js
+          node --check contratar/entre-estacoes/admin/admin.js
+      - name: Build static site and verify isolated contracting pages
+        run: npm run build
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
@@ -52,3 +60,7 @@ jobs:
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
+          deno check supabase/functions/_shared/contratacao.ts
+          deno check supabase/functions/contratacao-publica/index.ts
+          deno check supabase/functions/contratacao-webhook/index.ts
+          deno check supabase/functions/contratacao-admin/index.ts
