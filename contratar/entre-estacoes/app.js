@@ -276,7 +276,7 @@ function collectParticipants() {
 
     result.push({
       pacote_id: packageId,
-      nome,
+      nome: name,
       turma,
       idade: ageValue ? Number(ageValue) : null,
       coreografias,

@@ -113,6 +113,8 @@ try {
   assert.ok(submitted, 'A contratação simulada não foi enviada.')
   assert.equal(submitted.responsavel.nome, 'Responsável de Teste')
   assert.equal(submitted.participantes.length, 2)
+  assert.equal(submitted.participantes[0].nome, 'Bailarina Um')
+  assert.equal(submitted.participantes[1].nome, 'Bailarina Dois')
   assert.equal(submitted.participantes[0].pacote_id, '11111111-1111-4111-8111-111111111111')
   assert.equal(submitted.participantes[1].coreografias[0].nome, 'Valsa das Estações')
   assert.equal(submitted.aceite.ciente_privacidade, true)
