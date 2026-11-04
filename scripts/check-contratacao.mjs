@@ -58,6 +58,7 @@ assert.ok(read('supabase/functions/_shared/infinitepay_checkout.ts').includes("p
 assert.ok(read('supabase/functions/_shared/infinitepay_checkout_test.ts').includes('Deno.test'), 'A allowlist do checkout precisa de testes unitários.')
 assert.ok(publicApi.includes('gf_contratacao_registrar_tentativa'), 'A contratação precisa aplicar limites de tentativas.')
 assert.ok(sharedContracting.includes('resolveSupabaseAdminKey'), 'A função deve priorizar o secret key moderno e manter fallback para service_role.')
+assert.ok(sharedContracting.includes('createSupabaseAdminFetch'), 'Chaves secret modernas precisam ser enviadas sem Bearer de API key.')
 assert.ok(read('supabase/functions/_shared/contratacao_admin_key_test.ts').includes('Deno.test'), 'A resolução de chaves administrativas precisa de testes unitários.')
 assert.ok(publicApi.includes('customer:'), 'O checkout deve receber os dados do responsável para pré-preenchimento.')
 assert.ok(publicApi.includes('company_website'), 'O endpoint deve validar o campo honeypot.')
