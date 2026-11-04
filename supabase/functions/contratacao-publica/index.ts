@@ -51,6 +51,12 @@ Deno.serve(async (req: Request) => {
 })
 
 async function actionDados(req: Request, admin: any) {
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      disponivel: false,
+      mensagem: 'Esta experiência está em preparação. As contratações serão liberadas assim que a configuração e os pagamentos forem autorizados.',
+    })
+  }
   const { data, error } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
   if (error) {
     console.error('contratacao-publica[dados]: falha ao consultar campanha', error.message)
@@ -69,6 +75,9 @@ async function actionContratar(req: Request, admin: any, body: any) {
       modo_preparacao: true,
     }, 503)
   }
+  if (String(body?.company_website || '').trim()) {
+    return jsonResponse(req, { error: 'Solicitação inválida.' }, 400)
+  }
   const accessToken = String(body?.access_token || '').trim().toLowerCase()
   const idempotencyKey = String(body?.idempotency_key || '').trim().toLowerCase()
   if (!/^[a-f0-9]{64}$/.test(accessToken)) {
@@ -76,6 +85,47 @@ async function actionContratar(req: Request, admin: any, body: any) {
   }
   if (!/^[a-f0-9-]{36}$/.test(idempotencyKey)) {
     return jsonResponse(req, { error: 'Identificador de solicitação inválido. Atualize a página e tente novamente.' }, 400)
+  }
+
+  const responsavel = {
+    nome: String(body?.responsavel?.nome || '').trim(),
+    whatsapp: String(body?.responsavel?.whatsapp || '').trim(),
+    email: String(body?.responsavel?.email || '').trim().toLowerCase(),
+  }
+  const phoneDigits = responsavel.whatsapp.replace(/\D/g, '')
+  if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+    return jsonResponse(req, { error: 'Informe um WhatsApp válido com DDD.' }, 400)
+  }
+
+  // Limites por IP, e-mail e telefone. Apenas hashes são armazenados no banco.
+  const sourceIp = (
+    req.headers.get('cf-connecting-ip') ||
+    req.headers.get('x-real-ip') ||
+    req.headers.get('x-forwarded-for')?.split(',')[0] ||
+    ''
+  ).trim()
+  const rateKeys = [
+    { hash: await sha256Hex('email:' + responsavel.email), limit: 5, window: 3600 },
+    { hash: await sha256Hex('phone:' + phoneDigits), limit: 5, window: 3600 },
+  ]
+  if (sourceIp) rateKeys.push({ hash: await sha256Hex('ip:' + sourceIp), limit: 20, window: 900 })
+
+  for (const key of rateKeys) {
+    const { data: rate, error: rateError } = await admin.rpc('gf_contratacao_registrar_tentativa', {
+      p_chave_hash: key.hash,
+      p_limite: key.limit,
+      p_janela_segundos: key.window,
+    })
+    if (rateError || !rate) {
+      console.error('contratacao-publica[rate-limit]: falha ao validar limite', rateError?.message || 'sem retorno')
+      return jsonResponse(req, { error: 'Não foi possível validar a segurança da solicitação. Tente novamente.' }, 503)
+    }
+    if (rate.permitido !== true) {
+      return jsonResponse(req, {
+        error: 'Muitas tentativas para estes dados. Aguarde alguns minutos antes de tentar novamente.',
+        retry_after: Number(rate.retry_after) || key.window,
+      }, 429)
+    }
   }
 
   let paymentConfig: { apiKey: string; handle: string }
@@ -89,16 +139,11 @@ async function actionContratar(req: Request, admin: any, body: any) {
   if (campanhaError || !campanha) {
     return jsonResponse(req, { error: 'Esta campanha não está aberta para contratação.' }, 409)
   }
-
-  const responsavel = {
-    nome: String(body?.responsavel?.nome || '').trim(),
-    whatsapp: String(body?.responsavel?.whatsapp || '').trim(),
-    email: String(body?.responsavel?.email || '').trim(),
-  }
   const participantes = Array.isArray(body?.participantes) ? body.participantes : []
   const aceite = {
     responsavel_legal: body?.aceite?.responsavel_legal === true,
     aceitou_termos: body?.aceite?.aceitou_termos === true,
+    ciente_privacidade: body?.aceite?.ciente_privacidade === true,
     uso_imagem: body?.aceite?.uso_imagem === true,
     metadados: { user_agent: String(req.headers.get('user-agent') || '').slice(0, 300) },
   }
@@ -110,6 +155,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
     aceite: {
       responsavel_legal: aceite.responsavel_legal,
       aceitou_termos: aceite.aceitou_termos,
+      ciente_privacidade: aceite.ciente_privacidade,
       uso_imagem: aceite.uso_imagem,
     },
   }))
@@ -174,6 +220,11 @@ async function actionContratar(req: Request, admin: any, body: any) {
           events: ['paid','settled'],
         },
         redirect_url: PUBLIC_CAMPAIGN_URL,
+        customer: {
+          name: responsavel.nome,
+          email: responsavel.email,
+          phone_number: phoneDigits.startsWith('55') ? '+' + phoneDigits : '+55' + phoneDigits,
+        },
         items: [{
           description,
           quantity: 1,
