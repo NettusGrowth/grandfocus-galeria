@@ -43,7 +43,7 @@ Por isso, a função pública exige também o secret CONTRATACAO_ATIVAR_PAGAMENT
 
 A ativação desse secret deve ocorrer somente após autorização expressa para iniciar cobranças reais e depois de confirmar a conta InfinitePay, API Key, handle, dados contratuais e campanha.
 
-O checkout assina os eventos `paid`, `settled`, `refunded`, `canceled` e `payment_failed`, todos documentados pela InfinitePay. Os webhooks não têm assinatura criptográfica. Por isso, os identificadores de cada evento que contém uma transação são conferidos pelo `/payment_check` antes de qualquer atualização financeira.
+O checkout está configurado para notificar os eventos `paid`, `settled`, `refunded`, `canceled` e `payment_failed`, todos documentados pela InfinitePay. Os webhooks não têm assinatura criptográfica. Por isso, os identificadores de cada evento que contém uma transação são conferidos pelo `/payment_check` antes de qualquer atualização financeira.
 
 - `paid` e `settled` só confirmam o pedido quando `payment_check` retorna `success=true` e `paid=true`.
 - `canceled` e `payment_failed` são registrados após a conferência. A reserva temporária termina no prazo configurado; esses eventos não confirmam pagamento.
