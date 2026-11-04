@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 export const PUBLIC_ORIGIN = 'https://galeria.grandfocus.com.br'
-export const PUBLIC_CAMPAIGN_URL = PUBLIC_ORIGIN + '/contratar/entre-estacoes/'
+export const PUBLIC_CAMPAIGN_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co/functions/v1/contratacao-pagina'
 
 export function resolveSupabaseAdminKey(secretKeysJson: string | undefined, legacyServiceRoleKey: string | undefined): string {
   try {
