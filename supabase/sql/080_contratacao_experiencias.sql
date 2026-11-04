@@ -602,8 +602,12 @@ begin
     end if;
   end if;
 
+  -- Uma reserva nunca pode ultrapassar o encerramento das vendas.
   v_expira := case
-    when v_tem_mini then now() + make_interval(mins => v_evento.reserva_minutos)
+    when v_tem_mini then least(
+      now() + make_interval(mins => v_evento.reserva_minutos),
+      v_evento.vendas_encerram_em
+    )
     else null
   end;
   v_order_nsu := v_pedido_id::text;
