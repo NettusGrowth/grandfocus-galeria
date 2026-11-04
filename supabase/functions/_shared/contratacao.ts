@@ -62,16 +62,19 @@ export function safeErrorMessage(error: unknown) {
 
 export async function getInfinitePayConfig(admin: any) {
   const apiKey = Deno.env.get('INFINITEPAY_API_KEY')?.trim() || ''
-  let handle = Deno.env.get('INFINITEPAY_HANDLE')?.trim() || ''
+  let handle = (Deno.env.get('INFINITEPAY_HANDLE') || '').replace(/^\$/, '').trim()
 
   if (!handle) {
     const { data, error } = await admin.rpc('gf_contratacao_payment_config')
     if (error) throw new Error('Não foi possível consultar a configuração da InfinitePay.')
-    handle = data?.handle?.trim?.() || ''
+    // O fluxo de seleção existente também remove o prefixo visual "$" da InfiniteTag salva.
+    handle = String(data?.handle || '').replace(/^\$/, '').trim()
   }
 
   if (!apiKey) throw new Error('A chave INFINITEPAY_API_KEY ainda não foi configurada nos secrets do Supabase.')
+  if (!apiKey.startsWith('inchk_')) throw new Error('INFINITEPAY_API_KEY não tem o formato esperado para o Checkout Integrado.')
   if (!handle) throw new Error('A InfiniteTag ainda não está configurada. Confira a configuração existente da InfinitePay ou defina INFINITEPAY_HANDLE.')
+  if (/[\s$]/.test(handle)) throw new Error('A InfiniteTag contém espaços ou símbolo $. Use a tag exata sem o prefixo $.')
   return { apiKey, handle }
 }
 
