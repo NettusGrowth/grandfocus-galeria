@@ -95,7 +95,20 @@ async function actionConfig(req: Request, admin: any) {
     .eq('evento_contratacao_id', evento.id)
     .order('ordem', { ascending: true })
   if (error) throw new Error('Não foi possível consultar os pacotes.')
-  return jsonResponse(req, { evento, pacotes: pacotes || [] })
+  let handleConfigured = Boolean(Deno.env.get('INFINITEPAY_HANDLE')?.trim())
+  if (!handleConfigured) {
+    const { data: paymentConfig } = await admin.rpc('gf_contratacao_payment_config')
+    handleConfigured = Boolean(paymentConfig?.handle?.trim?.())
+  }
+  return jsonResponse(req, {
+    evento,
+    pacotes: pacotes || [],
+    integracao: {
+      pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
+      api_key_configurada: Boolean(Deno.env.get('INFINITEPAY_API_KEY')?.trim()),
+      infinite_tag_configurada: handleConfigured,
+    },
+  })
 }
 
 async function actionSalvar(req: Request, admin: any, userId: string, body: any) {
@@ -140,6 +153,8 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any)
     termos_versao: nullableText(input.termos_versao, 40, 'Versão dos termos'),
     termos_conteudo: nullableText(input.termos_conteudo, 30000, 'Termos da contratação'),
     privacidade_url: nullableText(input.privacidade_url, 500, 'URL de privacidade'),
+    privacidade_versao: nullableText(input.privacidade_versao, 40, 'Versão da política de privacidade'),
+    privacidade_conteudo: nullableText(input.privacidade_conteudo, 30000, 'Texto da política de privacidade'),
     autorizacao_imagem_versao: nullableText(input.autorizacao_imagem_versao, 40, 'Versão da autorização de imagem'),
     autorizacao_imagem_conteudo: nullableText(input.autorizacao_imagem_conteudo, 10000, 'Texto de autorização de imagem'),
     fornecedor_nome: nullableText(input.fornecedor_nome, 180, 'Nome do fornecedor'),
@@ -252,7 +267,7 @@ async function actionDetalhe(req: Request, admin: any, body: any) {
 
   const { data: pedido, error } = await admin
     .from('gf_contratacao_pedidos')
-    .select('*')
+    .select('id,numero,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,reserva_status,reserva_expira_em,pagamento_confirmado_em,metodo_pagamento,parcelas,valor_pago_centavos,comprovante_path,criado_em,atualizado_em,order_nsu,checkout_url')
     .eq('id', pedidoId)
     .maybeSingle()
   if (error || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
@@ -261,7 +276,7 @@ async function actionDetalhe(req: Request, admin: any, body: any) {
     admin.from('gf_contratacao_participantes')
       .select('id,bailarina_nome,turma,idade,preco_centavos,consome_miniensaio,pacote_id')
       .eq('pedido_id', pedidoId),
-    admin.from('gf_contratacao_pagamentos').select('*').eq('pedido_id', pedidoId).maybeSingle(),
+    admin.from('gf_contratacao_pagamentos').select('id,provedor,order_nsu,transaction_nsu,slug,status,metodo,parcelas,valor_centavos,checkout_url,ultimo_payment_check,criado_em,atualizado_em').eq('pedido_id', pedidoId).maybeSingle(),
     admin.from('gf_contratacao_aceites').select('*').eq('pedido_id', pedidoId).maybeSingle(),
     admin.from('gf_contratacao_webhook_eventos')
       .select('evento_provedor,resultado,criado_em,order_nsu,transaction_nsu')
