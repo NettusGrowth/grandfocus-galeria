@@ -2,6 +2,7 @@ import {
   PUBLIC_CAMPAIGN_URL,
   corsHeaders,
   createAdminClient,
+  getContratacaoWebhookToken,
   getInfinitePayConfig,
   infinitePayCheck,
   jsonResponse,
