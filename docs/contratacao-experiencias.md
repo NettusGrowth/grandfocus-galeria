@@ -48,6 +48,18 @@ O webhook desta versão assina apenas os eventos de pagamento aprovado e liquida
 Documentação oficial InfinitePay
 https://www.infinitepay.io/checkout-documentacao
 
+## Proteção e privacidade
+
+- A contratação pública aplica limites de tentativas por IP, e-mail e telefone. O banco armazena somente hashes desses identificadores e remove registros antigos após sete dias.
+- O formulário inclui um campo honeypot para descartar envios automatizados simples. Isso reduz abuso básico, mas não substitui um desafio gerenciado como Cloudflare Turnstile caso a campanha receba tráfego automatizado relevante.
+- A capacidade máxima de miniensaios não pode exceder o que cabe no período configurado, considerando a duração estimada por bailarina.
+- O aceite guarda cópias e hashes SHA-256 da versão dos termos e da política de privacidade exibidas no momento da contratação.
+- A ciência da política de privacidade é separada do aceite dos termos e da autorização opcional de uso de imagem.
+- O painel administrativo não devolve ao navegador os hashes de acesso, de idempotência ou de requisição dos pedidos.
+- As configurações da campanha e dos três pacotes são salvas em uma única transação. Uma falha cancela todas as alterações daquela tentativa.
+
+A página pública permanece fechada enquanto CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS não estiver explicitamente ativado. O painel mostra apenas indicadores de presença das credenciais, nunca seus valores.
+
 ## Publicação da campanha
 
 A administração permite configurar data, local, período do miniensaio, duração estimada, capacidade, encerramento das vendas, duração da reserva, prazo de entrega, contato, dados do fornecedor, termos, privacidade e pacotes.
