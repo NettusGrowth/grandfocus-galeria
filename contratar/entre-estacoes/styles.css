@@ -130,3 +130,22 @@ tr[data-pedido]:hover td { background: #fbf8f1; }
   .btn { width: 100%; }
   .action-row .btn { flex: 1 1 100%; }
 }
+
+
+.honeypot {
+  position: absolute !important;
+  left: -10000px !important;
+  top: auto !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+}
+.privacy-details {
+  margin-top: 16px;
+}
+.privacy-details summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--ink, #182432);
+  padding: 8px 0;
+}
