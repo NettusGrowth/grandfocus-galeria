@@ -136,6 +136,7 @@ function renderPackages() {
     const card = document.createElement('div')
     card.className = 'participant-card'
     card.dataset.packageCode = pkg.codigo
+    card.dataset.inactive = pkg.ativo === false ? 'true' : 'false'
 
     const heading = document.createElement('div')
     heading.className = 'participant-head'
@@ -144,10 +145,9 @@ function renderPackages() {
     const remove = document.createElement('button')
     remove.type = 'button'
     remove.className = 'text-button'
-    remove.textContent = 'Remover'
+    remove.textContent = pkg.ativo === false ? 'Ativar' : 'Desativar'
     remove.addEventListener('click', () => {
-      if (!window.confirm('Remover esta experiência da página pública? Pedidos anteriores serão preservados.')) return
-      currentPackages = currentPackages.filter(item => item.codigo !== pkg.codigo)
+      pkg.ativo = pkg.ativo === false
       renderPackages()
     })
     heading.append(title, remove)
