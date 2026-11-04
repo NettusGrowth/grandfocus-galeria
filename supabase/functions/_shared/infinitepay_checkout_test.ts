@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { isAllowedInfinitePayCheckoutUrl } from './contratacao.ts'
+import { isAllowedInfinitePayCheckoutUrl } from './infinitepay_checkout.ts'
 
 Deno.test('aceita somente o domínio oficial do checkout InfinitePay', () => {
   assert.equal(isAllowedInfinitePayCheckoutUrl('https://checkout.infinitepay.com.br/abc123'), true)
