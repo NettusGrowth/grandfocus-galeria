@@ -13,6 +13,8 @@ const publicPage = read('contratar/entre-estacoes/index.html')
 const adminPage = read('contratar/entre-estacoes/admin/index.html')
 const publicScript = read('contratar/entre-estacoes/app.js')
 const adminScript = read('contratar/entre-estacoes/admin/admin.js')
+const e2eScript = read('scripts/e2e-contratacao.mjs')
+const workflow = read('.github/workflows/edge-functions-check.yml')
 
 for (const path of [
   'contratar/entre-estacoes/index.html',
@@ -64,5 +66,7 @@ assert.ok(publicPage.includes('company-website'), 'O formulário deve conter o c
 assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script isolado.')
 assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')
 assert.ok(!adminScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no painel público.')
+assert.ok(e2eScript.includes('CHECKOUT MOCK OK'), 'O teste de navegador precisa simular o checkout sem cobrança real.')
+assert.ok(workflow.includes('node scripts/e2e-contratacao.mjs'), 'O CI precisa executar os testes de navegador.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
