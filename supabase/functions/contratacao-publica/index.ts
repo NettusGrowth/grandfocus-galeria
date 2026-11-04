@@ -53,12 +53,6 @@ Deno.serve(async (req: Request) => {
 })
 
 async function actionDados(req: Request, admin: any) {
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
-    return jsonResponse(req, {
-      disponivel: false,
-      mensagem: 'Esta experiência está em preparação. As contratações serão liberadas assim que a configuração e os pagamentos forem autorizados.',
-    })
-  }
   const { data, error } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
   if (error) {
     console.error('contratacao-publica[dados]: falha ao consultar campanha', error.message)
@@ -71,12 +65,6 @@ async function actionDados(req: Request, admin: any) {
 async function actionContratar(req: Request, admin: any, body: any) {
   // Kill switch obrigatório. A InfinitePay não oferece sandbox e a criação de link é real.
   // Nenhum pedido ou link é criado até a ativação explícita deste secret.
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
-    return jsonResponse(req, {
-      error: 'Os pagamentos ainda estão desativados para testes. Nenhuma reserva ou cobrança foi criada.',
-      modo_preparacao: true,
-    }, 503)
-  }
   if (String(body?.company_website || '').trim()) {
     return jsonResponse(req, { error: 'Solicitação inválida.' }, 400)
   }
