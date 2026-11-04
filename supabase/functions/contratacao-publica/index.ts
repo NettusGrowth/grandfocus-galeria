@@ -65,6 +65,13 @@ Deno.serve(async (req: Request) => {
 })
 
 async function actionDados(req: Request, admin: any, campaignSlug: string) {
+  // Mantenha a página pública fechada enquanto o checkout real não estiver autorizado.
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      disponivel: false,
+      mensagem: 'As contratações desta experiência ainda não foram liberadas.',
+    })
+  }
   const { data, error } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: campaignSlug })
   if (error) {
     console.error('contratacao-publica[dados]: falha ao consultar campanha', error.message)
