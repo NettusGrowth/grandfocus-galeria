@@ -57,7 +57,7 @@ const campaign = {
   pacotes: [
     { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares','5 fotos digitais tratadas'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0 },
     { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Mínimo de 10 fotos por coreografia'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10 },
-    { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Pacote completo', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10 }
+    { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Experiência completa', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10 }
   ]
 }
 
@@ -160,7 +160,7 @@ try {
   const adminPackages = [
     { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0, ativo:true, ordem:1 },
     { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Mínimo de 10 fotos por coreografia'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:2 },
-    { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Pacote completo', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:3 }
+    { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Experiência completa', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:3 }
   ]
   const adminIntegration = { pagamentos_reais_ativados:false, api_key_configurada:true, infinite_tag_configurada:true, webhook_token_configurado:true }
   adminPage.on('pageerror', error => adminErrors.push(error.message))
