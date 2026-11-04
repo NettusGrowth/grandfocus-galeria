@@ -64,7 +64,7 @@ https://www.infinitepay.io/checkout-documentacao
 - O formulário inclui um campo honeypot para descartar envios automatizados simples. Isso reduz abuso básico, mas não substitui um desafio gerenciado como Cloudflare Turnstile caso a campanha receba tráfego automatizado relevante.
 - A capacidade máxima de miniensaios não pode exceder o que cabe no período configurado, considerando a duração estimada por bailarina.
 - Ao republicar uma campanha pausada, a capacidade também não pode ficar abaixo da quantidade de miniensaios já vendidos ou com reserva ativa. A verificação é transacional e usa o mesmo bloqueio de evento das novas reservas.
-- Uma campanha marcada como encerrada não pode ser reaberta pelo painel. Para um novo evento, é necessário criar uma nova campanha.
+- Uma campanha marcada como encerrada não pode ser reaberta nem voltar ao estado pausado, inclusive por chamadas diretas à API administrativa. Para um novo evento, é necessário criar uma nova campanha.
 - O aceite guarda cópias e hashes SHA-256 da versão dos termos e da política de privacidade exibidas no momento da contratação.
 - A ciência da política de privacidade é separada do aceite dos termos e da autorização opcional de uso de imagem.
 - O painel administrativo não devolve ao navegador os hashes de acesso, de idempotência ou de requisição dos pedidos.
