@@ -20,6 +20,11 @@ const workflow = read('.github/workflows/edge-functions-check.yml')
 const supabaseConfig = read('supabase/config.toml')
 const reservationTests = read('scripts/test-fixtures/contratacao-tests.sql')
 
+assert.ok(fs.existsSync('assets/grand-focus-assinatura-ouro.png'), 'A assinatura oficial da Grand Focus precisa existir nos assets.')
+assert.ok(publicPage.includes('package-overview-list'), 'A página deve apresentar as experiências antes da escolha.')
+assert.ok(publicScript.includes('function renderPackageOverview'), 'A página deve montar a apresentação das experiências a partir dos dados do banco.')
+assert.ok(adminPage.includes('grand-focus-assinatura-ouro.png'), 'A administração deve usar a assinatura oficial da marca.')
+
 for (const path of [
   'contratar/entre-estacoes/index.html',
   'contratar/entre-estacoes/styles.css',
