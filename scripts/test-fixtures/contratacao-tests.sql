@@ -8,6 +8,8 @@ declare
   v_palco_result jsonb;
   v_confirm_result jsonb;
   v_status_result jsonb;
+  v_rate_result jsonb;
+  v_rate_key text := repeat('9',64);
 begin
   update public.gf_contratacao_eventos
   set data_evento = current_date + 3,
@@ -22,13 +24,57 @@ begin
       termos_versao = '1.0',
       termos_conteudo = 'Termos de teste com mais de cem caracteres para validar a publicação da campanha em ambiente temporário e sem qualquer cobrança real.',
       privacidade_url = 'https://example.com/privacidade',
+      privacidade_versao = '1.0',
+      privacidade_conteudo = 'Política de privacidade de teste com informações sobre finalidade, base legal, dados coletados, armazenamento, compartilhamento, direitos dos titulares e canal de contato para solicitações.',
       fornecedor_nome = 'Fornecedor de Teste',
       fornecedor_documento = '11222333000181',
       fornecedor_endereco = 'Endereço de teste, 100, Centro',
       fornecedor_email = 'teste@example.com'
   where slug = 'entre-estacoes';
 
+  -- A capacidade não pode prometer mais miniensaios do que cabem na janela.
+  update public.gf_contratacao_eventos
+  set capacidade_miniensaios = 1000
+  where slug = 'entre-estacoes';
+  begin
+    perform public.gf_contratacao_admin_publicar('entre-estacoes');
+    raise exception 'A publicação deveria rejeitar uma capacidade impossível para a duração configurada.';
+  exception when others then
+    if sqlerrm not like '%Faltam dados obrigatórios%' then
+      raise;
+    end if;
+  end;
+
+  update public.gf_contratacao_eventos
+  set capacidade_miniensaios = 1
+  where slug = 'entre-estacoes';
   perform public.gf_contratacao_admin_publicar('entre-estacoes');
+
+  -- Rate limit: duas tentativas permitidas, a terceira bloqueada.
+  v_rate_result := public.gf_contratacao_registrar_tentativa(v_rate_key,2,3600);
+  if (v_rate_result->>'permitido')::boolean is not true then
+    raise exception 'A primeira tentativa deveria ser permitida.';
+  end if;
+  v_rate_result := public.gf_contratacao_registrar_tentativa(v_rate_key,2,3600);
+  if (v_rate_result->>'permitido')::boolean is not true then
+    raise exception 'A segunda tentativa deveria ser permitida.';
+  end if;
+  v_rate_result := public.gf_contratacao_registrar_tentativa(v_rate_key,2,3600);
+  if (v_rate_result->>'permitido')::boolean is not false then
+    raise exception 'A terceira tentativa deveria ser bloqueada pelo rate limit.';
+  end if;
+
+  if not has_function_privilege('service_role','public.gf_contratacao_criar_reserva(text,jsonb,jsonb,jsonb,text,text,text)','EXECUTE') then
+    raise exception 'service_role precisa executar a RPC de reserva.';
+  end if;
+  if has_function_privilege('anon','public.gf_contratacao_criar_reserva(text,jsonb,jsonb,jsonb,text,text,text)','EXECUTE')
+    or has_function_privilege('authenticated','public.gf_contratacao_criar_reserva(text,jsonb,jsonb,jsonb,text,text,text)','EXECUTE') then
+    raise exception 'A RPC de reserva não pode ser executável por anon ou authenticated.';
+  end if;
+  if has_table_privilege('anon','public.gf_contratacao_pedidos','SELECT')
+    or has_table_privilege('authenticated','public.gf_contratacao_pedidos','SELECT') then
+    raise exception 'As tabelas de pedidos precisam permanecer privadas.';
+  end if;
 
   select id into v_mini
   from public.gf_contratacao_pacotes
@@ -53,7 +99,7 @@ begin
       'idade',10,
       'coreografias','[]'::jsonb
     )),
-    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
     repeat('a',64),
     v_idempotency::text,
     repeat('b',64)
@@ -73,7 +119,7 @@ begin
       'idade',10,
       'coreografias','[]'::jsonb
     )),
-    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
     repeat('a',64),
     v_idempotency::text,
     repeat('b',64)
@@ -95,7 +141,7 @@ begin
         'idade',11,
         'coreografias','[]'::jsonb
       )),
-      '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+      '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
       repeat('c',64),
       gen_random_uuid()::text,
       repeat('d',64)
@@ -120,7 +166,7 @@ begin
         'confirmar_depois',false
       ))
     )),
-    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
     repeat('e',64),
     gen_random_uuid()::text,
     repeat('f',64)
