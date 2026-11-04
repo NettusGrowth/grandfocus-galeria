@@ -45,13 +45,13 @@ Deno.serve(async (req: Request) => {
     return new Response('order_nsu ausente.', { status: 400 })
   }
 
-  if (eventType === 'created' || eventType === 'payment_failed' || eventType === 'canceled') {
+  if (eventType === 'created') {
     await registrarWebhook(admin, {
       order_nsu: orderNsu,
       transaction_nsu: transactionNsu || null,
       evento_provedor: eventType,
       payload: body,
-      resultado: eventType,
+      resultado: 'pedido_criado_sem_pagamento',
     })
     return new Response('ok', { status: 200 })
   }
@@ -97,27 +97,6 @@ Deno.serve(async (req: Request) => {
     return new Response('Configuração de pagamento indisponível.', { status: 503 })
   }
 
-  if (eventType === 'refunded') {
-    const { error } = await admin.rpc('gf_contratacao_marcar_conciliacao', {
-      p_order_nsu: orderNsu,
-      p_transaction_nsu: transactionNsu,
-      p_slug: slug,
-      p_payment_check: {},
-      p_motivo: 'A InfinitePay notificou um estorno. A conferência manual é necessária.',
-    })
-    await registrarWebhook(admin, {
-      pedido_id: pedido.pedido_id,
-      order_nsu: orderNsu,
-      transaction_nsu: transactionNsu,
-      evento_provedor: eventType,
-      payload: body,
-      resultado: error ? 'erro_ao_registrar_estorno' : 'estorno_em_conciliacao',
-    })
-    return error
-      ? new Response('Não foi possível registrar a conciliação.', { status: 503 })
-      : new Response('ok', { status: 200 })
-  }
-
   let check: any
   try {
     check = await infinitePayCheck(apiKey, handle, orderNsu, transactionNsu, slug)
@@ -134,7 +113,83 @@ Deno.serve(async (req: Request) => {
     return new Response('Falha temporária na conferência do pagamento.', { status: 503 })
   }
 
-  if (check?.success !== true || check?.paid !== true) {
+  if (check?.success !== true) {
+    await registrarWebhook(admin, {
+      pedido_id: pedido.pedido_id,
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu,
+      evento_provedor: eventType || 'unknown',
+      payload: body,
+      payment_check: check,
+      resultado: 'payment_check_nao_validou_identificadores',
+    })
+    // A notificação não é assinada. Sem a validação da InfinitePay, nenhum estado financeiro é alterado.
+    return new Response('Notificação não validada pela InfinitePay.', { status: 200 })
+  }
+
+  if (eventType === 'refunded') {
+    const { data: conciliacao, error } = await admin.rpc('gf_contratacao_marcar_conciliacao', {
+      p_order_nsu: orderNsu,
+      p_transaction_nsu: transactionNsu,
+      p_slug: slug,
+      p_payment_check: check,
+      p_motivo: 'A InfinitePay notificou um estorno. Confirme o estorno na Conta Web ou no App antes de marcar o pedido como reembolsado.',
+    })
+    await registrarWebhook(admin, {
+      pedido_id: pedido.pedido_id,
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu,
+      evento_provedor: eventType,
+      payload: body,
+      payment_check: check,
+      resultado: error
+        ? 'erro_ao_registrar_estorno'
+        : conciliacao?.ja_pago
+          ? 'estorno_notificado_pedido_pago_exige_conferencia'
+          : 'estorno_em_conciliacao',
+    })
+    return error
+      ? new Response('Não foi possível registrar a conciliação.', { status: 503 })
+      : new Response('ok', { status: 200 })
+  }
+
+  if (eventType === 'canceled' || eventType === 'payment_failed') {
+    if (check?.paid === true) {
+      const { error } = await admin.rpc('gf_contratacao_marcar_conciliacao', {
+        p_order_nsu: orderNsu,
+        p_transaction_nsu: transactionNsu,
+        p_slug: slug,
+        p_payment_check: check,
+        p_motivo: 'A InfinitePay notificou ' + eventType + ', mas payment_check confirmou pagamento. Revisão manual necessária.',
+      })
+      await registrarWebhook(admin, {
+        pedido_id: pedido.pedido_id,
+        order_nsu: orderNsu,
+        transaction_nsu: transactionNsu,
+        evento_provedor: eventType,
+        payload: body,
+        payment_check: check,
+        resultado: error ? 'erro_ao_marcar_conciliacao' : 'evento_financeiro_em_conflito',
+      })
+      return error
+        ? new Response('Não foi possível registrar a conciliação.', { status: 503 })
+        : new Response('ok', { status: 200 })
+    }
+
+    await registrarWebhook(admin, {
+      pedido_id: pedido.pedido_id,
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu,
+      evento_provedor: eventType,
+      payload: body,
+      payment_check: check,
+      resultado: eventType + '_validado_sem_pagamento',
+    })
+    // O bloqueio temporário de vaga termina no prazo da reserva; nenhum pagamento é confirmado.
+    return new Response('ok', { status: 200 })
+  }
+
+  if (check?.paid !== true) {
     await registrarWebhook(admin, {
       pedido_id: pedido.pedido_id,
       order_nsu: orderNsu,
