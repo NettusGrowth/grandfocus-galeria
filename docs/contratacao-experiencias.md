@@ -43,7 +43,12 @@ Por isso, a função pública exige também o secret CONTRATACAO_ATIVAR_PAGAMENT
 
 A ativação desse secret deve ocorrer somente após autorização expressa para iniciar cobranças reais e depois de confirmar a conta InfinitePay, API Key, handle, dados contratuais e campanha.
 
-O webhook desta versão assina apenas os eventos de pagamento aprovado e liquidado. Estornos são realizados fora da API, no App ou na Conta Web InfinitePay, e só depois devem ser registrados no painel administrativo com motivo e auditoria.
+O checkout assina os eventos `paid`, `settled`, `refunded`, `canceled` e `payment_failed`, todos documentados pela InfinitePay. Os webhooks não têm assinatura criptográfica. Por isso, os identificadores de cada evento que contém uma transação são conferidos pelo `/payment_check` antes de qualquer atualização financeira.
+
+- `paid` e `settled` só confirmam o pedido quando `payment_check` retorna `success=true` e `paid=true`.
+- `canceled` e `payment_failed` são registrados após a conferência. A reserva temporária termina no prazo configurado; esses eventos não confirmam pagamento.
+- `refunded` leva o pedido para conciliação. O webhook não marca sozinho o pedido como reembolsado.
+- A API da InfinitePay não executa estornos. O estorno deve ser realizado no App ou na Conta Web InfinitePay. Depois de conferir a operação, o administrador registra o estorno no painel com motivo e auditoria.
 
 Documentação oficial InfinitePay
 https://www.infinitepay.io/checkout-documentacao
@@ -70,6 +75,6 @@ O evento cadastrado no banco foi conferido como Entre Estações, da Studio Entr
 
 ## Verificações
 
-O workflow de CI verifica a sintaxe dos scripts, executa o build estático e faz deno check das novas Edge Functions. O build confirma que as duas páginas de contratação foram copiadas para dist/.
+O workflow de CI verifica a sintaxe dos scripts, executa o build estático, os testes de navegador Chromium com checkout simulado, os testes de regras de reserva em PostgreSQL temporário e o `deno check` das Edge Functions. Nenhum teste de navegador cria cobrança na InfinitePay. O build confirma que as duas páginas de contratação foram copiadas para `dist/`.
 
 Não executar compra real como teste sem autorização expressa.
