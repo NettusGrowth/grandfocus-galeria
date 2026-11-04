@@ -26,6 +26,7 @@ https://galeria.grandfocus.com.br/contratar/entre-estacoes/admin/.
 ## Configuração necessária antes de publicar
 
 1. Aplicar a migration 080 somente depois de revisar e autorizar a alteração do banco.
+A publicação administrativa também exige que `INFINITEPAY_API_KEY`, InfiniteTag e `CONTRATACAO_WEBHOOK_TOKEN` estejam configurados e válidos. O painel indica a presença de cada item sem expor valores.
 2. Publicar as três Edge Functions com estas opções de JWT.
    - contratacao-publica com verify_jwt=false.
    - contratacao-webhook com verify_jwt=false.

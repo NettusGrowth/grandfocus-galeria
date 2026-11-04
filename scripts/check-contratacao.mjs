@@ -73,6 +73,8 @@ assert.ok(supabaseConfig.includes('[functions.contratacao-publica]\nverify_jwt =
 assert.ok(supabaseConfig.includes('[functions.contratacao-webhook]\nverify_jwt = false'), 'O webhook usa token próprio e não pode exigir JWT Supabase.')
 assert.ok(supabaseConfig.includes('[functions.contratacao-admin]\nverify_jwt = true'), 'O painel administrativo precisa manter verificação JWT.')
 assert.ok(adminApi.includes("['admin', 'super_admin']"), 'Admin API precisa validar o perfil.')
+assert.ok(adminApi.includes('getContratacaoWebhookToken()'), 'A publicação precisa exigir o segredo do webhook.')
+assert.ok(ui.includes('webhook_token_configurado'), 'O painel precisa mostrar o estado do token do webhook.')
 assert.ok(adminApi.includes('gf_contratacao_admin_salvar_config'), 'A configuração administrativa deve ser salva atomicamente.')
 assert.ok(!adminApi.includes('acesso_publico_hash'), 'O painel não deve expor hashes privados do pedido.')
 assert.ok(build.includes("copyTree(contractingPages"), 'Build precisa copiar a rota de contratação.')

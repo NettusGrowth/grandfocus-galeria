@@ -111,6 +111,7 @@ async function loadConfig() {
     'Pagamentos reais ' + (integration.pagamentos_reais_ativados ? 'ATIVADOS' : 'desativados'),
     'API Key InfinitePay ' + (integration.api_key_configurada ? 'configurada' : 'pendente'),
     'InfiniteTag ' + (integration.infinite_tag_configurada ? 'configurada' : 'pendente'),
+    'Token do webhook ' + (integration.webhook_token_configurado ? 'configurado' : 'pendente'),
   ].join(' • ')
   renderPackages()
 }

@@ -2,6 +2,7 @@ import {
   corsHeaders,
   createAdminClient,
   getInfinitePayConfig,
+  getContratacaoWebhookToken,
   infinitePayCheck,
   jsonResponse,
   readJson,
@@ -100,6 +101,13 @@ async function actionConfig(req: Request, admin: any) {
     const { data: paymentConfig } = await admin.rpc('gf_contratacao_payment_config')
     handleConfigured = Boolean(paymentConfig?.handle?.trim?.())
   }
+  let webhookTokenConfigured = false
+  try {
+    getContratacaoWebhookToken()
+    webhookTokenConfigured = true
+  } catch {
+    webhookTokenConfigured = false
+  }
   return jsonResponse(req, {
     evento,
     pacotes: pacotes || [],
@@ -107,6 +115,7 @@ async function actionConfig(req: Request, admin: any) {
       pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
       api_key_configurada: Boolean(Deno.env.get('INFINITEPAY_API_KEY')?.trim()),
       infinite_tag_configurada: handleConfigured,
+      webhook_token_configurado: webhookTokenConfigured,
     },
   })
 }
@@ -201,6 +210,7 @@ async function actionPublicar(req: Request, admin: any, userId: string) {
   }
   try {
     await getInfinitePayConfig(admin)
+    getContratacaoWebhookToken()
   } catch (error) {
     return jsonResponse(req, { error: safeErrorMessage(error) }, 409)
   }
