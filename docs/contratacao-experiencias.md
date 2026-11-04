@@ -43,6 +43,8 @@ Por isso, a função pública exige também o secret CONTRATACAO_ATIVAR_PAGAMENT
 
 A ativação desse secret deve ocorrer somente após autorização expressa para iniciar cobranças reais e depois de confirmar a conta InfinitePay, API Key, handle, dados contratuais e campanha.
 
+O webhook desta versão assina apenas os eventos de pagamento aprovado e liquidado. Estornos são realizados fora da API, no App ou na Conta Web InfinitePay, e só depois devem ser registrados no painel administrativo com motivo e auditoria.
+
 Documentação oficial InfinitePay
 https://www.infinitepay.io/checkout-documentacao
 
