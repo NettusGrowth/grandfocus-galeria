@@ -1246,6 +1246,10 @@ begin
     raise exception 'Campanha não encontrada.';
   end if;
 
+  if v_evento.status = 'encerrado' then
+    raise exception 'Esta campanha foi encerrada e não pode ser reaberta. Crie uma nova campanha para um novo evento.';
+  end if;
+
   v_documento := regexp_replace(coalesce(v_evento.fornecedor_documento,''),'\D','','g');
 
   if v_evento.data_evento is null
