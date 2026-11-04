@@ -6,6 +6,7 @@ declare
   v_mini_result jsonb;
   v_mini_two_result jsonb;
   v_retry_result jsonb;
+  v_status_transition_result jsonb;
   v_palco_result jsonb;
   v_confirm_result jsonb;
   v_status_result jsonb;
@@ -482,6 +483,20 @@ begin
   end;
   if (select status from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'encerrado' then
     raise exception 'A campanha encerrada teve o status alterado indevidamente.';
+  end if;
+
+  begin
+    v_status_transition_result := public.gf_contratacao_admin_alterar_status(
+      'entre-estacoes','pausado','11111111-1111-4111-8111-111111111111'
+    );
+    raise exception 'O teste deveria impedir a transição de encerrado para pausado.';
+  exception when others then
+    if sqlerrm not like '%encerrada não pode ser reaberta nem pausada%' then
+      raise;
+    end if;
+  end;
+  if (select status from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'encerrado' then
+    raise exception 'A tentativa de pausar reabriu uma campanha encerrada.';
   end if;
 end
 $test$;
