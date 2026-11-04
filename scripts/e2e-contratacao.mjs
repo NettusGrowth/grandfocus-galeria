@@ -125,23 +125,99 @@ try {
   assert.deepEqual(pageErrors, [], 'A página pública lançou erros JavaScript: ' + pageErrors.join('; '))
   await page.close()
 
-  // Admin route must render its login gate without exposing the panel to an anonymous visitor.
+  // Admin must hide protected data from anonymous visitors and complete an authenticated mock workflow.
   const adminPage = await browser.newPage({ viewport:{ width:1280, height:900 } })
   const adminErrors = []
+  const adminCalls = []
+  const adminSession = { access_token:'mock-admin-user-jwt' }
+  const adminEvent = {
+    id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', slug:'entre-estacoes', nome_publico:'Entre Estações',
+    escola_nome:'Studio Entrepliés', status:'rascunho', data_evento:'2026-11-07', local:'Teatro de Teste',
+    miniensaio_inicio:'2026-11-07T20:30:00.000Z', miniensaio_fim:'2026-11-07T21:45:00.000Z',
+    duracao_minutos:5, capacidade_miniensaios:15, vendas_encerram_em:'2026-11-06T23:00:00.000Z',
+    reserva_minutos:15, prazo_entrega_dias:20, whatsapp_atendimento:'34999999999',
+    fornecedor_nome:'Grand Focus Fotografia', fornecedor_documento:'11222333000181',
+    fornecedor_endereco:'Rua de Teste, 100, Centro', fornecedor_email:'teste@grandfocus.com.br',
+    privacidade_url:'https://example.com/privacidade', privacidade_versao:'1.0',
+    privacidade_conteudo:'Política de privacidade simulada com finalidade, base legal, dados coletados, armazenamento, compartilhamento, direitos dos titulares e contato para solicitações.',
+    termos_versao:'1.0',
+    termos_conteudo:'Termos simulados com informações sobre os pacotes, valores, responsabilidades, entrega das fotografias e condições da contratação.',
+    autorizacao_imagem_versao:null, autorizacao_imagem_conteudo:null
+  }
+  const adminPackages = [
+    { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0, ativo:true, ordem:1 },
+    { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Mínimo de 10 fotos por coreografia'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:2 },
+    { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Pacote completo', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:3 }
+  ]
+  const adminIntegration = { pagamentos_reais_ativados:false, api_key_configurada:true, infinite_tag_configurada:true, webhook_token_configurado:true }
   adminPage.on('pageerror', error => adminErrors.push(error.message))
   await adminPage.route('https://esm.sh/@supabase/supabase-js@2', route => route.fulfill({
     status:200,
     contentType:'application/javascript',
     headers:{ 'access-control-allow-origin':'*' },
-    body:`export function createClient(){return {auth:{getSession:async()=>({data:{session:null}}),signOut:async()=>({error:null}),signInWithPassword:async()=>({error:new Error('mock')})}}}`
+    body:'export function createClient(){let session=null;return {auth:{getSession:async()=>({data:{session}}),signOut:async()=>{session=null;return {error:null}},signInWithPassword:async()=>{session={access_token:"mock-admin-user-jwt"};return {error:null,data:{session}}}}}}'
   }))
+  await adminPage.route('**/functions/v1/contratacao-admin', async route => {
+    const body = JSON.parse(route.request().postData() || '{}')
+    const headers = route.request().headers()
+    adminCalls.push({ action:body.action, body, authorization:headers.authorization, apikey:headers.apikey })
+    if (!/^Bearer mock-admin-user-jwt$/i.test(headers.authorization || '') || !headers.apikey?.startsWith('sb_publishable_')) {
+      await route.fulfill({ status:401, contentType:'application/json', body:JSON.stringify({ error:'Cabeçalhos de sessão inválidos no teste.' }) })
+      return
+    }
+    if (body.action === 'config') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ evento:adminEvent, pacotes:adminPackages, integracao:adminIntegration }) })
+      return
+    }
+    if (body.action === 'pedidos') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ pedidos:[] }) })
+      return
+    }
+    if (body.action === 'salvar') {
+      Object.assign(adminEvent, body.evento)
+      for (const item of body.pacotes || []) {
+        const pkg = adminPackages.find(value => value.codigo === item.codigo)
+        if (pkg) { pkg.preco_centavos=item.preco_centavos; pkg.ativo=item.ativo }
+      }
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ evento:adminEvent, pacotes:adminPackages, integracao:adminIntegration }) })
+      return
+    }
+    if (body.action === 'publicar') {
+      adminEvent.status='publicado'
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, resultado:{status:'publicado'}, evento:adminEvent }) })
+      return
+    }
+    await route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({ error:'Ação administrativa inesperada no teste.' }) })
+  })
   await adminPage.goto(origin + '/contratar/entre-estacoes/admin/', { waitUntil:'networkidle' })
   await adminPage.waitForSelector('#login-card:not(.hidden)')
   assert.equal(await adminPage.locator('#admin-area').evaluate(el => el.classList.contains('hidden')), true)
   assert.equal(await adminPage.locator('#login-email').count(), 1)
+  await adminPage.locator('#login-email').fill('admin@example.com')
+  await adminPage.locator('#login-password').fill('not-a-real-password')
+  await adminPage.locator('#login-button').click()
+  await adminPage.waitForSelector('#admin-area:not(.hidden)')
+  assert.match(await adminPage.locator('#integration-status').textContent(), /Pagamentos reais desativados/)
+  assert.match(await adminPage.locator('#integration-status').textContent(), /Token do webhook configurado/)
+  assert.equal(await adminPage.locator('#orders-body').textContent().then(text => /Nenhum pedido/.test(text)), true)
+  await adminPage.locator('#save-button').click()
+  await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Configuração salva'))
+  const saveCall = adminCalls.find(call => call.action === 'salvar')
+  assert.ok(saveCall, 'O painel administrativo não enviou a configuração.')
+  assert.equal(saveCall.body.evento.privacidade_versao, '1.0')
+  assert.equal(saveCall.body.evento.termos_versao, '1.0')
+  assert.equal(saveCall.body.pacotes.length, 3)
+  assert.equal(saveCall.body.pacotes[0].preco_centavos, 11900)
+  assert.ok(saveCall.authorization.toLowerCase().includes('mock-admin-user-jwt'))
+  assert.ok(saveCall.apikey.startsWith('sb_publishable_'))
+  adminPage.on('dialog', dialog => dialog.accept())
+  await adminPage.locator('#publish-button').click()
+  await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Campanha publicada'))
+  assert.equal(adminEvent.status, 'publicado')
+  assert.match(await adminPage.locator('#campaign-status').textContent(), /publicado/)
+  assert.ok(adminCalls.some(call => call.action === 'publicar'), 'O painel não chamou a ação de publicação simulada.')
   assert.deepEqual(adminErrors, [], 'O painel administrativo lançou erros JavaScript: ' + adminErrors.join('; '))
   await adminPage.close()
-
   // When the payment kill switch is off, the public page must remain closed.
   const closedPage = await browser.newPage({ viewport:{ width:390, height:844 } })
   await closedPage.route('**/functions/v1/contratacao-publica', async route => {
@@ -161,7 +237,7 @@ try {
   assert.match(await closedPage.locator('#closed-message').textContent(), /em preparação/)
   await closedPage.close()
 
-  console.log('Contratação Grand Focus E2E: formulário, resumo, consentimentos, checkout mock, mobile, campanha fechada e acesso admin aprovados.')
+  console.log('Contratação Grand Focus E2E: formulário, checkout mock, mobile, campanha fechada, sessão admin, configuração, publicação simulada e segurança dos cabeçalhos aprovados.')
 } finally {
   await browser.close()
   await new Promise(resolve => server.close(resolve))
