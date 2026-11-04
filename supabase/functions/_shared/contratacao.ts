@@ -19,6 +19,31 @@ export function resolveSupabaseAdminKey(secretKeysJson: string | undefined, lega
   return legacyServiceRoleKey?.trim() || ''
 }
 
+/**
+ * Supabase secret keys are API keys, not JWTs. supabase-js may copy its key
+ * into Authorization: Bearer by default; the API gateway can reject that
+ * header as an invalid JWT. Keep the key in apikey and remove only that
+ * exact default bearer value. A real user JWT (used by auth.getUser(token))
+ * must pass through unchanged.
+ */
+export function createSupabaseAdminFetch(
+  apiKey: string,
+  baseFetch: typeof fetch = fetch,
+): typeof fetch {
+  if (!apiKey.startsWith('sb_secret_')) return baseFetch
+
+  return (input: RequestInfo | URL, init?: RequestInit) => {
+    const headers = new Headers(input instanceof Request ? input.headers : undefined)
+    new Headers(init?.headers).forEach((value, name) => headers.set(name, value))
+
+    if (headers.get('authorization') === 'Bearer ' + apiKey) {
+      headers.delete('authorization')
+    }
+
+    return baseFetch(input, { ...init, headers })
+  }
+}
+
 export function createAdminClient() {
   const url = Deno.env.get('SUPABASE_URL')
   // Prefer the modern sb_secret key; use service_role only as a compatibility fallback.
@@ -30,6 +55,7 @@ export function createAdminClient() {
   if (!url || !key) throw new Error('Configuração administrativa do Supabase ausente.')
   return createClient(url, key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: createSupabaseAdminFetch(key) },
   })
 }
 
