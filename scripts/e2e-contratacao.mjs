@@ -7,6 +7,7 @@ import { chromium } from 'playwright'
 const root = path.resolve('dist')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/index.html')), 'Página pública não foi gerada no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/admin/index.html')), 'Painel administrativo não foi gerado no build.')
+assert.ok(fs.existsSync(path.join(root,'contratar/admin/index.html')), 'Gerenciador de contratações não foi gerado no build.')
 
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.svg':'image/svg+xml' }
 const server = http.createServer((req,res) => {
@@ -16,7 +17,15 @@ const server = http.createServer((req,res) => {
     res.end('<!doctype html><html><body><h1>CHECKOUT MOCK OK</h1></body></html>')
     return
   }
-  let file = path.resolve(root, '.' + (pathname.endsWith('/') ? pathname + 'index.html' : pathname))
+  let routedPath = pathname
+  if (pathname === '/contratar/admin' || pathname === '/contratar/admin/') {
+    routedPath = '/contratar/admin/'
+  } else if (/^\\/contratar\\/[^/]+\\/admin\\/?$/.test(pathname)) {
+    routedPath = '/contratar/entre-estacoes/admin/'
+  } else if (/^\\/contratar\\/[^/]+\\/?$/.test(pathname)) {
+    routedPath = '/contratar/entre-estacoes/'
+  }
+  let file = path.resolve(root, '.' + (routedPath.endsWith('/') ? routedPath + 'index.html' : routedPath))
   if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(403); res.end('Forbidden'); return }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file,'index.html')
   if (!fs.existsSync(file)) { res.writeHead(404); res.end('Not found'); return }
@@ -30,6 +39,7 @@ const browser = await chromium.launch({ headless: true })
 
 let submitted = null
 let publicApiCalls = 0
+const publicCampaignSlugs = []
 const campaign = {
   disponivel: true,
   evento: {
@@ -58,6 +68,7 @@ try {
   await page.route('**/functions/v1/contratacao-publica', async route => {
     publicApiCalls += 1
     const body = JSON.parse(route.request().postData() || '{}')
+    publicCampaignSlugs.push(body.campaign_slug)
     if (body.action === 'dados') {
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify(campaign) })
       return
@@ -119,6 +130,8 @@ try {
   assert.equal(submitted.participantes[1].coreografias[0].nome, 'Valsa das Estações')
   assert.equal(submitted.aceite.ciente_privacidade, true)
   assert.equal(submitted.company_website, '')
+  assert.equal(submitted.campaign_slug, 'entre-estacoes')
+  assert.deepEqual(publicCampaignSlugs, ['entre-estacoes','entre-estacoes'])
   assert.match(submitted.access_token, /^[a-f0-9]{64}$/)
   assert.match(submitted.idempotency_key, /^[a-f0-9-]{36}$/)
   assert.equal(publicApiCalls, 2, 'O fluxo esperado deve carregar os dados e enviar um único pedido.')
@@ -234,6 +247,66 @@ try {
   assert.equal(adminEvent.status, 'encerrado')
   assert.deepEqual(adminErrors, [], 'O painel administrativo lançou erros JavaScript: ' + adminErrors.join('; '))
   await adminPage.close()
+
+  // O gerenciador cria o evento da galeria e a contratação em uma única ação autenticada.
+  const managerPage = await browser.newPage({ viewport:{ width:1280, height:900 } })
+  const managerErrors = []
+  let createdCampaign = null
+  managerPage.on('pageerror', error => managerErrors.push(error.message))
+  await managerPage.route('https://esm.sh/@supabase/supabase-js@2', route => route.fulfill({
+    status:200,
+    contentType:'application/javascript',
+    headers:{ 'access-control-allow-origin':'*' },
+    body:'export function createClient(){let session=null;return {auth:{getSession:async()=>({data:{session}}),signOut:async()=>{session=null;return {error:null}},signInWithPassword:async()=>{session={access_token:"mock-admin-user-jwt"};return {error:null,data:{session}}}}}}'
+  }))
+  await managerPage.route('**/functions/v1/contratacao-admin', async route => {
+    const body = JSON.parse(route.request().postData() || '{}')
+    const headers = route.request().headers()
+    if (!/^Bearer mock-admin-user-jwt$/i.test(headers.authorization || '') || !headers.apikey?.startsWith('sb_publishable_')) {
+      await route.fulfill({ status:401, contentType:'application/json', body:JSON.stringify({ error:'Cabeçalhos de sessão inválidos no teste.' }) })
+      return
+    }
+    if (body.action === 'listar_escolas') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ escolas:[{ id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', nome:'Escola Teste', cidade:'Uberaba' }] }) })
+      return
+    }
+    if (body.action === 'listar_campanhas') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ campanhas:[{ slug:'entre-estacoes', nome_publico:'Entre Estações', evento_nome:'Entre Estações', escola_nome:'Studio Entrepliés', status:'publicado', data_evento:'2026-11-07', quantidade_pedidos:1, public_url:'https://galeria.grandfocus.com.br/contratar/entre-estacoes/' }] }) })
+      return
+    }
+    if (body.action === 'criar_campanha') {
+      createdCampaign = body
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, campanha:{ slug:body.slug } }) })
+      return
+    }
+    if (body.action === 'config') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ evento:adminEvent, pacotes:adminPackages, integracao:adminIntegration }) })
+      return
+    }
+    if (body.action === 'pedidos') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ pedidos:[] }) })
+      return
+    }
+    await route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({ error:'Ação inesperada no gerenciador.' }) })
+  })
+  await managerPage.goto(origin + '/contratar/admin/', { waitUntil:'networkidle' })
+  await managerPage.locator('#login-email').fill('admin@example.com')
+  await managerPage.locator('#login-password').fill('not-a-real-password')
+  await managerPage.locator('#login-button').click()
+  await managerPage.waitForSelector('#manager-area:not(.hidden)')
+  await managerPage.locator('#show-create-button').click()
+  await managerPage.locator('#event-name').fill('Espetáculo de Teste')
+  await managerPage.locator('#event-date').fill('2026-12-12')
+  await managerPage.locator('#school-select').selectOption('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  assert.equal(await managerPage.locator('#campaign-slug').inputValue(), 'espetaculo-de-teste')
+  await managerPage.locator('#create-campaign-button').click()
+  await managerPage.waitForURL(url => url.pathname === '/contratar/espetaculo-de-teste/admin/', { timeout:10000 })
+  assert.equal(createdCampaign.evento_nome, 'Espetáculo de Teste')
+  assert.equal(createdCampaign.data_evento, '2026-12-12')
+  assert.equal(createdCampaign.escola_id, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
+  assert.equal(createdCampaign.slug, 'espetaculo-de-teste')
+  assert.deepEqual(managerErrors, [], 'O gerenciador de contratações lançou erros JavaScript: ' + managerErrors.join('; '))
+  await managerPage.close()
   // When the payment kill switch is off, the public page must remain closed.
   const closedPage = await browser.newPage({ viewport:{ width:390, height:844 } })
   await closedPage.route('**/functions/v1/contratacao-publica', async route => {
