@@ -61,6 +61,14 @@ async function actionDados(req: Request, admin: any) {
 }
 
 async function actionContratar(req: Request, admin: any, body: any) {
+  // Kill switch obrigatório. A InfinitePay não oferece sandbox e a criação de link é real.
+  // Nenhum pedido ou link é criado até a ativação explícita deste secret.
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      error: 'Os pagamentos ainda estão desativados para testes. Nenhuma reserva ou cobrança foi criada.',
+      modo_preparacao: true,
+    }, 503)
+  }
   const accessToken = String(body?.access_token || '').trim().toLowerCase()
   const idempotencyKey = String(body?.idempotency_key || '').trim().toLowerCase()
   if (!/^[a-f0-9]{64}$/.test(accessToken)) {
