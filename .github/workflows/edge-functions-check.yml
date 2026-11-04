@@ -40,6 +40,8 @@ jobs:
         run: |
           node --check contratar/entre-estacoes/app.js
           node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
+      - name: Check contracting security and structure
+        run: node scripts/check-contratacao.mjs
       - name: Build static site and verify isolated contracting pages
         run: npm run build
       - name: Set up Deno
