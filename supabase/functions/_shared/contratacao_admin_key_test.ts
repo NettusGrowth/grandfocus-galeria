@@ -1,5 +1,5 @@
 import { strict as assert } from 'node:assert'
-import { resolveSupabaseAdminKey } from './contratacao.ts'
+import { createSupabaseAdminFetch, resolveSupabaseAdminKey } from './contratacao.ts'
 
 Deno.test('prioriza a chave secreta moderna default sobre a chave service_role legada', () => {
   assert.equal(resolveSupabaseAdminKey(
@@ -26,4 +26,50 @@ Deno.test('cai para service_role se o JSON de secrets estiver inválido', () => 
 
 Deno.test('retorna vazio quando não existe nenhuma chave', () => {
   assert.equal(resolveSupabaseAdminKey('{}', undefined), '')
+})
+
+Deno.test('mantém sb_secret somente no apikey e remove seu Bearer automático', async () => {
+  let capturedHeaders: Headers | null = null
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    capturedHeaders = new Headers(init?.headers)
+    return new Response('ok')
+  }
+  const secret = 'sb_secret_modern'
+  const clientFetch = createSupabaseAdminFetch(secret, fakeFetch)
+  await clientFetch('https://example.supabase.co/rest/v1/orders', {
+    method: 'GET',
+    headers: {
+      apikey: secret,
+      Authorization: 'Bearer ' + secret,
+      'Content-Type': 'application/json',
+    },
+  })
+  assert.equal(capturedHeaders?.get('apikey'), secret)
+  assert.equal(capturedHeaders?.get('authorization'), null)
+  assert.equal(capturedHeaders?.get('content-type'), 'application/json')
+})
+
+Deno.test('preserva o JWT do usuário ao chamar auth.getUser com um cliente administrativo', async () => {
+  let capturedHeaders: Headers | null = null
+  const fakeFetch: typeof fetch = async (_input, init) => {
+    capturedHeaders = new Headers(init?.headers)
+    return new Response('ok')
+  }
+  const secret = 'sb_secret_modern'
+  const userJwt = 'eyJhbGciOiJIUzI1NiJ9.user.session.signature'
+  const clientFetch = createSupabaseAdminFetch(secret, fakeFetch)
+  await clientFetch('https://example.supabase.co/auth/v1/user', {
+    method: 'GET',
+    headers: {
+      apikey: secret,
+      Authorization: 'Bearer ' + userJwt,
+    },
+  })
+  assert.equal(capturedHeaders?.get('apikey'), secret)
+  assert.equal(capturedHeaders?.get('authorization'), 'Bearer ' + userJwt)
+})
+
+Deno.test('mantém o transporte padrão para a chave service_role legada', () => {
+  const fakeFetch: typeof fetch = async () => new Response('ok')
+  assert.equal(createSupabaseAdminFetch('legacy-service-role', fakeFetch), fakeFetch)
 })
