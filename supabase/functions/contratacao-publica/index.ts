@@ -1,3 +1,4 @@
+import { isAllowedInfinitePayCheckoutUrl } from '../_shared/infinitepay_checkout.ts'
 import {
   PUBLIC_CAMPAIGN_URL,
   corsHeaders,
@@ -5,7 +6,6 @@ import {
   getContratacaoWebhookToken,
   getInfinitePayConfig,
   infinitePayCheck,
-  isAllowedInfinitePayCheckoutUrl,
   jsonResponse,
   readJson,
   safeErrorMessage,
