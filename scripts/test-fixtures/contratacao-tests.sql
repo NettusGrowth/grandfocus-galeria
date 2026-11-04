@@ -1,0 +1,153 @@
+do $test$
+declare
+  v_mini uuid;
+  v_palco uuid;
+  v_idempotency uuid;
+  v_mini_result jsonb;
+  v_retry_result jsonb;
+  v_palco_result jsonb;
+  v_confirm_result jsonb;
+  v_status_result jsonb;
+begin
+  update public.gf_contratacao_eventos
+  set data_evento = current_date + 3,
+      local = 'Local de teste',
+      miniensaio_inicio = ((current_date + 3)::timestamp + time '17:30') at time zone 'America/Sao_Paulo',
+      miniensaio_fim = ((current_date + 3)::timestamp + time '18:45') at time zone 'America/Sao_Paulo',
+      duracao_minutos = 5,
+      capacidade_miniensaios = 1,
+      vendas_encerram_em = ((current_date + 2)::timestamp + time '23:00') at time zone 'America/Sao_Paulo',
+      reserva_minutos = 15,
+      prazo_entrega_dias = 20,
+      termos_versao = '1.0',
+      termos_conteudo = 'Termos de teste com mais de cem caracteres para validar a publicação da campanha em ambiente temporário e sem qualquer cobrança real.',
+      privacidade_url = 'https://example.com/privacidade',
+      fornecedor_nome = 'Fornecedor de Teste',
+      fornecedor_documento = '11222333000181',
+      fornecedor_endereco = 'Endereço de teste, 100, Centro',
+      fornecedor_email = 'teste@example.com'
+  where slug = 'entre-estacoes';
+
+  perform public.gf_contratacao_admin_publicar('entre-estacoes');
+
+  select id into v_mini
+  from public.gf_contratacao_pacotes
+  where codigo = 'miniensaio' and evento_contratacao_id = (
+    select id from public.gf_contratacao_eventos where slug='entre-estacoes'
+  );
+
+  select id into v_palco
+  from public.gf_contratacao_pacotes
+  where codigo = 'palco' and evento_contratacao_id = (
+    select id from public.gf_contratacao_eventos where slug='entre-estacoes'
+  );
+
+  v_idempotency := gen_random_uuid();
+  v_mini_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Teste","whatsapp":"34999999999","email":"teste@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_mini,
+      'nome','Bailarina Teste',
+      'turma','Intermediário',
+      'idade',10,
+      'coreografias','[]'::jsonb
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    repeat('a',64),
+    v_idempotency::text,
+    repeat('b',64)
+  );
+
+  if (v_mini_result->>'valor_total_centavos')::integer <> 11900 then
+    raise exception 'Preço do miniensaio não foi validado pelo servidor.';
+  end if;
+
+  v_retry_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Teste","whatsapp":"34999999999","email":"teste@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_mini,
+      'nome','Bailarina Teste',
+      'turma','Intermediário',
+      'idade',10,
+      'coreografias','[]'::jsonb
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    repeat('a',64),
+    v_idempotency::text,
+    repeat('b',64)
+  );
+
+  if coalesce((v_retry_result->>'reutilizado')::boolean,false) is not true
+    or v_retry_result->>'order_nsu' <> v_mini_result->>'order_nsu' then
+    raise exception 'A idempotência do pedido não foi preservada.';
+  end if;
+
+  begin
+    perform public.gf_contratacao_criar_reserva(
+      'entre-estacoes',
+      '{"nome":"Outro Responsável","whatsapp":"34988888888","email":"outro@example.com"}'::jsonb,
+      jsonb_build_array(jsonb_build_object(
+        'pacote_id',v_mini,
+        'nome','Outra Bailarina',
+        'turma','Intermediário',
+        'idade',11,
+        'coreografias','[]'::jsonb
+      )),
+      '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+      repeat('c',64),
+      gen_random_uuid()::text,
+      repeat('d',64)
+    );
+    raise exception 'O teste deveria ter bloqueado a segunda reserva de miniensaio.';
+  exception when others then
+    if sqlerrm not like '%Não há vagas suficientes para o miniensaio%' then
+      raise;
+    end if;
+  end;
+
+  v_palco_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Palco","whatsapp":"34977777777","email":"palco@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_palco,
+      'nome','Bailarina Palco',
+      'turma','Avançado',
+      'idade',14,
+      'coreografias',jsonb_build_array(jsonb_build_object(
+        'nome','Coreografia de Teste',
+        'confirmar_depois',false
+      ))
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+    repeat('e',64),
+    gen_random_uuid()::text,
+    repeat('f',64)
+  );
+
+  if (v_palco_result->>'valor_total_centavos')::integer <> 7900 then
+    raise exception 'Preço do pacote de palco não foi validado pelo servidor.';
+  end if;
+
+  v_confirm_result := public.gf_contratacao_confirmar_pagamento(
+    v_palco_result->>'order_nsu',
+    'transaction-nsu-test',
+    'invoice-slug-test',
+    7900,
+    7900,
+    'pix',
+    1,
+    '{"success":true,"paid":true}'::jsonb
+  );
+
+  if v_confirm_result->>'status' <> 'pago' then
+    raise exception 'A confirmação idempotente do pagamento não foi concluída.';
+  end if;
+
+  v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
+  if v_status_result->>'status' <> 'pago' then
+    raise exception 'A consulta privada do status do pedido falhou.';
+  end if;
+end
+$test$;
