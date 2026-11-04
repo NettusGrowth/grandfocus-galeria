@@ -319,7 +319,7 @@ function collectParticipants() {
     const turma = card.querySelector('[data-class]').value.trim()
     const ageValue = card.querySelector('[data-age]').value.trim()
 
-    if (!name || !turma || !pkg) throw new Error('Preencha o nome, a turma e o pacote de cada bailarina.')
+    if (!name || !turma || !pkg) throw new Error('Preencha o nome, a turma e a experiência de cada bailarina.')
     if (ageValue && (!Number.isInteger(Number(ageValue)) || Number(ageValue) < 1 || Number(ageValue) > 99)) {
       throw new Error('Informe uma idade inteira entre 1 e 99 anos.')
     }
