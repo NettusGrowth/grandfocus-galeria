@@ -54,6 +54,8 @@ assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
 assert.ok(publicApi.includes('valid_until:'), 'Checkout precisa ter validade.')
 assert.ok(publicApi.includes('X-Api-Key'), 'A criação do link precisa usar a API Key no servidor.')
+assert.ok(sharedContracting.includes("parsed.hostname === 'checkout.infinitepay.com.br'"), 'A validação precisa aceitar o host oficial retornado pelo Checkout Integrado.')
+assert.ok(read('supabase/functions/_shared/infinitepay_checkout_test.ts').includes('Deno.test'), 'A allowlist do checkout precisa de testes unitários.')
 assert.ok(publicApi.includes('gf_contratacao_registrar_tentativa'), 'A contratação precisa aplicar limites de tentativas.')
 assert.ok(publicApi.includes('customer:'), 'O checkout deve receber os dados do responsável para pré-preenchimento.')
 assert.ok(publicApi.includes('company_website'), 'O endpoint deve validar o campo honeypot.')
