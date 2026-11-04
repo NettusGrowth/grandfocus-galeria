@@ -32,6 +32,40 @@ begin
       fornecedor_email = 'teste@example.com'
   where slug = 'entre-estacoes';
 
+  -- Salvar a campanha e os pacotes em uma única transação.
+  perform public.gf_contratacao_admin_salvar_config(
+    'entre-estacoes',
+    jsonb_build_object(
+      'data_evento',current_date + 3,
+      'local','Local de teste',
+      'miniensaio_inicio',((current_date + 3)::timestamp + time '17:30') at time zone 'America/Sao_Paulo',
+      'miniensaio_fim',((current_date + 3)::timestamp + time '18:45') at time zone 'America/Sao_Paulo',
+      'duracao_minutos',5,
+      'capacidade_miniensaios',1,
+      'vendas_encerram_em',((current_date + 2)::timestamp + time '23:00') at time zone 'America/Sao_Paulo',
+      'reserva_minutos',15,
+      'prazo_entrega_dias',20,
+      'whatsapp_atendimento',null,
+      'fornecedor_nome','Fornecedor de Teste',
+      'fornecedor_documento','11222333000181',
+      'fornecedor_endereco','Endereço de teste, 100, Centro',
+      'fornecedor_email','teste@example.com',
+      'privacidade_url','https://example.com/privacidade',
+      'privacidade_versao','1.0',
+      'privacidade_conteudo','Política de privacidade de teste com informações sobre finalidade, base legal, dados coletados, armazenamento, compartilhamento, direitos dos titulares e canal de contato para solicitações.',
+      'termos_versao','1.0',
+      'termos_conteudo','Termos de teste com mais de cem caracteres para validar a publicação da campanha em ambiente temporário e sem qualquer cobrança real.',
+      'autorizacao_imagem_versao',null,
+      'autorizacao_imagem_conteudo',null
+    ),
+    jsonb_build_array(
+      jsonb_build_object('codigo','miniensaio','preco_centavos',11900,'ativo',true),
+      jsonb_build_object('codigo','palco','preco_centavos',7900,'ativo',true),
+      jsonb_build_object('codigo','completo','preco_centavos',15900,'ativo',true)
+    ),
+    '11111111-1111-4111-8111-111111111111'
+  );
+
   -- A capacidade não pode prometer mais miniensaios do que cabem na janela.
   update public.gf_contratacao_eventos
   set capacidade_miniensaios = 1000
