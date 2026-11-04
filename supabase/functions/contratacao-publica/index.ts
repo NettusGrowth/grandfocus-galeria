@@ -171,7 +171,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
         order_nsu: reserva.order_nsu,
         webhook: {
           url: supabaseUrl + '/functions/v1/contratacao-webhook',
-          events: ['paid','settled','refunded','canceled','payment_failed'],
+          events: ['paid','settled'],
         },
         redirect_url: PUBLIC_CAMPAIGN_URL,
         items: [{
