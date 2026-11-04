@@ -5,6 +5,7 @@ import {
   getContratacaoWebhookToken,
   getInfinitePayConfig,
   infinitePayCheck,
+  isAllowedInfinitePayCheckoutUrl,
   jsonResponse,
   readJson,
   safeErrorMessage,
@@ -261,13 +262,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
 
   const linkData = await response.json().catch(() => ({}))
   const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
-  let checkoutHostOk = false
-  try {
-    const parsed = new URL(checkoutUrl)
-    checkoutHostOk = parsed.protocol === 'https:' && (parsed.hostname === 'infinitepay.io' || parsed.hostname.endsWith('.infinitepay.io'))
-  } catch {
-    checkoutHostOk = false
-  }
+  const checkoutHostOk = isAllowedInfinitePayCheckoutUrl(checkoutUrl)
 
   if (!response.ok || !checkoutUrl || !checkoutHostOk) {
     console.error('contratacao-publica[contratar]: InfinitePay recusou a criação do link', {
