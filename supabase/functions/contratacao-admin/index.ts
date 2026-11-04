@@ -184,6 +184,14 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any)
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string) {
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, { error: 'A publicação está bloqueada enquanto os pagamentos reais estiverem desativados.' }, 409)
+  }
+  try {
+    await getInfinitePayConfig(admin)
+  } catch (error) {
+    return jsonResponse(req, { error: safeErrorMessage(error) }, 409)
+  }
   const { data, error } = await admin.rpc('gf_contratacao_admin_publicar', { p_slug: CAMPAIGN_SLUG })
   if (error) return jsonResponse(req, { error: error.message }, 409)
   const evento = await getCampaign(admin)
