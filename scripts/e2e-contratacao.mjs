@@ -200,6 +200,7 @@ try {
   })
   await adminPage.goto(origin + '/contratar/entre-estacoes/admin/', { waitUntil:'networkidle' })
   await adminPage.waitForSelector('#login-card:not(.hidden)')
+  assert.ok(await adminPage.locator('meta[name="robots"]').getAttribute('content') === 'noindex,nofollow')
   assert.equal(await adminPage.locator('#admin-area').evaluate(el => el.classList.contains('hidden')), true)
   assert.equal(await adminPage.locator('#login-email').count(), 1)
   await adminPage.locator('#login-email').fill('admin@example.com')
