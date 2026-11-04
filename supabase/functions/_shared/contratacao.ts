@@ -129,3 +129,23 @@ export function captureMethodToLabel(method: unknown) {
   if (method === 'credit_card') return 'cartao'
   return null
 }
+
+export function getContratacaoWebhookToken() {
+  const token = Deno.env.get('CONTRATACAO_WEBHOOK_TOKEN')?.trim() || ''
+  if (!/^[a-f0-9]{64}$/i.test(token)) {
+    throw new Error('Configure CONTRATACAO_WEBHOOK_TOKEN como um segredo hexadecimal de 64 caracteres no Supabase.')
+  }
+  return token
+}
+
+export function constantTimeTokenMatch(provided: string, expected: string) {
+  const encoder = new TextEncoder()
+  const left = encoder.encode(provided)
+  const right = encoder.encode(expected)
+  if (right.length !== 64) return false
+  let difference = left.length ^ right.length
+  for (let i = 0; i < right.length; i += 1) {
+    difference |= (left[i] || 0) ^ right[i]
+  }
+  return difference === 0
+}

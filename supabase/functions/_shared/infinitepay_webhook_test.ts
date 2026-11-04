@@ -1,6 +1,7 @@
 import { strict as assert } from 'node:assert'
 
 import {
+  constantTimeTokenMatch,
   normalizeInfinitePayEventType,
   isLikelyPaidInfinitePayWebhook,
   requiresInfinitePayPaymentIdentifiers,
@@ -64,4 +65,12 @@ Deno.test('não cria loop de retry para refund/cancel ou notificação desconhec
   assert.equal(shouldRetryInfinitePayPaymentCheck('refunded', paidPayload, 'pago'), false)
   assert.equal(shouldRetryInfinitePayPaymentCheck('canceled', {}, 'pagamento_pendente'), false)
   assert.equal(shouldRetryInfinitePayPaymentCheck('', paidPayload, 'pago'), false)
+})
+
+Deno.test('exige token forte de webhook e compara sem diferença de conteúdo', () => {
+  const token = 'ab'.repeat(32)
+  assert.equal(constantTimeTokenMatch(token, token), true)
+  assert.equal(constantTimeTokenMatch(token.toUpperCase(), token), false)
+  assert.equal(constantTimeTokenMatch(token.slice(1), token), false)
+  assert.equal(constantTimeTokenMatch('', token), false)
 })

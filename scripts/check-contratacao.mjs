@@ -61,6 +61,8 @@ assert.ok(webhook.includes("eventType === 'refunded'"), 'Estornos notificados de
 assert.ok(adminApi.includes("evento_provedor', 'refunded'"), 'A conciliação automática deve parar diante de uma notificação de estorno.')
 assert.ok(migration.includes("não corresponde à resposta validada da InfinitePay"), 'A RPC de pagamento precisa conferir os valores contra payment_check.')
 assert.ok(webhook.includes('normalizeInfinitePayEventType'), 'Webhook deve normalizar eventos do corpo e dos cabeçalhos.')
+assert.ok(webhook.includes('constantTimeTokenMatch'), 'Webhook deve exigir um token secreto antes de acessar o banco.')
+assert.ok(publicApi.includes('CONTRATACAO_WEBHOOK_TOKEN'), 'Checkout só pode ser criado quando o token do webhook estiver configurado.')
 assert.ok(webhook.includes('shouldRetryInfinitePayPaymentCheck'), 'Webhook deve aplicar política de tentativas em pagamentos sem confirmação.')
 assert.ok(read('supabase/functions/_shared/infinitepay_webhook_test.ts').includes('Deno.test'), 'A política do webhook deve ter testes unitários.')
 assert.ok(webhook.includes('payment_check_nao_validou_identificadores'), 'Webhook não pode alterar pedidos com notificações não validadas.')

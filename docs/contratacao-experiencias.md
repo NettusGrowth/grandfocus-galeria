@@ -54,6 +54,7 @@ Documentação oficial InfinitePay
 https://www.infinitepay.io/checkout-documentacao
 
 ## Proteção e privacidade
+- O webhook usa um token secreto de 32 bytes, codificado em 64 caracteres hexadecimais. Configure `CONTRATACAO_WEBHOOK_TOKEN` nos secrets das Edge Functions do Supabase; o token é enviado na URL de callback e conferido antes de abrir conexão administrativa ou gravar dados.
 
 - A contratação pública aplica limites de tentativas por IP, e-mail e telefone. O banco armazena somente hashes desses identificadores e remove registros antigos após sete dias.
 - O formulário inclui um campo honeypot para descartar envios automatizados simples. Isso reduz abuso básico, mas não substitui um desafio gerenciado como Cloudflare Turnstile caso a campanha receba tráfego automatizado relevante.

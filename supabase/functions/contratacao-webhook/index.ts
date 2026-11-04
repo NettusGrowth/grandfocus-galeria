@@ -4,6 +4,8 @@ import {
   infinitePayCheck,
   registrarWebhook,
   safeErrorMessage,
+  getContratacaoWebhookToken,
+  constantTimeTokenMatch,
 } from '../_shared/contratacao.ts'
 import {
   normalizeInfinitePayEventType,
@@ -15,6 +17,18 @@ import {
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok')
   if (req.method !== 'POST') return new Response('Método não permitido.', { status: 405 })
+
+  let expectedWebhookToken: string
+  try {
+    expectedWebhookToken = getContratacaoWebhookToken()
+  } catch (error) {
+    console.error('contratacao-webhook: token de entrada não configurado')
+    return new Response('Webhook indisponível.', { status: 503 })
+  }
+  const receivedWebhookToken = new URL(req.url).searchParams.get('token') || ''
+  if (!constantTimeTokenMatch(receivedWebhookToken, expectedWebhookToken)) {
+    return new Response('Não autorizado.', { status: 401 })
+  }
 
   let body: any
   try {

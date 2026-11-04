@@ -135,6 +135,19 @@ async function actionContratar(req: Request, admin: any, body: any) {
     return jsonResponse(req, { error: safeErrorMessage(error) }, 503)
   }
   const { apiKey, handle } = paymentConfig
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')
+  if (!supabaseUrl) return jsonResponse(req, { error: 'Configuração do serviço de pagamento incompleta.' }, 503)
+
+  let webhookToken: string
+  try {
+    webhookToken = getContratacaoWebhookToken()
+  } catch (error) {
+    return jsonResponse(req, { error: safeErrorMessage(error) }, 503)
+  }
+
+  const webhookUrl = new URL('/functions/v1/contratacao-webhook', supabaseUrl)
+  webhookUrl.searchParams.set('token', webhookToken)
+
   const { data: campanha, error: campanhaError } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
   if (campanhaError || !campanha) {
     return jsonResponse(req, { error: 'Esta campanha não está aberta para contratação.' }, 409)
@@ -202,9 +215,6 @@ async function actionContratar(req: Request, admin: any, body: any) {
     })
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')
-  if (!supabaseUrl) return jsonResponse(req, { error: 'Configuração do serviço de pagamento incompleta.' }, 503)
-
   const description = 'Grand Focus | ' + (campanha.evento?.nome_publico || 'Experiência fotográfica') +
     ' | Pedido ' + String(reserva.order_nsu).slice(0, 8)
 
@@ -216,7 +226,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
       body: JSON.stringify({
         order_nsu: reserva.order_nsu,
         webhook: {
-          url: supabaseUrl + '/functions/v1/contratacao-webhook',
+          url: webhookUrl.toString(),
           events: ['paid','settled','refunded','canceled','payment_failed'],
         },
         redirect_url: PUBLIC_CAMPAIGN_URL,
