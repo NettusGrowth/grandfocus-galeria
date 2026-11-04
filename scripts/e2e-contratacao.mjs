@@ -257,7 +257,7 @@ try {
     status:200,
     contentType:'application/javascript',
     headers:{ 'access-control-allow-origin':'*' },
-    body:'export function createClient(){let session=null;return {auth:{getSession:async()=>({data:{session}}),signOut:async()=>{session=null;return {error:null}},signInWithPassword:async()=>{session={access_token:"mock-admin-user-jwt"};return {error:null,data:{session}}}}}}'
+    body:'export function createClient(){let session=JSON.parse(localStorage.getItem("mock-admin-session")||"null");return {auth:{getSession:async()=>({data:{session}}),signOut:async()=>{session=null;localStorage.removeItem("mock-admin-session");return {error:null}},signInWithPassword:async()=>{session={access_token:"mock-admin-user-jwt"};localStorage.setItem("mock-admin-session",JSON.stringify(session));return {error:null,data:{session}}}}}}'
   }))
   await managerPage.route('**/functions/v1/contratacao-admin', async route => {
     const body = JSON.parse(route.request().postData() || '{}')
