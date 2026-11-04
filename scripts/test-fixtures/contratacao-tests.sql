@@ -321,6 +321,11 @@ begin
     raise exception 'A confirmação repetida do mesmo pagamento não foi idempotente.';
   end if;
 
+  v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
+  if v_status_result->>'status' <> 'pago' then
+    raise exception 'A consulta privada do status do pedido pago falhou.';
+  end if;
+
   -- Um webhook de estorno não pode retirar automaticamente o estado pago.
   v_conciliation_result := public.gf_contratacao_marcar_conciliacao(
     v_palco_result->>'order_nsu',
@@ -398,8 +403,8 @@ begin
   end if;
 
   v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
-  if v_status_result->>'status' <> 'pago' then
-    raise exception 'A consulta privada do status do pedido falhou.';
+  if v_status_result->>'status' <> 'reembolsado' then
+    raise exception 'A consulta privada do status do pedido reembolsado falhou.';
   end if;
 end
 $test$;
