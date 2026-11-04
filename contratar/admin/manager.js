@@ -130,21 +130,23 @@ function renderCampaigns(campaigns) {
     actions.className = 'campaign-actions'
     const editorUrl = '/contratar/' + encodeURIComponent(campaign.slug) + '/admin/'
     actions.append(makeLink('Configurar contratação', editorUrl))
-    const publicUrl = window.location.origin + '/contratar/' + encodeURIComponent(campaign.slug) + '/'
-    actions.append(makeLink('Abrir página pública', publicUrl, true))
-    const copy = document.createElement('button')
-    copy.type = 'button'
-    copy.className = 'text-button'
-    copy.textContent = 'Copiar link público'
-    copy.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(publicUrl)
-        notice(managerMessage, 'Link público copiado.')
-      } catch {
-        notice(managerMessage, 'Não foi possível copiar automaticamente. Abra a página pública e copie o endereço do navegador.')
-      }
-    })
-    actions.append(copy)
+    if (campaign.status === 'publicado') {
+      const publicUrl = window.location.origin + '/contratar/' + encodeURIComponent(campaign.slug) + '/'
+      actions.append(makeLink('Abrir página pública', publicUrl, true))
+      const copy = document.createElement('button')
+      copy.type = 'button'
+      copy.className = 'text-button'
+      copy.textContent = 'Copiar link público'
+      copy.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(publicUrl)
+          notice(managerMessage, 'Link público copiado.')
+        } catch {
+          notice(managerMessage, 'Não foi possível copiar automaticamente. Abra a página pública e copie o endereço do navegador.')
+        }
+      })
+      actions.append(copy)
+    }
 
     card.append(heading, meta, actions)
     campaignList.append(card)
