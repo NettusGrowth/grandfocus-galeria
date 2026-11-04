@@ -34,15 +34,37 @@ Deno.serve(async (req: Request) => {
   const slug = String(body?.slug || body?.invoice_slug || '').trim()
   const eventType = String(body?.event || body?.event_type || body?.type || '').trim().toLowerCase()
 
-  if (!orderNsu || !transactionNsu || !slug) {
+  if (!orderNsu) {
     await registrarWebhook(admin, {
-      order_nsu: orderNsu || null,
+      order_nsu: null,
       transaction_nsu: transactionNsu || null,
       evento_provedor: eventType || null,
       payload: body,
-      resultado: 'payload_incompleto',
+      resultado: 'payload_sem_order_nsu',
     })
-    return new Response('Campos de pagamento ausentes.', { status: 400 })
+    return new Response('order_nsu ausente.', { status: 400 })
+  }
+
+  if (eventType === 'created' || eventType === 'payment_failed' || eventType === 'canceled') {
+    await registrarWebhook(admin, {
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu || null,
+      evento_provedor: eventType,
+      payload: body,
+      resultado: eventType,
+    })
+    return new Response('ok', { status: 200 })
+  }
+
+  if (!transactionNsu || !slug) {
+    await registrarWebhook(admin, {
+      order_nsu: orderNsu,
+      transaction_nsu: transactionNsu || null,
+      evento_provedor: eventType || null,
+      payload: body,
+      resultado: 'payload_pagamento_incompleto',
+    })
+    return new Response('transaction_nsu ou slug ausente.', { status: 400 })
   }
 
   const { data: pedido, error: pedidoError } = await admin.rpc('gf_contratacao_webhook_dados', {
@@ -63,17 +85,6 @@ Deno.serve(async (req: Request) => {
     return new Response('Pedido não encontrado.', { status: 200 })
   }
 
-  if (eventType === 'created' || eventType === 'payment_failed' || eventType === 'canceled') {
-    await registrarWebhook(admin, {
-      pedido_id: pedido.pedido_id,
-      order_nsu: orderNsu,
-      transaction_nsu: transactionNsu,
-      evento_provedor: eventType,
-      payload: body,
-      resultado: eventType,
-    })
-    return new Response('ok', { status: 200 })
-  }
 
   let apiKey: string
   let handle: string
