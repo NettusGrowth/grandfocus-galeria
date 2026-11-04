@@ -97,6 +97,11 @@ try {
   await page.locator('#responsavel-email').fill('responsavel@example.com')
   await page.locator('#responsavel-legal').check()
   await page.locator('#terms-accepted').check()
+
+  // A privacy acknowledgement is mandatory and independent from the contract terms.
+  await page.locator('#submit-order').click()
+  assert.match(await page.locator('#form-message').textContent(), /política de privacidade/)
+  assert.equal(submitted, null, 'O pedido não pode ser enviado sem ciência da política de privacidade.')
   await page.locator('#privacy-acknowledged').check()
 
   const widths = await page.evaluate(() => ({ viewport:document.documentElement.clientWidth, content:document.documentElement.scrollWidth }))
