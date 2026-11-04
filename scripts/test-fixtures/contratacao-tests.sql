@@ -292,6 +292,23 @@ begin
     raise exception 'Preço do pacote de palco não foi validado pelo servidor.';
   end if;
 
+  -- A RPC não aceita valores que não correspondam ao retorno do payment_check.
+  begin
+    perform public.gf_contratacao_confirmar_pagamento(
+      v_palco_result->>'order_nsu',
+      'transaction-nsu-test',
+      'invoice-slug-test',
+      7900,
+      7900,
+      'pix',
+      1,
+      '{"success":true,"paid":true,"amount":7800,"paid_amount":7800}'::jsonb
+    );
+    raise exception 'A confirmação deveria rejeitar valores diferentes do payment_check.';
+  exception when others then
+    if sqlerrm not like '%não corresponde à resposta validada%' then raise; end if;
+  end;
+
   v_confirm_result := public.gf_contratacao_confirmar_pagamento(
     v_palco_result->>'order_nsu',
     'transaction-nsu-test',
@@ -300,7 +317,7 @@ begin
     7900,
     'pix',
     1,
-    '{"success":true,"paid":true}'::jsonb
+    '{"success":true,"paid":true,"amount":7900,"paid_amount":7900}'::jsonb
   );
 
   if v_confirm_result->>'status' <> 'pago' then
@@ -315,7 +332,7 @@ begin
     7900,
     'pix',
     1,
-    '{"success":true,"paid":true}'::jsonb
+    '{"success":true,"paid":true,"amount":7900,"paid_amount":7900}'::jsonb
   );
   if coalesce((v_duplicate_result->>'ja_processado')::boolean,false) is not true then
     raise exception 'A confirmação repetida do mesmo pagamento não foi idempotente.';

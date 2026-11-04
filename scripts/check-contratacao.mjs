@@ -58,6 +58,8 @@ assert.ok(webhook.includes('gf_contratacao_confirmar_pagamento'), 'Webhook deve 
 assert.ok(webhook.includes('infinitePayCheck'), 'Webhook deve consultar payment_check.')
 assert.ok(publicApi.includes("events: ['paid','settled','refunded','canceled','payment_failed']"), 'Webhook deve assinar os eventos documentados de pagamento e estorno.')
 assert.ok(webhook.includes("eventType === 'refunded'"), 'Estornos notificados devem seguir fluxo de conciliação manual.')
+assert.ok(adminApi.includes("evento_provedor', 'refunded'"), 'A conciliação automática deve parar diante de uma notificação de estorno.')
+assert.ok(migration.includes("não corresponde à resposta validada da InfinitePay"), 'A RPC de pagamento precisa conferir os valores contra payment_check.')
 assert.ok(webhook.includes('normalizeInfinitePayEventType'), 'Webhook deve normalizar eventos do corpo e dos cabeçalhos.')
 assert.ok(webhook.includes('shouldRetryInfinitePayPaymentCheck'), 'Webhook deve aplicar política de tentativas em pagamentos sem confirmação.')
 assert.ok(read('supabase/functions/_shared/infinitepay_webhook_test.ts').includes('Deno.test'), 'A política do webhook deve ter testes unitários.')

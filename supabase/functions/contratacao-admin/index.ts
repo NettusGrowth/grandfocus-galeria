@@ -332,6 +332,23 @@ async function actionReconciliar(req: Request, admin: any, body: any) {
     return jsonResponse(req, { error: 'Ainda não há identificadores suficientes para consultar este pagamento.' }, 409)
   }
 
+  const { data: refundEvents, error: refundEventsError } = await admin
+    .from('gf_contratacao_webhook_eventos')
+    .select('id,criado_em,resultado')
+    .eq('order_nsu', pedido.order_nsu)
+    .eq('evento_provedor', 'refunded')
+    .order('criado_em', { ascending: false })
+    .limit(1)
+  if (refundEventsError) throw new Error('Não foi possível conferir o histórico de estornos deste pedido.')
+  if (refundEvents?.length) {
+    return jsonResponse(req, {
+      ok: false,
+      status: pedido.status,
+      precisa_conferencia_manual: true,
+      mensagem: 'Há uma notificação de estorno registrada para este pedido. Confirme o movimento na InfinitePay antes de qualquer nova conciliação. Se o estorno foi realizado, registre-o na ação de estorno manual.',
+    }, 409)
+  }
+
   const { apiKey, handle } = await getInfinitePayConfig(admin)
   const check = await infinitePayCheck(apiKey, handle, pedido.order_nsu, pagamento.transaction_nsu, pagamento.slug)
   if (check?.success !== true || check?.paid !== true) {
