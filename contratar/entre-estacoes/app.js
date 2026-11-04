@@ -312,6 +312,8 @@ function renderCampaign(data) {
     formatDate(campaign.data_evento),
     campaign.local,
     'Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim),
+    campaign.duracao_minutos + ' minutos estimados por bailarina',
+    campaign.prazo_entrega_dias + ' dias de prazo de entrega',
   ].filter(Boolean)
   for (const label of chips) {
     const chip = document.createElement('span')
