@@ -33,6 +33,7 @@ A publicação administrativa também exige que `INFINITEPAY_API_KEY`, InfiniteT
    - contratacao-admin com verify_jwt=true.
    Essas opções já estão declaradas em `supabase/config.toml`; use esse arquivo ao publicar as funções para não depender de padrões implícitos.
 3. Configurar INFINITEPAY_API_KEY como secret do Supabase. Nunca colocar essa chave no HTML, JavaScript público ou Git.
+   O backend usa a secret key moderna do Supabase somente no cabeçalho `apikey` e preserva o JWT de sessão do administrador no `Authorization`. A chave `service_role` antiga permanece como fallback durante a transição.
    Configurar também `CONTRATACAO_WEBHOOK_TOKEN` como 64 caracteres hexadecimais aleatórios. Gere e cadastre esse segredo diretamente no ambiente privado do Supabase, sem o enviar pelo chat.
 4. A função tenta obter a InfiniteTag da configuração existente selecao_config. Se não estiver preenchida ali, configurar INFINITEPAY_HANDLE como secret.
 5. O domínio oficial já é permitido por padrão. Para um domínio adicional de homologação, usar CONTRATACAO_ALLOWED_ORIGINS.
