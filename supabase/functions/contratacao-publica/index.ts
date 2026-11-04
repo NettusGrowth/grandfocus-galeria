@@ -168,7 +168,6 @@ async function actionContratar(req: Request, admin: any, body: any) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Api-Key': apiKey },
       body: JSON.stringify({
-        handle,
         order_nsu: reserva.order_nsu,
         webhook_url: supabaseUrl + '/functions/v1/contratacao-webhook',
         redirect_url: PUBLIC_CAMPAIGN_URL,
