@@ -10,6 +10,9 @@ declare
   v_status_result jsonb;
   v_rate_result jsonb;
   v_duplicate_result jsonb;
+  v_conciliation_result jsonb;
+  v_refund_result jsonb;
+  v_conflict_result jsonb;
   v_event_json jsonb;
   v_rate_key text := repeat('9',64);
 begin
@@ -148,6 +151,50 @@ begin
     select id from public.gf_contratacao_eventos where slug='entre-estacoes'
   );
 
+  -- A contratação não pode ser criada sem ciência separada da política de privacidade.
+  begin
+    perform public.gf_contratacao_criar_reserva(
+      'entre-estacoes',
+      '{"nome":"Responsável Teste","whatsapp":"34999999999","email":"teste@example.com"}'::jsonb,
+      jsonb_build_array(jsonb_build_object(
+        'pacote_id',v_mini,
+        'nome','Bailarina Sem Ciência',
+        'turma','Intermediário',
+        'idade',10,
+        'coreografias','[]'::jsonb
+      )),
+      '{"responsavel_legal":true,"aceitou_termos":true,"uso_imagem":false}'::jsonb,
+      repeat('1',64),
+      gen_random_uuid()::text,
+      repeat('2',64)
+    );
+    raise exception 'O teste deveria exigir ciência da política de privacidade.';
+  exception when others then
+    if sqlerrm not like '%ciência da política de privacidade%' then raise; end if;
+  end;
+
+  -- Idade fora da faixa deve ser rejeitada no banco, mesmo se alguém ignorar o navegador.
+  begin
+    perform public.gf_contratacao_criar_reserva(
+      'entre-estacoes',
+      '{"nome":"Responsável Teste","whatsapp":"34999999999","email":"teste@example.com"}'::jsonb,
+      jsonb_build_array(jsonb_build_object(
+        'pacote_id',v_mini,
+        'nome','Bailarina Idade Inválida',
+        'turma','Intermediário',
+        'idade',0,
+        'coreografias','[]'::jsonb
+      )),
+      '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
+      repeat('3',64),
+      gen_random_uuid()::text,
+      repeat('4',64)
+    );
+    raise exception 'O teste deveria rejeitar idade zero.';
+  exception when others then
+    if sqlerrm not like '%idade informada%' then raise; end if;
+  end;
+
   v_idempotency := gen_random_uuid();
   v_mini_result := public.gf_contratacao_criar_reserva(
     'entre-estacoes',
@@ -272,6 +319,82 @@ begin
   );
   if coalesce((v_duplicate_result->>'ja_processado')::boolean,false) is not true then
     raise exception 'A confirmação repetida do mesmo pagamento não foi idempotente.';
+  end if;
+
+  -- Um webhook de estorno não pode retirar automaticamente o estado pago.
+  v_conciliation_result := public.gf_contratacao_marcar_conciliacao(
+    v_palco_result->>'order_nsu',
+    'transaction-nsu-test',
+    'invoice-slug-test',
+    '{"success":true,"paid":true,"amount":7900,"paid_amount":7900}'::jsonb,
+    'Notificação de estorno recebida; requer conferência administrativa.'
+  );
+  if coalesce((v_conciliation_result->>'ja_pago')::boolean,false) is not true
+    or (select status from public.gf_contratacao_pedidos where id=(v_palco_result->>'pedido_id')::uuid) <> 'pago' then
+    raise exception 'A notificação de estorno alterou indevidamente um pedido já pago.';
+  end if;
+
+  -- Um valor diferente do total deve ir para conciliação, nunca ser confirmado como pago.
+  v_conflict_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Divergência","whatsapp":"34966666666","email":"divergencia@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_palco,
+      'nome','Bailarina Divergência',
+      'turma','Avançado',
+      'idade',15,
+      'coreografias',jsonb_build_array(jsonb_build_object('nome','Coreografia Divergência','confirmar_depois',false))
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
+    repeat('7',64),
+    gen_random_uuid()::text,
+    repeat('8',64)
+  );
+  v_conciliation_result := public.gf_contratacao_confirmar_pagamento(
+    v_conflict_result->>'order_nsu',
+    'transaction-nsu-conflict',
+    'invoice-slug-conflict',
+    7800,
+    7800,
+    'pix',
+    1,
+    '{"success":true,"paid":true,"amount":7800,"paid_amount":7800}'::jsonb
+  );
+  if v_conciliation_result->>'status' <> 'conciliacao_pendente'
+    or (select status from public.gf_contratacao_pedidos where id=(v_conflict_result->>'pedido_id')::uuid) <> 'conciliacao_pendente' then
+    raise exception 'Pagamento com valor divergente deveria ficar em conciliação.';
+  end if;
+
+  -- Não é permitido marcar como reembolsado um pedido que nunca foi pago.
+  begin
+    perform public.gf_contratacao_marcar_reembolsado(
+      v_mini_result->>'order_nsu',
+      'Tentativa de estorno de pedido não pago.',
+      '11111111-1111-4111-8111-111111111111'
+    );
+    raise exception 'O teste deveria impedir estorno de pedido não pago.';
+  exception when others then
+    if sqlerrm not like '%Somente pedidos pagos%' then raise; end if;
+  end;
+
+  -- O estorno só é registrado após a confirmação manual; repetir a ação não duplica o estado.
+  v_refund_result := public.gf_contratacao_marcar_reembolsado(
+    v_palco_result->>'order_nsu',
+    'Estorno realizado e conferido na Conta Web InfinitePay.',
+    '11111111-1111-4111-8111-111111111111'
+  );
+  if v_refund_result->>'status' <> 'reembolsado'
+    or (select status from public.gf_contratacao_pedidos where id=(v_palco_result->>'pedido_id')::uuid) <> 'reembolsado'
+    or (select status from public.gf_contratacao_pagamentos where pedido_id=(v_palco_result->>'pedido_id')::uuid) <> 'refunded' then
+    raise exception 'O estorno manual não atualizou pedido e pagamento corretamente.';
+  end if;
+  v_refund_result := public.gf_contratacao_marcar_reembolsado(
+    v_palco_result->>'order_nsu',
+    'Estorno realizado e conferido na Conta Web InfinitePay.',
+    '11111111-1111-4111-8111-111111111111'
+  );
+  if coalesce((v_refund_result->>'ja_reembolsado')::boolean,false) is not true then
+    raise exception 'Registrar o mesmo estorno duas vezes deve ser idempotente.';
   end if;
 
   v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
