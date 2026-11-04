@@ -57,6 +57,8 @@ assert.ok(publicApi.includes('X-Api-Key'), 'A criação do link precisa usar a A
 assert.ok(read('supabase/functions/_shared/infinitepay_checkout.ts').includes("parsed.hostname === 'checkout.infinitepay.com.br'"), 'A validação precisa aceitar o host oficial retornado pelo Checkout Integrado.')
 assert.ok(read('supabase/functions/_shared/infinitepay_checkout_test.ts').includes('Deno.test'), 'A allowlist do checkout precisa de testes unitários.')
 assert.ok(publicApi.includes('gf_contratacao_registrar_tentativa'), 'A contratação precisa aplicar limites de tentativas.')
+assert.ok(sharedContracting.includes('resolveSupabaseAdminKey'), 'A função deve priorizar o secret key moderno e manter fallback para service_role.')
+assert.ok(read('supabase/functions/_shared/contratacao_admin_key_test.ts').includes('Deno.test'), 'A resolução de chaves administrativas precisa de testes unitários.')
 assert.ok(publicApi.includes('customer:'), 'O checkout deve receber os dados do responsável para pré-preenchimento.')
 assert.ok(publicApi.includes('company_website'), 'O endpoint deve validar o campo honeypot.')
 assert.ok(webhook.includes('gf_contratacao_confirmar_pagamento'), 'Webhook deve confirmar o pagamento via RPC própria.')
