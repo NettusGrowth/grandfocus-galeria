@@ -73,6 +73,10 @@ function makeInput(type, id, placeholder = '') {
 }
 
 function addCoreographyRow(container) {
+  if (container.querySelectorAll('.coreo-row').length >= 20) {
+    showMessage('Cada bailarina pode informar até 20 coreografias.', 'warning')
+    return
+  }
   const row = document.createElement('div')
   row.className = 'coreo-row'
 
@@ -139,6 +143,11 @@ function renderPackageInfo(card) {
 }
 
 function addParticipant() {
+  if (participantsList.children.length >= 10) {
+    showMessage('Cada pedido pode incluir até 10 bailarinas.', 'warning')
+    return
+  }
+  hideMessage()
   participantSequence += 1
   const card = document.createElement('article')
   card.className = 'participant-card'
@@ -174,6 +183,7 @@ function addParticipant() {
   const age = makeInput('number', 'dancer-age-' + participantSequence, 'Opcional')
   age.min = '1'
   age.max = '99'
+  age.step = '1'
   age.dataset.age = 'true'
 
   const packageSelect = document.createElement('select')
@@ -248,6 +258,9 @@ function collectParticipants() {
     const ageValue = card.querySelector('[data-age]').value.trim()
 
     if (!name || !turma || !pkg) throw new Error('Preencha o nome, a turma e o pacote de cada bailarina.')
+    if (ageValue && (!Number.isInteger(Number(ageValue)) || Number(ageValue) < 1 || Number(ageValue) > 99)) {
+      throw new Error('Informe uma idade inteira entre 1 e 99 anos.')
+    }
 
     const coreografias = []
     if (pkg.inclui_palco) {
@@ -325,13 +338,17 @@ function renderCampaign(data) {
   const terms = document.getElementById('terms-content')
   terms.textContent = campaign.termos_conteudo || 'Os termos desta contratação ainda não foram disponibilizados.'
   document.getElementById('terms-version').textContent = 'Versão dos termos ' + campaign.termos_versao
+  document.getElementById('privacy-content').textContent =
+    campaign.privacidade_conteudo || 'A política de privacidade ainda não foi disponibilizada.'
+  document.getElementById('privacy-version').textContent =
+    'Versão da política de privacidade ' + campaign.privacidade_versao
   const privacy = document.getElementById('privacy-link')
   privacy.replaceChildren()
   const privacyLink = document.createElement('a')
   privacyLink.href = campaign.privacidade_url
   privacyLink.target = '_blank'
   privacyLink.rel = 'noopener noreferrer'
-  privacyLink.textContent = 'Consultar política de privacidade'
+  privacyLink.textContent = 'Abrir política de privacidade em outra página'
   privacy.append(privacyLink)
 
   if (campaign.autorizacao_imagem_conteudo) {
@@ -392,13 +409,21 @@ function collectPayload() {
   const aceite = {
     responsavel_legal: document.getElementById('responsavel-legal').checked,
     aceitou_termos: document.getElementById('terms-accepted').checked,
+    ciente_privacidade: document.getElementById('privacy-acknowledged').checked,
     uso_imagem: document.getElementById('image-consent').checked,
   }
   if (!responsavel.nome || !responsavel.whatsapp || !responsavel.email) {
     throw new Error('Preencha todos os dados do responsável.')
   }
-  if (!aceite.responsavel_legal || !aceite.aceitou_termos) {
-    throw new Error('É necessário declarar a responsabilidade e aceitar os termos para continuar.')
+  const phoneDigits = responsavel.whatsapp.replace(/\D/g, '')
+  if (phoneDigits.length < 10 || phoneDigits.length > 13) {
+    throw new Error('Informe um WhatsApp válido com DDD.')
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(responsavel.email)) {
+    throw new Error('Informe um e-mail válido.')
+  }
+  if (!aceite.responsavel_legal || !aceite.aceitou_termos || !aceite.ciente_privacidade) {
+    throw new Error('É necessário declarar a responsabilidade, aceitar os termos e confirmar a ciência da política de privacidade.')
   }
   return { responsavel, participantes, aceite }
 }
@@ -433,6 +458,7 @@ async function submitOrder(event) {
   try {
     const data = await api('contratar', {
       ...payload,
+      company_website: document.getElementById('company-website').value,
       access_token: pending.access_token,
       idempotency_key: pending.idempotency_key,
     })
@@ -499,10 +525,17 @@ async function loadOrderReturn() {
         panel.classList.add('warning')
         return true
       }
-      if (pedido.status === 'expirado' || pedido.status === 'cancelado') {
-        document.getElementById('return-title').textContent = 'A reserva expirou'
+      if (pedido.status === 'reembolsado') {
+        document.getElementById('return-title').textContent = 'Pagamento estornado'
         document.getElementById('return-message').textContent =
-          'O prazo desta reserva terminou e ela não está mais ativa. Entre em contato com a Grand Focus antes de realizar uma nova contratação.'
+          'O estorno deste pedido foi registrado. Se precisar de ajuda, entre em contato com a Grand Focus.'
+        panel.classList.add('warning')
+        return true
+      }
+      if (pedido.status === 'expirado' || pedido.status === 'cancelado') {
+        document.getElementById('return-title').textContent = pedido.status === 'cancelado' ? 'Pedido cancelado' : 'A reserva expirou'
+        document.getElementById('return-message').textContent =
+          'Este pedido não está mais ativo. Entre em contato com a Grand Focus antes de realizar uma nova contratação.'
         panel.classList.add('warning')
         return true
       }
