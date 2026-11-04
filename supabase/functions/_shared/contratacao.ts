@@ -138,14 +138,3 @@ export function getContratacaoWebhookToken() {
   return token
 }
 
-export function constantTimeTokenMatch(provided: string, expected: string) {
-  const encoder = new TextEncoder()
-  const left = encoder.encode(provided)
-  const right = encoder.encode(expected)
-  if (right.length !== 64) return false
-  let difference = left.length ^ right.length
-  for (let i = 0; i < right.length; i += 1) {
-    difference |= (left[i] || 0) ^ right[i]
-  }
-  return difference === 0
-}

@@ -5,9 +5,9 @@ import {
   registrarWebhook,
   safeErrorMessage,
   getContratacaoWebhookToken,
-  constantTimeTokenMatch,
 } from '../_shared/contratacao.ts'
 import {
+  constantTimeTokenMatch,
   normalizeInfinitePayEventType,
   isLikelyPaidInfinitePayWebhook,
   shouldRetryInfinitePayPaymentCheck,
