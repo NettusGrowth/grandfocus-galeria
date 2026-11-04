@@ -283,7 +283,7 @@ revoke all on function public.gf_contratacao_admin_salvar_config(text,jsonb,json
 grant execute on function public.gf_contratacao_admin_salvar_config(text,jsonb,jsonb,uuid) to service_role;
 
 
--- O miniensaio é opcional. Campanhas somente de palco não precisam configurar horários ou capacidade de miniensaio.
+-- Preserve as regras mais recentes de 081 e 082. O miniensaio é opcional quando nenhuma experiência ativa o inclui.
 create or replace function public.gf_contratacao_criar_reserva(
   p_evento_slug text,
   p_responsavel jsonb,
@@ -416,11 +416,7 @@ begin
   ) into v_campanha_tem_mini;
 
   if v_evento.data_evento is null
-    or (v_campanha_tem_mini and (
-      v_evento.miniensaio_inicio is null
-      or v_evento.miniensaio_fim is null
-      or v_evento.capacidade_miniensaios is null
-    ))
+    or (v_campanha_tem_mini and (v_evento.miniensaio_inicio is null or v_evento.miniensaio_fim is null))
     or nullif(btrim(v_evento.local),'') is null
     or v_evento.termos_versao is null
     or v_evento.termos_conteudo is null
@@ -429,7 +425,6 @@ begin
     or length(coalesce(v_evento.privacidade_conteudo,'')) < 100
     or v_evento.fornecedor_nome is null
     or v_evento.fornecedor_documento is null
-    or v_evento.fornecedor_endereco is null
     or v_evento.fornecedor_email is null then
     raise exception 'A campanha ainda não possui todas as configurações obrigatórias.';
   end if;
@@ -508,7 +503,8 @@ begin
     where p.evento_contratacao_id = v_evento.id
       and p.inclui_miniensaio = true;
 
-    if v_usadas + v_vagas > v_evento.capacidade_miniensaios then
+    if v_evento.capacidade_miniensaios is not null
+      and v_usadas + v_vagas > v_evento.capacidade_miniensaios then
       raise exception 'Não há vagas suficientes para o miniensaio.';
     end if;
   end if;
@@ -662,14 +658,15 @@ begin
       or v_evento.miniensaio_fim <= v_evento.miniensaio_inicio
       or (v_evento.miniensaio_inicio at time zone 'America/Sao_Paulo')::date <> v_evento.data_evento
       or (v_evento.miniensaio_fim at time zone 'America/Sao_Paulo')::date <> v_evento.data_evento
-      or v_evento.capacidade_miniensaios is null
-      or v_evento.capacidade_miniensaios < 1
+      or (v_evento.capacidade_miniensaios is not null and v_evento.capacidade_miniensaios < 1)
       or v_evento.vendas_encerram_em >= v_evento.miniensaio_inicio
-      or extract(epoch from (v_evento.miniensaio_fim - v_evento.miniensaio_inicio))
-        < (v_evento.duracao_minutos * v_evento.capacidade_miniensaios * 60)
+      or (
+        v_evento.capacidade_miniensaios is not null
+        and extract(epoch from (v_evento.miniensaio_fim - v_evento.miniensaio_inicio))
+          < (v_evento.duracao_minutos * v_evento.capacidade_miniensaios * 60)
+      )
     ))
-    or v_evento.prazo_entrega_dias is null
-    or v_evento.prazo_entrega_dias < 1
+    or (v_evento.prazo_entrega_dias is not null and v_evento.prazo_entrega_dias < 1)
     or nullif(btrim(v_evento.termos_versao),'') is null
     or length(coalesce(v_evento.termos_conteudo,'')) < 100
     or coalesce(v_evento.privacidade_url,'') !~ '^https://[^[:space:]]+$'
@@ -677,7 +674,6 @@ begin
     or length(coalesce(v_evento.privacidade_conteudo,'')) < 100
     or nullif(btrim(v_evento.fornecedor_nome),'') is null
     or length(v_documento) not between 11 and 14
-    or nullif(btrim(v_evento.fornecedor_endereco),'') is null
     or coalesce(v_evento.fornecedor_email,'') !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$'
     or (v_evento.autorizacao_imagem_conteudo is not null and v_evento.autorizacao_imagem_versao is null) then
     raise exception 'Faltam dados obrigatórios ou há informações inválidas. Revise data, local, horários, capacidade, prazo, termos, privacidade e identificação do fornecedor.';
@@ -727,7 +723,8 @@ begin
       )
     );
 
-  if v_tem_mini and v_vagas_ocupadas > v_evento.capacidade_miniensaios then
+  if v_tem_mini and v_evento.capacidade_miniensaios is not null
+    and v_vagas_ocupadas > v_evento.capacidade_miniensaios then
     raise exception 'A capacidade informada é menor que os miniensaios já vendidos ou reservados. Revise as vagas antes de publicar.';
   end if;
 
