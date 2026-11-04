@@ -1225,6 +1225,46 @@ begin
   return jsonb_build_object('ok',true);
 end;
 $$;
+create or replace function public.gf_contratacao_admin_alterar_status(p_slug text,p_status text,p_usuario_id uuid)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, extensions
+as $$
+declare
+  v_evento public.gf_contratacao_eventos%rowtype;
+begin
+  if p_status not in ('pausado','encerrado') or p_usuario_id is null then
+    raise exception 'Transição de status inválida.';
+  end if;
+
+  select * into v_evento
+  from public.gf_contratacao_eventos
+  where slug=p_slug
+  for update;
+
+  if not found then raise exception 'Campanha não encontrada.'; end if;
+
+  if v_evento.status='encerrado' and p_status='pausado' then
+    raise exception 'Campanha encerrada não pode ser reaberta nem pausada.';
+  end if;
+
+  if v_evento.status <> p_status then
+    update public.gf_contratacao_eventos
+    set status=p_status, atualizado_em=now()
+    where id=v_evento.id;
+  end if;
+
+  insert into public.gf_contratacao_auditoria(evento_contratacao_id,usuario_id,acao,detalhes)
+  values(
+    v_evento.id,p_usuario_id,
+    case when p_status='pausado' then 'campanha_pausada' else 'campanha_encerrada' end,
+    jsonb_build_object('status_anterior',v_evento.status,'status_novo',p_status)
+  );
+
+  return jsonb_build_object('ok',true,'status',p_status,'status_anterior',v_evento.status);
+end;
+$$;
 create or replace function public.gf_contratacao_admin_publicar(p_slug text)
 returns jsonb
 language plpgsql
@@ -1356,6 +1396,7 @@ revoke all on function public.gf_contratacao_webhook_dados(text) from public, an
 revoke all on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_admin_salvar_config(text,jsonb,jsonb,uuid) from public, anon, authenticated;
+revoke all on function public.gf_contratacao_admin_alterar_status(text,text,uuid) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_admin_publicar(text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) from public, anon, authenticated;
 
@@ -1369,5 +1410,6 @@ grant execute on function public.gf_contratacao_webhook_dados(text) to service_r
 grant execute on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) to service_role;
 grant execute on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) to service_role;
 grant execute on function public.gf_contratacao_admin_salvar_config(text,jsonb,jsonb,uuid) to service_role;
+grant execute on function public.gf_contratacao_admin_alterar_status(text,text,uuid) to service_role;
 grant execute on function public.gf_contratacao_admin_publicar(text) to service_role;
 grant execute on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) to service_role;
