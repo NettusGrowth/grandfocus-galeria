@@ -168,32 +168,29 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any)
     return jsonResponse(req, { error: 'Informe a data do evento no formato correto.' }, 400)
   }
 
-  const { error: updateError } = await admin
-    .from('gf_contratacao_eventos')
-    .update(update)
-    .eq('id', evento.id)
-  if (updateError) throw new Error('Não foi possível salvar os dados da campanha.')
-
   const pacotes = Array.isArray(body?.pacotes) ? body.pacotes : []
   const allowed = new Set(['miniensaio','palco','completo'])
+  if (pacotes.length !== 3) {
+    return jsonResponse(req, { error: 'Envie os três pacotes da campanha antes de salvar.' }, 400)
+  }
   for (const item of pacotes) {
-    if (!allowed.has(item?.codigo)) continue
+    if (!allowed.has(item?.codigo)) return jsonResponse(req, { error: 'Código de pacote inválido.' }, 400)
     const preco = Number(item.preco_centavos)
-    if (!Number.isInteger(preco) || preco < 100) throw new Error('O preço de cada pacote deve ser de pelo menos R$ 1,00.')
-    const { error } = await admin
-      .from('gf_contratacao_pacotes')
-      .update({ preco_centavos: preco, ativo: item.ativo === true })
-      .eq('evento_contratacao_id', evento.id)
-      .eq('codigo', item.codigo)
-    if (error) throw new Error('Não foi possível atualizar o pacote ' + item.codigo + '.')
+    if (!Number.isInteger(preco) || preco < 100 || preco > 100000000) {
+      return jsonResponse(req, { error: 'O preço de cada pacote deve ficar entre R$ 1,00 e R$ 1.000.000,00.' }, 400)
+    }
   }
 
-  await admin.from('gf_contratacao_auditoria').insert({
-    evento_contratacao_id: evento.id,
-    usuario_id: userId,
-    acao: 'configuracao_salva',
-    detalhes: { pacotes_atualizados: pacotes.map((item: any) => item.codigo).filter(Boolean) },
+  const { error: saveError } = await admin.rpc('gf_contratacao_admin_salvar_config', {
+    p_slug: CAMPAIGN_SLUG,
+    p_evento: update,
+    p_pacotes: pacotes,
+    p_usuario_id: userId,
   })
+  if (saveError) {
+    console.error('contratacao-admin[salvar]: falha transacional', saveError.message)
+    throw new Error('Não foi possível salvar a configuração completa. Nenhuma alteração parcial foi mantida.')
+  }
 
   return await actionConfig(req, admin)
 }
