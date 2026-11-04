@@ -3,18 +3,28 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 export const PUBLIC_ORIGIN = 'https://galeria.grandfocus.com.br'
 export const PUBLIC_CAMPAIGN_URL = PUBLIC_ORIGIN + '/contratar/entre-estacoes/'
 
+export function resolveSupabaseAdminKey(secretKeysJson: string | undefined, legacyServiceRoleKey: string | undefined): string {
+  try {
+    const keys = JSON.parse(secretKeysJson || '{}') as Record<string, unknown>
+    const preferred = typeof keys?.default === 'string' ? keys.default.trim() : ''
+    if (preferred) return preferred
+    const fallbackSecret = Object.values(keys || {}).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+    if (typeof fallbackSecret === 'string') return fallbackSecret.trim()
+  } catch {
+    // A chave legada continua disponível durante a transição da plataforma.
+  }
+  return legacyServiceRoleKey?.trim() || ''
+}
+
 export function createAdminClient() {
   const url = Deno.env.get('SUPABASE_URL')
-  let key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || ''
-
-  if (!key) {
-    try {
-      const keys = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}')
-      key = keys?.default || Object.values(keys || {}).find((value) => typeof value === 'string') || ''
-    } catch {
-      key = ''
-    }
-  }
+  // Prefer the modern sb_secret key; use service_role only as a compatibility fallback.
+  const key = resolveSupabaseAdminKey(
+    Deno.env.get('SUPABASE_SECRET_KEYS'),
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY'),
+  )
 
   if (!url || !key) throw new Error('Configuração administrativa do Supabase ausente.')
   return createClient(url, key, {
