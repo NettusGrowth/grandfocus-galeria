@@ -143,7 +143,7 @@ function renderPackages() {
     active.checked = pkg.ativo
     active.dataset.packageActive = pkg.codigo
     const activeText = document.createElement('span')
-    activeText.textContent = 'Disponibilizar este pacote na página de contratação'
+    activeText.textContent = 'Disponibilizar esta experiência na página de contratação'
     activeLabel.append(active, activeText)
 
     const description = document.createElement('p')
@@ -192,7 +192,7 @@ async function saveConfig() {
   try {
     const config = collectConfig()
     if (config.pacotes.some((pkg) => !Number.isInteger(pkg.preco_centavos) || pkg.preco_centavos < 100)) {
-      throw new Error('Confira os preços. Cada pacote deve custar pelo menos R$ 1,00.')
+      throw new Error('Confira os valores. Cada experiência deve custar pelo menos R$ 1,00.')
     }
     await adminRequest('salvar', config)
     showNotice(adminMessage, 'Configuração salva. A campanha continua no status atual.')
