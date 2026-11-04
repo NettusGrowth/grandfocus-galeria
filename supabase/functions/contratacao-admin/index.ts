@@ -347,29 +347,16 @@ async function actionMarcarReembolsado(req: Request, admin: any, userId: string,
 
   const { data: pedido, error: pedidoError } = await admin
     .from('gf_contratacao_pedidos')
-    .select('id,evento_contratacao_id,status')
+    .select('id,order_nsu')
     .eq('id', pedidoId)
     .maybeSingle()
   if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
 
-  const { error: orderError } = await admin
-    .from('gf_contratacao_pedidos')
-    .update({ status: 'reembolsado', reserva_status: 'expirada', atualizado_em: new Date().toISOString() })
-    .eq('id', pedidoId)
-  if (orderError) throw new Error('Não foi possível atualizar o pedido.')
-
-  const { error: paymentError } = await admin
-    .from('gf_contratacao_pagamentos')
-    .update({ status: 'refunded', atualizado_em: new Date().toISOString() })
-    .eq('pedido_id', pedidoId)
-  if (paymentError) throw new Error('Pedido atualizado, mas o pagamento não foi atualizado. Verifique a administração.')
-
-  await admin.from('gf_contratacao_auditoria').insert({
-    evento_contratacao_id: pedido.evento_contratacao_id,
-    pedido_id: pedidoId,
-    usuario_id: userId,
-    acao: 'reembolso_confirmado_manualmente',
-    detalhes: { motivo: motivo.slice(0, 500) },
+  const { data, error } = await admin.rpc('gf_contratacao_marcar_reembolsado', {
+    p_order_nsu: pedido.order_nsu,
+    p_motivo: motivo,
+    p_usuario_id: userId,
   })
-  return jsonResponse(req, { ok: true, status: 'reembolsado' })
+  if (error) return jsonResponse(req, { error: error.message }, 409)
+  return jsonResponse(req, data || { ok: true, status: 'reembolsado' })
 }
