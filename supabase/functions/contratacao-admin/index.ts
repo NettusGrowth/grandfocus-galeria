@@ -1,0 +1,402 @@
+import {
+  corsHeaders,
+  createAdminClient,
+  getInfinitePayConfig,
+  getContratacaoWebhookToken,
+  infinitePayCheck,
+  jsonResponse,
+  readJson,
+  safeErrorMessage,
+} from '../_shared/contratacao.ts'
+
+const CAMPAIGN_SLUG = 'entre-estacoes'
+
+Deno.serve(async (req: Request) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
+  if (req.method !== 'POST') return jsonResponse(req, { error: 'Método não permitido.' }, 405)
+
+  let body: any
+  try {
+    body = await readJson(req)
+  } catch (error) {
+    return jsonResponse(req, { error: safeErrorMessage(error) || 'Corpo inválido.' }, 400)
+  }
+
+  const authorization = req.headers.get('authorization') || ''
+  const token = authorization.replace(/^Bearer\s+/i, '').trim()
+  if (!token) return jsonResponse(req, { error: 'Faça login para acessar a administração.' }, 401)
+
+  let admin: any
+  try {
+    admin = createAdminClient()
+  } catch (error) {
+    console.error('contratacao-admin: configuração Supabase ausente', safeErrorMessage(error))
+    return jsonResponse(req, { error: 'Serviço temporariamente indisponível.' }, 503)
+  }
+
+  const { data: authData, error: authError } = await admin.auth.getUser(token)
+  const user = authData?.user
+  if (authError || !user) return jsonResponse(req, { error: 'Sessão inválida. Entre novamente.' }, 401)
+
+  const { data: perfil, error: perfilError } = await admin
+    .from('perfis')
+    .select('role')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (perfilError || !['admin', 'super_admin'].includes(perfil?.role || '')) {
+    return jsonResponse(req, { error: 'Acesso restrito à equipe administrativa da Grand Focus.' }, 403)
+  }
+
+  try {
+    switch (body?.action) {
+      case 'config':
+        return await actionConfig(req, admin)
+      case 'salvar':
+        return await actionSalvar(req, admin, user.id, body)
+      case 'publicar':
+        return await actionPublicar(req, admin, user.id)
+      case 'pausar':
+        return await actionStatus(req, admin, user.id, 'pausado')
+      case 'encerrar':
+        return await actionStatus(req, admin, user.id, 'encerrado')
+      case 'pedidos':
+        return await actionPedidos(req, admin)
+      case 'detalhe':
+        return await actionDetalhe(req, admin, body)
+      case 'reconciliar':
+        return await actionReconciliar(req, admin, body)
+      case 'marcar_reembolsado':
+        return await actionMarcarReembolsado(req, admin, user.id, body)
+      default:
+        return jsonResponse(req, { error: 'Ação administrativa desconhecida.' }, 400)
+    }
+  } catch (error) {
+    console.error('contratacao-admin: erro tratado', safeErrorMessage(error))
+    return jsonResponse(req, { error: safeErrorMessage(error) || 'Não foi possível concluir a ação.' }, 400)
+  }
+})
+
+async function getCampaign(admin: any) {
+  const { data, error } = await admin
+    .from('gf_contratacao_eventos')
+    .select('*')
+    .eq('slug', CAMPAIGN_SLUG)
+    .maybeSingle()
+  if (error) throw new Error('Não foi possível consultar a configuração da campanha.')
+  if (!data) throw new Error('Campanha ainda não cadastrada. A migration 080 precisa ser aplicada primeiro.')
+  return data
+}
+
+async function actionConfig(req: Request, admin: any) {
+  const evento = await getCampaign(admin)
+  const { data: pacotes, error } = await admin
+    .from('gf_contratacao_pacotes')
+    .select('id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,minimo_fotos_por_coreografia,ativo,ordem')
+    .eq('evento_contratacao_id', evento.id)
+    .order('ordem', { ascending: true })
+  if (error) throw new Error('Não foi possível consultar os pacotes.')
+  const configuredApiKey = Deno.env.get('INFINITEPAY_API_KEY')?.trim() || ''
+  let configuredHandle = (Deno.env.get('INFINITEPAY_HANDLE') || '').replace(/^\$/, '').trim()
+  if (!configuredHandle) {
+    const { data: paymentConfig } = await admin.rpc('gf_contratacao_payment_config')
+    configuredHandle = String(paymentConfig?.handle || '').replace(/^\$/, '').trim()
+  }
+  const handleConfigured = Boolean(configuredHandle && !/[\s$]/.test(configuredHandle))
+  let webhookTokenConfigured = false
+  try {
+    getContratacaoWebhookToken()
+    webhookTokenConfigured = true
+  } catch {
+    webhookTokenConfigured = false
+  }
+  return jsonResponse(req, {
+    evento,
+    pacotes: pacotes || [],
+    integracao: {
+      pagamentos_reais_ativados: true,
+      api_key_configurada: configuredApiKey.startsWith('inchk_'),
+      infinite_tag_configurada: handleConfigured,
+      webhook_token_configurado: webhookTokenConfigured,
+    },
+  })
+}
+
+async function actionSalvar(req: Request, admin: any, userId: string, body: any) {
+  const evento = await getCampaign(admin)
+  if (evento.status === 'publicado') {
+    return jsonResponse(req, { error: 'Pause a campanha antes de editar informações que afetam a contratação.' }, 409)
+  }
+
+  const input = body?.evento || {}
+  const toIso = (value: unknown, label: string) => {
+    if (value == null || value === '') return null
+    const date = new Date(String(value))
+    if (Number.isNaN(date.getTime())) throw new Error('Data ou horário inválido em ' + label + '.')
+    return date.toISOString()
+  }
+  const toInt = (value: unknown, label: string, min: number, max: number) => {
+    const n = Number(value)
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error('Valor inválido em ' + label + '.')
+    return n
+  }
+  const nullableText = (value: unknown, max: number, label: string) => {
+    const s = String(value ?? '').trim()
+    if (s.length > max) throw new Error(label + ' excede o limite de caracteres.')
+    return s || null
+  }
+
+  const update = {
+    data_evento: nullableText(input.data_evento, 10, 'Data do evento'),
+    local: nullableText(input.local, 240, 'Local'),
+    miniensaio_inicio: toIso(input.miniensaio_inicio, 'início do miniensaio'),
+    miniensaio_fim: toIso(input.miniensaio_fim, 'fim do miniensaio'),
+    duracao_minutos: toInt(input.duracao_minutos, 'duração', 1, 60),
+    capacidade_miniensaios: input.capacidade_miniensaios === '' || input.capacidade_miniensaios == null
+      ? null
+      : toInt(input.capacidade_miniensaios, 'capacidade', 0, 10000),
+    vendas_encerram_em: toIso(input.vendas_encerram_em, 'prazo de vendas'),
+    reserva_minutos: toInt(input.reserva_minutos, 'duração da reserva', 1, 60),
+    prazo_entrega_dias: input.prazo_entrega_dias === '' || input.prazo_entrega_dias == null
+      ? null
+      : toInt(input.prazo_entrega_dias, 'prazo de entrega', 1, 365),
+    whatsapp_atendimento: nullableText(input.whatsapp_atendimento, 30, 'WhatsApp de atendimento'),
+    termos_versao: nullableText(input.termos_versao, 40, 'Versão dos termos'),
+    termos_conteudo: nullableText(input.termos_conteudo, 30000, 'Termos da contratação'),
+    privacidade_url: nullableText(input.privacidade_url, 500, 'URL de privacidade'),
+    privacidade_versao: nullableText(input.privacidade_versao, 40, 'Versão da política de privacidade'),
+    privacidade_conteudo: nullableText(input.privacidade_conteudo, 30000, 'Texto da política de privacidade'),
+    autorizacao_imagem_versao: nullableText(input.autorizacao_imagem_versao, 40, 'Versão da autorização de imagem'),
+    autorizacao_imagem_conteudo: nullableText(input.autorizacao_imagem_conteudo, 10000, 'Texto de autorização de imagem'),
+    fornecedor_nome: nullableText(input.fornecedor_nome, 180, 'Nome do fornecedor'),
+    fornecedor_documento: nullableText(input.fornecedor_documento, 40, 'Documento do fornecedor'),
+    fornecedor_endereco: nullableText(input.fornecedor_endereco, 500, 'Endereço do fornecedor'),
+    fornecedor_email: nullableText(input.fornecedor_email, 180, 'E-mail do fornecedor'),
+    atualizado_em: new Date().toISOString(),
+  }
+
+  if (update.data_evento && !/^\d{4}-\d{2}-\d{2}$/.test(update.data_evento)) {
+    return jsonResponse(req, { error: 'Informe a data do evento no formato correto.' }, 400)
+  }
+
+  const pacotes = Array.isArray(body?.pacotes) ? body.pacotes : []
+  const allowed = new Set(['miniensaio','palco','completo'])
+  if (pacotes.length !== 3) {
+    return jsonResponse(req, { error: 'Envie os três pacotes da campanha antes de salvar.' }, 400)
+  }
+  for (const item of pacotes) {
+    if (!allowed.has(item?.codigo)) return jsonResponse(req, { error: 'Código de pacote inválido.' }, 400)
+    const preco = Number(item.preco_centavos)
+    if (!Number.isInteger(preco) || preco < 100 || preco > 100000000) {
+      return jsonResponse(req, { error: 'O preço de cada pacote deve ficar entre R$ 1,00 e R$ 1.000.000,00.' }, 400)
+    }
+  }
+
+  const { error: saveError } = await admin.rpc('gf_contratacao_admin_salvar_config', {
+    p_slug: CAMPAIGN_SLUG,
+    p_evento: update,
+    p_pacotes: pacotes,
+    p_usuario_id: userId,
+  })
+  if (saveError) {
+    console.error('contratacao-admin[salvar]: falha transacional', saveError.message)
+    throw new Error('Não foi possível salvar a configuração completa. Nenhuma alteração parcial foi mantida.')
+  }
+
+  return await actionConfig(req, admin)
+}
+
+async function actionPublicar(req: Request, admin: any, userId: string) {
+  try {
+    await getInfinitePayConfig(admin)
+    getContratacaoWebhookToken()
+  } catch (error) {
+    return jsonResponse(req, { error: safeErrorMessage(error) }, 409)
+  }
+  const { data, error } = await admin.rpc('gf_contratacao_admin_publicar', { p_slug: CAMPAIGN_SLUG })
+  if (error) return jsonResponse(req, { error: error.message }, 409)
+  const evento = await getCampaign(admin)
+  await admin.from('gf_contratacao_auditoria').insert({
+    evento_contratacao_id: evento.id,
+    usuario_id: userId,
+    acao: 'publicacao_confirmada_pelo_admin',
+    detalhes: {},
+  })
+  return jsonResponse(req, { ok: true, resultado: data, evento })
+}
+
+async function actionStatus(req: Request, admin: any, userId: string, status: string) {
+  const { data, error } = await admin.rpc('gf_contratacao_admin_alterar_status', {
+    p_slug: CAMPAIGN_SLUG,
+    p_status: status,
+    p_usuario_id: userId,
+  })
+  if (error) return jsonResponse(req, { error: error.message }, 409)
+  return jsonResponse(req, data || { ok: true, status })
+}
+
+async function actionPedidos(req: Request, admin: any) {
+  const evento = await getCampaign(admin)
+  const { data: pedidos, error } = await admin
+    .from('gf_contratacao_pedidos')
+    .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,reserva_status,reserva_expira_em,pagamento_confirmado_em,criado_em,order_nsu')
+    .eq('evento_contratacao_id', evento.id)
+    .order('criado_em', { ascending: false })
+    .limit(100)
+  if (error) throw new Error('Não foi possível consultar os pedidos.')
+
+  const ids = (pedidos || []).map((pedido: any) => pedido.id)
+  const counts: Record<string, number> = {}
+  if (ids.length) {
+    const { data: participantes, error: participantesError } = await admin
+      .from('gf_contratacao_participantes')
+      .select('pedido_id')
+      .in('pedido_id', ids)
+    if (participantesError) throw new Error('Não foi possível contar as bailarinas dos pedidos.')
+    for (const item of participantes || []) counts[item.pedido_id] = (counts[item.pedido_id] || 0) + 1
+  }
+
+  return jsonResponse(req, {
+    pedidos: (pedidos || []).map((pedido: any) => ({ ...pedido, quantidade_bailarinas: counts[pedido.id] || 0 })),
+  })
+}
+
+async function actionDetalhe(req: Request, admin: any, body: any) {
+  const pedidoId = String(body?.pedido_id || '').trim()
+  if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return jsonResponse(req, { error: 'Pedido inválido.' }, 400)
+
+  const { data: pedido, error } = await admin
+    .from('gf_contratacao_pedidos')
+    .select('id,numero,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,reserva_status,reserva_expira_em,pagamento_confirmado_em,metodo_pagamento,parcelas,valor_pago_centavos,comprovante_path,criado_em,atualizado_em,order_nsu,checkout_url')
+    .eq('id', pedidoId)
+    .maybeSingle()
+  if (error || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+
+  const [participantesResult, pagamentoResult, aceiteResult, webhookResult] = await Promise.all([
+    admin.from('gf_contratacao_participantes')
+      .select('id,bailarina_nome,turma,idade,preco_centavos,consome_miniensaio,pacote_id')
+      .eq('pedido_id', pedidoId),
+    admin.from('gf_contratacao_pagamentos').select('id,provedor,order_nsu,transaction_nsu,slug,status,metodo,parcelas,valor_centavos,checkout_url,ultimo_payment_check,criado_em,atualizado_em').eq('pedido_id', pedidoId).maybeSingle(),
+    admin.from('gf_contratacao_aceites').select('*').eq('pedido_id', pedidoId).maybeSingle(),
+    admin.from('gf_contratacao_webhook_eventos')
+      .select('evento_provedor,resultado,criado_em,order_nsu,transaction_nsu')
+      .eq('pedido_id', pedidoId)
+      .order('criado_em', { ascending: false })
+      .limit(30),
+  ])
+
+  if (participantesResult.error || pagamentoResult.error || aceiteResult.error || webhookResult.error) {
+    throw new Error('Não foi possível carregar todos os detalhes deste pedido.')
+  }
+
+  const participantes = participantesResult.data || []
+  const participanteIds = participantes.map((item: any) => item.id)
+  const [pacotesResult, coreografiasResult] = await Promise.all([
+    admin.from('gf_contratacao_pacotes').select('id,codigo,nome').in('id', participantes.map((item: any) => item.pacote_id)),
+    participanteIds.length
+      ? admin.from('gf_contratacao_coreografias').select('*').in('participante_id', participanteIds)
+      : Promise.resolve({ data: [], error: null }),
+  ])
+  if (pacotesResult.error || coreografiasResult.error) throw new Error('Não foi possível carregar pacotes e coreografias.')
+
+  const pacotesById = Object.fromEntries((pacotesResult.data || []).map((item: any) => [item.id, item]))
+  const coreografias = coreografiasResult.data || []
+
+  return jsonResponse(req, {
+    pedido,
+    participantes: participantes.map((item: any) => ({
+      ...item,
+      pacote: pacotesById[item.pacote_id] || null,
+      coreografias: coreografias.filter((coreografia: any) => coreografia.participante_id === item.id),
+    })),
+    pagamento: pagamentoResult.data,
+    aceite: aceiteResult.data,
+    webhooks: webhookResult.data || [],
+  })
+}
+
+async function actionReconciliar(req: Request, admin: any, body: any) {
+  const pedidoId = String(body?.pedido_id || '').trim()
+  if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return jsonResponse(req, { error: 'Pedido inválido.' }, 400)
+
+  const { data: pedido, error: pedidoError } = await admin
+    .from('gf_contratacao_pedidos')
+    .select('id,order_nsu,valor_total_centavos,status')
+    .eq('id', pedidoId)
+    .maybeSingle()
+  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+
+  const { data: pagamento, error: pagamentoError } = await admin
+    .from('gf_contratacao_pagamentos')
+    .select('transaction_nsu,slug')
+    .eq('pedido_id', pedidoId)
+    .maybeSingle()
+  if (pagamentoError || !pagamento?.transaction_nsu || !pagamento?.slug) {
+    return jsonResponse(req, { error: 'Ainda não há identificadores suficientes para consultar este pagamento.' }, 409)
+  }
+
+  const { data: refundEvents, error: refundEventsError } = await admin
+    .from('gf_contratacao_webhook_eventos')
+    .select('id,criado_em,resultado')
+    .eq('order_nsu', pedido.order_nsu)
+    .eq('evento_provedor', 'refunded')
+    .order('criado_em', { ascending: false })
+    .limit(1)
+  if (refundEventsError) throw new Error('Não foi possível conferir o histórico de estornos deste pedido.')
+  if (refundEvents?.length) {
+    return jsonResponse(req, {
+      ok: false,
+      status: pedido.status,
+      precisa_conferencia_manual: true,
+      mensagem: 'Há uma notificação de estorno registrada para este pedido. Confirme o movimento na InfinitePay antes de qualquer nova conciliação. Se o estorno foi realizado, registre-o na ação de estorno manual.',
+    }, 409)
+  }
+
+  const { apiKey, handle } = await getInfinitePayConfig(admin)
+  const check = await infinitePayCheck(apiKey, handle, pedido.order_nsu, pagamento.transaction_nsu, pagamento.slug)
+  if (check?.success !== true || check?.paid !== true) {
+    return jsonResponse(req, { ok: false, status: pedido.status, mensagem: 'A InfinitePay ainda não confirmou o pagamento.' }, 409)
+  }
+
+  const amount = Number(check.amount)
+  const paidAmount = Number(check.paid_amount)
+  if (!Number.isInteger(amount) || !Number.isInteger(paidAmount)) {
+    return jsonResponse(req, { error: 'A InfinitePay retornou valores inválidos. Mantenha o pedido em conciliação.' }, 409)
+  }
+
+  const { data: resultado, error } = await admin.rpc('gf_contratacao_confirmar_pagamento', {
+    p_order_nsu: pedido.order_nsu,
+    p_transaction_nsu: pagamento.transaction_nsu,
+    p_slug: pagamento.slug,
+    p_amount: amount,
+    p_paid_amount: paidAmount,
+    p_metodo: String(check.capture_method || ''),
+    p_parcelas: check.installments != null && Number.isInteger(Number(check.installments)) ? Number(check.installments) : null,
+    p_payment_check: check,
+  })
+  if (error) throw new Error('Falha ao atualizar a conciliação do pagamento.')
+  return jsonResponse(req, { ok: true, resultado })
+}
+
+async function actionMarcarReembolsado(req: Request, admin: any, userId: string, body: any) {
+  const pedidoId = String(body?.pedido_id || '').trim()
+  const motivo = String(body?.motivo || '').trim()
+  if (!/^[0-9a-f-]{36}$/i.test(pedidoId) || motivo.length < 10) {
+    return jsonResponse(req, { error: 'Informe o pedido e o motivo da conferência do estorno.' }, 400)
+  }
+
+  const { data: pedido, error: pedidoError } = await admin
+    .from('gf_contratacao_pedidos')
+    .select('id,order_nsu')
+    .eq('id', pedidoId)
+    .maybeSingle()
+  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+
+  const { data, error } = await admin.rpc('gf_contratacao_marcar_reembolsado', {
+    p_order_nsu: pedido.order_nsu,
+    p_motivo: motivo,
+    p_usuario_id: userId,
+  })
+  if (error) return jsonResponse(req, { error: error.message }, 409)
+  return jsonResponse(req, data || { ok: true, status: 'reembolsado' })
+}

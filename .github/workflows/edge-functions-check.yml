@@ -5,6 +5,8 @@ on:
     paths:
       - "index.html"
       - "scripts/**"
+      - "contratar/**"
+      - "supabase/sql/**"
       - "supabase/functions/**"
       - ".github/workflows/edge-functions-check.yml"
   push:
@@ -13,6 +15,8 @@ on:
     paths:
       - "index.html"
       - "scripts/**"
+      - "contratar/**"
+      - "supabase/sql/**"
       - "supabase/functions/**"
       - ".github/workflows/edge-functions-check.yml"
 
@@ -21,8 +25,22 @@ permissions:
 
 jobs:
   validate:
-    name: JavaScript and Edge Function checks
+    name: JavaScript, SQL and Edge Function checks
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -32,12 +50,39 @@ jobs:
           node-version: 22
       - name: Check embedded app JavaScript syntax
         run: node scripts/check-inline-js.mjs
+      - name: Check contracting page JavaScript syntax
+        run: |
+          node --check contratar/entre-estacoes/app.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
+      - name: Check contracting security and structure
+        run: node scripts/check-contratacao.mjs
+      - name: Build static site and verify isolated contracting pages
+        run: npm run build
+      - name: Install Playwright for browser verification
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Test public contracting flow and admin login gate in Chromium
+        run: node scripts/e2e-contratacao.mjs
+      - name: Validate contracting migration and reservation logic in temporary PostgreSQL
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: |
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/contratacao-pre.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/080_contratacao_experiencias.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/contratacao-tests.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
           deno-version: v2.x
       - name: Enable Deno npm dependency auto-install for CI
         run: echo '{"nodeModulesDir":"auto"}' > deno.json
+      - name: Test InfinitePay webhook normalization and retry policy
+        run: deno test supabase/functions/_shared/infinitepay_webhook_test.ts
+      - name: Test InfinitePay checkout URL allowlist
+        run: deno test supabase/functions/_shared/infinitepay_checkout_test.ts
+      - name: Test Supabase admin key resolution
+        run: deno test supabase/functions/_shared/contratacao_admin_key_test.ts
       - name: Check R2 adapter and migrated functions
         env:
           # Dummy credentials are used only to calculate presigned URLs locally.
@@ -52,3 +97,7 @@ jobs:
           deno check supabase/functions/galeria-publica/index.ts
           deno check supabase/functions/selecao-publica/index.ts
           deno check supabase/functions/r2-storage/index.ts
+          deno check supabase/functions/_shared/contratacao.ts
+          deno check supabase/functions/contratacao-publica/index.ts
+          deno check supabase/functions/contratacao-webhook/index.ts
+          deno check supabase/functions/contratacao-admin/index.ts

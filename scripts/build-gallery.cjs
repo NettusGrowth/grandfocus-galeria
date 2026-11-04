@@ -178,7 +178,18 @@ function main() {
   const migrationPage = path.join(root, 'r2-migration.html');
   if (fs.existsSync(migrationPage)) fs.copyFileSync(migrationPage, path.join(dist, 'r2-migration.html'));
 
+  // Módulo de contratação independente da galeria principal.
+  const contractingPages = path.join(root, 'contratar');
+  if (fs.existsSync(contractingPages)) copyTree(contractingPages, path.join(dist, 'contratar'));
+
   const deployed = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+  const contractingPublic = path.join(dist, 'contratar', 'entre-estacoes', 'index.html');
+  const contractingAdmin = path.join(dist, 'contratar', 'entre-estacoes', 'admin', 'index.html');
+  const contractingPublicScript = path.join(dist, 'contratar', 'entre-estacoes', 'app.js');
+  const contractingAdminScript = path.join(dist, 'contratar', 'entre-estacoes', 'admin', 'admin.js');
+  if (![contractingPublic, contractingAdmin, contractingPublicScript, contractingAdminScript].every(fs.existsSync)) {
+    throw new Error('Experience contracting pages or scripts are missing from dist.');
+  }
   if ((deployed.match(/function _urlPreviewValidada/g) || []).length !== 1) throw new Error('Fallback helper missing/duplicated.');
   if (!deployed.includes('_urlPreviewValidada(path, f.storage_path)')) throw new Error('Lightbox fallback missing.');
   if (!deployed.includes('timeoutMs = 8000')) throw new Error('Image timeout fallback missing.');

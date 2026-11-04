@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#182432">
+  <title>Administração da contratação | Grand Focus</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script type="module" src="./admin.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/">GRAND FOCUS<small>ADMINISTRAÇÃO</small></a>
+    <span class="header-note">Contratação de experiências fotográficas</span>
+  </header>
+
+  <main class="admin-shell">
+    <section class="panel" id="login-card">
+      <h2>Acesso administrativo</h2>
+      <p class="panel-intro">Entre com sua conta da galeria Grand Focus. Somente usuários com perfil administrativo podem acessar esta área.</p>
+      <form id="login-form">
+        <div class="field-grid">
+          <div class="field full">
+            <label for="login-email">E-mail</label>
+            <input id="login-email" type="email" autocomplete="username" required>
+          </div>
+          <div class="field full">
+            <label for="login-password">Senha</label>
+            <input id="login-password" type="password" autocomplete="current-password" required>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" type="submit" id="login-button">Entrar</button>
+        </div>
+        <p class="admin-message hidden" id="login-message" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="admin-area" class="hidden">
+      <div class="panel">
+        <div class="participant-head">
+          <div>
+            <p class="eyebrow">Painel da campanha</p>
+            <h2>Entre Estações</h2>
+            <p class="panel-intro" id="campaign-status">Carregando configuração…</p>
+          </div>
+          <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
+        </div>
+        <div class="admin-actions">
+          <button class="btn btn-secondary" type="button" id="save-button">Salvar configuração</button>
+          <button class="btn btn-primary" type="button" id="publish-button">Publicar campanha</button>
+          <button class="btn btn-secondary" type="button" id="pause-button">Pausar campanha</button>
+          <button class="btn btn-danger" type="button" id="close-button">Encerrar campanha</button>
+        </div>
+        <p class="admin-message hidden" id="admin-message" role="status"></p>
+        <div class="status-card" id="integration-status" aria-live="polite">Verificando a integração de pagamentos…</div>
+      </div>
+
+      <form id="config-form">
+        <section class="panel">
+          <h2>Informações do evento</h2>
+          <p class="panel-intro">Os horários e a capacidade precisam ser confirmados antes da publicação.</p>
+          <div class="admin-grid">
+            <div class="field">
+              <label for="event-date">Data do evento</label>
+              <input id="event-date" type="date">
+            </div>
+            <div class="field">
+              <label for="event-place">Local</label>
+              <input id="event-place" maxlength="240">
+            </div>
+            <div class="field">
+              <label for="mini-start">Início do miniensaio</label>
+              <input id="mini-start" type="datetime-local">
+            </div>
+            <div class="field">
+              <label for="mini-end">Fim do miniensaio</label>
+              <input id="mini-end" type="datetime-local">
+            </div>
+            <div class="field">
+              <label for="duration">Duração estimada por bailarina em minutos</label>
+              <input id="duration" type="number" min="1" max="60">
+            </div>
+            <div class="field">
+              <label for="capacity">Capacidade de miniensaios</label>
+              <input id="capacity" type="number" min="0" max="10000">
+            </div>
+            <div class="field">
+              <label for="sales-end">Encerramento das vendas</label>
+              <input id="sales-end" type="datetime-local">
+            </div>
+            <div class="field">
+              <label for="reservation-minutes">Duração da reserva em minutos</label>
+              <input id="reservation-minutes" type="number" min="1" max="60">
+            </div>
+            <div class="field">
+              <label for="delivery-days">Prazo de entrega em dias</label>
+              <input id="delivery-days" type="number" min="1" max="365">
+            </div>
+            <div class="field">
+              <label for="support-whatsapp">WhatsApp de atendimento</label>
+              <input id="support-whatsapp" type="tel" maxlength="30">
+            </div>
+          </div>
+          <p class="hint">O miniensaio será realizado por ordem de chegada dentro do período configurado. Não haverá horário individual por bailarina.</p>
+        </section>
+
+        <section class="panel">
+          <h2>Dados do fornecedor</h2>
+          <p class="panel-intro">Preencha com os dados oficiais que devem constar na contratação.</p>
+          <div class="admin-grid">
+            <div class="field">
+              <label for="supplier-name">Nome ou razão social</label>
+              <input id="supplier-name" maxlength="180">
+            </div>
+            <div class="field">
+              <label for="supplier-document">CPF ou CNPJ</label>
+              <input id="supplier-document" maxlength="40">
+            </div>
+            <div class="field full">
+              <label for="supplier-address">Endereço completo</label>
+              <input id="supplier-address" maxlength="500">
+            </div>
+            <div class="field">
+              <label for="supplier-email">E-mail</label>
+              <input id="supplier-email" type="email" maxlength="180">
+            </div>
+            <div class="field">
+              <label for="privacy-url">URL da política de privacidade</label>
+              <input id="privacy-url" type="url" maxlength="500" placeholder="https://">
+            </div>
+            <div class="field">
+              <label for="privacy-version">Versão da política de privacidade</label>
+              <input id="privacy-version" maxlength="40" placeholder="Exemplo 1.0">
+            </div>
+            <div class="field full">
+              <label for="privacy-text">Texto integral da política de privacidade</label>
+              <textarea id="privacy-text" maxlength="30000" rows="10"></textarea>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Termos e autorizações</h2>
+          <p class="panel-intro">A campanha só poderá ser publicada quando os termos e a política de privacidade estiverem preenchidos.</p>
+          <div class="field-grid">
+            <div class="field">
+              <label for="terms-version">Versão dos termos</label>
+              <input id="terms-version" maxlength="40" placeholder="Exemplo 1.0">
+            </div>
+            <div class="field full">
+              <label for="terms-text">Texto integral dos termos da contratação</label>
+              <textarea id="terms-text" maxlength="30000" rows="10"></textarea>
+            </div>
+            <div class="field">
+              <label for="image-version">Versão da autorização opcional de uso de imagem</label>
+              <input id="image-version" maxlength="40">
+            </div>
+            <div class="field full">
+              <label for="image-text">Texto da autorização opcional de uso de imagem</label>
+              <textarea id="image-text" maxlength="10000" rows="5"></textarea>
+              <span class="hint">Se não houver texto, a opção de autorização não será exibida. Ela não pode ser condição para comprar os pacotes.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <h2>Pacotes e valores</h2>
+          <p class="panel-intro">Os valores são cadastrados em reais e convertidos em centavos no servidor.</p>
+          <div id="package-fields" class="admin-grid"></div>
+        </section>
+      </form>
+
+      <section class="panel">
+        <h2>Pedidos recebidos</h2>
+        <p class="panel-intro">Os pedidos e os dados dos responsáveis ficam disponíveis somente nesta área administrativa.</p>
+        <div class="action-row">
+          <button class="btn btn-secondary" type="button" id="refresh-orders">Atualizar pedidos</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Pedido</th>
+                <th>Responsável</th>
+                <th>Bailarinas</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Data</th>
+              </tr>
+            </thead>
+            <tbody id="orders-body">
+              <tr><td colspan="6">Carregando pedidos…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="order-detail" class="admin-detail hidden"></div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
