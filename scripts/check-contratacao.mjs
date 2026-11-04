@@ -52,6 +52,7 @@ assert.ok(migration.includes('from public, anon, authenticated'), 'Tabelas priva
 assert.ok(migration.includes('privacidade_sha256'), 'O aceite deve preservar a versão da política de privacidade.')
 assert.ok(migration.includes('duracao_minutos * v_evento.capacidade_miniensaios'), 'A capacidade precisa caber no período de miniensaio.')
 assert.ok(migration.includes('v_vagas_ocupadas > v_evento.capacidade_miniensaios'), 'A publicação não pode reduzir a capacidade abaixo das vagas já ocupadas.')
+assert.ok(migration.includes("v_evento.status = 'encerrado'") && migration.includes('não pode ser reaberta'), 'Uma campanha encerrada não pode voltar a ser publicada.')
 assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
 assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
