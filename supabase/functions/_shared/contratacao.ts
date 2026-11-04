@@ -6,9 +6,10 @@ export const PUBLIC_CAMPAIGN_URL = PUBLIC_ORIGIN + '/contratar/entre-estacoes/'
 export function resolveSupabaseAdminKey(secretKeysJson: string | undefined, legacyServiceRoleKey: string | undefined): string {
   try {
     const keys = JSON.parse(secretKeysJson || '{}') as Record<string, unknown>
-    const preferred = typeof keys?.default === 'string' ? keys.default.trim() : ''
+    if (!keys || typeof keys !== 'object' || Array.isArray(keys)) throw new Error('Invalid Supabase secret key map.')
+    const preferred = typeof keys.default === 'string' ? keys.default.trim() : ''
     if (preferred) return preferred
-    const fallbackSecret = Object.values(keys || {}).find(
+    const fallbackSecret = Object.values(keys).find(
       (value) => typeof value === 'string' && value.trim(),
     )
     if (typeof fallbackSecret === 'string') return fallbackSecret.trim()
