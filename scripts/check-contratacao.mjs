@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict'
+import fs from 'node:fs'
+
+const read = (path) => fs.readFileSync(path, 'utf8')
+const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório ausente: ' + path)
+
+const migration = read('supabase/sql/080_contratacao_experiencias.sql')
+const publicApi = read('supabase/functions/contratacao-publica/index.ts')
+const webhook = read('supabase/functions/contratacao-webhook/index.ts')
+const adminApi = read('supabase/functions/contratacao-admin/index.ts')
+const build = read('scripts/build-gallery.cjs')
+const publicPage = read('contratar/entre-estacoes/index.html')
+const adminPage = read('contratar/entre-estacoes/admin/index.html')
+const publicScript = read('contratar/entre-estacoes/app.js')
+const adminScript = read('contratar/entre-estacoes/admin/admin.js')
+
+for (const path of [
+  'contratar/entre-estacoes/index.html',
+  'contratar/entre-estacoes/styles.css',
+  'contratar/entre-estacoes/app.js',
+  'contratar/entre-estacoes/admin/index.html',
+  'contratar/entre-estacoes/admin/admin.js',
+  'supabase/functions/_shared/contratacao.ts',
+  'supabase/functions/contratacao-publica/index.ts',
+  'supabase/functions/contratacao-webhook/index.ts',
+  'supabase/functions/contratacao-admin/index.ts',
+]) exists(path)
+
+assert.ok(migration.includes("c8ea425b-a082-40ae-9a27-79db870f5075"), 'Migration deve apontar para o evento Entre Estações confirmado.')
+assert.ok(!migration.includes("c8ea425b-a082-40ae-9a27-79db8705f075"), 'Migration contém o UUID antigo incorreto.')
+for (const price of ['11900','7900','15900']) {
+  assert.ok(migration.includes(price), 'Preço inicial ausente na migration: ' + price)
+}
+for (const rpc of [
+  'gf_contratacao_criar_reserva',
+  'gf_contratacao_registrar_checkout',
+  'gf_contratacao_confirmar_pagamento',
+  'gf_contratacao_marcar_conciliacao',
+  'gf_contratacao_admin_publicar',
+]) assert.ok(migration.includes(rpc), 'RPC obrigatória ausente: ' + rpc)
+
+assert.ok(migration.includes('enable row level security'), 'Tabelas precisam de RLS.')
+assert.ok(migration.includes('from public, anon, authenticated'), 'Tabelas privadas precisam revogar acesso público.')
+assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
+assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
+assert.ok(publicApi.includes('valid_until:'), 'Checkout precisa ter validade.')
+assert.ok(publicApi.includes('X-Api-Key'), 'A criação do link precisa usar a API Key no servidor.')
+assert.ok(webhook.includes('gf_contratacao_confirmar_pagamento'), 'Webhook deve confirmar o pagamento via RPC própria.')
+assert.ok(webhook.includes('infinitePayCheck'), 'Webhook deve consultar payment_check.')
+assert.ok(adminApi.includes("['admin', 'super_admin']"), 'Admin API precisa validar o perfil.')
+assert.ok(build.includes("copyTree(contractingPages"), 'Build precisa copiar a rota de contratação.')
+assert.ok(publicPage.includes('./app.js'), 'Página pública precisa carregar seu script isolado.')
+assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script isolado.')
+assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')
+assert.ok(!adminScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no painel público.')
+
+console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
