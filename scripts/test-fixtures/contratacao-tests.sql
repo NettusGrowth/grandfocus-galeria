@@ -9,6 +9,8 @@ declare
   v_confirm_result jsonb;
   v_status_result jsonb;
   v_rate_result jsonb;
+  v_duplicate_result jsonb;
+  v_event_json jsonb;
   v_rate_key text := repeat('9',64);
 begin
   update public.gf_contratacao_eventos
@@ -65,6 +67,30 @@ begin
     ),
     '11111111-1111-4111-8111-111111111111'
   );
+
+  -- Uma falha no preço de um pacote deve desfazer também a atualização do evento.
+  select to_jsonb(e) into v_event_json
+  from public.gf_contratacao_eventos e
+  where slug='entre-estacoes';
+  v_event_json := jsonb_set(v_event_json,'{local}','"Local que não deve ser salvo"');
+  begin
+    perform public.gf_contratacao_admin_salvar_config(
+      'entre-estacoes',
+      v_event_json,
+      jsonb_build_array(
+        jsonb_build_object('codigo','miniensaio','preco_centavos',0,'ativo',true),
+        jsonb_build_object('codigo','palco','preco_centavos',7900,'ativo',true),
+        jsonb_build_object('codigo','completo','preco_centavos',15900,'ativo',true)
+      ),
+      '11111111-1111-4111-8111-111111111111'
+    );
+    raise exception 'O salvamento deveria rejeitar o preço inválido.';
+  exception when others then
+    if sqlerrm not like '%preço%' then raise; end if;
+  end;
+  if (select local from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'Local de teste' then
+    raise exception 'O salvamento administrativo deixou uma alteração parcial.';
+  end if;
 
   -- A capacidade não pode prometer mais miniensaios do que cabem na janela.
   update public.gf_contratacao_eventos
@@ -141,6 +167,15 @@ begin
 
   if (v_mini_result->>'valor_total_centavos')::integer <> 11900 then
     raise exception 'Preço do miniensaio não foi validado pelo servidor.';
+  end if;
+
+  if not exists (
+    select 1 from public.gf_contratacao_aceites a
+    where a.pedido_id = (v_mini_result->>'pedido_id')::uuid
+      and a.privacidade_versao = '1.0'
+      and a.privacidade_sha256 = encode(extensions.digest(a.privacidade_conteudo,'sha256'),'hex')
+  ) then
+    raise exception 'O aceite não preservou a versão e o hash da política de privacidade.';
   end if;
 
   v_retry_result := public.gf_contratacao_criar_reserva(
@@ -223,6 +258,20 @@ begin
 
   if v_confirm_result->>'status' <> 'pago' then
     raise exception 'A confirmação idempotente do pagamento não foi concluída.';
+  end if;
+
+  v_duplicate_result := public.gf_contratacao_confirmar_pagamento(
+    v_palco_result->>'order_nsu',
+    'transaction-nsu-test',
+    'invoice-slug-test',
+    7900,
+    7900,
+    'pix',
+    1,
+    '{"success":true,"paid":true}'::jsonb
+  );
+  if coalesce((v_duplicate_result->>'ja_processado')::boolean,false) is not true then
+    raise exception 'A confirmação repetida do mesmo pagamento não foi idempotente.';
   end if;
 
   v_status_result := public.gf_contratacao_status_por_hash(repeat('e',64));
