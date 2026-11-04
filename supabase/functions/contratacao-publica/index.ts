@@ -63,8 +63,14 @@ async function actionDados(req: Request, admin: any) {
 }
 
 async function actionContratar(req: Request, admin: any, body: any) {
-  // Kill switch obrigatório. A InfinitePay não oferece sandbox e a criação de link é real.
-  // Nenhum pedido ou link é criado até a ativação explícita deste secret.
+  // A InfinitePay não oferece sandbox. Bloqueie a reserva antes de gravar qualquer pedido
+  // até que a Grand Focus autorize explicitamente a criação de checkouts reais.
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      error: 'A contratação online ainda não foi liberada. Nenhum pedido foi registrado.',
+      retryable: false,
+    }, 503)
+  }
   if (String(body?.company_website || '').trim()) {
     return jsonResponse(req, { error: 'Solicitação inválida.' }, 400)
   }
@@ -251,14 +257,31 @@ async function actionContratar(req: Request, admin: any, body: any) {
     }, 502)
   }
 
-  const linkData = await response.json().catch(() => ({}))
+  const responseText = await response.text().catch(() => '')
+  let linkData: any = {}
+  try { linkData = responseText ? JSON.parse(responseText) : {} } catch { /* resposta não JSON */ }
   const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
+  let checkoutHost: string | null = null
+  try { checkoutHost = new URL(String(checkoutUrl || '')).hostname || null } catch { /* URL ausente ou inválida */ }
   const checkoutHostOk = isAllowedInfinitePayCheckoutUrl(checkoutUrl)
+  const providerError = linkData?.error && typeof linkData.error === 'object' ? linkData.error : {}
+  const providerCode = String(linkData?.code || providerError?.code || '').slice(0, 100) || null
+  const providerMessage = String(
+    linkData?.message || providerError?.message || linkData?.error_description ||
+    (typeof linkData?.error === 'string' ? linkData.error : '')
+  ).slice(0, 300) || null
+  const responseKeys = linkData && typeof linkData === 'object' ? Object.keys(linkData) : []
 
   if (!response.ok || !checkoutUrl || !checkoutHostOk) {
-    console.error('contratacao-publica[contratar]: InfinitePay recusou a criação do link', {
+    console.error('contratacao-publica[contratar]: resposta da InfinitePay sem checkout válido', {
       order_nsu: reserva.order_nsu,
       http_status: response.status,
+      response_keys: responseKeys,
+      provider_code: providerCode,
+      provider_message: providerMessage,
+      checkout_url_present: Boolean(checkoutUrl),
+      checkout_host: checkoutHost,
+      checkout_host_ok: checkoutHostOk,
     })
     return jsonResponse(req, {
       error: 'A InfinitePay não conseguiu gerar o checkout agora. Sua solicitação foi preservada para uma nova tentativa.',
