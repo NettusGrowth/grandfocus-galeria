@@ -390,6 +390,24 @@ begin
     from public.gf_contratacao_eventos
     where id = v_pedido.evento_contratacao_id;
 
+    if v_pedido.status in ('aguardando_pagamento','pagamento_pendente')
+      and (
+        (v_pedido.reserva_status = 'ativa' and v_pedido.reserva_expira_em <= now())
+        or (v_pedido.reserva_status = 'nao_aplicavel' and v_evento.vendas_encerram_em <= now())
+      ) then
+      update public.gf_contratacao_pedidos
+      set status = 'expirado',
+          reserva_status = case when reserva_status = 'ativa' then 'expirada' else reserva_status end,
+          atualizado_em = now()
+      where id = v_pedido.id;
+      update public.gf_contratacao_pagamentos
+      set status = 'expirado', atualizado_em = now()
+      where pedido_id = v_pedido.id;
+      v_pedido.status := 'expirado';
+      v_pedido.reserva_status := case when v_pedido.reserva_status = 'ativa' then 'expirada' else v_pedido.reserva_status end;
+      v_pedido.checkout_url := null;
+    end if;
+
     return jsonb_build_object(
       'pedido_id',v_pedido.id,
       'order_nsu',v_pedido.order_nsu,
@@ -652,15 +670,11 @@ begin
     raise exception 'Pedido não encontrado.';
   end if;
 
-  if v_pedido.checkout_url is not null then
-    return jsonb_build_object('ok',true,'checkout_url',v_pedido.checkout_url,'reutilizado',true);
-  end if;
-
   select * into v_evento
   from public.gf_contratacao_eventos
   where id = v_pedido.evento_contratacao_id;
 
-  if v_pedido.status in ('pago','cancelado','reembolsado','conciliacao_pendente') then
+  if v_pedido.status in ('pago','cancelado','reembolsado','conciliacao_pendente','expirado') then
     return jsonb_build_object('ok',false,'motivo','O pedido não pode receber um novo checkout.');
   end if;
 
@@ -674,6 +688,10 @@ begin
     set status = 'expirado', atualizado_em = now()
     where pedido_id = v_pedido.id;
     return jsonb_build_object('ok',false,'motivo','A reserva ou o prazo de vendas expirou.');
+  end if;
+
+  if v_pedido.checkout_url is not null then
+    return jsonb_build_object('ok',true,'checkout_url',v_pedido.checkout_url,'reutilizado',true);
   end if;
 
   if p_checkout_url !~ '^https://[^[:space:]]+$' then
@@ -722,13 +740,18 @@ begin
   where id = v_pedido.evento_contratacao_id;
 
   if v_pedido.status in ('aguardando_pagamento','pagamento_pendente')
-    and v_pedido.reserva_status = 'ativa'
-    and v_pedido.reserva_expira_em <= now() then
+    and (
+      (v_pedido.reserva_status = 'ativa' and v_pedido.reserva_expira_em <= now())
+      or (v_pedido.reserva_status = 'nao_aplicavel' and v_evento.vendas_encerram_em <= now())
+    ) then
     update public.gf_contratacao_pedidos
-    set status = 'expirado', reserva_status = 'expirada', atualizado_em = now()
+    set status = 'expirado',
+        reserva_status = case when reserva_status = 'ativa' then 'expirada' else reserva_status end,
+        atualizado_em = now()
     where id = v_pedido.id;
     v_pedido.status := 'expirado';
-    v_pedido.reserva_status := 'expirada';
+    if v_pedido.reserva_status = 'ativa' then v_pedido.reserva_status := 'expirada'; end if;
+    v_pedido.checkout_url := null;
   end if;
 
   return jsonb_build_object(
