@@ -186,8 +186,10 @@ async function saveConfig() {
     await adminRequest('salvar', config)
     showNotice(adminMessage, 'Configuração salva. A campanha continua no status atual.')
     await loadConfig()
+    return true
   } catch (error) {
     showNotice(adminMessage, error.message)
+    return false
   }
 }
 
@@ -397,8 +399,18 @@ document.getElementById('logout-button').addEventListener('click', async () => {
 })
 
 document.getElementById('save-button').addEventListener('click', saveConfig)
-document.getElementById('publish-button').addEventListener('click', () =>
-  changeCampaign('publicar', 'Publicar a campanha agora? A página ficará disponível para contratação assim que os dados forem validados.'))
+document.getElementById('publish-button').addEventListener('click', async () => {
+  if (!window.confirm('Publicar a campanha agora? A página ficará disponível para contratação assim que os dados forem validados.')) return
+  const saved = await saveConfig()
+  if (!saved) return
+  try {
+    const result = await adminRequest('publicar')
+    showNotice(adminMessage, 'Campanha publicada. A página pública já pode receber contratações.')
+    await loadConfig()
+  } catch (error) {
+    showNotice(adminMessage, error.message)
+  }
+})
 document.getElementById('pause-button').addEventListener('click', () =>
   changeCampaign('pausar', 'Pausar a campanha? Novas contratações serão bloqueadas.'))
 document.getElementById('close-button').addEventListener('click', () =>
