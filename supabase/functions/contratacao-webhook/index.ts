@@ -5,6 +5,12 @@ import {
   registrarWebhook,
   safeErrorMessage,
 } from '../_shared/contratacao.ts'
+import {
+  normalizeInfinitePayEventType,
+  isLikelyPaidInfinitePayWebhook,
+  shouldRetryInfinitePayPaymentCheck,
+  requiresInfinitePayPaymentIdentifiers,
+} from '../_shared/infinitepay_webhook.ts'
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok')
@@ -32,17 +38,7 @@ Deno.serve(async (req: Request) => {
   const orderNsu = String(body?.order_nsu || '').trim()
   const transactionNsu = String(body?.transaction_nsu || '').trim()
   const slug = String(body?.slug || body?.invoice_slug || '').trim()
-  const eventType = String(
-    body?.event ||
-    body?.event_type ||
-    body?.type ||
-    body?.status ||
-    body?.payment_status ||
-    req.headers.get('x-infinitepay-event') ||
-    req.headers.get('x-webhook-event') ||
-    req.headers.get('x-event-type') ||
-    ''
-  ).trim().toLowerCase()
+  const eventType = normalizeInfinitePayEventType(body, req.headers)
 
   if (!orderNsu) {
     await registrarWebhook(admin, {
@@ -74,7 +70,12 @@ Deno.serve(async (req: Request) => {
       payload: body,
       resultado: 'payload_pagamento_incompleto',
     })
-    return new Response('transaction_nsu ou slug ausente.', { status: 400 })
+    // created/canceled/payment_failed podem não ter identificadores de transação.
+    // Eventos com evidência de pagamento ou reembolso exigem os identificadores.
+    const needsPaymentIdentifiers = requiresInfinitePayPaymentIdentifiers(eventType, body)
+    return needsPaymentIdentifiers
+      ? new Response('transaction_nsu ou slug ausente.', { status: 400 })
+      : new Response('Notificação sem transação registrada.', { status: 200 })
   }
 
   const { data: pedido, error: pedidoError } = await admin.rpc('gf_contratacao_webhook_dados', {
@@ -135,7 +136,7 @@ Deno.serve(async (req: Request) => {
     })
     // Para um aviso de aprovação/liquidação, pedimos nova tentativa. Para notificações
     // não identificadas, respondemos 200 após gravar o evento e não alteramos o pedido.
-    const retryPaymentEvent = eventType === 'paid' || eventType === 'settled'
+    const retryPaymentEvent = shouldRetryInfinitePayPaymentCheck(eventType, body, pedido.status)
     return retryPaymentEvent
       ? new Response('Aguarde nova conferência do pagamento.', { status: 503 })
       : new Response('Notificação registrada sem alteração financeira.', { status: 200 })
@@ -218,7 +219,7 @@ Deno.serve(async (req: Request) => {
     })
     // Um payment_check válido com paid=false não confirma cobrança. Se o pedido já
     // estava pago, preservamos seu estado e deixamos o botão de conferência/estorno no painel.
-    const retryPaymentEvent = eventType === 'paid' || eventType === 'settled'
+    const retryPaymentEvent = shouldRetryInfinitePayPaymentCheck(eventType, body, pedido.status)
     return retryPaymentEvent && !previousPayment
       ? new Response('A InfinitePay ainda não confirmou o pagamento.', { status: 503 })
       : new Response('Notificação conferida e registrada.', { status: 200 })
