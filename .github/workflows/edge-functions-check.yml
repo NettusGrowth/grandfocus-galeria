@@ -15,6 +15,8 @@ on:
     paths:
       - "index.html"
       - "scripts/**"
+      - "contratar/**"
+      - "supabase/sql/**"
       - "supabase/functions/**"
       - ".github/workflows/edge-functions-check.yml"
 
@@ -37,7 +39,7 @@ jobs:
       - name: Check contracting page JavaScript syntax
         run: |
           node --check contratar/entre-estacoes/app.js
-          node --check contratar/entre-estacoes/admin/admin.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
       - name: Build static site and verify isolated contracting pages
         run: npm run build
       - name: Set up Deno
