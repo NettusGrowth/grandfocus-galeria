@@ -1186,10 +1186,10 @@ begin
   where id = v_evento.id;
 
   select count(distinct item->>'codigo') into v_pacotes_distintos
-  from jsonb_array_elements(p_pacotes) item
-  where item->>'codigo' in ('miniensaio','palco','completo');
+  from jsonb_array_elements(p_pacotes) as itens(value)
+  where value->>'codigo' in ('miniensaio','palco','completo');
 
-  if v_pacotes_distintos <> 3 then
+  if jsonb_array_length(p_pacotes) <> 3 or v_pacotes_distintos <> 3 then
     raise exception 'Envie os três pacotes da campanha para salvar os valores com segurança.';
   end if;
 
