@@ -53,6 +53,8 @@ assert.ok(migration.includes('from public, anon, authenticated'), 'Tabelas priva
 assert.ok(migration.includes('privacidade_sha256'), 'O aceite deve preservar a versão da política de privacidade.')
 assert.ok(migration.includes('duracao_minutos * v_evento.capacidade_miniensaios'), 'A capacidade precisa caber no período de miniensaio.')
 assert.ok(migration.includes('v_vagas_ocupadas > v_evento.capacidade_miniensaios'), 'A publicação não pode reduzir a capacidade abaixo das vagas já ocupadas.')
+assert.ok(migration.includes('least(\n      now() + make_interval(mins => v_evento.reserva_minutos),\n      v_evento.vendas_encerram_em'), 'A reserva temporária não pode ultrapassar o encerramento das vendas.')
+assert.ok(reservationTests.includes('A reserva temporária ultrapassou o encerramento das vendas.'), 'O PostgreSQL precisa testar o limite temporal da reserva.')
 assert.ok(migration.includes("v_evento.status = 'encerrado'") && migration.includes('não pode ser reaberta'), 'Uma campanha encerrada não pode voltar a ser publicada.')
 assert.ok(migration.includes('gf_contratacao_admin_alterar_status') && adminApi.includes('gf_contratacao_admin_alterar_status'), 'O status precisa mudar por RPC transacional e impedir reabertura depois de encerrar.')
 assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
