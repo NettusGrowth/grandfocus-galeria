@@ -98,12 +98,20 @@ async function loadConfig() {
   setField('supplier-address', currentEvent.fornecedor_endereco)
   setField('supplier-email', currentEvent.fornecedor_email)
   setField('privacy-url', currentEvent.privacidade_url)
+  setField('privacy-version', currentEvent.privacidade_versao)
+  setField('privacy-text', currentEvent.privacidade_conteudo)
   setField('terms-version', currentEvent.termos_versao)
   setField('terms-text', currentEvent.termos_conteudo)
   setField('image-version', currentEvent.autorizacao_imagem_versao)
   setField('image-text', currentEvent.autorizacao_imagem_conteudo)
   document.getElementById('campaign-status').textContent =
     'Status atual ' + currentEvent.status + ' • Data cadastrada ' + (currentEvent.data_evento || 'não confirmada')
+  const integration = data.integracao || {}
+  document.getElementById('integration-status').textContent = [
+    'Pagamentos reais ' + (integration.pagamentos_reais_ativados ? 'ATIVADOS' : 'desativados'),
+    'API Key InfinitePay ' + (integration.api_key_configurada ? 'configurada' : 'pendente'),
+    'InfiniteTag ' + (integration.infinite_tag_configurada ? 'configurada' : 'pendente'),
+  ].join(' • ')
   renderPackages()
 }
 
@@ -163,6 +171,8 @@ function collectConfig() {
       fornecedor_endereco: getField('supplier-address'),
       fornecedor_email: getField('supplier-email'),
       privacidade_url: getField('privacy-url'),
+      privacidade_versao: getField('privacy-version'),
+      privacidade_conteudo: document.getElementById('privacy-text').value,
       termos_versao: getField('terms-version'),
       termos_conteudo: document.getElementById('terms-text').value,
       autorizacao_imagem_versao: getField('image-version'),
@@ -363,13 +373,17 @@ async function loadOrderDetail(id) {
 }
 
 async function enterAdmin() {
-  loginCard.classList.add('hidden')
-  adminArea.classList.remove('hidden')
+  clearNotice(loginMessage)
   try {
     await loadConfig()
     await loadOrders()
+    loginCard.classList.add('hidden')
+    adminArea.classList.remove('hidden')
   } catch (error) {
-    showNotice(adminMessage, error.message)
+    adminArea.classList.add('hidden')
+    loginCard.classList.remove('hidden')
+    showNotice(loginMessage, error.message)
+    await supabase.auth.signOut()
   }
 }
 
