@@ -15,6 +15,7 @@ const publicScript = read('contratar/entre-estacoes/app.js')
 const adminScript = read('contratar/entre-estacoes/admin/admin.js')
 const e2eScript = read('scripts/e2e-contratacao.mjs')
 const workflow = read('.github/workflows/edge-functions-check.yml')
+const supabaseConfig = read('supabase/config.toml')
 
 for (const path of [
   'contratar/entre-estacoes/index.html',
@@ -67,6 +68,9 @@ assert.ok(webhook.includes('shouldRetryInfinitePayPaymentCheck'), 'Webhook deve 
 assert.ok(read('supabase/functions/_shared/infinitepay_webhook_test.ts').includes('Deno.test'), 'A política do webhook deve ter testes unitários.')
 assert.ok(webhook.includes('payment_check_nao_validou_identificadores'), 'Webhook não pode alterar pedidos com notificações não validadas.')
 assert.ok(webhook.includes("eventType === 'canceled' || eventType === 'payment_failed'"), 'Cancelamentos e falhas precisam ser tratados após payment_check.')
+assert.ok(supabaseConfig.includes('[functions.contratacao-publica]\nverify_jwt = false'), 'A API pública precisa aceitar chamadas com a chave pública sem JWT.')
+assert.ok(supabaseConfig.includes('[functions.contratacao-webhook]\nverify_jwt = false'), 'O webhook usa token próprio e não pode exigir JWT Supabase.')
+assert.ok(supabaseConfig.includes('[functions.contratacao-admin]\nverify_jwt = true'), 'O painel administrativo precisa manter verificação JWT.')
 assert.ok(adminApi.includes("['admin', 'super_admin']"), 'Admin API precisa validar o perfil.')
 assert.ok(adminApi.includes('gf_contratacao_admin_salvar_config'), 'A configuração administrativa deve ser salva atomicamente.')
 assert.ok(!adminApi.includes('acesso_publico_hash'), 'O painel não deve expor hashes privados do pedido.')

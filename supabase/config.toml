@@ -1,0 +1,10 @@
+project_id = "selnsjtumkxjrtnqofqx"
+
+[functions.contratacao-publica]
+verify_jwt = false
+
+[functions.contratacao-webhook]
+verify_jwt = false
+
+[functions.contratacao-admin]
+verify_jwt = true

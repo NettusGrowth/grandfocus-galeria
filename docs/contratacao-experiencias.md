@@ -30,7 +30,9 @@ https://galeria.grandfocus.com.br/contratar/entre-estacoes/admin/.
    - contratacao-publica com verify_jwt=false.
    - contratacao-webhook com verify_jwt=false.
    - contratacao-admin com verify_jwt=true.
+   Essas opções já estão declaradas em `supabase/config.toml`; use esse arquivo ao publicar as funções para não depender de padrões implícitos.
 3. Configurar INFINITEPAY_API_KEY como secret do Supabase. Nunca colocar essa chave no HTML, JavaScript público ou Git.
+   Configurar também `CONTRATACAO_WEBHOOK_TOKEN` como 64 caracteres hexadecimais aleatórios. Gere e cadastre esse segredo diretamente no ambiente privado do Supabase, sem o enviar pelo chat.
 4. A função tenta obter a InfiniteTag da configuração existente selecao_config. Se não estiver preenchida ali, configurar INFINITEPAY_HANDLE como secret.
 5. O domínio oficial já é permitido por padrão. Para um domínio adicional de homologação, usar CONTRATACAO_ALLOWED_ORIGINS.
 6. A página administrativa deve ser usada por uma conta com perfil admin ou super_admin.
