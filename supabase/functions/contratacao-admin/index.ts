@@ -114,7 +114,7 @@ async function actionConfig(req: Request, admin: any) {
     evento,
     pacotes: pacotes || [],
     integracao: {
-      pagamentos_reais_ativados: true,
+      pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
       api_key_configurada: configuredApiKey.startsWith('inchk_'),
       infinite_tag_configurada: handleConfigured,
       webhook_token_configurado: webhookTokenConfigured,
@@ -207,6 +207,9 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any)
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string) {
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, { error: 'A ativação de pagamentos reais é necessária antes de publicar a campanha.' }, 403)
+  }
   try {
     await getInfinitePayConfig(admin)
     getContratacaoWebhookToken()
