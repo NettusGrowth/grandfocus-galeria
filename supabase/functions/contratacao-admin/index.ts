@@ -114,7 +114,7 @@ async function actionConfig(req: Request, admin: any) {
     evento,
     pacotes: pacotes || [],
     integracao: {
-      pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
+      pagamentos_reais_ativados: true,
       api_key_configurada: configuredApiKey.startsWith('inchk_'),
       infinite_tag_configurada: handleConfigured,
       webhook_token_configurado: webhookTokenConfigured,
@@ -207,9 +207,6 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any)
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string) {
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
-    return jsonResponse(req, { error: 'A publicação está bloqueada enquanto os pagamentos reais estiverem desativados.' }, 409)
-  }
   try {
     await getInfinitePayConfig(admin)
     getContratacaoWebhookToken()
