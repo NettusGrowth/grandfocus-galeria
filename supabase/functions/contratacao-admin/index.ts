@@ -96,11 +96,13 @@ async function actionConfig(req: Request, admin: any) {
     .eq('evento_contratacao_id', evento.id)
     .order('ordem', { ascending: true })
   if (error) throw new Error('Não foi possível consultar os pacotes.')
-  let handleConfigured = Boolean(Deno.env.get('INFINITEPAY_HANDLE')?.trim())
-  if (!handleConfigured) {
+  const configuredApiKey = Deno.env.get('INFINITEPAY_API_KEY')?.trim() || ''
+  let configuredHandle = (Deno.env.get('INFINITEPAY_HANDLE') || '').replace(/^\$/, '').trim()
+  if (!configuredHandle) {
     const { data: paymentConfig } = await admin.rpc('gf_contratacao_payment_config')
-    handleConfigured = Boolean(paymentConfig?.handle?.trim?.())
+    configuredHandle = String(paymentConfig?.handle || '').replace(/^\$/, '').trim()
   }
+  const handleConfigured = Boolean(configuredHandle && !/[\s$]/.test(configuredHandle))
   let webhookTokenConfigured = false
   try {
     getContratacaoWebhookToken()
@@ -113,7 +115,7 @@ async function actionConfig(req: Request, admin: any) {
     pacotes: pacotes || [],
     integracao: {
       pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
-      api_key_configurada: Boolean(Deno.env.get('INFINITEPAY_API_KEY')?.trim()),
+      api_key_configurada: configuredApiKey.startsWith('inchk_'),
       infinite_tag_configurada: handleConfigured,
       webhook_token_configurado: webhookTokenConfigured,
     },
