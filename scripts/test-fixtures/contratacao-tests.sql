@@ -466,5 +466,22 @@ begin
   if (select status from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'pausado' then
     raise exception 'A campanha não deveria ser publicada quando a capacidade é insuficiente.';
   end if;
+
+  -- Uma campanha encerrada é definitiva e não pode ser reaberta pelo botão publicar.
+  update public.gf_contratacao_eventos
+  set status = 'encerrado',
+      capacidade_miniensaios = 2
+  where slug = 'entre-estacoes';
+  begin
+    perform public.gf_contratacao_admin_publicar('entre-estacoes');
+    raise exception 'O teste deveria impedir a reabertura de uma campanha encerrada.';
+  exception when others then
+    if sqlerrm not like '%encerrada e não pode ser reaberta%' then
+      raise;
+    end if;
+  end;
+  if (select status from public.gf_contratacao_eventos where slug='entre-estacoes') <> 'encerrado' then
+    raise exception 'A campanha encerrada teve o status alterado indevidamente.';
+  end if;
 end
 $test$;
