@@ -20,9 +20,9 @@ const server = http.createServer((req,res) => {
   let routedPath = pathname
   if (pathname === '/contratar/admin' || pathname === '/contratar/admin/') {
     routedPath = '/contratar/admin/'
-  } else if (/^\\/contratar\\/[^/]+\\/admin\\/?$/.test(pathname)) {
+  } else if (/^\/contratar\/[^/]+\/admin\/?$/.test(pathname)) {
     routedPath = '/contratar/entre-estacoes/admin/'
-  } else if (/^\\/contratar\\/[^/]+\\/?$/.test(pathname)) {
+  } else if (/^\/contratar\/[^/]+\/?$/.test(pathname)) {
     routedPath = '/contratar/entre-estacoes/'
   }
   let file = path.resolve(root, '.' + (routedPath.endsWith('/') ? routedPath + 'index.html' : routedPath))
