@@ -47,6 +47,10 @@
     </section>
 
     <form id="contract-form" class="hidden" novalidate>
+      <div class="honeypot" aria-hidden="true">
+        <label for="company-website">Deixe este campo vazio</label>
+        <input id="company-website" name="company_website" type="text" tabindex="-1" autocomplete="off">
+      </div>
       <section class="panel">
         <h2>Escolha a experiência</h2>
         <p class="panel-intro">
@@ -89,7 +93,11 @@
           </label>
           <label class="consent">
             <input id="terms-accepted" type="checkbox" required>
-            <span>Li e aceito os termos da contratação e a política de privacidade informada nesta página.</span>
+            <span>Li e aceito os termos da contratação.</span>
+          </label>
+          <label class="consent">
+            <input id="privacy-acknowledged" type="checkbox" required>
+            <span>Li e estou ciente da política de privacidade disponibilizada nesta página.</span>
           </label>
           <div class="hidden" id="image-consent-area">
             <div class="terms-box" id="image-consent-content"></div>
@@ -100,7 +108,12 @@
             </label>
           </div>
         </div>
-        <p class="hint" id="privacy-link"></p>
+        <details class="privacy-details">
+          <summary>Consultar política de privacidade</summary>
+          <div class="terms-box" id="privacy-content"></div>
+          <p class="hint" id="privacy-version"></p>
+          <p class="hint" id="privacy-link"></p>
+        </details>
       </section>
 
       <section class="panel">
