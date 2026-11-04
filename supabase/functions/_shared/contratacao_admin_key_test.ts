@@ -29,9 +29,9 @@ Deno.test('retorna vazio quando não existe nenhuma chave', () => {
 })
 
 Deno.test('mantém sb_secret somente no apikey e remove seu Bearer automático', async () => {
-  let capturedHeaders: Headers | null = null
+  const captured: { headers?: Headers } = {}
   const fakeFetch: typeof fetch = async (_input, init) => {
-    capturedHeaders = new Headers(init?.headers)
+    captured.headers = new Headers(init?.headers)
     return new Response('ok')
   }
   const secret = 'sb_secret_modern'
@@ -44,15 +44,15 @@ Deno.test('mantém sb_secret somente no apikey e remove seu Bearer automático',
       'Content-Type': 'application/json',
     },
   })
-  assert.equal(capturedHeaders?.get('apikey'), secret)
-  assert.equal(capturedHeaders?.get('authorization'), null)
-  assert.equal(capturedHeaders?.get('content-type'), 'application/json')
+  assert.equal(captured.headers?.get('apikey'), secret)
+  assert.equal(captured.headers?.get('authorization'), null)
+  assert.equal(captured.headers?.get('content-type'), 'application/json')
 })
 
 Deno.test('preserva o JWT do usuário ao chamar auth.getUser com um cliente administrativo', async () => {
-  let capturedHeaders: Headers | null = null
+  const captured: { headers?: Headers } = {}
   const fakeFetch: typeof fetch = async (_input, init) => {
-    capturedHeaders = new Headers(init?.headers)
+    captured.headers = new Headers(init?.headers)
     return new Response('ok')
   }
   const secret = 'sb_secret_modern'
@@ -65,8 +65,8 @@ Deno.test('preserva o JWT do usuário ao chamar auth.getUser com um cliente admi
       Authorization: 'Bearer ' + userJwt,
     },
   })
-  assert.equal(capturedHeaders?.get('apikey'), secret)
-  assert.equal(capturedHeaders?.get('authorization'), 'Bearer ' + userJwt)
+  assert.equal(captured.headers?.get('apikey'), secret)
+  assert.equal(captured.headers?.get('authorization'), 'Bearer ' + userJwt)
 })
 
 Deno.test('mantém o transporte padrão para a chave service_role legada', () => {
