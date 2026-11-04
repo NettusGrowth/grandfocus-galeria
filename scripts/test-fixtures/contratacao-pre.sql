@@ -7,6 +7,8 @@ create table auth.users (
   id uuid primary key
 );
 
+insert into auth.users(id) values ('11111111-1111-4111-8111-111111111111');
+
 create schema extensions;
 create extension if not exists pgcrypto with schema extensions;
 
