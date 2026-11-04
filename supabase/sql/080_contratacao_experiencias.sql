@@ -1123,6 +1123,112 @@ begin
 end;
 $$;
 
+create or replace function public.gf_contratacao_admin_salvar_config(
+  p_slug text,
+  p_evento jsonb,
+  p_pacotes jsonb,
+  p_usuario_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = pg_catalog, public, extensions
+as $
+declare
+  v_evento public.gf_contratacao_eventos%rowtype;
+  v_item jsonb;
+  v_codigo text;
+  v_preco integer;
+  v_ativos boolean;
+  v_pacotes_distintos integer;
+begin
+  if jsonb_typeof(p_evento) is distinct from 'object'
+    or jsonb_typeof(p_pacotes) is distinct from 'array'
+    or p_usuario_id is null then
+    raise exception 'Configuração administrativa inválida.';
+  end if;
+
+  select * into v_evento
+  from public.gf_contratacao_eventos
+  where slug = p_slug
+  for update;
+
+  if not found then
+    raise exception 'Campanha não encontrada.';
+  end if;
+  if v_evento.status = 'publicado' then
+    raise exception 'Pause a campanha antes de editar informações que afetam a contratação.';
+  end if;
+
+  update public.gf_contratacao_eventos
+  set data_evento = nullif(p_evento->>'data_evento','')::date,
+      local = nullif(btrim(p_evento->>'local'),''),
+      miniensaio_inicio = nullif(p_evento->>'miniensaio_inicio','')::timestamptz,
+      miniensaio_fim = nullif(p_evento->>'miniensaio_fim','')::timestamptz,
+      duracao_minutos = (p_evento->>'duracao_minutos')::integer,
+      capacidade_miniensaios = nullif(p_evento->>'capacidade_miniensaios','')::integer,
+      vendas_encerram_em = nullif(p_evento->>'vendas_encerram_em','')::timestamptz,
+      reserva_minutos = (p_evento->>'reserva_minutos')::integer,
+      prazo_entrega_dias = nullif(p_evento->>'prazo_entrega_dias','')::integer,
+      whatsapp_atendimento = nullif(btrim(p_evento->>'whatsapp_atendimento'),''),
+      fornecedor_nome = nullif(btrim(p_evento->>'fornecedor_nome'),''),
+      fornecedor_documento = nullif(btrim(p_evento->>'fornecedor_documento'),''),
+      fornecedor_endereco = nullif(btrim(p_evento->>'fornecedor_endereco'),''),
+      fornecedor_email = nullif(btrim(p_evento->>'fornecedor_email'),''),
+      privacidade_url = nullif(btrim(p_evento->>'privacidade_url'),''),
+      privacidade_versao = nullif(btrim(p_evento->>'privacidade_versao'),''),
+      privacidade_conteudo = nullif(btrim(p_evento->>'privacidade_conteudo'),''),
+      termos_versao = nullif(btrim(p_evento->>'termos_versao'),''),
+      termos_conteudo = nullif(p_evento->>'termos_conteudo',''),
+      autorizacao_imagem_versao = nullif(btrim(p_evento->>'autorizacao_imagem_versao'),''),
+      autorizacao_imagem_conteudo = nullif(p_evento->>'autorizacao_imagem_conteudo',''),
+      atualizado_em = now()
+  where id = v_evento.id;
+
+  select count(distinct item->>'codigo') into v_pacotes_distintos
+  from jsonb_array_elements(p_pacotes) item
+  where item->>'codigo' in ('miniensaio','palco','completo');
+
+  if v_pacotes_distintos <> 3 then
+    raise exception 'Envie os três pacotes da campanha para salvar os valores com segurança.';
+  end if;
+
+  for v_item in select value from jsonb_array_elements(p_pacotes) loop
+    v_codigo := v_item->>'codigo';
+    if v_codigo not in ('miniensaio','palco','completo') then
+      raise exception 'Código de pacote inválido.';
+    end if;
+    if jsonb_typeof(v_item->'ativo') is distinct from 'boolean' then
+      raise exception 'Estado de disponibilidade do pacote inválido.';
+    end if;
+    v_preco := (v_item->>'preco_centavos')::integer;
+    if v_preco not between 100 and 100000000 then
+      raise exception 'O preço de cada pacote deve ficar entre R$ 1,00 e R$ 1.000.000,00.';
+    end if;
+    v_ativos := (v_item->>'ativo')::boolean;
+
+    update public.gf_contratacao_pacotes
+    set preco_centavos = v_preco,
+        ativo = v_ativos
+    where evento_contratacao_id = v_evento.id
+      and codigo = v_codigo;
+
+    if not found then
+      raise exception 'Pacote não encontrado para atualizar: %.',v_codigo;
+    end if;
+  end loop;
+
+  insert into public.gf_contratacao_auditoria(
+    evento_contratacao_id,usuario_id,acao,detalhes
+  ) values (
+    v_evento.id,p_usuario_id,'configuracao_salva',
+    jsonb_build_object('pacotes_atualizados',jsonb_array_length(p_pacotes))
+  );
+
+  return jsonb_build_object('ok',true);
+end;
+$;
+
 create or replace function public.gf_contratacao_admin_publicar(p_slug text)
 returns jsonb
 language plpgsql
@@ -1222,6 +1328,7 @@ revoke all on function public.gf_contratacao_status_por_hash(text) from public, 
 revoke all on function public.gf_contratacao_webhook_dados(text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) from public, anon, authenticated;
+revoke all on function public.gf_contratacao_admin_salvar_config(text,jsonb,jsonb,uuid) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_admin_publicar(text) from public, anon, authenticated;
 revoke all on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) from public, anon, authenticated;
 
@@ -1234,6 +1341,7 @@ grant execute on function public.gf_contratacao_status_por_hash(text) to service
 grant execute on function public.gf_contratacao_webhook_dados(text) to service_role;
 grant execute on function public.gf_contratacao_marcar_conciliacao(text,text,text,jsonb,text) to service_role;
 grant execute on function public.gf_contratacao_confirmar_pagamento(text,text,text,integer,integer,text,integer,jsonb) to service_role;
+grant execute on function public.gf_contratacao_admin_salvar_config(text,jsonb,jsonb,uuid) to service_role;
 grant execute on function public.gf_contratacao_admin_publicar(text) to service_role;
 grant execute on function public.gf_contratacao_marcar_reembolsado(text,text,uuid) to service_role;
 ),
