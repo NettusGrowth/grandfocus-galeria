@@ -18,7 +18,7 @@ create table public.escolas (
 );
 
 create table public.eventos (
-  id uuid primary key,
+  id uuid primary key default gen_random_uuid(),
   escola_id uuid not null,
   nome text not null,
   data date not null

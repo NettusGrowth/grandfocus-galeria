@@ -4,15 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex,nofollow">
-  <meta name="theme-color" content="#182432">
+  <meta name="theme-color" content="#2B0210">
   <title>Administração da contratação | Grand Focus</title>
-  <link rel="stylesheet" href="../styles.css">
-  <script type="module" src="./admin.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
+  <script type="module" src="/contratar/entre-estacoes/admin/admin.js"></script>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">GRAND FOCUS<small>ADMINISTRAÇÃO</small></a>
-    <span class="header-note">Contratação de experiências fotográficas</span>
+    <a class="brand" href="/" target="_top" aria-label="Voltar à galeria Grand Focus"><img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance"></a>
+    <span class="header-note">Painel de contratação</span>
   </header>
 
   <main class="admin-shell">
@@ -42,8 +45,10 @@
         <div class="participant-head">
           <div>
             <p class="eyebrow">Painel da campanha</p>
-            <h2>Entre Estações</h2>
+            <h2 id="campaign-title">Configuração da contratação</h2>
             <p class="panel-intro" id="campaign-status">Carregando configuração…</p>
+            <a id="public-link" class="text-button" href="#" target="_blank" rel="noopener noreferrer">Abrir página pública</a>
+            <a class="text-button" href="/contratar/admin/">Voltar ao gerenciador</a>
           </div>
           <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
         </div>
@@ -60,8 +65,12 @@
       <form id="config-form">
         <section class="panel">
           <h2>Informações do evento</h2>
-          <p class="panel-intro">Os horários e a capacidade precisam ser confirmados antes da publicação.</p>
+          <p class="panel-intro">Horários e capacidade só são obrigatórios quando alguma experiência incluir miniensaio.</p>
           <div class="admin-grid">
+            <div class="field full">
+              <label for="campaign-name">Nome público da contratação e do evento</label>
+              <input id="campaign-name" maxlength="120" required>
+            </div>
             <div class="field">
               <label for="event-date">Data do evento</label>
               <input id="event-date" type="date">
@@ -103,7 +112,7 @@
               <input id="support-whatsapp" type="tel" maxlength="30">
             </div>
           </div>
-          <p class="hint">O miniensaio será realizado por ordem de chegada dentro do período configurado. Não haverá horário individual por bailarina.</p>
+          <p class="hint">Quando houver miniensaio, ele será realizado por ordem de chegada dentro do período configurado, sem horário individual por bailarina.</p>
         </section>
 
         <section class="panel">
@@ -160,14 +169,14 @@
             <div class="field full">
               <label for="image-text">Texto da autorização opcional de uso de imagem</label>
               <textarea id="image-text" maxlength="10000" rows="5"></textarea>
-              <span class="hint">Se não houver texto, a opção de autorização não será exibida. Ela não pode ser condição para comprar os pacotes.</span>
+              <span class="hint">Se não houver texto, a opção de autorização não será exibida. Ela não pode ser condição para contratar as experiências.</span>
             </div>
           </div>
         </section>
 
         <section class="panel">
-          <h2>Pacotes e valores</h2>
-          <p class="panel-intro">Os valores são cadastrados em reais e convertidos em centavos no servidor.</p>
+          <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
+          <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
           <div id="package-fields" class="admin-grid"></div>
         </section>
       </form>

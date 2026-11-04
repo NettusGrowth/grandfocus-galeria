@@ -9,7 +9,14 @@ import {
   safeErrorMessage,
 } from '../_shared/contratacao.ts'
 
-const CAMPAIGN_SLUG = 'entre-estacoes'
+const DEFAULT_CAMPAIGN_SLUG = 'entre-estacoes'
+const CAMPAIGN_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+function requestedCampaignSlug(body: any) {
+  const slug = String(body?.slug || DEFAULT_CAMPAIGN_SLUG).trim().toLowerCase()
+  if (slug.length > 60 || !CAMPAIGN_SLUG_PATTERN.test(slug)) throw new Error('Endereço da contratação inválido.')
+  return slug
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
@@ -50,26 +57,19 @@ Deno.serve(async (req: Request) => {
 
   try {
     switch (body?.action) {
-      case 'config':
-        return await actionConfig(req, admin)
-      case 'salvar':
-        return await actionSalvar(req, admin, user.id, body)
-      case 'publicar':
-        return await actionPublicar(req, admin, user.id)
-      case 'pausar':
-        return await actionStatus(req, admin, user.id, 'pausado')
-      case 'encerrar':
-        return await actionStatus(req, admin, user.id, 'encerrado')
-      case 'pedidos':
-        return await actionPedidos(req, admin)
-      case 'detalhe':
-        return await actionDetalhe(req, admin, body)
-      case 'reconciliar':
-        return await actionReconciliar(req, admin, body)
-      case 'marcar_reembolsado':
-        return await actionMarcarReembolsado(req, admin, user.id, body)
-      default:
-        return jsonResponse(req, { error: 'Ação administrativa desconhecida.' }, 400)
+      case 'listar_campanhas': return await actionListarCampanhas(req, admin)
+      case 'listar_escolas': return await actionListarEscolas(req, admin)
+      case 'criar_campanha': return await actionCriarCampanha(req, admin, user.id, body)
+      case 'config': return await actionConfig(req, admin, requestedCampaignSlug(body))
+      case 'salvar': return await actionSalvar(req, admin, user.id, body, requestedCampaignSlug(body))
+      case 'publicar': return await actionPublicar(req, admin, user.id, requestedCampaignSlug(body))
+      case 'pausar': return await actionStatus(req, admin, user.id, 'pausado', requestedCampaignSlug(body))
+      case 'encerrar': return await actionStatus(req, admin, user.id, 'encerrado', requestedCampaignSlug(body))
+      case 'pedidos': return await actionPedidos(req, admin, requestedCampaignSlug(body))
+      case 'detalhe': return await actionDetalhe(req, admin, body, requestedCampaignSlug(body))
+      case 'reconciliar': return await actionReconciliar(req, admin, body, requestedCampaignSlug(body))
+      case 'marcar_reembolsado': return await actionMarcarReembolsado(req, admin, user.id, body, requestedCampaignSlug(body))
+      default: return jsonResponse(req, { error: 'Ação administrativa desconhecida.' }, 400)
     }
   } catch (error) {
     console.error('contratacao-admin: erro tratado', safeErrorMessage(error))
@@ -77,19 +77,67 @@ Deno.serve(async (req: Request) => {
   }
 })
 
-async function getCampaign(admin: any) {
-  const { data, error } = await admin
-    .from('gf_contratacao_eventos')
-    .select('*')
-    .eq('slug', CAMPAIGN_SLUG)
-    .maybeSingle()
-  if (error) throw new Error('Não foi possível consultar a configuração da campanha.')
-  if (!data) throw new Error('Campanha ainda não cadastrada. A migration 080 precisa ser aplicada primeiro.')
+async function actionListarCampanhas(req: Request, admin: any) {
+  const { data: campanhas, error } = await admin.from('gf_contratacao_eventos')
+    .select('id,evento_id,escola_id,slug,nome_publico,status,data_evento,local,criado_em')
+    .order('criado_em', { ascending: false })
+  if (error) throw new Error('Não foi possível listar as contratações.')
+  const rows = campanhas || []
+  if (!rows.length) return jsonResponse(req, { campanhas: [] })
+  const eventoIds = [...new Set(rows.map((item: any) => item.evento_id))]
+  const escolaIds = [...new Set(rows.map((item: any) => item.escola_id))]
+  const campanhaIds = rows.map((item: any) => item.id)
+  const [eventosResult, escolasResult, pedidosResult] = await Promise.all([
+    admin.from('eventos').select('id,nome,data').in('id', eventoIds),
+    admin.from('escolas').select('id,nome,cidade').in('id', escolaIds),
+    admin.from('gf_contratacao_pedidos').select('evento_contratacao_id').in('evento_contratacao_id', campanhaIds),
+  ])
+  if (eventosResult.error || escolasResult.error || pedidosResult.error) throw new Error('Não foi possível completar a lista de contratações.')
+  const eventos = Object.fromEntries((eventosResult.data || []).map((item: any) => [item.id,item]))
+  const escolas = Object.fromEntries((escolasResult.data || []).map((item: any) => [item.id,item]))
+  const pedidos: Record<string,number> = {}
+  for (const item of pedidosResult.data || []) pedidos[item.evento_contratacao_id]=(pedidos[item.evento_contratacao_id]||0)+1
+  return jsonResponse(req,{campanhas:rows.map((item:any)=>({
+    ...item,
+    evento_nome:eventos[item.evento_id]?.nome||item.nome_publico,
+    escola_nome:escolas[item.escola_id]?.nome||'Escola não encontrada',
+    escola_cidade:escolas[item.escola_id]?.cidade||null,
+    quantidade_pedidos:pedidos[item.id]||0,
+    public_url:'https://galeria.grandfocus.com.br/contratar/'+item.slug+'/',
+  }))})
+}
+
+async function actionListarEscolas(req: Request, admin: any) {
+  const { data,error }=await admin.from('escolas').select('id,nome,cidade').order('nome',{ascending:true})
+  if(error)throw new Error('Não foi possível carregar as escolas cadastradas.')
+  return jsonResponse(req,{escolas:data||[]})
+}
+
+async function actionCriarCampanha(req: Request, admin: any, userId: string, body: any) {
+  const nome=String(body?.evento_nome||'').trim()
+  const data=String(body?.data_evento||'').trim()
+  const escolaId=String(body?.escola_id||'').trim()
+  const slug=String(body?.slug||'').trim().toLowerCase()
+  if(nome.length<3||nome.length>120)return jsonResponse(req,{error:'Informe um nome de evento entre 3 e 120 caracteres.'},400)
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(data))return jsonResponse(req,{error:'Informe a data do evento.'},400)
+  if(!/^[0-9a-f-]{36}$/i.test(escolaId))return jsonResponse(req,{error:'Selecione uma escola cadastrada.'},400)
+  if(slug.length>60||!CAMPAIGN_SLUG_PATTERN.test(slug)||slug==='admin')return jsonResponse(req,{error:'O endereço precisa usar letras minúsculas, números e hífens.'},400)
+  const {data:campanha,error}=await admin.rpc('gf_contratacao_admin_criar_campanha',{
+    p_nome_evento:nome,p_data_evento:data,p_escola_id:escolaId,p_slug:slug,p_usuario_id:userId,
+  })
+  if(error){console.error('contratacao-admin[criar_campanha]: falha transacional',error.message);return jsonResponse(req,{error:error.message||'Não foi possível criar o evento e a contratação.'},409)}
+  return jsonResponse(req,{ok:true,campanha})
+}
+
+async function getCampaign(admin: any, slug: string) {
+  const {data,error}=await admin.from('gf_contratacao_eventos').select('*').eq('slug',slug).maybeSingle()
+  if(error)throw new Error('Não foi possível consultar a configuração da campanha.')
+  if(!data)throw new Error('Campanha não encontrada.')
   return data
 }
 
-async function actionConfig(req: Request, admin: any) {
-  const evento = await getCampaign(admin)
+async function actionConfig(req: Request, admin: any, slug: string) {
+  const evento = await getCampaign(admin, slug)
   const { data: pacotes, error } = await admin
     .from('gf_contratacao_pacotes')
     .select('id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,minimo_fotos_por_coreografia,ativo,ordem')
@@ -113,8 +161,9 @@ async function actionConfig(req: Request, admin: any) {
   return jsonResponse(req, {
     evento,
     pacotes: pacotes || [],
+    public_url: 'https://galeria.grandfocus.com.br/contratar/' + slug + '/',
     integracao: {
-      pagamentos_reais_ativados: true,
+      pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
       api_key_configurada: configuredApiKey.startsWith('inchk_'),
       infinite_tag_configurada: handleConfigured,
       webhook_token_configurado: webhookTokenConfigured,
@@ -122,100 +171,75 @@ async function actionConfig(req: Request, admin: any) {
   })
 }
 
-async function actionSalvar(req: Request, admin: any, userId: string, body: any) {
-  const evento = await getCampaign(admin)
-  if (evento.status === 'publicado') {
-    return jsonResponse(req, { error: 'Pause a campanha antes de editar informações que afetam a contratação.' }, 409)
+async function actionSalvar(req: Request, admin: any, userId: string, body: any, slug: string) {
+  const evento=await getCampaign(admin,slug)
+  if(evento.status==='publicado')return jsonResponse(req,{error:'Pause a campanha antes de editar informações que afetam a contratação.'},409)
+  const input=body?.evento||{}
+  const toIso=(value:unknown,label:string)=>{if(value==null||value==='')return null;const d=new Date(String(value));if(Number.isNaN(d.getTime()))throw new Error('Data ou horário inválido em '+label+'.');return d.toISOString()}
+  const toInt=(value:unknown,label:string,min:number,max:number)=>{const n=Number(value);if(!Number.isInteger(n)||n<min||n>max)throw new Error('Valor inválido em '+label+'.');return n}
+  const nullableText=(value:unknown,max:number,label:string)=>{const v=String(value??'').trim();if(v.length>max)throw new Error(label+' excede o limite de caracteres.');return v||null}
+  const update={
+    nome_publico:nullableText(input.nome_publico,120,'Nome público da contratação'),
+    data_evento:nullableText(input.data_evento,10,'Data do evento'),
+    local:nullableText(input.local,240,'Local'),
+    miniensaio_inicio:toIso(input.miniensaio_inicio,'início do miniensaio'),
+    miniensaio_fim:toIso(input.miniensaio_fim,'fim do miniensaio'),
+    duracao_minutos:toInt(input.duracao_minutos,'duração',1,60),
+    capacidade_miniensaios:input.capacidade_miniensaios===''||input.capacidade_miniensaios==null?null:toInt(input.capacidade_miniensaios,'capacidade',0,10000),
+    vendas_encerram_em:toIso(input.vendas_encerram_em,'prazo de vendas'),
+    reserva_minutos:toInt(input.reserva_minutos,'duração da reserva',1,60),
+    prazo_entrega_dias:input.prazo_entrega_dias===''||input.prazo_entrega_dias==null?null:toInt(input.prazo_entrega_dias,'prazo de entrega',1,365),
+    whatsapp_atendimento:nullableText(input.whatsapp_atendimento,30,'WhatsApp de atendimento'),
+    termos_versao:nullableText(input.termos_versao,40,'Versão dos termos'),
+    termos_conteudo:nullableText(input.termos_conteudo,30000,'Texto dos termos'),
+    privacidade_url:nullableText(input.privacidade_url,500,'URL de privacidade'),
+    privacidade_versao:nullableText(input.privacidade_versao,40,'Versão da política de privacidade'),
+    privacidade_conteudo:nullableText(input.privacidade_conteudo,30000,'Texto da política de privacidade'),
+    autorizacao_imagem_versao:nullableText(input.autorizacao_imagem_versao,40,'Versão da autorização de imagem'),
+    autorizacao_imagem_conteudo:nullableText(input.autorizacao_imagem_conteudo,10000,'Texto de autorização de imagem'),
+    fornecedor_nome:nullableText(input.fornecedor_nome,180,'Nome do fornecedor'),
+    fornecedor_documento:nullableText(input.fornecedor_documento,40,'Documento do fornecedor'),
+    fornecedor_endereco:nullableText(input.fornecedor_endereco,500,'Endereço do fornecedor'),
+    fornecedor_email:nullableText(input.fornecedor_email,180,'E-mail do fornecedor'),
+    atualizado_em:new Date().toISOString(),
   }
+  if(!update.nome_publico||update.nome_publico.length<3)return jsonResponse(req,{error:'Informe o nome público da contratação.'},400)
+  if(update.data_evento&&!/^\d{4}-\d{2}-\d{2}$/.test(update.data_evento))return jsonResponse(req,{error:'Informe a data do evento no formato correto.'},400)
 
-  const input = body?.evento || {}
-  const toIso = (value: unknown, label: string) => {
-    if (value == null || value === '') return null
-    const date = new Date(String(value))
-    if (Number.isNaN(date.getTime())) throw new Error('Data ou horário inválido em ' + label + '.')
-    return date.toISOString()
+  const pacotes=Array.isArray(body?.pacotes)?body.pacotes:[]
+  if(pacotes.length>20)return jsonResponse(req,{error:'Cada campanha pode ter até 20 experiências.'},400)
+  const seen=new Set<string>()
+  for(const item of pacotes){
+    const codigo=String(item?.codigo||'').trim().toLowerCase()
+    const nome=String(item?.nome||'').trim()
+    if(!CAMPAIGN_SLUG_PATTERN.test(codigo)||codigo.length>60||codigo.length<2||seen.has(codigo))return jsonResponse(req,{error:'Código interno de experiência inválido ou duplicado.'},400)
+    seen.add(codigo)
+    if(nome.length<2||nome.length>100)return jsonResponse(req,{error:'Cada experiência precisa ter um nome entre 2 e 100 caracteres.'},400)
+    const preco=Number(item?.preco_centavos)
+    if(!Number.isInteger(preco)||preco<100||preco>100000000)return jsonResponse(req,{error:'O valor de cada experiência deve ficar entre R$ 1,00 e R$ 1.000.000,00.'},400)
+    if(!Array.isArray(item?.descricao)||item.descricao.length>20||item.descricao.some((line:unknown)=>typeof line!=='string'||line.length>300))return jsonResponse(req,{error:'Revise a descrição das experiências. Use até 20 linhas de 300 caracteres.'},400)
+    if(typeof item?.ativo!=='boolean'||typeof item?.inclui_miniensaio!=='boolean'||typeof item?.inclui_palco!=='boolean')return jsonResponse(req,{error:'Revise a disponibilidade e os itens incluídos na experiência.'},400)
+    const minimo=Number(item?.minimo_fotos_por_coreografia||0)
+    if(!Number.isInteger(minimo)||minimo<0||minimo>1000||(item.inclui_palco&&minimo<10))return jsonResponse(req,{error:'Experiências com fotos de palco precisam manter no mínimo 10 fotos por coreografia.'},400)
   }
-  const toInt = (value: unknown, label: string, min: number, max: number) => {
-    const n = Number(value)
-    if (!Number.isInteger(n) || n < min || n > max) throw new Error('Valor inválido em ' + label + '.')
-    return n
-  }
-  const nullableText = (value: unknown, max: number, label: string) => {
-    const s = String(value ?? '').trim()
-    if (s.length > max) throw new Error(label + ' excede o limite de caracteres.')
-    return s || null
-  }
-
-  const update = {
-    data_evento: nullableText(input.data_evento, 10, 'Data do evento'),
-    local: nullableText(input.local, 240, 'Local'),
-    miniensaio_inicio: toIso(input.miniensaio_inicio, 'início do miniensaio'),
-    miniensaio_fim: toIso(input.miniensaio_fim, 'fim do miniensaio'),
-    duracao_minutos: toInt(input.duracao_minutos, 'duração', 1, 60),
-    capacidade_miniensaios: input.capacidade_miniensaios === '' || input.capacidade_miniensaios == null
-      ? null
-      : toInt(input.capacidade_miniensaios, 'capacidade', 0, 10000),
-    vendas_encerram_em: toIso(input.vendas_encerram_em, 'prazo de vendas'),
-    reserva_minutos: toInt(input.reserva_minutos, 'duração da reserva', 1, 60),
-    prazo_entrega_dias: input.prazo_entrega_dias === '' || input.prazo_entrega_dias == null
-      ? null
-      : toInt(input.prazo_entrega_dias, 'prazo de entrega', 1, 365),
-    whatsapp_atendimento: nullableText(input.whatsapp_atendimento, 30, 'WhatsApp de atendimento'),
-    termos_versao: nullableText(input.termos_versao, 40, 'Versão dos termos'),
-    termos_conteudo: nullableText(input.termos_conteudo, 30000, 'Termos da contratação'),
-    privacidade_url: nullableText(input.privacidade_url, 500, 'URL de privacidade'),
-    privacidade_versao: nullableText(input.privacidade_versao, 40, 'Versão da política de privacidade'),
-    privacidade_conteudo: nullableText(input.privacidade_conteudo, 30000, 'Texto da política de privacidade'),
-    autorizacao_imagem_versao: nullableText(input.autorizacao_imagem_versao, 40, 'Versão da autorização de imagem'),
-    autorizacao_imagem_conteudo: nullableText(input.autorizacao_imagem_conteudo, 10000, 'Texto de autorização de imagem'),
-    fornecedor_nome: nullableText(input.fornecedor_nome, 180, 'Nome do fornecedor'),
-    fornecedor_documento: nullableText(input.fornecedor_documento, 40, 'Documento do fornecedor'),
-    fornecedor_endereco: nullableText(input.fornecedor_endereco, 500, 'Endereço do fornecedor'),
-    fornecedor_email: nullableText(input.fornecedor_email, 180, 'E-mail do fornecedor'),
-    atualizado_em: new Date().toISOString(),
-  }
-
-  if (update.data_evento && !/^\d{4}-\d{2}-\d{2}$/.test(update.data_evento)) {
-    return jsonResponse(req, { error: 'Informe a data do evento no formato correto.' }, 400)
-  }
-
-  const pacotes = Array.isArray(body?.pacotes) ? body.pacotes : []
-  const allowed = new Set(['miniensaio','palco','completo'])
-  if (pacotes.length !== 3) {
-    return jsonResponse(req, { error: 'Envie os três pacotes da campanha antes de salvar.' }, 400)
-  }
-  for (const item of pacotes) {
-    if (!allowed.has(item?.codigo)) return jsonResponse(req, { error: 'Código de pacote inválido.' }, 400)
-    const preco = Number(item.preco_centavos)
-    if (!Number.isInteger(preco) || preco < 100 || preco > 100000000) {
-      return jsonResponse(req, { error: 'O preço de cada pacote deve ficar entre R$ 1,00 e R$ 1.000.000,00.' }, 400)
-    }
-  }
-
-  const { error: saveError } = await admin.rpc('gf_contratacao_admin_salvar_config', {
-    p_slug: CAMPAIGN_SLUG,
-    p_evento: update,
-    p_pacotes: pacotes,
-    p_usuario_id: userId,
-  })
-  if (saveError) {
-    console.error('contratacao-admin[salvar]: falha transacional', saveError.message)
-    throw new Error('Não foi possível salvar a configuração completa. Nenhuma alteração parcial foi mantida.')
-  }
-
-  return await actionConfig(req, admin)
+  const {error:saveError}=await admin.rpc('gf_contratacao_admin_salvar_config',{p_slug:slug,p_evento:update,p_pacotes:pacotes,p_usuario_id:userId})
+  if(saveError){console.error('contratacao-admin[salvar]: falha transacional',saveError.message);throw new Error('Não foi possível salvar a configuração completa. Nenhuma alteração parcial foi mantida.')}
+  return await actionConfig(req,admin,slug)
 }
 
-async function actionPublicar(req: Request, admin: any, userId: string) {
+async function actionPublicar(req: Request, admin: any, userId: string, slug: string) {
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, { error: 'A ativação de pagamentos reais é necessária antes de publicar a campanha.' }, 403)
+  }
   try {
     await getInfinitePayConfig(admin)
     getContratacaoWebhookToken()
   } catch (error) {
     return jsonResponse(req, { error: safeErrorMessage(error) }, 409)
   }
-  const { data, error } = await admin.rpc('gf_contratacao_admin_publicar', { p_slug: CAMPAIGN_SLUG })
+  const { data, error } = await admin.rpc('gf_contratacao_admin_publicar', { p_slug: slug })
   if (error) return jsonResponse(req, { error: error.message }, 409)
-  const evento = await getCampaign(admin)
+  const evento = await getCampaign(admin, slug)
   await admin.from('gf_contratacao_auditoria').insert({
     evento_contratacao_id: evento.id,
     usuario_id: userId,
@@ -225,9 +249,9 @@ async function actionPublicar(req: Request, admin: any, userId: string) {
   return jsonResponse(req, { ok: true, resultado: data, evento })
 }
 
-async function actionStatus(req: Request, admin: any, userId: string, status: string) {
+async function actionStatus(req: Request, admin: any, userId: string, status: string, slug: string) {
   const { data, error } = await admin.rpc('gf_contratacao_admin_alterar_status', {
-    p_slug: CAMPAIGN_SLUG,
+    p_slug: slug,
     p_status: status,
     p_usuario_id: userId,
   })
@@ -235,8 +259,8 @@ async function actionStatus(req: Request, admin: any, userId: string, status: st
   return jsonResponse(req, data || { ok: true, status })
 }
 
-async function actionPedidos(req: Request, admin: any) {
-  const evento = await getCampaign(admin)
+async function actionPedidos(req: Request, admin: any, slug: string) {
+  const evento = await getCampaign(admin, slug)
   const { data: pedidos, error } = await admin
     .from('gf_contratacao_pedidos')
     .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,reserva_status,reserva_expira_em,pagamento_confirmado_em,criado_em,order_nsu')
@@ -261,7 +285,8 @@ async function actionPedidos(req: Request, admin: any) {
   })
 }
 
-async function actionDetalhe(req: Request, admin: any, body: any) {
+async function actionDetalhe(req: Request, admin: any, body: any, slug: string) {
+  const evento=await getCampaign(admin,slug)
   const pedidoId = String(body?.pedido_id || '').trim()
   if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return jsonResponse(req, { error: 'Pedido inválido.' }, 400)
 
@@ -269,8 +294,9 @@ async function actionDetalhe(req: Request, admin: any, body: any) {
     .from('gf_contratacao_pedidos')
     .select('id,numero,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,reserva_status,reserva_expira_em,pagamento_confirmado_em,metodo_pagamento,parcelas,valor_pago_centavos,comprovante_path,criado_em,atualizado_em,order_nsu,checkout_url')
     .eq('id', pedidoId)
+    .eq('evento_contratacao_id', evento.id)
     .maybeSingle()
-  if (error || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+  if (error || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado nesta contratação.' }, 404)
 
   const [participantesResult, pagamentoResult, aceiteResult, webhookResult] = await Promise.all([
     admin.from('gf_contratacao_participantes')
@@ -315,7 +341,8 @@ async function actionDetalhe(req: Request, admin: any, body: any) {
   })
 }
 
-async function actionReconciliar(req: Request, admin: any, body: any) {
+async function actionReconciliar(req: Request, admin: any, body: any, slug: string) {
+  const evento=await getCampaign(admin,slug)
   const pedidoId = String(body?.pedido_id || '').trim()
   if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) return jsonResponse(req, { error: 'Pedido inválido.' }, 400)
 
@@ -323,8 +350,9 @@ async function actionReconciliar(req: Request, admin: any, body: any) {
     .from('gf_contratacao_pedidos')
     .select('id,order_nsu,valor_total_centavos,status')
     .eq('id', pedidoId)
+    .eq('evento_contratacao_id', evento.id)
     .maybeSingle()
-  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado nesta contratação.' }, 404)
 
   const { data: pagamento, error: pagamentoError } = await admin
     .from('gf_contratacao_pagamentos')
@@ -378,7 +406,8 @@ async function actionReconciliar(req: Request, admin: any, body: any) {
   return jsonResponse(req, { ok: true, resultado })
 }
 
-async function actionMarcarReembolsado(req: Request, admin: any, userId: string, body: any) {
+async function actionMarcarReembolsado(req: Request, admin: any, userId: string, body: any, slug: string) {
+  const evento=await getCampaign(admin,slug)
   const pedidoId = String(body?.pedido_id || '').trim()
   const motivo = String(body?.motivo || '').trim()
   if (!/^[0-9a-f-]{36}$/i.test(pedidoId) || motivo.length < 10) {
@@ -389,8 +418,9 @@ async function actionMarcarReembolsado(req: Request, admin: any, userId: string,
     .from('gf_contratacao_pedidos')
     .select('id,order_nsu')
     .eq('id', pedidoId)
+    .eq('evento_contratacao_id', evento.id)
     .maybeSingle()
-  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+  if (pedidoError || !pedido) return jsonResponse(req, { error: 'Pedido não encontrado nesta contratação.' }, 404)
 
   const { data, error } = await admin.rpc('gf_contratacao_marcar_reembolsado', {
     p_order_nsu: pedido.order_nsu,

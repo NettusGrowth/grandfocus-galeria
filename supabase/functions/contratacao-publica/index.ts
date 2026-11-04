@@ -1,6 +1,6 @@
 import { isAllowedInfinitePayCheckoutUrl } from '../_shared/infinitepay_checkout.ts'
 import {
-  PUBLIC_CAMPAIGN_URL,
+  PUBLIC_ORIGIN,
   corsHeaders,
   createAdminClient,
   getContratacaoWebhookToken,
@@ -12,7 +12,14 @@ import {
   sha256Hex,
 } from '../_shared/contratacao.ts'
 
-const CAMPAIGN_SLUG = 'entre-estacoes'
+const CAMPAIGN_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
+
+async function pedidoPertenceCampanha(admin: any, pedido: any, campaignSlug: string) {
+  const { data: campanha, error: campanhaError } = await admin.from('gf_contratacao_eventos').select('id').eq('slug', campaignSlug).maybeSingle()
+  if (campanhaError || !campanha || !pedido?.order_nsu) return false
+  const { data: registro, error } = await admin.from('gf_contratacao_pedidos').select('evento_contratacao_id').eq('order_nsu', pedido.order_nsu).maybeSingle()
+  return !error && registro?.evento_contratacao_id === campanha.id
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
@@ -23,6 +30,11 @@ Deno.serve(async (req: Request) => {
     body = await readJson(req)
   } catch (error) {
     return jsonResponse(req, { error: safeErrorMessage(error) || 'Corpo inválido.' }, 400)
+  }
+
+  const campaignSlug = String(body?.campaign_slug || '').trim().toLowerCase()
+  if (!CAMPAIGN_SLUG_PATTERN.test(campaignSlug) || campaignSlug.length > 60) {
+    return jsonResponse(req, { error: 'Endereço da contratação inválido.' }, 400)
   }
 
   let admin: any
@@ -36,13 +48,13 @@ Deno.serve(async (req: Request) => {
   try {
     switch (body?.action) {
       case 'dados':
-        return await actionDados(req, admin)
+        return await actionDados(req, admin, campaignSlug)
       case 'contratar':
-        return await actionContratar(req, admin, body)
+        return await actionContratar(req, admin, body, campaignSlug)
       case 'status':
-        return await actionStatus(req, admin, body)
+        return await actionStatus(req, admin, body, campaignSlug)
       case 'verificar_retorno':
-        return await actionVerificarRetorno(req, admin, body)
+        return await actionVerificarRetorno(req, admin, body, campaignSlug)
       default:
         return jsonResponse(req, { error: 'Ação desconhecida.' }, 400)
     }
@@ -52,8 +64,15 @@ Deno.serve(async (req: Request) => {
   }
 })
 
-async function actionDados(req: Request, admin: any) {
-  const { data, error } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
+async function actionDados(req: Request, admin: any, campaignSlug: string) {
+  // Mantenha a página pública fechada enquanto o checkout real não estiver autorizado.
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      disponivel: false,
+      mensagem: 'As contratações desta experiência ainda não foram liberadas.',
+    })
+  }
+  const { data, error } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: campaignSlug })
   if (error) {
     console.error('contratacao-publica[dados]: falha ao consultar campanha', error.message)
     return jsonResponse(req, { error: 'Não foi possível carregar esta campanha.' }, 503)
@@ -62,9 +81,15 @@ async function actionDados(req: Request, admin: any) {
   return jsonResponse(req, { disponivel: true, ...data })
 }
 
-async function actionContratar(req: Request, admin: any, body: any) {
-  // Kill switch obrigatório. A InfinitePay não oferece sandbox e a criação de link é real.
-  // Nenhum pedido ou link é criado até a ativação explícita deste secret.
+async function actionContratar(req: Request, admin: any, body: any, campaignSlug: string) {
+  // A InfinitePay não oferece sandbox. Bloqueie a reserva antes de gravar qualquer pedido
+  // até que a Grand Focus autorize explicitamente a criação de checkouts reais.
+  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+    return jsonResponse(req, {
+      error: 'A contratação online ainda não foi liberada. Nenhum pedido foi registrado.',
+      retryable: false,
+    }, 503)
+  }
   if (String(body?.company_website || '').trim()) {
     return jsonResponse(req, { error: 'Solicitação inválida.' }, 400)
   }
@@ -138,7 +163,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
   const webhookUrl = new URL('/functions/v1/contratacao-webhook', supabaseUrl)
   webhookUrl.searchParams.set('token', webhookToken)
 
-  const { data: campanha, error: campanhaError } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
+  const { data: campanha, error: campanhaError } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: campaignSlug })
   if (campanhaError || !campanha) {
     return jsonResponse(req, { error: 'Esta campanha não está aberta para contratação.' }, 409)
   }
@@ -152,7 +177,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
   }
 
   const requestHash = await sha256Hex(JSON.stringify({
-    slug: CAMPAIGN_SLUG,
+    slug: campaignSlug,
     responsavel,
     participantes,
     aceite: {
@@ -165,7 +190,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
   const accessHash = await sha256Hex(accessToken)
 
   const { data: reserva, error: reservaError } = await admin.rpc('gf_contratacao_criar_reserva', {
-    p_evento_slug: CAMPAIGN_SLUG,
+    p_evento_slug: campaignSlug,
     p_responsavel: responsavel,
     p_participantes: participantes,
     p_aceite: aceite,
@@ -222,7 +247,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
           // possa ser confundido com um estorno ou cancelamento.
           events: ['paid','settled'],
         },
-        redirect_url: PUBLIC_CAMPAIGN_URL,
+        redirect_url: PUBLIC_ORIGIN + '/contratar/' + campaignSlug + '/',
         customer: {
           name: responsavel.nome,
           email: responsavel.email,
@@ -251,14 +276,31 @@ async function actionContratar(req: Request, admin: any, body: any) {
     }, 502)
   }
 
-  const linkData = await response.json().catch(() => ({}))
+  const responseText = await response.text().catch(() => '')
+  let linkData: any = {}
+  try { linkData = responseText ? JSON.parse(responseText) : {} } catch { /* resposta não JSON */ }
   const checkoutUrl = linkData?.url || linkData?.payment_url || linkData?.link
+  let checkoutHost: string | null = null
+  try { checkoutHost = new URL(String(checkoutUrl || '')).hostname || null } catch { /* URL ausente ou inválida */ }
   const checkoutHostOk = isAllowedInfinitePayCheckoutUrl(checkoutUrl)
+  const providerError = linkData?.error && typeof linkData.error === 'object' ? linkData.error : {}
+  const providerCode = String(linkData?.code || providerError?.code || '').slice(0, 100) || null
+  const providerMessage = String(
+    linkData?.message || providerError?.message || linkData?.error_description ||
+    (typeof linkData?.error === 'string' ? linkData.error : '')
+  ).slice(0, 300) || null
+  const responseKeys = linkData && typeof linkData === 'object' ? Object.keys(linkData) : []
 
   if (!response.ok || !checkoutUrl || !checkoutHostOk) {
-    console.error('contratacao-publica[contratar]: InfinitePay recusou a criação do link', {
+    console.error('contratacao-publica[contratar]: resposta da InfinitePay sem checkout válido', {
       order_nsu: reserva.order_nsu,
       http_status: response.status,
+      response_keys: responseKeys,
+      provider_code: providerCode,
+      provider_message: providerMessage,
+      checkout_url_present: Boolean(checkoutUrl),
+      checkout_host: checkoutHost,
+      checkout_host_ok: checkoutHostOk,
     })
     return jsonResponse(req, {
       error: 'A InfinitePay não conseguiu gerar o checkout agora. Sua solicitação foi preservada para uma nova tentativa.',
@@ -293,7 +335,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
   })
 }
 
-async function actionStatus(req: Request, admin: any, body: any) {
+async function actionStatus(req: Request, admin: any, body: any, campaignSlug: string) {
   const token = String(body?.access_token || '').trim().toLowerCase()
   if (!/^[a-f0-9]{64}$/.test(token)) return jsonResponse(req, { error: 'Token de acesso inválido.' }, 400)
 
@@ -303,11 +345,11 @@ async function actionStatus(req: Request, admin: any, body: any) {
     console.error('contratacao-publica[status]: falha ao consultar pedido', error.message)
     return jsonResponse(req, { error: 'Não foi possível consultar o pedido.' }, 503)
   }
-  if (!data) return jsonResponse(req, { error: 'Pedido não encontrado.' }, 404)
+  if (!data || !(await pedidoPertenceCampanha(admin, data, campaignSlug))) return jsonResponse(req, { error: 'Pedido não encontrado nesta contratação.' }, 404)
   return jsonResponse(req, { pedido: data })
 }
 
-async function actionVerificarRetorno(req: Request, admin: any, body: any) {
+async function actionVerificarRetorno(req: Request, admin: any, body: any, campaignSlug: string) {
   const token = String(body?.access_token || '').trim().toLowerCase()
   const orderNsu = String(body?.order_nsu || '').trim()
   const transactionNsu = String(body?.transaction_nsu || '').trim()
@@ -319,7 +361,7 @@ async function actionVerificarRetorno(req: Request, admin: any, body: any) {
 
   const accessHash = await sha256Hex(token)
   const { data: pedido, error: statusError } = await admin.rpc('gf_contratacao_status_por_hash', { p_acesso_hash: accessHash })
-  if (statusError || !pedido || pedido.order_nsu !== orderNsu) {
+  if (statusError || !pedido || pedido.order_nsu !== orderNsu || !(await pedidoPertenceCampanha(admin, pedido, campaignSlug))) {
     return jsonResponse(req, { error: 'Não foi possível localizar este pedido.' }, 404)
   }
   if (pedido.status === 'pago') return jsonResponse(req, { pedido })

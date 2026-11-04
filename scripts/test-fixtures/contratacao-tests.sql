@@ -17,8 +17,100 @@ declare
   v_refund_result jsonb;
   v_conflict_result jsonb;
   v_event_json jsonb;
+  v_new_campaign jsonb;
+  v_new_event_id uuid;
+  v_new_campaign_id uuid;
+  v_stage_only_package uuid;
+  v_stage_only_result jsonb;
   v_rate_key text := repeat('9',64);
 begin
+  v_new_campaign := public.gf_contratacao_admin_criar_campanha(
+    'Evento criado pelo gerenciador',
+    current_date + 12,
+    '7896da46-5dd8-4d4e-ac50-36fda4966566',
+    'gerenciador-teste',
+    '11111111-1111-4111-8111-111111111111'
+  );
+  v_new_event_id := (v_new_campaign->>'evento_id')::uuid;
+  v_new_campaign_id := (v_new_campaign->>'evento_contratacao_id')::uuid;
+  if not exists (
+    select 1 from public.eventos e
+    join public.gf_contratacao_eventos c on c.evento_id = e.id
+    where e.id = v_new_event_id
+      and c.id = v_new_campaign_id
+      and c.slug = 'gerenciador-teste'
+      and c.status = 'rascunho'
+      and e.nome = 'Evento criado pelo gerenciador'
+  ) then
+    raise exception 'O evento da galeria e a contratação não foram criados juntos.';
+  end if;
+
+  -- Uma campanha apenas de palco pode ser publicada sem horários ou capacidade de miniensaio.
+  perform public.gf_contratacao_admin_salvar_config(
+    'gerenciador-teste',
+    jsonb_build_object(
+      'nome_publico','Evento criado pelo gerenciador',
+      'data_evento',current_date + 12,
+      'local','Teatro de teste',
+      'miniensaio_inicio',null,
+      'miniensaio_fim',null,
+      'duracao_minutos',5,
+      'capacidade_miniensaios',null,
+      'vendas_encerram_em',((current_date + 11)::timestamp + time '22:00') at time zone 'America/Sao_Paulo',
+      'reserva_minutos',15,
+      'prazo_entrega_dias',null,
+      'whatsapp_atendimento',null,
+      'fornecedor_nome','Fornecedor de Teste',
+      'fornecedor_documento','11222333000181',
+      'fornecedor_endereco',null,
+      'fornecedor_email','teste@example.com',
+      'privacidade_url','https://example.com/privacidade',
+      'privacidade_versao','1.0',
+      'privacidade_conteudo','Política de privacidade de teste com finalidade, base legal, dados coletados, armazenamento, compartilhamento, direitos dos titulares e canal de contato.',
+      'termos_versao','1.0',
+      'termos_conteudo','Termos de teste com informações sobre valores, responsabilidades, entrega das fotografias e condições da contratação.',
+      'autorizacao_imagem_versao',null,
+      'autorizacao_imagem_conteudo',null
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'codigo','somente-palco',
+      'nome','Fotos de palco',
+      'descricao',jsonb_build_array('Fotografias das coreografias selecionadas'),
+      'preco_centavos',7900,
+      'inclui_miniensaio',false,
+      'inclui_palco',true,
+      'minimo_fotos_por_coreografia',10,
+      'ativo',true,
+      'ordem',0
+    )),
+    '11111111-1111-4111-8111-111111111111'
+  );
+  perform public.gf_contratacao_admin_publicar('gerenciador-teste');
+  select id into v_stage_only_package
+  from public.gf_contratacao_pacotes
+  where evento_contratacao_id = v_new_campaign_id and codigo = 'somente-palco';
+
+  v_stage_only_result := public.gf_contratacao_criar_reserva(
+    'gerenciador-teste',
+    '{"nome":"Responsável Palco","whatsapp":"34977777777","email":"palco@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_stage_only_package,
+      'nome','Bailarina Palco',
+      'turma','Avançado',
+      'idade',15,
+      'coreografias',jsonb_build_array(jsonb_build_object('nome','Coreografia de Teste','confirmar_depois',false))
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
+    repeat('5',64),
+    gen_random_uuid()::text,
+    repeat('6',64)
+  );
+  if v_stage_only_result->>'status' <> 'aguardando_pagamento'
+    or (select reserva_status from public.gf_contratacao_pedidos where id=(v_stage_only_result->>'pedido_id')::uuid) <> 'nao_aplicavel'
+    or v_stage_only_result->>'reserva_expira_em' is not null then
+    raise exception 'Uma contratação somente de palco não deveria reservar horário de miniensaio.';
+  end if;
+
   update public.gf_contratacao_eventos
   set data_evento = current_date + 3,
       local = 'Local de teste',
@@ -44,6 +136,7 @@ begin
   perform public.gf_contratacao_admin_salvar_config(
     'entre-estacoes',
     jsonb_build_object(
+      'nome_publico','Entre Estações',
       'data_evento',current_date + 3,
       'local','Local de teste',
       'miniensaio_inicio',((current_date + 3)::timestamp + time '17:30') at time zone 'America/Sao_Paulo',
@@ -67,9 +160,9 @@ begin
       'autorizacao_imagem_conteudo',null
     ),
     jsonb_build_array(
-      jsonb_build_object('codigo','miniensaio','preco_centavos',11900,'ativo',true),
-      jsonb_build_object('codigo','palco','preco_centavos',7900,'ativo',true),
-      jsonb_build_object('codigo','completo','preco_centavos',15900,'ativo',true)
+      jsonb_build_object('codigo','miniensaio','nome','Miniensaio no teatro','descricao',jsonb_build_array('3 fotos individuais','2 fotos com a família'),'preco_centavos',11900,'inclui_miniensaio',true,'inclui_palco',false,'minimo_fotos_por_coreografia',0,'ativo',true,'ordem',0),
+      jsonb_build_object('codigo','palco','nome','Fotos de palco','descricao',jsonb_build_array('Mínimo de 10 fotos por coreografia selecionada'),'preco_centavos',7900,'inclui_miniensaio',false,'inclui_palco',true,'minimo_fotos_por_coreografia',10,'ativo',true,'ordem',1),
+      jsonb_build_object('codigo','completo','nome','Experiência completa','descricao',jsonb_build_array('3 fotos individuais','2 fotos com a família','Mínimo de 10 fotos por coreografia selecionada'),'preco_centavos',15900,'inclui_miniensaio',true,'inclui_palco',true,'minimo_fotos_por_coreografia',10,'ativo',true,'ordem',2)
     ),
     '11111111-1111-4111-8111-111111111111'
   );
@@ -84,9 +177,9 @@ begin
       'entre-estacoes',
       v_event_json,
       jsonb_build_array(
-        jsonb_build_object('codigo','miniensaio','preco_centavos',0,'ativo',true),
-        jsonb_build_object('codigo','palco','preco_centavos',7900,'ativo',true),
-        jsonb_build_object('codigo','completo','preco_centavos',15900,'ativo',true)
+        jsonb_build_object('codigo','miniensaio','nome','Miniensaio no teatro','descricao',jsonb_build_array('3 fotos individuais','2 fotos com a família'),'preco_centavos',0,'inclui_miniensaio',true,'inclui_palco',false,'minimo_fotos_por_coreografia',0,'ativo',true,'ordem',0),
+        jsonb_build_object('codigo','palco','nome','Fotos de palco','descricao',jsonb_build_array('Mínimo de 10 fotos por coreografia selecionada'),'preco_centavos',7900,'inclui_miniensaio',false,'inclui_palco',true,'minimo_fotos_por_coreografia',10,'ativo',true,'ordem',1),
+        jsonb_build_object('codigo','completo','nome','Experiência completa','descricao',jsonb_build_array('3 fotos individuais','2 fotos com a família','Mínimo de 10 fotos por coreografia selecionada'),'preco_centavos',15900,'inclui_miniensaio',true,'inclui_palco',true,'minimo_fotos_por_coreografia',10,'ativo',true,'ordem',2)
       ),
       '11111111-1111-4111-8111-111111111111'
     );

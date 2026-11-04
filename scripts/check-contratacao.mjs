@@ -5,6 +5,7 @@ const read = (path) => fs.readFileSync(path, 'utf8')
 const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório ausente: ' + path)
 
 const migration = read('supabase/sql/080_contratacao_experiencias.sql')
+const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
 const sharedContracting = read('supabase/functions/_shared/contratacao.ts')
 const webhook = read('supabase/functions/contratacao-webhook/index.ts')
@@ -12,13 +13,30 @@ const adminApi = read('supabase/functions/contratacao-admin/index.ts')
 const build = read('scripts/build-gallery.cjs')
 const publicPage = read('contratar/entre-estacoes/index.html')
 const adminPage = read('contratar/entre-estacoes/admin/index.html')
+const managerPage = read('contratar/admin/index.html')
+const managerScript = read('contratar/admin/manager.js')
+const galleryAdminPage = read('index.html')
+const vercelConfig = read('vercel.json')
+const workflow = read('.github/workflows/edge-functions-check.yml')
 const publicScript = read('contratar/entre-estacoes/app.js')
 const adminScript = read('contratar/entre-estacoes/admin/admin.js')
 const adminUi = adminScript
 const e2eScript = read('scripts/e2e-contratacao.mjs')
-const workflow = read('.github/workflows/edge-functions-check.yml')
 const supabaseConfig = read('supabase/config.toml')
 const reservationTests = read('scripts/test-fixtures/contratacao-tests.sql')
+
+assert.ok(fs.existsSync('assets/grand-focus-assinatura-ouro.png'), 'A assinatura oficial da Grand Focus precisa existir nos assets.')
+assert.ok(publicPage.includes('package-overview-list'), 'A página deve apresentar as experiências antes da escolha.')
+assert.ok(publicScript.includes('function renderPackageOverview'), 'A página deve montar a apresentação das experiências a partir dos dados do banco.')
+assert.ok(publicPage.includes('/contratar/entre-estacoes/app.js') && publicPage.includes('/contratar/entre-estacoes/styles.css'), 'A página pública precisa carregar assets absolutos quando servida por slug dinâmico.')
+assert.ok(adminPage.includes('/contratar/entre-estacoes/admin/admin.js') && adminPage.includes('/contratar/entre-estacoes/styles.css'), 'O editor administrativo precisa carregar assets absolutos quando servido por slug dinâmico.')
+assert.ok(managerPage.includes('/contratar/admin/manager.js'), 'O gerenciador central precisa carregar seu script pelo caminho absoluto.')
+assert.ok(adminPage.includes('grand-focus-assinatura-ouro.png'), 'A administração deve usar a assinatura oficial da marca.')
+assert.ok(managerPage.includes('id="new-campaign-form"') && managerPage.includes('id="school-select"'), 'O gerenciador deve criar evento e contratação no mesmo formulário.')
+assert.ok(managerPage.includes('grand-focus-assinatura-ouro.png'), 'O gerenciador deve usar a assinatura oficial da marca.')
+assert.ok(managerScript.includes("adminRequest('criar_campanha'") && managerScript.includes('grandfocus:contratacao-event-created'), 'O gerenciador deve criar a campanha e sinalizar a galeria para atualizar os eventos.')
+assert.ok(galleryAdminPage.includes('data-tab="contratacoes"') && galleryAdminPage.includes('src="/contratar/admin/"'), 'O gerenciador deve estar integrado ao menu administrativo da galeria.')
+assert.ok(vercelConfig.includes('/contratar/:slug/admin') && vercelConfig.includes('/contratar/:slug/'), 'As rotas públicas e administrativas precisam aceitar slugs dinâmicos.')
 
 for (const path of [
   'contratar/entre-estacoes/index.html',
@@ -26,6 +44,9 @@ for (const path of [
   'contratar/entre-estacoes/app.js',
   'contratar/entre-estacoes/admin/index.html',
   'contratar/entre-estacoes/admin/admin.js',
+  'contratar/admin/index.html',
+  'contratar/admin/manager.js',
+  'supabase/sql/083_contratacao_gerenciador_dinamico.sql',
   'supabase/functions/_shared/contratacao.ts',
   'supabase/functions/contratacao-publica/index.ts',
   'supabase/functions/contratacao-webhook/index.ts',
@@ -59,6 +80,10 @@ assert.ok(migration.includes("v_evento.status = 'encerrado'") && migration.inclu
 assert.ok(migration.includes('gf_contratacao_admin_alterar_status') && adminApi.includes('gf_contratacao_admin_alterar_status'), 'O status precisa mudar por RPC transacional e impedir reabertura depois de encerrar.')
 assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
 assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
+const publicDataAction = publicApi.slice(publicApi.indexOf('async function actionDados'), publicApi.indexOf('async function actionContratar'))
+assert.ok(publicDataAction.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicDataAction.includes('disponivel: false'), 'A página pública precisa permanecer fechada enquanto os pagamentos reais estiverem desativados.')
+assert.ok(adminApi.includes("pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true'"), 'O painel deve mostrar o estado real do bloqueio de pagamentos.')
+assert.ok(publicApi.includes('provider_message') && publicApi.includes('checkout_host_ok'), 'Falhas de checkout precisam registrar diagnóstico seguro da resposta do provedor.')
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
 assert.ok(publicApi.includes('valid_until:'), 'Checkout precisa ter validade.')
 assert.ok(publicApi.includes('X-Api-Key'), 'A criação do link precisa usar a API Key no servidor.')
@@ -93,10 +118,24 @@ assert.ok(adminUi.includes('webhook_token_configurado'), 'O painel precisa mostr
 assert.ok(adminApi.includes('gf_contratacao_admin_salvar_config'), 'A configuração administrativa deve ser salva atomicamente.')
 assert.ok(!adminApi.includes('acesso_publico_hash'), 'O painel não deve expor hashes privados do pedido.')
 assert.ok(build.includes("copyTree(contractingPages"), 'Build precisa copiar a rota de contratação.')
-assert.ok(publicPage.includes('./app.js'), 'Página pública precisa carregar seu script isolado.')
+assert.ok(publicPage.includes('/contratar/entre-estacoes/app.js'), 'Página pública precisa carregar seu script isolado.')
 assert.ok(publicPage.includes('privacy-acknowledged'), 'A ciência da política de privacidade deve ser separada do aceite dos termos.')
 assert.ok(publicPage.includes('company-website'), 'O formulário deve conter o campo honeypot.')
-assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script isolado.')
+assert.ok(adminPage.includes('/contratar/entre-estacoes/admin/admin.js'), 'Painel precisa carregar seu script isolado.')
+assert.ok(adminPage.includes('id="campaign-name"') && adminPage.includes('id="add-package-button"'), 'O editor precisa permitir nome próprio e experiências dinâmicas.')
+assert.ok(adminScript.includes('createPackageCode') && adminScript.includes('inclui_miniensaio') && adminScript.includes('inclui_palco'), 'O editor deve configurar experiências diferentes e seus itens incluídos.')
+assert.ok(dynamicMigration.includes('gf_contratacao_admin_criar_campanha') && dynamicMigration.includes('campanha_criada_com_evento'), 'A migration deve criar o evento da galeria e a contratação em uma transação.')
+assert.ok(dynamicMigration.includes('on conflict (evento_contratacao_id,codigo) do update'), 'A migration deve salvar experiências configuráveis.')
+assert.ok(dynamicMigration.includes('v_campanha_tem_mini') && dynamicMigration.includes('if v_tem_mini and v_evento.capacidade_miniensaios is not null'), 'Campanhas sem miniensaio não devem exigir horários ou capacidade de miniensaio.')
+assert.ok(!dynamicMigration.includes('or v_evento.fornecedor_endereco is null') && dynamicMigration.includes('v_evento.prazo_entrega_dias is not null'), 'A migration deve preservar endereço do fornecedor e prazo de entrega opcionais.')
+assert.ok(adminApi.includes('listar_campanhas') && adminApi.includes('listar_escolas') && adminApi.includes('criar_campanha'), 'A API administrativa deve listar e criar campanhas.')
+assert.ok(adminApi.includes(".eq('evento_contratacao_id', evento.id)"), 'Detalhes e ações de pedidos devem ficar limitados à campanha selecionada.')
+assert.ok(publicApi.includes('campaign_slug') && publicApi.includes('PUBLIC_ORIGIN + \'/contratar/\' + campaignSlug'), 'A API pública deve resolver a campanha pelo slug da URL.')
+assert.ok(!publicApi.includes("const CAMPAIGN_SLUG = 'entre-estacoes'"), 'A API pública não pode permanecer presa a uma campanha única.')
+assert.ok(e2eScript.includes('managerPage') && e2eScript.includes('createdCampaign') && e2eScript.includes('campaign_slug'), 'O teste de navegador deve validar criação do evento/contratação e slug dinâmico.')
+assert.ok(build.includes('contractingManagerScript'), 'O build precisa verificar a página do gerenciador.')
+assert.ok(workflow.includes('supabase/sql/081_contratacao_sem_limite_e_prazo_opcional.sql') && workflow.includes('supabase/sql/082_contratacao_endereco_fornecedor_opcional.sql') && workflow.includes('supabase/sql/083_contratacao_gerenciador_dinamico.sql'), 'O CI deve aplicar todas as migrations na ordem antes dos testes de banco.')
+assert.ok(reservationTests.includes('somente-palco') && reservationTests.includes('reserva_status') && reservationTests.includes('gf_contratacao_admin_criar_campanha'), 'Os testes SQL devem validar a criação conjunta e a campanha sem miniensaio.')
 assert.ok(adminPage.includes('noindex,nofollow'), 'O painel administrativo não deve ser indexado por mecanismos de busca.')
 assert.ok(adminScript.includes('Encerrar definitivamente a campanha') && adminScript.includes('não poderá ser desfeita'), 'O painel precisa avisar que encerrar é definitivo.')
 assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')

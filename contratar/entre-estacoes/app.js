@@ -1,6 +1,8 @@
 const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co'
 const SUPABASE_PUBLIC_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const API_URL = SUPABASE_URL + '/functions/v1/contratacao-publica'
+const CAMPAIGN_SLUG = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[1] || 'entre-estacoes').toLowerCase()
+const CAMPAIGN_STORAGE_PREFIX = 'gf_contratacao_' + CAMPAIGN_SLUG
 
 const loading = document.getElementById('loading-state')
 const closed = document.getElementById('closed-state')
@@ -24,7 +26,7 @@ function api(action, values = {}) {
       'Content-Type': 'application/json',
       apikey: SUPABASE_PUBLIC_KEY,
     },
-    body: JSON.stringify({ action, ...values }),
+    body: JSON.stringify({ action, campaign_slug: CAMPAIGN_SLUG, ...values }),
   }).then(async (response) => {
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a solicitação.')
@@ -110,6 +112,66 @@ function addCoreographyRow(container) {
   container.append(row)
 }
 
+function renderPackageOverview() {
+  const container = document.getElementById('package-overview-list')
+  if (!container) return
+  container.replaceChildren()
+
+  for (const pkg of packages) {
+    const card = document.createElement('article')
+    card.className = 'experience-card'
+
+    const eyebrow = document.createElement('p')
+    eyebrow.className = 'eyebrow'
+    eyebrow.textContent = pkg.inclui_miniensaio && pkg.inclui_palco
+      ? 'MINIENSAIO E PALCO'
+      : pkg.inclui_miniensaio
+        ? 'RETRATOS NO TEATRO'
+        : 'REGISTROS DE PALCO'
+
+    const title = document.createElement('h3')
+    title.textContent = pkg.nome
+
+    const summary = document.createElement('p')
+    summary.className = 'experience-summary'
+    if (pkg.inclui_miniensaio && pkg.inclui_palco) {
+      summary.textContent = 'Reúne os retratos do miniensaio no teatro e as fotografias das coreografias no palco.'
+    } else if (pkg.inclui_miniensaio) {
+      summary.textContent = 'Uma sessão de retratos individuais com figurino e fotografias ao lado da família, em um espaço preparado no teatro.'
+    } else if (pkg.inclui_palco) {
+      const minimum = Number(pkg.minimo_fotos_por_coreografia || 10)
+      summary.textContent = 'Registros das coreografias durante a apresentação, com no mínimo ' + minimum + ' fotografias digitais por coreografia escolhida. Não inclui miniensaio.'
+    } else {
+      summary.textContent = 'Uma experiência fotográfica preparada para registrar a trajetória da bailarina.'
+    }
+
+    const price = document.createElement('strong')
+    price.className = 'experience-price'
+    price.textContent = money(pkg.preco_centavos)
+
+    const list = document.createElement('ul')
+    for (const line of Array.isArray(pkg.descricao) ? pkg.descricao : []) {
+      const item = document.createElement('li')
+      item.textContent = String(line)
+      list.append(item)
+    }
+
+    const notes = []
+    if (pkg.inclui_miniensaio) {
+      notes.push('O miniensaio acontece por ordem de chegada, dentro do período informado, sem horário individual.')
+    }
+    if (pkg.inclui_palco) {
+      notes.push('As coreografias desejadas serão informadas durante a contratação.')
+    }
+    const note = document.createElement('p')
+    note.className = 'experience-note'
+    note.textContent = notes.join(' ')
+
+    card.append(eyebrow, title, summary, price, list, note)
+    container.append(card)
+  }
+}
+
 function renderPackageInfo(card) {
   const select = card.querySelector('[data-package]')
   const detail = card.querySelector('[data-package-detail]')
@@ -192,7 +254,7 @@ function addParticipant() {
   packageSelect.dataset.package = 'true'
   const empty = document.createElement('option')
   empty.value = ''
-  empty.textContent = 'Selecione um pacote'
+  empty.textContent = 'Selecione uma experiência'
   packageSelect.append(empty)
   for (const pkg of packages) {
     const option = document.createElement('option')
@@ -205,7 +267,7 @@ function addParticipant() {
     makeField('Nome da bailarina', name, true),
     makeField('Turma ou nível', className),
     makeField('Idade', age),
-    makeField('Pacote', packageSelect, true),
+    makeField('Experiência', packageSelect, true),
   )
 
   const detail = document.createElement('div')
@@ -257,7 +319,7 @@ function collectParticipants() {
     const turma = card.querySelector('[data-class]').value.trim()
     const ageValue = card.querySelector('[data-age]').value.trim()
 
-    if (!name || !turma || !pkg) throw new Error('Preencha o nome, a turma e o pacote de cada bailarina.')
+    if (!name || !turma || !pkg) throw new Error('Preencha o nome, a turma e a experiência de cada bailarina.')
     if (ageValue && (!Number.isInteger(Number(ageValue)) || Number(ageValue) < 1 || Number(ageValue) > 99)) {
       throw new Error('Informe uma idade inteira entre 1 e 99 anos.')
     }
@@ -317,18 +379,26 @@ function updateSummary() {
 function renderCampaign(data) {
   campaign = data.evento
   packages = Array.isArray(data.pacotes) ? data.pacotes : []
+  const campaignTitle = campaign.nome_publico || 'Contratação da experiência fotográfica'
+  document.getElementById('campaign-title').textContent = campaignTitle
+  document.title = campaignTitle + ' | Grand Focus Fotografia'
+  const description = document.querySelector('meta[name="description"]')
+  if (description) description.content = 'Contratação de experiências fotográficas Grand Focus para ' + campaignTitle + '.'
+  renderPackageOverview()
+  const includesMini = packages.some((pkg) => pkg.inclui_miniensaio === true)
+  const miniNote = document.getElementById('mini-session-note')
+  if (miniNote) miniNote.classList.toggle('hidden', !includesMini)
 
   const meta = document.getElementById('event-meta')
   meta.replaceChildren()
-  const chips = [
-    campaign.escola_nome,
-    formatDate(campaign.data_evento),
-    campaign.local,
-    'Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim),
-    campaign.duracao_minutos + ' minutos estimados por bailarina',
-    campaign.prazo_entrega_dias + ' dias de prazo de entrega',
-  ].filter(Boolean)
-  for (const label of chips) {
+  const chips = [campaign.escola_nome, formatDate(campaign.data_evento), campaign.local]
+  if (includesMini) {
+    chips.push('Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim))
+    chips.push(campaign.duracao_minutos + ' minutos estimados por bailarina')
+  }
+  if (campaign.prazo_entrega_dias) chips.push(campaign.prazo_entrega_dias + ' dias de prazo de entrega')
+  const visibleChips = chips.filter(Boolean)
+  for (const label of visibleChips) {
     const chip = document.createElement('span')
     chip.className = 'meta-chip'
     chip.textContent = label
@@ -441,14 +511,14 @@ async function submitOrder(event) {
 
   const signature = await digest(JSON.stringify(payload))
   let pending = null
-  try { pending = JSON.parse(sessionStorage.getItem('gf_entre_estacoes_pending') || 'null') } catch {}
+  try { pending = JSON.parse(sessionStorage.getItem(CAMPAIGN_STORAGE_PREFIX + '_pending') || 'null') } catch {}
   if (!pending || pending.signature !== signature) {
     pending = {
       signature,
       access_token: randomHex(32),
       idempotency_key: crypto.randomUUID(),
     }
-    sessionStorage.setItem('gf_entre_estacoes_pending', JSON.stringify(pending))
+    sessionStorage.setItem(CAMPAIGN_STORAGE_PREFIX + '_pending', JSON.stringify(pending))
   }
 
   submitButton.disabled = true
@@ -462,8 +532,8 @@ async function submitOrder(event) {
       idempotency_key: pending.idempotency_key,
     })
     if (!data.checkout_url) throw new Error('O checkout não foi retornado. Tente novamente.')
-    localStorage.setItem('gf_entre_estacoes_token_' + data.order_nsu, pending.access_token)
-    sessionStorage.removeItem('gf_entre_estacoes_pending')
+    localStorage.setItem(CAMPAIGN_STORAGE_PREFIX + '_token_' + data.order_nsu, pending.access_token)
+    sessionStorage.removeItem(CAMPAIGN_STORAGE_PREFIX + '_pending')
     window.location.assign(data.checkout_url)
   } catch (error) {
     showMessage(error.message + ' Seus dados permanecem nesta página. Se necessário, tente novamente sem alterar as informações.', 'error')
@@ -477,7 +547,7 @@ async function loadOrderReturn() {
   const orderNsu = params.get('order_nsu')
   if (!orderNsu) return false
 
-  const token = localStorage.getItem('gf_entre_estacoes_token_' + orderNsu)
+  const token = localStorage.getItem(CAMPAIGN_STORAGE_PREFIX + '_token_' + orderNsu)
   form.classList.add('hidden')
   closed.classList.add('hidden')
   loading.classList.add('hidden')

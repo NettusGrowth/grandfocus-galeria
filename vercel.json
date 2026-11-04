@@ -5,6 +5,30 @@
     {
       "source": "/s/:slug",
       "destination": "/index.html"
+    },
+    {
+      "source": "/contratar/admin",
+      "destination": "/contratar/admin/index.html"
+    },
+    {
+      "source": "/contratar/admin/",
+      "destination": "/contratar/admin/index.html"
+    },
+    {
+      "source": "/contratar/:slug/admin",
+      "destination": "/contratar/entre-estacoes/admin/index.html"
+    },
+    {
+      "source": "/contratar/:slug/admin/",
+      "destination": "/contratar/entre-estacoes/admin/index.html"
+    },
+    {
+      "source": "/contratar/:slug",
+      "destination": "/contratar/entre-estacoes/index.html"
+    },
+    {
+      "source": "/contratar/:slug/",
+      "destination": "/contratar/entre-estacoes/index.html"
     }
   ]
 }

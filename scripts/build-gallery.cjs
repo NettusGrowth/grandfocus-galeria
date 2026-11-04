@@ -187,8 +187,10 @@ function main() {
   const contractingAdmin = path.join(dist, 'contratar', 'entre-estacoes', 'admin', 'index.html');
   const contractingPublicScript = path.join(dist, 'contratar', 'entre-estacoes', 'app.js');
   const contractingAdminScript = path.join(dist, 'contratar', 'entre-estacoes', 'admin', 'admin.js');
-  if (![contractingPublic, contractingAdmin, contractingPublicScript, contractingAdminScript].every(fs.existsSync)) {
-    throw new Error('Experience contracting pages or scripts are missing from dist.');
+  const contractingManager = path.join(dist, 'contratar', 'admin', 'index.html');
+  const contractingManagerScript = path.join(dist, 'contratar', 'admin', 'manager.js');
+  if (![contractingPublic, contractingAdmin, contractingPublicScript, contractingAdminScript, contractingManager, contractingManagerScript].every(fs.existsSync)) {
+    throw new Error('Public contracting pages, campaign manager, or scripts are missing from dist.');
   }
   if ((deployed.match(/function _urlPreviewValidada/g) || []).length !== 1) throw new Error('Fallback helper missing/duplicated.');
   if (!deployed.includes('_urlPreviewValidada(path, f.storage_path)')) throw new Error('Lightbox fallback missing.');

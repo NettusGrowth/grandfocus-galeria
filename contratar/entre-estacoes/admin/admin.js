@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co'
 const SUPABASE_PUBLIC_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const API_URL = SUPABASE_URL + '/functions/v1/contratacao-admin'
+const CAMPAIGN_SLUG = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[1] || 'entre-estacoes').toLowerCase()
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
@@ -64,7 +65,7 @@ async function adminRequest(action, values = {}) {
       apikey: SUPABASE_PUBLIC_KEY,
       Authorization: 'Bearer ' + token,
     },
-    body: JSON.stringify({ action, ...values }),
+    body: JSON.stringify({ action, slug: CAMPAIGN_SLUG, ...values }),
   })
   const data = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a ação.')
@@ -83,6 +84,11 @@ async function loadConfig() {
   const data = await adminRequest('config')
   currentEvent = data.evento
   currentPackages = data.pacotes || []
+  setField('campaign-name', currentEvent.nome_publico)
+  document.getElementById('campaign-title').textContent = currentEvent.nome_publico || 'Configuração da contratação'
+  const publicLink = document.getElementById('public-link')
+  publicLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/'
+  publicLink.hidden = currentEvent.status !== 'publicado'
   setField('event-date', currentEvent.data_evento)
   setField('event-place', currentEvent.local)
   setField('mini-start', toLocalInput(currentEvent.miniensaio_inicio))
@@ -119,44 +125,160 @@ async function loadConfig() {
 function renderPackages() {
   const root = document.getElementById('package-fields')
   root.replaceChildren()
-  for (const pkg of currentPackages) {
+  if (!currentPackages.length) {
+    const empty = document.createElement('p')
+    empty.className = 'hint'
+    empty.textContent = 'Nenhuma experiência cadastrada. Adicione a primeira para começar a configurar a contratação.'
+    root.append(empty)
+    return
+  }
+
+  for (const [index, pkg] of currentPackages.entries()) {
     const card = document.createElement('div')
     card.className = 'participant-card'
+    card.dataset.packageCode = pkg.codigo
+    card.dataset.inactive = pkg.ativo === false ? 'true' : 'false'
+
+    const heading = document.createElement('div')
+    heading.className = 'participant-head'
     const title = document.createElement('strong')
-    title.textContent = pkg.nome
+    title.textContent = 'Experiência ' + (index + 1)
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.className = 'text-button'
+    remove.textContent = pkg.ativo === false ? 'Ativar' : 'Desativar'
+    remove.addEventListener('click', () => {
+      pkg.ativo = pkg.ativo === false
+      renderPackages()
+    })
+    heading.append(title, remove)
+
+    const nameField = document.createElement('div')
+    nameField.className = 'field'
+    const nameLabel = document.createElement('label')
+    nameLabel.textContent = 'Nome da experiência'
+    nameLabel.htmlFor = 'name-' + pkg.codigo
+    const name = document.createElement('input')
+    name.id = 'name-' + pkg.codigo
+    name.maxLength = 100
+    name.value = pkg.nome || ''
+    name.required = true
+    nameField.append(nameLabel, name)
+
     const priceField = document.createElement('div')
     priceField.className = 'field'
-    const label = document.createElement('label')
-    label.textContent = 'Preço em reais'
-    label.htmlFor = 'price-' + pkg.codigo
-    const input = document.createElement('input')
-    input.id = 'price-' + pkg.codigo
-    input.inputMode = 'decimal'
-    input.value = moneyToInput(pkg.preco_centavos)
-    input.dataset.packagePrice = pkg.codigo
-    priceField.append(label, input)
+    const priceLabel = document.createElement('label')
+    priceLabel.textContent = 'Preço em reais'
+    priceLabel.htmlFor = 'price-' + pkg.codigo
+    const price = document.createElement('input')
+    price.id = 'price-' + pkg.codigo
+    price.inputMode = 'decimal'
+    price.placeholder = 'Exemplo 119,00'
+    price.value = moneyToInput(pkg.preco_centavos)
+    priceField.append(priceLabel, price)
+
+    const descriptionField = document.createElement('div')
+    descriptionField.className = 'field full'
+    const descriptionLabel = document.createElement('label')
+    descriptionLabel.textContent = 'O que está incluído, uma informação por linha'
+    descriptionLabel.htmlFor = 'description-' + pkg.codigo
+    const description = document.createElement('textarea')
+    description.id = 'description-' + pkg.codigo
+    description.rows = 4
+    description.maxLength = 6000
+    description.value = Array.isArray(pkg.descricao) ? pkg.descricao.join('\n') : ''
+    descriptionField.append(descriptionLabel, description)
+
+    const flags = document.createElement('div')
+    flags.className = 'field full'
+    const miniLabel = document.createElement('label')
+    miniLabel.className = 'consent'
+    const mini = document.createElement('input')
+    mini.type = 'checkbox'
+    mini.id = 'mini-' + pkg.codigo
+    mini.checked = pkg.inclui_miniensaio === true
+    const miniText = document.createElement('span')
+    miniText.textContent = 'Inclui miniensaio individual e/ou com a família'
+    miniLabel.append(mini, miniText)
+
+    const stageLabel = document.createElement('label')
+    stageLabel.className = 'consent'
+    const stage = document.createElement('input')
+    stage.type = 'checkbox'
+    stage.id = 'stage-' + pkg.codigo
+    stage.checked = pkg.inclui_palco === true
+    const stageText = document.createElement('span')
+    stageText.textContent = 'Inclui fotografias das coreografias no palco'
+    stageLabel.append(stage, stageText)
+
+    const minimumField = document.createElement('div')
+    minimumField.className = 'field'
+    const minimumLabel = document.createElement('label')
+    minimumLabel.textContent = 'Mínimo de fotos por coreografia'
+    minimumLabel.htmlFor = 'minimum-' + pkg.codigo
+    const minimum = document.createElement('input')
+    minimum.type = 'number'
+    minimum.min = '10'
+    minimum.max = '1000'
+    minimum.id = 'minimum-' + pkg.codigo
+    minimum.value = pkg.minimo_fotos_por_coreografia || (pkg.inclui_palco ? 10 : 0)
+    minimum.disabled = !stage.checked
+    stage.addEventListener('change', () => {
+      minimum.disabled = !stage.checked
+      if (stage.checked && Number(minimum.value) < 10) minimum.value = '10'
+      if (!stage.checked) minimum.value = '0'
+    })
+    minimumField.append(minimumLabel, minimum)
 
     const activeLabel = document.createElement('label')
     activeLabel.className = 'consent'
     const active = document.createElement('input')
     active.type = 'checkbox'
-    active.checked = pkg.ativo
-    active.dataset.packageActive = pkg.codigo
+    active.id = 'active-' + pkg.codigo
+    active.checked = pkg.ativo !== false
     const activeText = document.createElement('span')
-    activeText.textContent = 'Disponibilizar este pacote na página de contratação'
+    activeText.textContent = 'Disponibilizar esta experiência na página pública'
     activeLabel.append(active, activeText)
 
-    const description = document.createElement('p')
-    description.className = 'hint'
-    description.textContent = Array.isArray(pkg.descricao) ? pkg.descricao.join(' • ') : ''
-    card.append(title, priceField, activeLabel, description)
+    flags.append(miniLabel, stageLabel, minimumField, activeLabel)
+    card.append(heading, nameField, priceField, descriptionField, flags)
     root.append(card)
   }
 }
 
+function createPackageCode(name) {
+  const base = String(name || 'experiencia').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'experiencia'
+  let code = base
+  let suffix = 2
+  const existing = new Set(currentPackages.map(item => item.codigo))
+  while (existing.has(code)) code = base.slice(0, 45) + '-' + suffix++
+  return code
+}
+
+function addPackage() {
+  if (currentPackages.length >= 20) {
+    showNotice(adminMessage, 'Cada campanha pode ter até 20 experiências.')
+    return
+  }
+  const codigo = createPackageCode('nova-experiencia')
+  currentPackages.push({
+    codigo,
+    nome: 'Nova experiência',
+    descricao: [],
+    preco_centavos: 100,
+    inclui_miniensaio: false,
+    inclui_palco: false,
+    minimo_fotos_por_coreografia: 0,
+    ativo: true,
+    ordem: currentPackages.length,
+  })
+  renderPackages()
+}
 function collectConfig() {
   return {
     evento: {
+      nome_publico: getField('campaign-name'),
       data_evento: getField('event-date') || null,
       local: getField('event-place'),
       miniensaio_inicio: toIso(getField('mini-start')),
@@ -179,10 +301,18 @@ function collectConfig() {
       autorizacao_imagem_versao: getField('image-version'),
       autorizacao_imagem_conteudo: document.getElementById('image-text').value,
     },
-    pacotes: currentPackages.map((pkg) => ({
+    pacotes: currentPackages.map((pkg, index) => ({
       codigo: pkg.codigo,
+      nome: document.getElementById('name-' + pkg.codigo).value.trim(),
+      descricao: document.getElementById('description-' + pkg.codigo).value.split('\n').map(line => line.trim()).filter(Boolean),
       preco_centavos: parseMoney(document.getElementById('price-' + pkg.codigo).value),
-      ativo: document.querySelector('[data-package-active="' + pkg.codigo + '"]').checked,
+      inclui_miniensaio: document.getElementById('mini-' + pkg.codigo).checked,
+      inclui_palco: document.getElementById('stage-' + pkg.codigo).checked,
+      minimo_fotos_por_coreografia: document.getElementById('stage-' + pkg.codigo).checked
+        ? Number(document.getElementById('minimum-' + pkg.codigo).value || 10)
+        : 0,
+      ativo: document.getElementById('active-' + pkg.codigo).checked,
+      ordem: index,
     })),
   }
 }
@@ -192,7 +322,7 @@ async function saveConfig() {
   try {
     const config = collectConfig()
     if (config.pacotes.some((pkg) => !Number.isInteger(pkg.preco_centavos) || pkg.preco_centavos < 100)) {
-      throw new Error('Confira os preços. Cada pacote deve custar pelo menos R$ 1,00.')
+      throw new Error('Confira os valores. Cada experiência deve custar pelo menos R$ 1,00.')
     }
     await adminRequest('salvar', config)
     showNotice(adminMessage, 'Configuração salva. A campanha continua no status atual.')
@@ -413,6 +543,7 @@ document.getElementById('logout-button').addEventListener('click', async () => {
   loginCard.classList.remove('hidden')
 })
 
+document.getElementById('add-package-button').addEventListener('click', addPackage)
 document.getElementById('save-button').addEventListener('click', saveConfig)
 document.getElementById('publish-button').addEventListener('click', async () => {
   if (!window.confirm('Publicar a campanha agora? A página ficará disponível para contratação assim que os dados forem validados.')) return

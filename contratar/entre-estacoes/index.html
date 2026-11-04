@@ -3,31 +3,31 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#182432">
-  <meta name="description" content="Contratação de experiências fotográficas Grand Focus para o espetáculo Entre Estações.">
-  <title>Entre Estações | Grand Focus Fotografia</title>
-  <link rel="stylesheet" href="./styles.css">
-  <script type="module" src="./app.js"></script>
+  <meta name="theme-color" content="#2B0210">
+  <meta name="description" content="Contratação de experiências fotográficas Grand Focus.">
+  <title>Contratação | Grand Focus Fotografia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
+  <script type="module" src="/contratar/entre-estacoes/app.js"></script>
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/">GRAND FOCUS<small>FOTOGRAFIA</small></a>
-    <span class="header-note">Experiência fotográfica • Contratação online</span>
+    <a class="brand" href="/" aria-label="Voltar à galeria Grand Focus"><img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance"></a>
+    <span class="header-note">Contratação da experiência fotográfica</span>
   </header>
 
   <main class="page-shell">
     <section class="hero">
       <p class="eyebrow">Uma lembrança para guardar</p>
-      <h1>Entre Estações</h1>
+      <h1 id="campaign-title">Contratação da experiência fotográfica</h1>
       <p class="hero-copy">
         Registre a presença, a dedicação e a beleza de cada bailarina nesta etapa da sua trajetória.
         Escolha a experiência de cada participante e conclua a contratação com segurança.
       </p>
-      <div class="event-meta" id="event-meta" aria-live="polite">
-        <span class="meta-chip">Grand Focus Fotografia</span>
-        <span class="meta-chip">Studio Entrepliés</span>
-      </div>
-      <p class="hero-copy">O miniensaio será realizado por ordem de chegada dentro do período informado, sem horário individual para cada bailarina.</p>
+      <div class="event-meta" id="event-meta" aria-live="polite"></div>
+      <p class="hero-copy" id="mini-session-note">O miniensaio será realizado por ordem de chegada dentro do período informado, sem horário individual para cada bailarina.</p>
     </section>
 
     <section class="status-card" id="loading-state">
@@ -51,10 +51,16 @@
         <label for="company-website">Deixe este campo vazio</label>
         <input id="company-website" name="company_website" type="text" tabindex="-1" autocomplete="off">
       </div>
+      <section class="panel experience-overview">
+        <h2>Conheça as experiências</h2>
+        <p class="panel-intro">Cada experiência registra uma parte diferente da trajetória da bailarina. Leia o que está incluído antes de escolher a opção de cada participante.</p>
+        <div id="package-overview-list" class="experience-grid" aria-live="polite"></div>
+      </section>
+
       <section class="panel">
         <h2>Escolha a experiência</h2>
         <p class="panel-intro">
-          Você pode incluir mais de uma bailarina no mesmo pedido. Cada participante terá seu próprio pacote e suas próprias coreografias.
+          Você pode incluir mais de uma bailarina no mesmo pedido. Cada participante terá sua própria experiência e suas próprias coreografias.
         </p>
         <div id="participants-list"></div>
         <div class="action-row">
@@ -104,7 +110,7 @@
             <p class="hint" id="image-consent-version"></p>
             <label class="consent">
               <input id="image-consent" type="checkbox">
-              <span>Autorizo, de forma opcional e separada, o uso de imagem conforme o texto acima. Esta autorização não é condição para contratar os pacotes.</span>
+              <span>Autorizo, de forma opcional e separada, o uso de imagem conforme o texto acima. Esta autorização não é condição para contratar as experiências.</span>
             </label>
           </div>
         </div>
@@ -135,8 +141,8 @@
     </form>
 
     <footer class="site-footer">
-      <strong>Grand Focus Fotografia</strong><br>
-      A experiência de contratação é independente da galeria de fotografias.<br>
+      A experiência é realizada pela equipe Grand Focus.<br>
+      A contratação é independente da galeria de fotografias.<br>
       <span id="supplier-footer"></span>
     </footer>
   </main>

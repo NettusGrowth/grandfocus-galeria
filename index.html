@@ -2090,6 +2090,11 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 #view-responsavel .tabs .tab[data-tab="meualbum"],
 #resptab-meualbum { display: none !important; }
 </style>
+<style id="contratacoes-admin-frame">
+#admintab-contratacoes { width:100%; }
+#admintab-contratacoes iframe { display:block; width:100%; height:calc(100vh - 150px); min-height:720px; border:0; border-radius:16px; background:#F6F0E6; }
+@media(max-width:700px){#admintab-contratacoes iframe{height:calc(100vh - 120px);min-height:680px;border-radius:10px;}}
+</style>
 </head>
 <body>
 
@@ -2217,6 +2222,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="navgroup-label">Social</div>
         <div class="tab" data-tab="comunidade" data-tip="Comunidade" data-bn-primary data-bn-label="Social" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg><span>Comunidade</span></div>
         <div class="navgroup-label">Vendas</div>
+        <div class="tab" data-tab="contratacoes" data-tip="Contratações e experiências" onclick="setAdminTab('contratacoes')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16l-1.5 13h-13L4 7Z"/><path d="M9 7a3 3 0 0 1 6 0M8 11h8"/></svg><span>Contratações e experiências</span></div>
         <div class="tab" data-tab="crm" data-tip="CRM GrandFocus" onclick="setAdminTab('crm');iniciarCrmAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16l-6.2 7.4v6.1l-3.6 1.8v-7.9L4 4Z"/></svg><span>CRM GrandFocus</span></div>
         <div class="navgroup-label">Sistema</div>
         <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
@@ -2535,6 +2541,10 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
           <div class="list" id="lista-eventos"></div>
         </div>
         <div id="evento-detalhe-wrap" style="display:none;"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-contratacoes" style="display:none;">
+        <iframe title="Gerenciador de contratações e experiências" src="/contratar/admin/" loading="lazy" referrerpolicy="same-origin"></iframe>
       </div>
 
       <div class="admin-tab" id="admintab-albuns" style="display:none;">
@@ -6693,6 +6703,11 @@ function setAdminTab(tab) {
   // natural pra atualizar sem precisar de F5.
   if (tab === 'dashboard') _dashCarregarFotosPopulares()
 }
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== window.location.origin || event.data?.type !== 'grandfocus:contratacao-event-created') return
+  carregarEventos().then(() => renderEventos())
+})
 
 // sub-nav local do Gold Reserve (Visão Geral/Vendas/Conversão/…) — não
 // mexe na navegação principal do admin, só troca qual .gr-section
