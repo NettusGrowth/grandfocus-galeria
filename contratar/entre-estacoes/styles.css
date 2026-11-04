@@ -165,6 +165,7 @@ tr[data-pedido]:hover td { background: #fbf8f1; }
   --gf-success: #4B0416;
   --gf-danger: #5C0A1E;
   --gf-wine-deep: #2B0210;
+  --gf-wine-high: #5C0A1E;
   --gf-gold-light: #EFD7A7;
   font-family: "Jost", "Futura", system-ui, -apple-system, sans-serif;
 }
