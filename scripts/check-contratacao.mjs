@@ -80,6 +80,8 @@ assert.ok(migration.includes("v_evento.status = 'encerrado'") && migration.inclu
 assert.ok(migration.includes('gf_contratacao_admin_alterar_status') && adminApi.includes('gf_contratacao_admin_alterar_status'), 'O status precisa mudar por RPC transacional e impedir reabertura depois de encerrar.')
 assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
 assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
+const publicDataAction = publicApi.slice(publicApi.indexOf('async function actionDados'), publicApi.indexOf('async function actionContratar'))
+assert.ok(publicDataAction.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicDataAction.includes('disponivel: false'), 'A página pública precisa permanecer fechada enquanto os pagamentos reais estiverem desativados.')
 assert.ok(adminApi.includes("pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true'"), 'O painel deve mostrar o estado real do bloqueio de pagamentos.')
 assert.ok(publicApi.includes('provider_message') && publicApi.includes('checkout_host_ok'), 'Falhas de checkout precisam registrar diagnóstico seguro da resposta do provedor.')
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
