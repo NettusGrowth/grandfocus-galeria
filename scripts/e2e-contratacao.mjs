@@ -187,6 +187,15 @@ try {
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, resultado:{status:'publicado'}, evento:adminEvent }) })
       return
     }
+    if (body.action === 'encerrar') {
+      adminEvent.status='encerrado'
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ ok:true, status:'encerrado' }) })
+      return
+    }
+    if (body.action === 'pausar' && adminEvent.status === 'encerrado') {
+      await route.fulfill({ status:409, contentType:'application/json', body:JSON.stringify({ error:'Campanha encerrada não pode ser reaberta nem pausada.' }) })
+      return
+    }
     await route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({ error:'Ação administrativa inesperada no teste.' }) })
   })
   await adminPage.goto(origin + '/contratar/entre-estacoes/admin/', { waitUntil:'networkidle' })
@@ -216,6 +225,12 @@ try {
   assert.equal(adminEvent.status, 'publicado')
   assert.match(await adminPage.locator('#campaign-status').textContent(), /publicado/)
   assert.ok(adminCalls.some(call => call.action === 'publicar'), 'O painel não chamou a ação de publicação simulada.')
+  await adminPage.locator('#close-button').click()
+  await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Status atualizado para encerrado'))
+  assert.equal(adminEvent.status, 'encerrado')
+  await adminPage.locator('#pause-button').click()
+  await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('não pode ser reaberta'))
+  assert.equal(adminEvent.status, 'encerrado')
   assert.deepEqual(adminErrors, [], 'O painel administrativo lançou erros JavaScript: ' + adminErrors.join('; '))
   await adminPage.close()
   // When the payment kill switch is off, the public page must remain closed.
