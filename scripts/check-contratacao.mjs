@@ -97,6 +97,7 @@ assert.ok(publicPage.includes('./app.js'), 'Página pública precisa carregar se
 assert.ok(publicPage.includes('privacy-acknowledged'), 'A ciência da política de privacidade deve ser separada do aceite dos termos.')
 assert.ok(publicPage.includes('company-website'), 'O formulário deve conter o campo honeypot.')
 assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script isolado.')
+assert.ok(adminScript.includes('Encerrar definitivamente a campanha') && adminScript.includes('não poderá ser desfeita'), 'O painel precisa avisar que encerrar é definitivo.')
 assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')
 assert.ok(!adminScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no painel público.')
 assert.ok(e2eScript.includes('CHECKOUT MOCK OK'), 'O teste de navegador precisa simular o checkout sem cobrança real.')
