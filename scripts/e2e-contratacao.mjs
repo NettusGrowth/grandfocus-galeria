@@ -133,7 +133,26 @@ try {
   assert.deepEqual(adminErrors, [], 'O painel administrativo lançou erros JavaScript: ' + adminErrors.join('; '))
   await adminPage.close()
 
-  console.log('Contratação Grand Focus E2E: formulário, resumo, consentimentos, checkout mock, mobile e acesso admin aprovados.')
+  // When the payment kill switch is off, the public page must remain closed.
+  const closedPage = await browser.newPage({ viewport:{ width:390, height:844 } })
+  await closedPage.route('**/functions/v1/contratacao-publica', async route => {
+    const body = JSON.parse(route.request().postData() || '{}')
+    if (body.action !== 'dados') {
+      await route.fulfill({ status:409, contentType:'application/json', body:JSON.stringify({ error:'A campanha está fechada.' }) })
+      return
+    }
+    await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({
+      disponivel:false,
+      mensagem:'Esta experiência está em preparação. As contratações serão liberadas após a configuração e autorização dos pagamentos.'
+    }) })
+  })
+  await closedPage.goto(origin + '/contratar/entre-estacoes/', { waitUntil:'networkidle' })
+  await closedPage.waitForSelector('#closed-state:not(.hidden)')
+  assert.equal(await closedPage.locator('#contract-form').evaluate(el => el.classList.contains('hidden')), true)
+  assert.match(await closedPage.locator('#closed-message').textContent(), /em preparação/)
+  await closedPage.close()
+
+  console.log('Contratação Grand Focus E2E: formulário, resumo, consentimentos, checkout mock, mobile, campanha fechada e acesso admin aprovados.')
 } finally {
   await browser.close()
   await new Promise(resolve => server.close(resolve))
