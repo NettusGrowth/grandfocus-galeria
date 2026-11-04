@@ -396,7 +396,7 @@ function renderCampaign(data) {
     chips.push('Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim))
     chips.push(campaign.duracao_minutos + ' minutos estimados por bailarina')
   }
-  chips.push(campaign.prazo_entrega_dias + ' dias de prazo de entrega')
+  if (campaign.prazo_entrega_dias) chips.push(campaign.prazo_entrega_dias + ' dias de prazo de entrega')
   const visibleChips = chips.filter(Boolean)
   for (const label of visibleChips) {
     const chip = document.createElement('span')
