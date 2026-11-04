@@ -441,9 +441,9 @@ begin
       'coreografias','[]'::jsonb
     )),
     '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
-    repeat('a',64),
+    repeat('1',64),
     gen_random_uuid()::text,
-    repeat('b',64)
+    repeat('2',64)
   );
   if v_mini_two_result->>'status' <> 'aguardando_pagamento' then
     raise exception 'A segunda vaga deveria ser reservada quando a capacidade fosse dois.';
