@@ -5,6 +5,7 @@ const read = (path) => fs.readFileSync(path, 'utf8')
 const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório ausente: ' + path)
 
 const migration = read('supabase/sql/080_contratacao_experiencias.sql')
+const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
 const sharedContracting = read('supabase/functions/_shared/contratacao.ts')
 const webhook = read('supabase/functions/contratacao-webhook/index.ts')
@@ -12,6 +13,10 @@ const adminApi = read('supabase/functions/contratacao-admin/index.ts')
 const build = read('scripts/build-gallery.cjs')
 const publicPage = read('contratar/entre-estacoes/index.html')
 const adminPage = read('contratar/entre-estacoes/admin/index.html')
+const managerPage = read('contratar/admin/index.html')
+const managerScript = read('contratar/admin/manager.js')
+const galleryAdminPage = read('index.html')
+const vercelConfig = read('vercel.json')
 const publicScript = read('contratar/entre-estacoes/app.js')
 const adminScript = read('contratar/entre-estacoes/admin/admin.js')
 const adminUi = adminScript
@@ -24,6 +29,11 @@ assert.ok(fs.existsSync('assets/grand-focus-assinatura-ouro.png'), 'A assinatura
 assert.ok(publicPage.includes('package-overview-list'), 'A página deve apresentar as experiências antes da escolha.')
 assert.ok(publicScript.includes('function renderPackageOverview'), 'A página deve montar a apresentação das experiências a partir dos dados do banco.')
 assert.ok(adminPage.includes('grand-focus-assinatura-ouro.png'), 'A administração deve usar a assinatura oficial da marca.')
+assert.ok(managerPage.includes('id="new-campaign-form"') && managerPage.includes('id="school-select"'), 'O gerenciador deve criar evento e contratação no mesmo formulário.')
+assert.ok(managerPage.includes('grand-focus-assinatura-ouro.png'), 'O gerenciador deve usar a assinatura oficial da marca.')
+assert.ok(managerScript.includes("adminRequest('criar_campanha'") && managerScript.includes('grandfocus:contratacao-event-created'), 'O gerenciador deve criar a campanha e sinalizar a galeria para atualizar os eventos.')
+assert.ok(galleryAdminPage.includes('data-tab="contratacoes"') && galleryAdminPage.includes('src="/contratar/admin/"'), 'O gerenciador deve estar integrado ao menu administrativo da galeria.')
+assert.ok(vercelConfig.includes('/contratar/:slug/admin') && vercelConfig.includes('/contratar/:slug/'), 'As rotas públicas e administrativas precisam aceitar slugs dinâmicos.')
 
 for (const path of [
   'contratar/entre-estacoes/index.html',
@@ -31,6 +41,9 @@ for (const path of [
   'contratar/entre-estacoes/app.js',
   'contratar/entre-estacoes/admin/index.html',
   'contratar/entre-estacoes/admin/admin.js',
+  'contratar/admin/index.html',
+  'contratar/admin/manager.js',
+  'supabase/sql/083_contratacao_gerenciador_dinamico.sql',
   'supabase/functions/_shared/contratacao.ts',
   'supabase/functions/contratacao-publica/index.ts',
   'supabase/functions/contratacao-webhook/index.ts',
@@ -104,6 +117,17 @@ assert.ok(publicPage.includes('./app.js'), 'Página pública precisa carregar se
 assert.ok(publicPage.includes('privacy-acknowledged'), 'A ciência da política de privacidade deve ser separada do aceite dos termos.')
 assert.ok(publicPage.includes('company-website'), 'O formulário deve conter o campo honeypot.')
 assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script isolado.')
+assert.ok(adminPage.includes('id="campaign-name"') && adminPage.includes('id="add-package-button"'), 'O editor precisa permitir nome próprio e experiências dinâmicas.')
+assert.ok(adminScript.includes('createPackageCode') && adminScript.includes('inclui_miniensaio') && adminScript.includes('inclui_palco'), 'O editor deve configurar experiências diferentes e seus itens incluídos.')
+assert.ok(dynamicMigration.includes('gf_contratacao_admin_criar_campanha') && dynamicMigration.includes('campanha_criada_com_evento'), 'A migration deve criar o evento da galeria e a contratação em uma transação.')
+assert.ok(dynamicMigration.includes('on conflict (evento_contratacao_id,codigo) do update'), 'A migration deve salvar experiências configuráveis.')
+assert.ok(dynamicMigration.includes('v_campanha_tem_mini') && dynamicMigration.includes('v_tem_mini and v_vagas_ocupadas'), 'Campanhas sem miniensaio não devem exigir horários ou capacidade de miniensaio.')
+assert.ok(adminApi.includes('listar_campanhas') && adminApi.includes('listar_escolas') && adminApi.includes('criar_campanha'), 'A API administrativa deve listar e criar campanhas.')
+assert.ok(adminApi.includes(".eq('evento_contratacao_id', evento.id)"), 'Detalhes e ações de pedidos devem ficar limitados à campanha selecionada.')
+assert.ok(publicApi.includes('campaign_slug') && publicApi.includes('PUBLIC_ORIGIN + \'/contratar/\' + campaignSlug'), 'A API pública deve resolver a campanha pelo slug da URL.')
+assert.ok(!publicApi.includes("const CAMPAIGN_SLUG = 'entre-estacoes'"), 'A API pública não pode permanecer presa a uma campanha única.')
+assert.ok(e2eScript.includes('managerPage') && e2eScript.includes('createdCampaign') && e2eScript.includes('campaign_slug'), 'O teste de navegador deve validar criação do evento/contratação e slug dinâmico.')
+assert.ok(build.includes('contractingManagerScript'), 'O build precisa verificar a página do gerenciador.')
 assert.ok(adminPage.includes('noindex,nofollow'), 'O painel administrativo não deve ser indexado por mecanismos de busca.')
 assert.ok(adminScript.includes('Encerrar definitivamente a campanha') && adminScript.includes('não poderá ser desfeita'), 'O painel precisa avisar que encerrar é definitivo.')
 assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')
