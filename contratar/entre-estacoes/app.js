@@ -385,18 +385,20 @@ function renderCampaign(data) {
   const description = document.querySelector('meta[name="description"]')
   if (description) description.content = 'Contratação de experiências fotográficas Grand Focus para ' + campaignTitle + '.'
   renderPackageOverview()
+  const includesMini = packages.some((pkg) => pkg.inclui_miniensaio === true)
+  const miniNote = document.getElementById('mini-session-note')
+  if (miniNote) miniNote.classList.toggle('hidden', !includesMini)
 
   const meta = document.getElementById('event-meta')
   meta.replaceChildren()
-  const chips = [
-    campaign.escola_nome,
-    formatDate(campaign.data_evento),
-    campaign.local,
-    'Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim),
-    campaign.duracao_minutos + ' minutos estimados por bailarina',
-    campaign.prazo_entrega_dias + ' dias de prazo de entrega',
-  ].filter(Boolean)
-  for (const label of chips) {
+  const chips = [campaign.escola_nome, formatDate(campaign.data_evento), campaign.local]
+  if (includesMini) {
+    chips.push('Miniensaio das ' + formatTime(campaign.miniensaio_inicio) + ' às ' + formatTime(campaign.miniensaio_fim))
+    chips.push(campaign.duracao_minutos + ' minutos estimados por bailarina')
+  }
+  chips.push(campaign.prazo_entrega_dias + ' dias de prazo de entrega')
+  const visibleChips = chips.filter(Boolean)
+  for (const label of visibleChips) {
     const chip = document.createElement('span')
     chip.className = 'meta-chip'
     chip.textContent = label
