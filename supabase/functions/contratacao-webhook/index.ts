@@ -32,7 +32,17 @@ Deno.serve(async (req: Request) => {
   const orderNsu = String(body?.order_nsu || '').trim()
   const transactionNsu = String(body?.transaction_nsu || '').trim()
   const slug = String(body?.slug || body?.invoice_slug || '').trim()
-  const eventType = String(body?.event || body?.event_type || body?.type || '').trim().toLowerCase()
+  const eventType = String(
+    body?.event ||
+    body?.event_type ||
+    body?.type ||
+    body?.status ||
+    body?.payment_status ||
+    req.headers.get('x-infinitepay-event') ||
+    req.headers.get('x-webhook-event') ||
+    req.headers.get('x-event-type') ||
+    ''
+  ).trim().toLowerCase()
 
   if (!orderNsu) {
     await registrarWebhook(admin, {
@@ -123,8 +133,12 @@ Deno.serve(async (req: Request) => {
       payment_check: check,
       resultado: 'payment_check_nao_validou_identificadores',
     })
-    // A notificação não é assinada. Sem a validação da InfinitePay, nenhum estado financeiro é alterado.
-    return new Response('Notificação não validada pela InfinitePay.', { status: 200 })
+    // Para um aviso de aprovação/liquidação, pedimos nova tentativa. Para notificações
+    // não identificadas, respondemos 200 após gravar o evento e não alteramos o pedido.
+    const retryPaymentEvent = eventType === 'paid' || eventType === 'settled'
+    return retryPaymentEvent
+      ? new Response('Aguarde nova conferência do pagamento.', { status: 503 })
+      : new Response('Notificação registrada sem alteração financeira.', { status: 200 })
   }
 
   if (eventType === 'refunded') {
@@ -190,6 +204,7 @@ Deno.serve(async (req: Request) => {
   }
 
   if (check?.paid !== true) {
+    const previousPayment = pedido.status === 'pago' || pedido.status === 'conciliacao_pendente'
     await registrarWebhook(admin, {
       pedido_id: pedido.pedido_id,
       order_nsu: orderNsu,
@@ -197,9 +212,16 @@ Deno.serve(async (req: Request) => {
       evento_provedor: eventType || 'unknown',
       payload: body,
       payment_check: check,
-      resultado: 'pagamento_nao_confirmado',
+      resultado: previousPayment
+        ? 'pagamento_previamente_confirmado_nao_confirmado_na_consulta_revisao_manual'
+        : 'pagamento_nao_confirmado',
     })
-    return new Response('Pagamento ainda não confirmado pela InfinitePay.', { status: 503 })
+    // Um payment_check válido com paid=false não confirma cobrança. Se o pedido já
+    // estava pago, preservamos seu estado e deixamos o botão de conferência/estorno no painel.
+    const retryPaymentEvent = eventType === 'paid' || eventType === 'settled'
+    return retryPaymentEvent && !previousPayment
+      ? new Response('A InfinitePay ainda não confirmou o pagamento.', { status: 503 })
+      : new Response('Notificação conferida e registrada.', { status: 200 })
   }
 
   const amount = Number(check.amount)
