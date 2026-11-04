@@ -11,6 +11,11 @@ assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/admin/index.htm
 const mime = { '.html':'text/html; charset=utf-8', '.js':'text/javascript; charset=utf-8', '.css':'text/css; charset=utf-8', '.json':'application/json; charset=utf-8', '.svg':'image/svg+xml' }
 const server = http.createServer((req,res) => {
   const pathname = decodeURIComponent(new URL(req.url || '/', 'http://127.0.0.1').pathname)
+  if (pathname === '/__mock-checkout') {
+    res.writeHead(200, { 'Content-Type':'text/html; charset=utf-8', 'Cache-Control':'no-store' })
+    res.end('<!doctype html><html><body><h1>CHECKOUT MOCK OK</h1></body></html>')
+    return
+  }
   let file = path.resolve(root, '.' + (pathname.endsWith('/') ? pathname + 'index.html' : pathname))
   if (!file.startsWith(root + path.sep) && file !== root) { res.writeHead(403); res.end('Forbidden'); return }
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) file = path.join(file,'index.html')
@@ -60,15 +65,12 @@ try {
     if (body.action === 'contratar') {
       submitted = body
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({
-        checkout_url:'https://infinitepay.io/mock-checkout', order_nsu:'test-order-123', valor_total_centavos:19800
+        checkout_url:origin + '/__mock-checkout', order_nsu:'test-order-123', valor_total_centavos:19800
       }) })
       return
     }
     await route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({ error:'Ação inesperada no teste.' }) })
   })
-  await page.route('https://infinitepay.io/mock-checkout', route => route.fulfill({
-    status:200, contentType:'text/html', body:'<!doctype html><html><body><h1>CHECKOUT MOCK OK</h1></body></html>'
-  }))
   await page.goto(origin + '/contratar/entre-estacoes/', { waitUntil:'networkidle' })
   await page.waitForSelector('#contract-form:not(.hidden)')
   assert.match(await page.locator('h1').first().textContent(), /Entre Estações/)
@@ -101,7 +103,7 @@ try {
   assert.ok(widths.content <= widths.viewport + 1, 'A página mobile apresenta rolagem horizontal inesperada: ' + JSON.stringify(widths))
 
   await page.locator('#submit-order').click()
-  await page.waitForURL('https://infinitepay.io/mock-checkout', { timeout:10000 })
+  await page.waitForURL(url => url.origin === origin && url.pathname === '/__mock-checkout', { timeout:10000 })
   assert.match(await page.locator('h1').textContent(), /CHECKOUT MOCK OK/)
   assert.ok(submitted, 'A contratação simulada não foi enviada.')
   assert.equal(submitted.responsavel.nome, 'Responsável de Teste')
