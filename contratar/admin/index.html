@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="theme-color" content="#2B0210">
+  <title>Contratações e experiências | Grand Focus</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../entre-estacoes/styles.css">
+  <style>
+    .manager-shell { max-width: 1120px; margin: 0 auto; padding: 30px 20px 70px; }
+    .campaign-list { display: grid; gap: 14px; }
+    .campaign-card { border: 1px solid rgba(75,4,22,.16); border-radius: 14px; padding: 18px; background: #fffdfa; }
+    .campaign-card h3 { margin: 0 0 5px; font-family: 'Cormorant Garamond',serif; font-size: 1.65rem; font-weight: 600; color: #4B0416; }
+    .campaign-sub { margin: 0; color: #6d5960; font-size: .92rem; }
+    .campaign-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 13px 0; color: #5e4b51; font-size: .88rem; }
+    .campaign-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
+    .campaign-actions a { color: #4B0416; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+    .campaign-status { display: inline-flex; padding: 4px 9px; border-radius: 30px; background: #f0e6e8; color: #4B0416; font-size: .78rem; font-weight: 600; }
+    .manager-form { margin: 18px 0; }
+    .manager-help { color: #6d5960; font-size: .9rem; line-height: 1.55; }
+    .manager-empty { padding: 24px; border: 1px dashed rgba(75,4,22,.25); border-radius: 12px; color: #6d5960; text-align: center; }
+    .manager-shell .section-h { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+    @media(max-width:640px){.manager-shell{padding:18px 12px 40px}.campaign-card{padding:14px}.campaign-actions{align-items:flex-start}}
+  </style>
+  <script type="module" src="./manager.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="/" target="_top" aria-label="Voltar à galeria Grand Focus">
+      <img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance">
+    </a>
+    <span class="header-note">Contratações e experiências</span>
+  </header>
+
+  <main class="manager-shell">
+    <section class="panel" id="login-card">
+      <h2>Acesso administrativo</h2>
+      <p class="panel-intro">Entre com sua conta da galeria Grand Focus. Somente usuários com perfil administrativo podem acessar esta área.</p>
+      <form id="login-form">
+        <div class="field-grid">
+          <div class="field full">
+            <label for="login-email">E-mail</label>
+            <input id="login-email" type="email" autocomplete="username" required>
+          </div>
+          <div class="field full">
+            <label for="login-password">Senha</label>
+            <input id="login-password" type="password" autocomplete="current-password" required>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" type="submit" id="login-button">Entrar</button>
+        </div>
+        <p class="admin-message hidden" id="login-message" role="alert"></p>
+      </form>
+    </section>
+
+    <section id="manager-area" class="hidden">
+      <div class="panel">
+        <div class="participant-head">
+          <div>
+            <p class="eyebrow">Área administrativa</p>
+            <h1>Contratações e experiências</h1>
+            <p class="panel-intro">Crie eventos vinculados às escolas da galeria, configure experiências e acompanhe cada contratação em um só lugar.</p>
+          </div>
+          <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
+        </div>
+        <div class="admin-actions">
+          <button class="btn btn-primary" type="button" id="show-create-button">+ Nova contratação</button>
+          <button class="btn btn-secondary" type="button" id="refresh-campaigns">Atualizar lista</button>
+        </div>
+        <p class="admin-message hidden" id="manager-message" role="status"></p>
+      </div>
+
+      <form id="new-campaign-form" class="panel manager-form hidden">
+        <h2>Novo evento e contratação</h2>
+        <p class="manager-help">Preencha os dados iniciais. O sistema criará o evento na galeria e a contratação vinculada a ele na mesma operação. Depois você poderá configurar valores, experiências, horários e termos antes de publicar.</p>
+        <div class="admin-grid">
+          <div class="field full">
+            <label for="event-name">Nome do evento</label>
+            <input id="event-name" maxlength="120" required placeholder="Exemplo Espetáculo de Inverno">
+          </div>
+          <div class="field">
+            <label for="event-date">Data do evento</label>
+            <input id="event-date" type="date" required>
+          </div>
+          <div class="field">
+            <label for="school-select">Escola vinculada</label>
+            <select id="school-select" required>
+              <option value="">Carregando escolas…</option>
+            </select>
+          </div>
+          <div class="field full">
+            <label for="campaign-slug">Endereço da página pública</label>
+            <input id="campaign-slug" maxlength="60" required pattern="[a-z0-9]+(-[a-z0-9]+)*" placeholder="espetaculo-de-inverno">
+            <span class="hint">Será usado no link galeria.grandfocus.com.br/contratar/...</span>
+          </div>
+        </div>
+        <div class="action-row">
+          <button class="btn btn-primary" type="submit" id="create-campaign-button">Criar evento e contratação</button>
+          <button class="btn btn-secondary" type="button" id="cancel-create-button">Cancelar</button>
+        </div>
+      </form>
+
+      <section class="panel">
+        <div class="section-h">
+          <h2>Campanhas cadastradas</h2>
+        </div>
+        <div id="campaign-list" class="campaign-list" aria-live="polite">
+          <div class="manager-empty">Carregando contratações…</div>
+        </div>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
