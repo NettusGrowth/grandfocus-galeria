@@ -110,6 +110,66 @@ function addCoreographyRow(container) {
   container.append(row)
 }
 
+function renderPackageOverview() {
+  const container = document.getElementById('package-overview-list')
+  if (!container) return
+  container.replaceChildren()
+
+  for (const pkg of packages) {
+    const card = document.createElement('article')
+    card.className = 'experience-card'
+
+    const eyebrow = document.createElement('p')
+    eyebrow.className = 'eyebrow'
+    eyebrow.textContent = pkg.inclui_miniensaio && pkg.inclui_palco
+      ? 'MINIENSAIO E PALCO'
+      : pkg.inclui_miniensaio
+        ? 'RETRATOS NO TEATRO'
+        : 'REGISTROS DE PALCO'
+
+    const title = document.createElement('h3')
+    title.textContent = pkg.nome
+
+    const summary = document.createElement('p')
+    summary.className = 'experience-summary'
+    if (pkg.inclui_miniensaio && pkg.inclui_palco) {
+      summary.textContent = 'Reúne os retratos do miniensaio no teatro e as fotografias das coreografias no palco.'
+    } else if (pkg.inclui_miniensaio) {
+      summary.textContent = 'Uma sessão de retratos individuais com figurino e fotografias ao lado da família, em um espaço preparado no teatro.'
+    } else if (pkg.inclui_palco) {
+      const minimum = Number(pkg.minimo_fotos_por_coreografia || 10)
+      summary.textContent = 'Registros das coreografias durante a apresentação, com no mínimo ' + minimum + ' fotografias digitais por coreografia escolhida. Não inclui miniensaio.'
+    } else {
+      summary.textContent = 'Uma experiência fotográfica preparada para registrar a trajetória da bailarina.'
+    }
+
+    const price = document.createElement('strong')
+    price.className = 'experience-price'
+    price.textContent = money(pkg.preco_centavos)
+
+    const list = document.createElement('ul')
+    for (const line of Array.isArray(pkg.descricao) ? pkg.descricao : []) {
+      const item = document.createElement('li')
+      item.textContent = String(line)
+      list.append(item)
+    }
+
+    const notes = []
+    if (pkg.inclui_miniensaio) {
+      notes.push('O miniensaio acontece por ordem de chegada, dentro do período informado, sem horário individual.')
+    }
+    if (pkg.inclui_palco) {
+      notes.push('As coreografias desejadas serão informadas durante a contratação.')
+    }
+    const note = document.createElement('p')
+    note.className = 'experience-note'
+    note.textContent = notes.join(' ')
+
+    card.append(eyebrow, title, summary, price, list, note)
+    container.append(card)
+  }
+}
+
 function renderPackageInfo(card) {
   const select = card.querySelector('[data-package]')
   const detail = card.querySelector('[data-package-detail]')
@@ -192,7 +252,7 @@ function addParticipant() {
   packageSelect.dataset.package = 'true'
   const empty = document.createElement('option')
   empty.value = ''
-  empty.textContent = 'Selecione um pacote'
+  empty.textContent = 'Selecione uma experiência'
   packageSelect.append(empty)
   for (const pkg of packages) {
     const option = document.createElement('option')
@@ -205,7 +265,7 @@ function addParticipant() {
     makeField('Nome da bailarina', name, true),
     makeField('Turma ou nível', className),
     makeField('Idade', age),
-    makeField('Pacote', packageSelect, true),
+    makeField('Experiência', packageSelect, true),
   )
 
   const detail = document.createElement('div')
@@ -317,6 +377,7 @@ function updateSummary() {
 function renderCampaign(data) {
   campaign = data.evento
   packages = Array.isArray(data.pacotes) ? data.pacotes : []
+  renderPackageOverview()
 
   const meta = document.getElementById('event-meta')
   meta.replaceChildren()
