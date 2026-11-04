@@ -87,7 +87,7 @@ async function loadConfig() {
   setField('campaign-name', currentEvent.nome_publico)
   document.getElementById('campaign-title').textContent = currentEvent.nome_publico || 'Configuração da contratação'
   const publicLink = document.getElementById('public-link')
-  publicLink.href = 'https://galeria.grandfocus.com.br/contratar/' + CAMPAIGN_SLUG + '/'
+  publicLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/'
   setField('event-date', currentEvent.data_evento)
   setField('event-place', currentEvent.local)
   setField('mini-start', toLocalInput(currentEvent.miniensaio_inicio))
