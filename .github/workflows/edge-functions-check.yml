@@ -58,6 +58,12 @@ jobs:
         run: node scripts/check-contratacao.mjs
       - name: Build static site and verify isolated contracting pages
         run: npm run build
+      - name: Install Playwright for browser verification
+        run: |
+          npm install --no-save --no-package-lock playwright
+          npx playwright install --with-deps chromium
+      - name: Test public contracting flow and admin login gate in Chromium
+        run: node scripts/e2e-contratacao.mjs
       - name: Validate contracting migration and reservation logic in temporary PostgreSQL
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
