@@ -18,6 +18,7 @@ const adminUi = adminScript
 const e2eScript = read('scripts/e2e-contratacao.mjs')
 const workflow = read('.github/workflows/edge-functions-check.yml')
 const supabaseConfig = read('supabase/config.toml')
+const reservationTests = read('scripts/test-fixtures/contratacao-tests.sql')
 
 for (const path of [
   'contratar/entre-estacoes/index.html',
@@ -50,6 +51,8 @@ assert.ok(migration.includes('enable row level security'), 'Tabelas precisam de 
 assert.ok(migration.includes('from public, anon, authenticated'), 'Tabelas privadas precisam revogar acesso público.')
 assert.ok(migration.includes('privacidade_sha256'), 'O aceite deve preservar a versão da política de privacidade.')
 assert.ok(migration.includes('duracao_minutos * v_evento.capacidade_miniensaios'), 'A capacidade precisa caber no período de miniensaio.')
+assert.ok(migration.includes('v_vagas_ocupadas > v_evento.capacidade_miniensaios'), 'A publicação não pode reduzir a capacidade abaixo das vagas já ocupadas.')
+assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
 assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
 assert.ok(publicApi.includes('valid_until:'), 'Checkout precisa ter validade.')
@@ -92,6 +95,8 @@ assert.ok(adminPage.includes('./admin.js'), 'Painel precisa carregar seu script 
 assert.ok(!publicScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no JavaScript público.')
 assert.ok(!adminScript.includes('INFINITEPAY_API_KEY'), 'API Key não pode aparecer no painel público.')
 assert.ok(e2eScript.includes('CHECKOUT MOCK OK'), 'O teste de navegador precisa simular o checkout sem cobrança real.')
+assert.ok(e2eScript.includes("call.action === 'publicar'"), 'O teste de navegador precisa validar a publicação simulada no painel.')
+assert.ok(e2eScript.includes('mock-admin-user-jwt'), 'O teste de navegador precisa validar o cabeçalho de sessão do administrador.')
 assert.ok(workflow.includes('node scripts/e2e-contratacao.mjs'), 'O CI precisa executar os testes de navegador.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
