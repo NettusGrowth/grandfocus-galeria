@@ -59,6 +59,8 @@ assert.ok(migration.includes("v_evento.status = 'encerrado'") && migration.inclu
 assert.ok(migration.includes('gf_contratacao_admin_alterar_status') && adminApi.includes('gf_contratacao_admin_alterar_status'), 'O status precisa mudar por RPC transacional e impedir reabertura depois de encerrar.')
 assert.ok(reservationTests.includes('A segunda vaga deveria ser reservada') && reservationTests.includes('capacidade informada é menor'), 'O PostgreSQL precisa testar a proteção contra redução da capacidade.')
 assert.ok(publicApi.includes("CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS") && publicApi.includes("!== 'true'"), 'Checkout real precisa permanecer bloqueado por padrão.')
+assert.ok(adminApi.includes("pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true'"), 'O painel deve mostrar o estado real do bloqueio de pagamentos.')
+assert.ok(publicApi.includes('provider_message') && publicApi.includes('checkout_host_ok'), 'Falhas de checkout precisam registrar diagnóstico seguro da resposta do provedor.')
 assert.ok(publicApi.includes('single_payment: true'), 'Checkout deve aceitar somente um pagamento.')
 assert.ok(publicApi.includes('valid_until:'), 'Checkout precisa ter validade.')
 assert.ok(publicApi.includes('X-Api-Key'), 'A criação do link precisa usar a API Key no servidor.')
