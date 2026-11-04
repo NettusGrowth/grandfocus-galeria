@@ -192,7 +192,7 @@ begin
     'gf_contratacao_auditoria'
   ] loop
     execute format('alter table public.%I enable row level security',v_tabela);
-    execute format('revoke all on table public.%I from anon, authenticated',v_tabela);
+    execute format('revoke all on table public.%I from public, anon, authenticated',v_tabela);
     execute format('grant all on table public.%I to service_role',v_tabela);
   end loop;
 end
@@ -218,7 +218,7 @@ on conflict (slug) do nothing;
 insert into public.gf_contratacao_pacotes
   (evento_contratacao_id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,minimo_fotos_por_coreografia,ordem)
 select
-  id,'miniensaio','Miniensaio',
+  id,'miniensaio','Miniensaio no teatro',
   '["3 fotografias individuais com figurino","2 fotografias com familiares","5 fotografias digitais tratadas"]'::jsonb,
   11900,true,false,0,1
 from public.gf_contratacao_eventos
@@ -239,7 +239,7 @@ insert into public.gf_contratacao_pacotes
   (evento_contratacao_id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,minimo_fotos_por_coreografia,ordem)
 select
   id,'completo','Pacote completo',
-  '["3 fotografias individuais com figurino","2 fotografias com familiares","Mínimo de 10 fotografias digitais por coreografia dançada"]'::jsonb,
+  '["3 fotografias individuais com figurino","2 fotografias com familiares","5 fotografias digitais tratadas","Mínimo de 10 fotografias digitais por coreografia dançada"]'::jsonb,
   15900,true,true,10,3
 from public.gf_contratacao_eventos
 where slug='entre-estacoes'
