@@ -5,6 +5,7 @@ declare
   v_idempotency uuid;
   v_mini_result jsonb;
   v_mini_two_result jsonb;
+  v_mini_three_result jsonb;
   v_retry_result jsonb;
   v_status_transition_result jsonb;
   v_palco_result jsonb;
@@ -450,9 +451,35 @@ begin
     raise exception 'A segunda vaga deveria ser reservada quando a capacidade fosse dois.';
   end if;
 
+  -- A reserva temporária precisa terminar no horário de fechamento das vendas,
+  -- mesmo quando a janela padrão de 15 minutos ultrapassaria esse limite.
+  update public.gf_contratacao_eventos
+  set capacidade_miniensaios = 3,
+      vendas_encerram_em = now() + interval '2 minutes'
+  where slug = 'entre-estacoes';
+  v_mini_three_result := public.gf_contratacao_criar_reserva(
+    'entre-estacoes',
+    '{"nome":"Responsável Terceira Vaga","whatsapp":"34944444444","email":"terceira.vaga@example.com"}'::jsonb,
+    jsonb_build_array(jsonb_build_object(
+      'pacote_id',v_mini,
+      'nome','Bailarina Terceira Vaga',
+      'turma','Intermediário',
+      'idade',13,
+      'coreografias','[]'::jsonb
+    )),
+    '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
+    repeat('3',64),
+    gen_random_uuid()::text,
+    repeat('4',64)
+  );
+  if (v_mini_three_result->>'reserva_expira_em')::timestamptz >
+     (v_mini_three_result->>'vendas_encerram_em')::timestamptz then
+    raise exception 'A reserva temporária ultrapassou o encerramento das vendas.';
+  end if;
+
   update public.gf_contratacao_eventos
   set status = 'pausado',
-      capacidade_miniensaios = 1
+      capacidade_miniensaios = 2
   where slug = 'entre-estacoes';
 
   begin
