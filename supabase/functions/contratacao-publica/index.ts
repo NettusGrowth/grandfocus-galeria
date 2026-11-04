@@ -1,5 +1,6 @@
 import {
   PUBLIC_CAMPAIGN_URL,
+  corsHeaders,
   createAdminClient,
   getInfinitePayConfig,
   infinitePayCheck,
@@ -12,12 +13,7 @@ import {
 const CAMPAIGN_SLUG = 'entre-estacoes'
 
 Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: {
-    'Access-Control-Allow-Origin': req.headers.get('origin') || 'https://galeria.grandfocus.com.br',
-    'Access-Control-Allow-Headers': 'authorization, apikey, x-client-info, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Vary': 'Origin',
-  } })
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) })
   if (req.method !== 'POST') return jsonResponse(req, { error: 'Método não permitido.' }, 405)
 
   let body: any
@@ -74,7 +70,13 @@ async function actionContratar(req: Request, admin: any, body: any) {
     return jsonResponse(req, { error: 'Identificador de solicitação inválido. Atualize a página e tente novamente.' }, 400)
   }
 
-  const { apiKey, handle } = await getInfinitePayConfig(admin)
+  let paymentConfig: { apiKey: string; handle: string }
+  try {
+    paymentConfig = await getInfinitePayConfig(admin)
+  } catch (error) {
+    return jsonResponse(req, { error: safeErrorMessage(error) }, 503)
+  }
+  const { apiKey, handle } = paymentConfig
   const { data: campanha, error: campanhaError } = await admin.rpc('gf_contratacao_publica_dados', { p_slug: CAMPAIGN_SLUG })
   if (campanhaError || !campanha) {
     return jsonResponse(req, { error: 'Esta campanha não está aberta para contratação.' }, 409)
@@ -190,7 +192,7 @@ async function actionContratar(req: Request, admin: any, body: any) {
   let checkoutHostOk = false
   try {
     const parsed = new URL(checkoutUrl)
-    checkoutHostOk = parsed.protocol === 'https:' && parsed.hostname.endsWith('infinitepay.io')
+    checkoutHostOk = parsed.protocol === 'https:' && (parsed.hostname === 'infinitepay.io' || parsed.hostname.endsWith('.infinitepay.io'))
   } catch {
     checkoutHostOk = false
   }
@@ -264,7 +266,13 @@ async function actionVerificarRetorno(req: Request, admin: any, body: any) {
   }
   if (pedido.status === 'pago') return jsonResponse(req, { pedido })
 
-  const { apiKey, handle } = await getInfinitePayConfig(admin)
+  let paymentConfig: { apiKey: string; handle: string }
+  try {
+    paymentConfig = await getInfinitePayConfig(admin)
+  } catch (error) {
+    return jsonResponse(req, { pedido, confirmacao_pendente: true, error: safeErrorMessage(error) }, 503)
+  }
+  const { apiKey, handle } = paymentConfig
   let check: any
   try {
     check = await infinitePayCheck(apiKey, handle, orderNsu, transactionNsu, slug)
@@ -300,7 +308,7 @@ async function actionVerificarRetorno(req: Request, admin: any, body: any) {
     p_amount: amount,
     p_paid_amount: paidAmount,
     p_metodo: String(check.capture_method || ''),
-    p_parcelas: Number.isInteger(Number(check.installments)) ? Number(check.installments) : null,
+    p_parcelas: check.installments != null && Number.isInteger(Number(check.installments)) ? Number(check.installments) : null,
     p_payment_check: check,
   })
   if (confirmarError) {
