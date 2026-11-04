@@ -122,6 +122,7 @@ assert.ok(adminScript.includes('createPackageCode') && adminScript.includes('inc
 assert.ok(dynamicMigration.includes('gf_contratacao_admin_criar_campanha') && dynamicMigration.includes('campanha_criada_com_evento'), 'A migration deve criar o evento da galeria e a contratação em uma transação.')
 assert.ok(dynamicMigration.includes('on conflict (evento_contratacao_id,codigo) do update'), 'A migration deve salvar experiências configuráveis.')
 assert.ok(dynamicMigration.includes('v_campanha_tem_mini') && dynamicMigration.includes('v_tem_mini and v_vagas_ocupadas'), 'Campanhas sem miniensaio não devem exigir horários ou capacidade de miniensaio.')
+assert.ok(!dynamicMigration.includes('or v_evento.fornecedor_endereco is null') && dynamicMigration.includes('v_evento.prazo_entrega_dias is not null'), 'A migration deve preservar endereço do fornecedor e prazo de entrega opcionais.')
 assert.ok(adminApi.includes('listar_campanhas') && adminApi.includes('listar_escolas') && adminApi.includes('criar_campanha'), 'A API administrativa deve listar e criar campanhas.')
 assert.ok(adminApi.includes(".eq('evento_contratacao_id', evento.id)"), 'Detalhes e ações de pedidos devem ficar limitados à campanha selecionada.')
 assert.ok(publicApi.includes('campaign_slug') && publicApi.includes('PUBLIC_ORIGIN + \'/contratar/\' + campaignSlug'), 'A API pública deve resolver a campanha pelo slug da URL.')
