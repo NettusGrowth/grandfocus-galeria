@@ -46,12 +46,12 @@ Por isso, a função pública exige também o secret CONTRATACAO_ATIVAR_PAGAMENT
 
 A ativação desse secret deve ocorrer somente após autorização expressa para iniciar cobranças reais e depois de confirmar a conta InfinitePay, API Key, handle, dados contratuais e campanha.
 
-O checkout está configurado para notificar os eventos `paid`, `settled`, `refunded`, `canceled` e `payment_failed`, todos documentados pela InfinitePay. Os webhooks não têm assinatura criptográfica. Por isso, os identificadores de cada evento que contém uma transação são conferidos pelo `/payment_check` antes de qualquer atualização financeira.
+O checkout assina automaticamente somente os eventos `paid` e `settled`. A documentação pública da InfinitePay mostra o corpo de aprovação sem um campo obrigatório que identifique o tipo do evento. Por segurança, não inscrevemos `refunded`, `canceled` ou `payment_failed` até que o formato desses payloads seja confirmado com o provedor. Isso evita tratar uma notificação de estorno como se fosse uma aprovação.
 
-- `paid` e `settled` só confirmam o pedido quando `payment_check` retorna `success=true` e `paid=true`.
-- `canceled` e `payment_failed` são registrados após a conferência. A reserva temporária termina no prazo configurado; esses eventos não confirmam pagamento.
-- `refunded` leva o pedido para conciliação. O webhook não marca sozinho o pedido como reembolsado.
+- `paid` e `settled` só confirmam o pedido quando `/payment_check` retorna `success=true` e `paid=true`.
+- Sem confirmação de pagamento, o pedido permanece pendente e a reserva temporária termina no prazo configurado.
 - A API da InfinitePay não executa estornos. O estorno deve ser realizado no App ou na Conta Web InfinitePay. Depois de conferir a operação, o administrador registra o estorno no painel com motivo e auditoria.
+- O webhook continua preparado para registrar uma notificação de `refunded`, `canceled` ou `payment_failed` caso o provedor passe a entregar um discriminador de evento verificável.
 
 Documentação oficial InfinitePay
 https://www.infinitepay.io/checkout-documentacao
