@@ -1,6 +1,8 @@
 const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co'
 const SUPABASE_PUBLIC_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const API_URL = SUPABASE_URL + '/functions/v1/contratacao-publica'
+const CAMPAIGN_SLUG = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[1] || 'entre-estacoes').toLowerCase()
+const CAMPAIGN_STORAGE_PREFIX = 'gf_contratacao_' + CAMPAIGN_SLUG
 
 const loading = document.getElementById('loading-state')
 const closed = document.getElementById('closed-state')
@@ -24,7 +26,7 @@ function api(action, values = {}) {
       'Content-Type': 'application/json',
       apikey: SUPABASE_PUBLIC_KEY,
     },
-    body: JSON.stringify({ action, ...values }),
+    body: JSON.stringify({ action, campaign_slug: CAMPAIGN_SLUG, ...values }),
   }).then(async (response) => {
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a solicitação.')
@@ -377,6 +379,11 @@ function updateSummary() {
 function renderCampaign(data) {
   campaign = data.evento
   packages = Array.isArray(data.pacotes) ? data.pacotes : []
+  const campaignTitle = campaign.nome_publico || 'Contratação da experiência fotográfica'
+  document.getElementById('campaign-title').textContent = campaignTitle
+  document.title = campaignTitle + ' | Grand Focus Fotografia'
+  const description = document.querySelector('meta[name="description"]')
+  if (description) description.content = 'Contratação de experiências fotográficas Grand Focus para ' + campaignTitle + '.'
   renderPackageOverview()
 
   const meta = document.getElementById('event-meta')
@@ -502,14 +509,14 @@ async function submitOrder(event) {
 
   const signature = await digest(JSON.stringify(payload))
   let pending = null
-  try { pending = JSON.parse(sessionStorage.getItem('gf_entre_estacoes_pending') || 'null') } catch {}
+  try { pending = JSON.parse(sessionStorage.getItem(CAMPAIGN_STORAGE_PREFIX + '_pending') || 'null') } catch {}
   if (!pending || pending.signature !== signature) {
     pending = {
       signature,
       access_token: randomHex(32),
       idempotency_key: crypto.randomUUID(),
     }
-    sessionStorage.setItem('gf_entre_estacoes_pending', JSON.stringify(pending))
+    sessionStorage.setItem(CAMPAIGN_STORAGE_PREFIX + '_pending', JSON.stringify(pending))
   }
 
   submitButton.disabled = true
@@ -523,8 +530,8 @@ async function submitOrder(event) {
       idempotency_key: pending.idempotency_key,
     })
     if (!data.checkout_url) throw new Error('O checkout não foi retornado. Tente novamente.')
-    localStorage.setItem('gf_entre_estacoes_token_' + data.order_nsu, pending.access_token)
-    sessionStorage.removeItem('gf_entre_estacoes_pending')
+    localStorage.setItem(CAMPAIGN_STORAGE_PREFIX + '_token_' + data.order_nsu, pending.access_token)
+    sessionStorage.removeItem(CAMPAIGN_STORAGE_PREFIX + '_pending')
     window.location.assign(data.checkout_url)
   } catch (error) {
     showMessage(error.message + ' Seus dados permanecem nesta página. Se necessário, tente novamente sem alterar as informações.', 'error')
@@ -538,7 +545,7 @@ async function loadOrderReturn() {
   const orderNsu = params.get('order_nsu')
   if (!orderNsu) return false
 
-  const token = localStorage.getItem('gf_entre_estacoes_token_' + orderNsu)
+  const token = localStorage.getItem(CAMPAIGN_STORAGE_PREFIX + '_token_' + orderNsu)
   form.classList.add('hidden')
   closed.classList.add('hidden')
   loading.classList.add('hidden')
