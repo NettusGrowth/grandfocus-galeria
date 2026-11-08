@@ -12,6 +12,9 @@ import {
   sha256Hex,
 } from '../_shared/contratacao.ts'
 
+// Lançamento controlado: a autorização para cobranças exige revisão e remoção explícita deste bloqueio.
+const REAL_PAYMENTS_ENABLED = false
+
 const CAMPAIGN_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
 async function pedidoPertenceCampanha(admin: any, pedido: any, campaignSlug: string) {
@@ -66,7 +69,7 @@ Deno.serve(async (req: Request) => {
 
 async function actionDados(req: Request, admin: any, campaignSlug: string) {
   // Mantenha a página pública fechada enquanto o checkout real não estiver autorizado.
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+  if (!REAL_PAYMENTS_ENABLED || Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
     return jsonResponse(req, {
       disponivel: false,
       mensagem: 'As contratações desta experiência ainda não foram liberadas.',
@@ -84,7 +87,7 @@ async function actionDados(req: Request, admin: any, campaignSlug: string) {
 async function actionContratar(req: Request, admin: any, body: any, campaignSlug: string) {
   // A InfinitePay não oferece sandbox. Bloqueie a reserva antes de gravar qualquer pedido
   // até que a Grand Focus autorize explicitamente a criação de checkouts reais.
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+  if (!REAL_PAYMENTS_ENABLED || Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
     return jsonResponse(req, {
       error: 'A contratação online ainda não foi liberada. Nenhum pedido foi registrado.',
       retryable: false,

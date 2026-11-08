@@ -9,6 +9,9 @@ import {
   safeErrorMessage,
 } from '../_shared/contratacao.ts'
 
+// Lançamento controlado: não permitir publicação/cobranças sem liberação expressa.
+const REAL_PAYMENTS_ENABLED = false
+
 const DEFAULT_CAMPAIGN_SLUG = 'entre-estacoes'
 const CAMPAIGN_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/
 
@@ -163,7 +166,7 @@ async function actionConfig(req: Request, admin: any, slug: string) {
     pacotes: pacotes || [],
     public_url: 'https://galeria.grandfocus.com.br/contratar/' + slug + '/',
     integracao: {
-      pagamentos_reais_ativados: Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
+      pagamentos_reais_ativados: REAL_PAYMENTS_ENABLED && Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') === 'true',
       api_key_configurada: configuredApiKey.startsWith('inchk_'),
       infinite_tag_configurada: handleConfigured,
       webhook_token_configurado: webhookTokenConfigured,
@@ -228,7 +231,7 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any,
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string, slug: string) {
-  if (Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
+  if (!REAL_PAYMENTS_ENABLED || Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
     return jsonResponse(req, { error: 'A ativação de pagamentos reais é necessária antes de publicar a campanha.' }, 403)
   }
   try {
