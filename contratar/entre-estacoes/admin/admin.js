@@ -9,6 +9,18 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
 })
 
+async function resolverEmailDeLogin(value) {
+  const identifier = String(value || '').trim()
+  if (identifier.includes('@')) return identifier
+  const { data: email, error } = await supabase.rpc('email_por_usuario', {
+    p_username: identifier.toLowerCase(),
+  })
+  if (error || typeof email !== 'string' || !email.includes('@')) {
+    throw new Error('Usuário ou senha incorretos.')
+  }
+  return email
+}
+
 const loginCard = document.getElementById('login-card')
 const adminArea = document.getElementById('admin-area')
 const loginMessage = document.getElementById('login-message')
@@ -524,8 +536,9 @@ document.getElementById('login-form').addEventListener('submit', async (event) =
   const button = document.getElementById('login-button')
   button.disabled = true
   try {
+    const email = await resolverEmailDeLogin(document.getElementById('login-email').value)
     const { error } = await supabase.auth.signInWithPassword({
-      email: document.getElementById('login-email').value.trim(),
+      email,
       password: document.getElementById('login-password').value,
     })
     if (error) throw error
