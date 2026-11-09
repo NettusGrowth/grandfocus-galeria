@@ -326,7 +326,10 @@ async function saveConfig() {
     }
     await adminRequest('salvar', config)
     const mode=document.querySelector('input[name="gf-scheduling-mode"]:checked')?.value||'ordem_chegada'
-    await adminRequest('agenda_salvar_modo',{modo_agendamento:mode})
+    const previousMode=currentEvent?.modo_agendamento==='horario_marcado'?'horario_marcado':'ordem_chegada'
+    if(mode!==previousMode){
+      await adminRequest('agenda_salvar_modo',{modo_agendamento:mode})
+    }
     window.dispatchEvent(new CustomEvent('gf-contratacao-modo-salvo',{detail:{modo:mode}}))
     showNotice(adminMessage, 'Configuração e modo de agendamento salvos. A campanha continua no status atual.')
     await loadConfig()
