@@ -85,6 +85,7 @@ function addCoreographyRow(container) {
 
   const name = makeInput('text', 'coreo-' + Math.random().toString(36).slice(2), 'Nome da coreografia')
   name.maxLength = 120
+  name.setAttribute('aria-label', 'Nome da coreografia')
 
   const laterLabel = document.createElement('label')
   laterLabel.className = 'inline-check'
@@ -98,6 +99,7 @@ function addCoreographyRow(container) {
   remove.type = 'button'
   remove.className = 'text-button'
   remove.textContent = 'Remover'
+  remove.setAttribute('aria-label', 'Remover esta coreografia')
   remove.addEventListener('click', () => {
     row.remove()
     updateSummary()
@@ -248,6 +250,7 @@ function addParticipant() {
   age.max = '99'
   age.step = '1'
   age.dataset.age = 'true'
+  age.inputMode = 'numeric'
 
   const packageSelect = document.createElement('select')
   packageSelect.id = 'dancer-package-' + participantSequence
@@ -431,6 +434,15 @@ function renderCampaign(data) {
   document.getElementById('supplier-footer').textContent =
     campaign.fornecedor_nome + ' • CNPJ ' + campaign.fornecedor_documento + ' • ' + campaign.fornecedor_email
 
+  const helpLink = document.getElementById('gf-help-link')
+  const helpNumber = String(campaign.whatsapp_atendimento || '').replace(/\D/g, '')
+  if (helpLink && helpNumber.length >= 10 && helpNumber.length <= 13) {
+    const internationalNumber = helpNumber.startsWith('55') ? helpNumber : '55' + helpNumber
+    helpLink.href = 'https://wa.me/' + internationalNumber + '?text=' +
+      encodeURIComponent('Olá! Preciso de ajuda com o formulário de contratação da Grand Focus.')
+    helpLink.classList.remove('hidden')
+  }
+
   if (campaign.whatsapp_atendimento) {
     const contact = document.createElement('span')
     contact.textContent = ' • Atendimento ' + campaign.whatsapp_atendimento
@@ -549,7 +561,12 @@ async function submitOrder(event) {
   try {
     payload = collectPayload()
   } catch (error) {
-    showMessage(error.message, 'error')
+    const requiredConsent = [
+      document.getElementById('responsavel-legal'),
+      document.getElementById('terms-accepted'),
+      document.getElementById('privacy-acknowledged'),
+    ].find(input => !input.checked)
+    showStepError(error.message, requiredConsent || null)
     return
   }
 
@@ -684,41 +701,104 @@ const FORM_STEPS = [
   'Dados do responsável',
   'Termos e revisão',
 ]
+const STEP_DESCRIPTIONS = [
+  'Veja as opções com calma. Você escolhe o pacote na próxima etapa.',
+  'Preencha as informações das bailarinas. Toque em Próxima quando terminar.',
+  'Informe como podemos identificar o responsável por este pedido.',
+  'Confira as informações e leia os termos antes de continuar.',
+]
 let currentFormStep = 0
 const formStepSections = [...form.querySelectorAll('[data-form-step]')]
 const formStepBack = document.getElementById('form-back')
 const formStepNext = document.getElementById('form-next')
 const formProgress = document.querySelector('.gf-progress-track')
 
-function showStepError(message) {
+function clearInlineErrors() {
+  for (const message of form.querySelectorAll('.gf-inline-error')) message.remove()
+  for (const element of form.querySelectorAll('[data-gf-invalid]')) {
+    element.removeAttribute('aria-invalid')
+    element.removeAttribute('data-gf-invalid')
+    const existing = String(element.getAttribute('aria-describedby') || '')
+    const clean = existing.split(/\s+/).filter(id => id && !id.startsWith('gf-field-error-'))
+    if (clean.length) element.setAttribute('aria-describedby', clean.join(' '))
+    else element.removeAttribute('aria-describedby')
+  }
+}
+
+function firstIncompleteParticipantField() {
+  for (const card of participantsList.querySelectorAll('.participant-card')) {
+    for (const key of ['name', 'class', 'package']) {
+      const field = card.querySelector('[data-' + key + ']')
+      if (field && !field.value.trim()) return field
+    }
+    const age = card.querySelector('[data-age]')
+    if (age?.value && (!Number.isInteger(Number(age.value)) || Number(age.value) < 1 || Number(age.value) > 99)) {
+      return age
+    }
+    const selectedId = card.querySelector('[data-package]')?.value
+    const selected = packages.find(item => item.id === selectedId)
+    if (selected?.inclui_palco) {
+      const coreoRows = card.querySelectorAll('.coreo-row')
+      if (!coreoRows.length) return card.querySelector('.coreo-head button')
+      for (const row of coreoRows) {
+        const field = row.querySelector('input[type="text"]')
+        if (field && !field.disabled && !field.value.trim()) return field
+      }
+    }
+  }
+  return null
+}
+
+function showStepError(message, field = null) {
+  clearInlineErrors()
   showMessage(message, 'error')
-  formMessage.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  if (!field) {
+    formMessage.scrollIntoView({ behavior: 'auto', block: 'center' })
+    return
+  }
+  field.dataset.gfInvalid = 'true'
+  field.setAttribute('aria-invalid', 'true')
+  const hint = document.createElement('span')
+  hint.id = 'gf-field-error-' + Math.random().toString(36).slice(2)
+  hint.className = 'gf-inline-error'
+  hint.textContent = message
+  const group = field.closest('.field, .coreo-row, .consent')
+  if (group?.classList.contains('consent')) group.insertAdjacentElement('afterend', hint)
+  else if (group) group.append(hint)
+  else field.insertAdjacentElement('afterend', hint)
+  field.setAttribute('aria-describedby', [field.getAttribute('aria-describedby'), hint.id].filter(Boolean).join(' '))
+  field.focus({ preventScroll: true })
+  field.scrollIntoView({ behavior: 'auto', block: 'center' })
 }
 
 function validateFormStep(step) {
+  clearInlineErrors()
   if (step === 1) {
     try {
       collectParticipants()
     } catch (error) {
-      showStepError(error.message)
+      showStepError(error.message, firstIncompleteParticipantField())
       return false
     }
   }
 
   if (step === 2) {
-    const nome = document.getElementById('responsavel-nome').value.trim()
-    const digits = document.getElementById('responsavel-whatsapp').value.replace(/\D/g, '')
-    const email = document.getElementById('responsavel-email').value.trim()
+    const nameInput = document.getElementById('responsavel-nome')
+    const phoneInput = document.getElementById('responsavel-whatsapp')
+    const emailInput = document.getElementById('responsavel-email')
+    const nome = nameInput.value.trim()
+    const digits = phoneInput.value.replace(/\D/g, '')
+    const email = emailInput.value.trim()
     if (nome.length < 5) {
-      showStepError('Informe o nome completo do responsável.')
+      showStepError('Informe o nome completo do responsável.', nameInput)
       return false
     }
     if (digits.length < 10 || digits.length > 13) {
-      showStepError('Informe um WhatsApp válido com DDD.')
+      showStepError('Informe um WhatsApp válido com DDD.', phoneInput)
       return false
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      showStepError('Informe um e-mail válido.')
+      showStepError('Informe um e-mail válido.', emailInput)
       return false
     }
   }
@@ -733,17 +813,59 @@ function setFormStep(step, scroll = true) {
     section.hidden = Number(section.dataset.formStep) !== currentFormStep
   })
   document.getElementById('form-step-heading').textContent = FORM_STEPS[currentFormStep]
+  document.getElementById('gf-step-description').textContent = STEP_DESCRIPTIONS[currentFormStep]
   document.getElementById('form-step-count').textContent = 'Página ' + (currentFormStep + 1) + ' de ' + FORM_STEPS.length
   document.getElementById('form-nav-current').textContent = String(currentFormStep + 1)
   document.getElementById('form-step-fill').style.width = ((currentFormStep + 1) / FORM_STEPS.length * 100) + '%'
   formProgress.setAttribute('aria-valuenow', String(currentFormStep + 1))
   formStepBack.hidden = currentFormStep === 0
   formStepNext.hidden = isLast
+  formStepNext.textContent = currentFormStep === 0 ? 'Começar' : 'Próxima etapa'
   submitButton.hidden = !isLast
+  clearInlineErrors()
   hideMessage()
   if (isLast) updateSummary()
-  if (scroll) document.querySelector('.gf-form-progress').scrollIntoView({ behavior: 'smooth', block: 'start' })
+  if (scroll) {
+    const activeSection = formStepSections.find(section => !section.hidden)
+    const heading = activeSection?.querySelector('h2')
+    if (heading) {
+      heading.tabIndex = -1
+      heading.focus({ preventScroll: true })
+      heading.scrollIntoView({ behavior: 'auto', block: 'start' })
+    }
+  }
 }
+
+const fontToggle = document.getElementById('gf-font-toggle')
+const fontLabel = document.getElementById('gf-font-label')
+function syncReaderTextSize() {
+  const expanded = document.body.classList.contains('gf-large-text')
+  fontToggle.setAttribute('aria-pressed', String(expanded))
+  fontLabel.textContent = expanded ? 'Voltar ao texto normal' : 'Aumentar letras'
+}
+try {
+  if (localStorage.getItem('gf_form_big_text') === 'true') document.body.classList.add('gf-large-text')
+} catch { /* Navegadores com armazenamento restrito seguem com texto padrão legível. */ }
+syncReaderTextSize()
+fontToggle.addEventListener('click', () => {
+  document.body.classList.toggle('gf-large-text')
+  syncReaderTextSize()
+  try { localStorage.setItem('gf_form_big_text', String(document.body.classList.contains('gf-large-text'))) } catch {}
+})
+
+// Clear per-field errors as soon as the visitor edits the highlighted answer.
+form.addEventListener('input', event => {
+  if (event.target?.matches?.('[data-gf-invalid]')) {
+    clearInlineErrors()
+    hideMessage()
+  }
+})
+form.addEventListener('change', event => {
+  if (event.target?.matches?.('[data-gf-invalid]')) {
+    clearInlineErrors()
+    hideMessage()
+  }
+})
 
 formStepBack.addEventListener('click', () => setFormStep(currentFormStep - 1))
 formStepNext.addEventListener('click', () => {
