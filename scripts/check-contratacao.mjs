@@ -6,6 +6,9 @@ const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório au
 
 const migration = read('supabase/sql/080_contratacao_experiencias.sql')
 const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico.sql')
+const centralMigration = read('supabase/sql/084_central_respostas_financeiro.sql')
+const centralUi = read('contratar/entre-estacoes/admin/central.js')
+const centralSqlTests = read('scripts/test-fixtures/central-tests.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
 const sharedContracting = read('supabase/functions/_shared/contratacao.ts')
 const webhook = read('supabase/functions/contratacao-webhook/index.ts')
@@ -173,5 +176,18 @@ assert.ok(e2eScript.includes('CHECKOUT MOCK OK'), 'O teste de navegador precisa 
 assert.ok(e2eScript.includes("call.action === 'publicar'"), 'O teste de navegador precisa validar a publicação simulada no painel.')
 assert.ok(e2eScript.includes('mock-admin-user-jwt'), 'O teste de navegador precisa validar o cabeçalho de sessão do administrador.')
 assert.ok(workflow.includes('node scripts/e2e-contratacao.mjs'), 'O CI precisa executar os testes de navegador.')
+
+
+assert.ok(adminPage.includes('id="gf-central"') && adminPage.includes('/contratar/entre-estacoes/admin/central.js'), 'Central deve estar dentro do painel administrativo existente.')
+assert.ok(adminScript.includes('window.gfContratacaoAdminRequest = adminRequest') && adminScript.includes('gf-contratacao-admin-ready'), 'Central deve reutilizar a autenticação administrativa.')
+assert.ok(centralUi.includes("apiCentral('central_listar')") && centralUi.includes("apiCentral('central_salvar_acompanhamento'") && centralUi.includes("apiCentral('central_registrar_pagamento'"), 'Interface deve carregar registros e salvar follow-up/pagamento via ações autenticadas.')
+assert.ok(centralUi.includes('URL.createObjectURL') && centralUi.includes('csvSafe') && centralUi.includes('visibleRecords()'), 'Central precisa exportar os registros filtrados com proteção CSV.')
+assert.ok(centralUi.includes("record.source==='formulario'") && centralUi.includes("Pagamento dos pedidos online é confirmado somente pela InfinitePay"), 'A central não pode marcar pedidos do provedor como pagos manualmente.')
+assert.ok(adminApi.includes("case 'central_listar'") && adminApi.includes("case 'central_salvar_acompanhamento'") && adminApi.includes("case 'central_registrar_pagamento'"), 'As ações devem exigir autenticação admin antes de executar.')
+assert.ok(centralMigration.includes('enable row level security') && centralMigration.includes('revoke all on table') && centralMigration.includes('from public, anon, authenticated'), 'Tabelas históricas e de follow-up devem ser privadas.')
+assert.ok(centralMigration.includes('gf_contratacao_admin_registrar_pagamento_externo') && centralMigration.includes('p_conferencia_confirmada is distinct from true'), 'Pagamentos manuais precisam de confirmação explícita e trilha.')
+assert.ok(centralSqlTests.includes('Conferência parcial foi perdida') && centralSqlTests.includes('Follow-up do formulário não foi salvo'), 'Os testes SQL devem cobrir recebimento e acompanhamento.')
+assert.ok(workflow.includes('supabase/sql/084_central_respostas_financeiro.sql') && workflow.includes('scripts/test-fixtures/central-tests.sql') && workflow.includes('node --input-type=module --check < contratar/entre-estacoes/admin/central.js'), 'CI deve validar migração e JS da central.')
+assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') && adminApi.includes('const REAL_PAYMENTS_ENABLED = false'), 'O bloqueio de pagamentos deve permanecer fixo.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
