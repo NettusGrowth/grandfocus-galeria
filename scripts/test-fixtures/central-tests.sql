@@ -78,3 +78,38 @@ begin
   end if;
 end
 $central$;
+
+-- O teste anterior rodava como postgres (superusuário) e não percebia
+-- a falta de permissão sobre auth.users. Este roda com service_role de verdade.
+begin;
+set local role service_role;
+do $service_role_payment$
+declare
+  v_id uuid;
+  v_campanha uuid;
+  v_user uuid := '11111111-1111-4111-8111-111111111111';
+  v_result jsonb;
+begin
+  if current_user <> 'service_role' then raise exception 'Falha ao simular papel real do backend.'; end if;
+  if has_table_privilege('service_role','auth.users','SELECT') then
+    raise exception 'O teste não deve conceder acesso a auth.users para passar.';
+  end if;
+  select id,evento_contratacao_id into v_id,v_campanha
+    from public.gf_contratacao_form_respostas
+   where origem_chave='teste-formulario-001';
+  if v_id is null then raise exception 'Resposta do teste não encontrada.'; end if;
+  v_result := public.gf_contratacao_admin_registrar_pagamento_externo(
+    v_campanha,v_id,'pago_manual',7900,'pix','E2E_ROLE_TEST',
+    'Conferência simulada apenas na transação de teste',true,v_user);
+  if v_result->>'situacao'<>'pago_manual' then
+    raise exception 'Registro financeiro falhou na role service_role.';
+  end if;
+  v_result := public.gf_contratacao_admin_salvar_acompanhamento(
+    v_campanha,'formulario',v_id,'contatar',current_date+1,
+    'Teste de acompanhamento com permissões reais',false,v_user);
+  if v_result->>'ok'<>'true' then
+    raise exception 'Acompanhamento falhou na role service_role.';
+  end if;
+end
+$service_role_payment$;
+rollback;

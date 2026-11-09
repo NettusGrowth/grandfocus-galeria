@@ -3,11 +3,23 @@ create role authenticated;
 create role service_role bypassrls;
 
 create schema auth;
+grant usage on schema auth to service_role;
 create table auth.users (
   id uuid primary key
 );
 
 insert into auth.users(id) values ('11111111-1111-4111-8111-111111111111');
+
+-- Simula somente os perfis necessários para autorizações da Central.
+-- service_role não recebe SELECT em auth.users: reproduz a permissão real do Supabase.
+create table public.perfis (
+  user_id uuid primary key references auth.users(id),
+  role text not null
+);
+insert into public.perfis(user_id,role)
+values ('11111111-1111-4111-8111-111111111111','admin');
+grant select on public.perfis to service_role;
+
 
 create schema extensions;
 create extension if not exists pgcrypto with schema extensions;
