@@ -150,6 +150,48 @@ try {
   assert.deepEqual(pageErrors, [], 'A página pública lançou erros JavaScript: ' + pageErrors.join('; '))
   await page.close()
 
+  // Admin preview requires an authorized session, including on an unpublished campaign.
+  const forbiddenPreview = await browser.newPage()
+  await forbiddenPreview.route('https://esm.sh/@supabase/supabase-js@2', route => route.fulfill({
+    status:200, contentType:'application/javascript', headers:{ 'access-control-allow-origin':'*' },
+    body:'export function createClient(){return {auth:{getSession:async()=>({data:{session:null}})}}}'
+  }))
+  await forbiddenPreview.goto(origin + '/contratar/entre-estacoes/?preview=1', { waitUntil:'networkidle' })
+  await forbiddenPreview.waitForSelector('#closed-state:not(.hidden)')
+  assert.match(await forbiddenPreview.locator('#closed-message').textContent(), /administrador/)
+  assert.equal(await forbiddenPreview.locator('#contract-form').isVisible(), false)
+  await forbiddenPreview.close()
+
+  const previewPage = await browser.newPage({ viewport:{ width:390, height:844 } })
+  let previewPublicRequests = 0
+  let previewAdminRequests = 0
+  await previewPage.route('https://esm.sh/@supabase/supabase-js@2', route => route.fulfill({
+    status:200, contentType:'application/javascript', headers:{ 'access-control-allow-origin':'*' },
+    body:'export function createClient(){return {auth:{getSession:async()=>({data:{session:{access_token:"mock-admin-user-jwt"}}})}}}'
+  }))
+  await previewPage.route('**/functions/v1/contratacao-publica', route => {
+    previewPublicRequests += 1
+    return route.fulfill({ status:403, contentType:'application/json', body:JSON.stringify({ error:'Pagamento indisponível.' }) })
+  })
+  await previewPage.route('**/functions/v1/contratacao-admin', route => {
+    previewAdminRequests += 1
+    const headers = route.request().headers()
+    const payload = JSON.parse(route.request().postData() || '{}')
+    assert.equal(headers.authorization, 'Bearer mock-admin-user-jwt')
+    assert.equal(payload.action, 'config')
+    assert.equal(payload.slug, 'entre-estacoes')
+    return route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({
+      evento:campaign.evento, pacotes:campaign.pacotes.map(pkg => ({ ...pkg, ativo:true })),
+    }) })
+  })
+  await previewPage.goto(origin + '/contratar/entre-estacoes/?preview=1', { waitUntil:'networkidle' })
+  await previewPage.waitForSelector('#admin-preview-banner:not(.hidden)')
+  assert.equal(await previewPage.locator('#contract-form').isVisible(), true)
+  assert.equal(await previewPage.locator('#submit-order').isDisabled(), true)
+  assert.equal(previewPublicRequests, 0, 'A prévia jamais pode consultar a API de contratação pública.')
+  assert.equal(previewAdminRequests, 1, 'A prévia deve carregar dados apenas pela API privada autenticada.')
+  await previewPage.close()
+
   // Admin must hide protected data from anonymous visitors and complete an authenticated mock workflow.
   const adminPage = await browser.newPage({ viewport:{ width:1280, height:900 } })
   const adminErrors = []
