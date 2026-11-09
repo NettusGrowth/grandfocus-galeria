@@ -133,6 +133,10 @@ assert.ok(adminUi.includes('webhook_token_configurado'), 'O painel precisa mostr
 assert.ok(adminApi.includes('gf_contratacao_admin_salvar_config'), 'A configuração administrativa deve ser salva atomicamente.')
 assert.ok(!adminApi.includes('acesso_publico_hash'), 'O painel não deve expor hashes privados do pedido.')
 assert.ok(build.includes("copyTree(contractingPages"), 'Build precisa copiar a rota de contratação.')
+assert.ok(build.includes('oldContractFrame') && build.includes('gf-contract-launch-title') &&
+  build.includes('href="/contratar/admin/" target="_blank"'), 'A área de contratação deve abrir em aba própria, sem iframe apertado.')
+assert.ok(read('contratar/entre-estacoes/styles.css').includes('1440px') &&
+  read('contratar/admin/index.html').includes('1440px'), 'Gerenciador e editor de campanha devem aproveitar melhor a largura do navegador.')
 assert.ok(publicPage.includes('/contratar/entre-estacoes/app.js'), 'Página pública precisa carregar seu script isolado.')
 assert.ok(publicPage.includes('class="gf-form-view"'), 'A experiência estilo formulários deve afetar apenas a página pública.')
 assert.equal((publicPage.match(/data-form-step="/g) || []).length, 5, 'O formulário público deve ter cinco cartões agrupados em quatro páginas.')
