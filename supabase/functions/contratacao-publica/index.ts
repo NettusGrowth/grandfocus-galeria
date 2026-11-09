@@ -51,7 +51,11 @@ Deno.serve(async (req: Request) => {
   try {
     switch (body?.action) {
       case 'natal_horarios':
-        return await actionNatalHorarios(req, admin, campaignSlug)
+        return await actionNatalHorarios(req, admin, body, campaignSlug)
+      case 'natal_seguranca_horario':
+        return await actionNatalReter(req, admin, body, campaignSlug)
+      case 'natal_liberar_horario':
+        return await actionNatalLiberar(req, admin, body, campaignSlug)
       case 'natal_inscrever':
         return await actionNatalInscrever(req, admin, body, campaignSlug)
       case 'dados':
@@ -73,14 +77,50 @@ Deno.serve(async (req: Request) => {
 
 // Agendamento *manual* do Natal: não envolve InfinitePay, não gera checkout,
 // não registra um pagamento confirmado. Disponível exclusivamente para esta campanha.
-async function actionNatalHorarios(req:Request,admin:any,slug:string){
- if(slug!=='natal-fada-acucarada-2026')
-   return jsonResponse(req,{error:'Agenda não disponível nesta campanha.'},404)
- const {data,error}=await admin.rpc('gf_natal_listar_horarios',{
-  p_slug:slug,p_preview:false
+const NATAL_UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+async function actionNatalHorarios(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')return jsonResponse(req,{error:'Agenda não disponível nesta campanha.'},404)
+ const quantidade=Number(body?.quantidade||1)
+ const token=String(body?.idempotencia||'')
+ if(!Number.isInteger(quantidade)||quantidade<1||quantidade>4||
+   (token&&!NATAL_UUID.test(token)))return jsonResponse(req,{error:'Quantidade inválida.'},400)
+ const {data,error}=await admin.rpc('gf_natal_listar_inicios',{
+  p_slug:slug,p_quantidade:quantidade,p_token:token||null,p_preview:false
  })
  if(error)return jsonResponse(req,{error:'Não foi possível consultar os horários.'},503)
  return jsonResponse(req,data||{disponivel:false,horarios:[]})
+}
+async function actionNatalReter(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')return jsonResponse(req,{error:'Reserva indisponível.'},404)
+ const token=String(body?.idempotencia||'')
+ const horario=String(body?.horario_id||'')
+ const quantidade=Number(body?.quantidade)
+ if(!NATAL_UUID.test(token)||!NATAL_UUID.test(horario)||!Number.isInteger(quantidade)||quantidade<1||quantidade>4)
+  return jsonResponse(req,{error:'Escolha um horário válido.'},400)
+ // Anti-automação para não reter todas as vagas sem preencher o cadastro.
+ const ip=(req.headers.get('cf-connecting-ip')||req.headers.get('x-real-ip')||
+  req.headers.get('x-forwarded-for')?.split(',')[0]||'').trim()
+ if(ip){
+   const hash=await sha256Hex('natal:hold-ip:'+ip)
+   const {data,error}=await admin.rpc('gf_contratacao_registrar_tentativa',{
+     p_chave_hash:hash,p_limite:35,p_janela_segundos:900
+   })
+   if(error||!data)return jsonResponse(req,{error:'Não foi possível validar a reserva.'},503)
+   if(data.permitido!==true)return jsonResponse(req,{error:'Muitas tentativas. Consulte a Grand Focus para reservar.'},429)
+ }
+ const {data,error}=await admin.rpc('gf_natal_reservar_temporariamente',{
+   p_slug:slug,p_horario:horario,p_quantidade:quantidade,p_token:token
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Esse horário foi reservado por outra família.'},409)
+ return jsonResponse(req,data||{ok:false})
+}
+async function actionNatalLiberar(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')return jsonResponse(req,{error:'Reserva indisponível.'},404)
+ const token=String(body?.idempotencia||'')
+ if(!NATAL_UUID.test(token))return jsonResponse(req,{error:'Reserva inválida.'},400)
+ const {data,error}=await admin.rpc('gf_natal_liberar_reserva',{p_slug:slug,p_token:token})
+ if(error)return jsonResponse(req,{error:'Não foi possível liberar agora. A reserva expira automaticamente.'},409)
+ return jsonResponse(req,data||{ok:true})
 }
 async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
  if(slug!=='natal-fada-acucarada-2026')
