@@ -1,0 +1,29 @@
+/* Agenda Natal Fada Açucarada — apenas no editor desta campanha. */
+.gf-workspace .gf-natal-admin{margin-bottom:18px;padding:clamp(20px,3vw,29px);background:#FFFEFC;border:1px solid #E0CDB5;box-shadow:0 7px 24px #4b041612}
+.gf-natal-head{display:flex;align-items:flex-start;gap:14px;padding-bottom:14px;border-bottom:1px solid #E9DDD8}
+.gf-natal-head h2{margin:2px 0 6px;color:#4B0416;font-family:'Cormorant Garamond',Georgia,serif;font-size:clamp(26px,3vw,37px)}
+.gf-natal-head p:not(.eyebrow){font-size:15px;color:#685A62;line-height:1.55;margin:0}
+.gf-natal-icon{font-size:24px;color:#74445C;display:grid;place-items:center;width:52px;height:52px;background:#F3E9E9;border-radius:13px;flex:none}
+.gf-natal-warning{padding:15px 17px;background:#FCF5E8;border:1px solid #E8CF9E;border-radius:11px;color:#73543A;font-size:15px;line-height:1.6;margin:16px 0}
+.gf-natal-create{display:grid;grid-template-columns:1.4fr repeat(3,minmax(0,1fr)) auto;align-items:end;gap:12px;background:#FAF8F5;border:1px solid #E5DAD4;border-radius:13px;padding:18px;margin-top:10px}
+.gf-natal-create label{font-size:14px;color:#4E3541;display:flex;flex-direction:column;gap:7px;font-weight:700}
+.gf-natal-create :is(input,select){width:100%;min-height:50px;border-radius:9px;border:1px solid #CABABB;background:white;color:#34212D;padding:10px 11px;font-size:16px}
+.gf-natal-create button{min-height:50px;border-radius:9px;white-space:nowrap}
+.gf-natal-hint{color:#7C6A70;font-size:13px;line-height:1.6;margin:12px 0 17px}
+.gf-natal-toolbar{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap;padding-top:14px;margin-bottom:12px;border-top:1px solid #EEE3DC}
+.gf-natal-toolbar strong{font-size:18px;color:#482035}
+.gf-natal-toolbar button{min-height:43px}
+.gf-natal-notice:empty{display:none}
+.gf-natal-notice{padding:12px 14px;background:#EFF8F2;border:1px solid #BBDAC6;border-radius:9px;color:#26503B;font-size:14px;margin:0 0 15px}
+.gf-natal-notice[data-error=true]{color:#922D37;background:#FFF2F0;border-color:#E6C0BA}
+.gf-natal-slots-admin{display:grid;gap:10px}
+.gf-natal-day-group{padding:14px;border:1px solid #E8DAD6;border-radius:11px;background:#FFF}
+.gf-natal-day-group h3{font-size:16px;color:#50283C;margin:0 0 12px}
+.gf-natal-chip-list{display:flex;flex-wrap:wrap;gap:9px}
+.gf-natal-chip{display:flex;align-items:center;gap:8px;min-height:42px;padding:9px 12px;border-radius:9px;background:#F7FAF7;border:1px solid #C4DBCB;color:#285D3A;font-size:14px;font-weight:700}
+.gf-natal-chip[data-full=true]{background:#FFF4E6;color:#8D5F29;border-color:#EED6AA}
+.gf-natal-chip[data-disabled=true]{background:#F2F0F0;color:#757078;border-color:#E1DBDC}
+.gf-natal-chip button{border:0;color:#7E4054;text-decoration:underline;background:transparent;cursor:pointer;font-size:13px;padding:4px}
+.gf-natal-empty{text-align:center;padding:24px;color:#735F66;background:#FAF5EF;border:1px dashed #DCC5AD;border-radius:11px;font-size:15px}
+@media(max-width:1050px){.gf-natal-create{grid-template-columns:repeat(2,minmax(0,1fr))}.gf-natal-create button{grid-column:1/-1}}
+@media(max-width:580px){.gf-natal-head{gap:10px}.gf-natal-icon{width:41px;height:41px;font-size:19px}.gf-natal-create{grid-template-columns:1fr;padding:13px}.gf-natal-create button{grid-column:1}.gf-natal-chip-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.gf-natal-chip{justify-content:space-between;padding:8px}}
