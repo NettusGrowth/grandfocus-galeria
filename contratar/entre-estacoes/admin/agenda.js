@@ -2,6 +2,8 @@
  * Nenhuma reserva ou pagamento real é criado na tela administrativa.
  */
 const section=document.getElementById('gf-natal-schedule')
+const isNatal=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'')==='natal-fada-acucarada-2026'
+if(!isNatal)document.querySelector('.gf-agenda-chooser').hidden=true
 const list=document.getElementById('gf-natal-slots-admin')
 const notice=document.getElementById('gf-natal-notice')
 const modeNote=document.getElementById('gf-mode-note')
@@ -17,6 +19,7 @@ function api(action,fields={}){
  return window.gfContratacaoAdminRequest(action,fields)
 }
 function renderState(mode){
+ if(!isNatal){section.hidden=true;return}
  currentMode=mode
  section.hidden=mode!=='horario_marcado'
  modeNote.textContent=mode==='horario_marcado'
