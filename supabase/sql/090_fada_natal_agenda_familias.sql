@@ -17,7 +17,7 @@ update public.gf_contratacao_eventos
 create or replace function public.gf_contratacao_admin_salvar_modo_agendamento(
  p_slug text,p_modo text,p_usuario uuid
 ) returns jsonb language plpgsql security invoker set search_path=''
-as $
+as $$
 declare v_evento public.gf_contratacao_eventos%rowtype;
 begin
  if p_usuario is null or not exists (
@@ -45,7 +45,7 @@ begin
  values(v_evento.id,p_usuario,'modo_agendamento_alterado',
   jsonb_build_object('anterior',v_evento.modo_agendamento,'novo',p_modo));
  return jsonb_build_object('ok',true,'modo_agendamento',p_modo);
-end;$;
+end;$$;
 revoke all on function public.gf_contratacao_admin_salvar_modo_agendamento(text,text,uuid)
  from public,anon,authenticated;
 grant execute on function public.gf_contratacao_admin_salvar_modo_agendamento(text,text,uuid)
