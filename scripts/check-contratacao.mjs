@@ -8,6 +8,8 @@ const migration = read('supabase/sql/080_contratacao_experiencias.sql')
 const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico.sql')
 const centralMigration = read('supabase/sql/084_central_respostas_financeiro.sql')
 const paymentPermissionMigration = read('supabase/sql/085_contratacao_pagamento_admin_perfis.sql')
+const simplifiedContractMigration = read('supabase/sql/086_contratacao_sem_coreografias.sql')
+const staticPrivacyPage = read('contratar/entre-estacoes/privacidade.html')
 const centralUi = read('contratar/entre-estacoes/admin/central.js')
 const centralSqlTests = read('scripts/test-fixtures/central-tests.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
@@ -132,6 +134,26 @@ assert.ok(publicPage.includes('class="gf-form-view"'), 'A experiência estilo fo
 assert.equal((publicPage.match(/data-form-step="/g) || []).length, 5, 'O formulário público deve ter cinco cartões agrupados em quatro páginas.')
 assert.ok(publicPage.includes('role="progressbar"') && publicPage.includes('id="form-next"') && publicPage.includes('id="form-back"'), 'A navegação deve exibir progresso e controles de avançar/voltar.')
 assert.ok(publicPage.includes('id="admin-preview-banner"'), 'A prévia deve informar visualmente que não realiza cobranças.')
+assert.ok(publicPage.includes('id="preview-final-info"') && publicPage.includes('id="payment-instructions"') &&
+  publicPage.includes('id="preview-admin-link"'), 'Prévia deve esclarecer que nenhuma cobrança é feita e oferecer retorno à administração.')
+assert.ok(publicScript.includes('submitButton.hidden = !isLast || ADMIN_PREVIEW'),
+  'A prévia não pode mostrar um botão de pagamento que nunca responde.')
+assert.ok(publicScript.includes("signal: AbortSignal.timeout(action === 'contratar' ? 20000 : 15000)"),
+  'Checkout com problema de conexão precisa oferecer resposta e permitir nova tentativa segura.')
+assert.ok(!/coreograf/i.test(publicScript) && !/coreograf/i.test(adminScript) &&
+  !/coreograf/i.test(adminApi) && !/coreograf/i.test(staticPrivacyPage),
+  'A interface, a API de administração e a política pública não devem solicitar ou mencionar detalhes de dança.')
+assert.ok(!/coreograf/i.test(publicPage), 'Página pública não pode citar registros individuais por dança.')
+assert.ok(simplifiedContractMigration.includes('create or replace function public.gf_contratacao_criar_reserva') &&
+  simplifiedContractMigration.includes('create or replace function public.gf_contratacao_admin_salvar_config') &&
+  simplifiedContractMigration.includes('create or replace function public.gf_contratacao_admin_publicar'),
+  'Atualização deve desativar dependência de danças na reserva, nos pacotes e na publicação.')
+assert.ok(simplifiedContractMigration.includes('deixa de ter função operacional') &&
+  simplifiedContractMigration.includes('update public.gf_contratacao_eventos'),
+  'Os termos públicos e descrições atuais devem ser revisados preservando o histórico já aceito.')
+assert.ok(workflow.includes('supabase/sql/086_contratacao_sem_coreografias.sql'),
+  'Teste de banco deve executar a atualização simplificada antes dos cenários de reserva.')
+
 assert.ok(adminPage.includes('id="preview-link"') && adminScript.includes("'/?preview=1'"), 'O editor deve oferecer prévia mesmo para campanhas em rascunho.')
 assert.ok(publicScript.includes('const ADMIN_PREVIEW =') && publicScript.includes("action: 'config', slug: CAMPAIGN_SLUG"), 'Prévia deve buscar configuração apenas pela API administrativa.')
 assert.ok(publicScript.includes('Authorization: \'Bearer \' + token') && publicScript.includes('if (!token) throw new Error'), 'Prévia exige uma sessão real antes de buscar dados privados.')

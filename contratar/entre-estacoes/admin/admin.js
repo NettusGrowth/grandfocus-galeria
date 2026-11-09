@@ -225,27 +225,8 @@ function renderPackages() {
     stage.id = 'stage-' + pkg.codigo
     stage.checked = pkg.inclui_palco === true
     const stageText = document.createElement('span')
-    stageText.textContent = 'Inclui fotografias das coreografias no palco'
+    stageText.textContent = 'Inclui cobertura fotográfica das apresentações no palco'
     stageLabel.append(stage, stageText)
-
-    const minimumField = document.createElement('div')
-    minimumField.className = 'field'
-    const minimumLabel = document.createElement('label')
-    minimumLabel.textContent = 'Mínimo de fotos por coreografia'
-    minimumLabel.htmlFor = 'minimum-' + pkg.codigo
-    const minimum = document.createElement('input')
-    minimum.type = 'number'
-    minimum.min = '10'
-    minimum.max = '1000'
-    minimum.id = 'minimum-' + pkg.codigo
-    minimum.value = pkg.minimo_fotos_por_coreografia || (pkg.inclui_palco ? 10 : 0)
-    minimum.disabled = !stage.checked
-    stage.addEventListener('change', () => {
-      minimum.disabled = !stage.checked
-      if (stage.checked && Number(minimum.value) < 10) minimum.value = '10'
-      if (!stage.checked) minimum.value = '0'
-    })
-    minimumField.append(minimumLabel, minimum)
 
     const activeLabel = document.createElement('label')
     activeLabel.className = 'consent'
@@ -257,7 +238,7 @@ function renderPackages() {
     activeText.textContent = 'Disponibilizar esta experiência na página pública'
     activeLabel.append(active, activeText)
 
-    flags.append(miniLabel, stageLabel, minimumField, activeLabel)
+    flags.append(miniLabel, stageLabel, activeLabel)
     card.append(heading, nameField, priceField, descriptionField, flags)
     root.append(card)
   }
@@ -286,7 +267,6 @@ function addPackage() {
     preco_centavos: 100,
     inclui_miniensaio: false,
     inclui_palco: false,
-    minimo_fotos_por_coreografia: 0,
     ativo: true,
     ordem: currentPackages.length,
   })
@@ -325,9 +305,6 @@ function collectConfig() {
       preco_centavos: parseMoney(document.getElementById('price-' + pkg.codigo).value),
       inclui_miniensaio: document.getElementById('mini-' + pkg.codigo).checked,
       inclui_palco: document.getElementById('stage-' + pkg.codigo).checked,
-      minimo_fotos_por_coreografia: document.getElementById('stage-' + pkg.codigo).checked
-        ? Number(document.getElementById('minimum-' + pkg.codigo).value || 10)
-        : 0,
       ativo: document.getElementById('active-' + pkg.codigo).checked,
       ordem: index,
     })),

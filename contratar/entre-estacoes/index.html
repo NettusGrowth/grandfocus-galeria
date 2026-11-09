@@ -39,7 +39,7 @@
       <a id="gf-help-link" class="gf-help-link hidden" href="#" target="_blank" rel="noopener noreferrer">Precisa de ajuda? Fale com nossa equipe</a>
     </div>
 
-    <div id="admin-preview-banner" class="gf-preview-banner hidden" role="status">Pré-visualização administrativa. Nenhuma contratação ou cobrança será registrada nesta tela.</div>
+    <div id="admin-preview-banner" class="gf-preview-banner hidden" role="status"><strong>Você está em uma prévia de teste.</strong> É possível conferir os campos e os valores, mas esta página não cobra, não cria pedidos e não reserva vagas.</div>
 
     <section class="status-card" id="loading-state">
       <h2>Preparando a contratação</h2>
@@ -146,11 +146,16 @@
         <div class="total-bar">
           <div>
             <div class="total-label">Total da contratação</div>
-            <div class="hint">O pagamento será concluído no ambiente seguro da InfinitePay.</div>
+            <div class="hint" id="payment-instructions">Quando as contratações forem liberadas, o pagamento será feito no ambiente seguro da InfinitePay.</div>
           </div>
           <div class="total-value" id="order-total">R$ 0,00</div>
         </div>
-        <p class="hint gf-summary-note">A disponibilidade do miniensaio é reservada temporariamente durante a finalização do pagamento.</p>
+        <p class="hint gf-summary-note" id="mini-reservation-note">A reserva de miniensaio só acontece após o início de uma contratação real, durante a finalização do pagamento.</p>
+        <div id="preview-final-info" class="gf-preview-finish" hidden>
+          <strong>Fim da pré-visualização.</strong>
+          <p>O formulário está demonstrado. Não é possível concluir nem pagar por esta tela; nenhum pedido foi criado.</p>
+          <a class="btn btn-primary" id="preview-admin-link" href="/contratar/entre-estacoes/admin/">Voltar à administração</a>
+        </div>
       </section>
       <div class="gf-form-navigation" aria-label="Navegação entre páginas do formulário">
         <div class="gf-navigation-buttons">

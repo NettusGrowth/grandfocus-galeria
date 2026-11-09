@@ -56,7 +56,7 @@ const campaign = {
   },
   pacotes: [
     { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares','5 fotos digitais tratadas'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0 },
-    { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Mínimo de 10 fotos por coreografia'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10 },
+    { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Cobertura fotográfica do palco com imagens coletivas e de pequenos grupos'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10 },
     { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Experiência completa', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10 }
   ]
 }
@@ -169,8 +169,9 @@ try {
   await page.locator('[data-name]').nth(1).fill('Bailarina Dois')
   await page.locator('[data-class]').nth(1).fill('Avançado')
   await page.locator('[data-package]').nth(1).selectOption('22222222-2222-4222-8222-222222222222')
-  await page.locator('[data-coreo-list] input[type="text"]').fill('Valsa das Estações')
-  await auditResponsiveLayout('bailarinas e coreografias')
+  assert.equal(await page.locator('[data-coreo-list]').count(),0,
+    'A contratação não deve solicitar detalhamento de apresentações.')
+  await auditResponsiveLayout('bailarinas e pacotes')
   await page.locator('#form-next').click()
   assert.match(await page.locator('#form-step-count').textContent(), /Página 3 de 4/)
   assert.match((await page.locator('#order-total').textContent()).replace(/\s/g,''), /198,00/)
@@ -209,7 +210,8 @@ try {
   assert.equal(submitted.participantes[0].nome, 'Bailarina Um')
   assert.equal(submitted.participantes[1].nome, 'Bailarina Dois')
   assert.equal(submitted.participantes[0].pacote_id, '11111111-1111-4111-8111-111111111111')
-  assert.equal(submitted.participantes[1].coreografias[0].nome, 'Valsa das Estações')
+  assert.equal(Object.hasOwn(submitted.participantes[1],'coreografias'),false,
+    'Pedido deve conter bailarina e pacote, sem detalhes obrigatórios de apresentações.')
   assert.equal(submitted.aceite.ciente_privacidade, true)
   assert.equal(submitted.company_website, '')
   assert.equal(submitted.campaign_slug, 'teste-publico')
@@ -257,7 +259,22 @@ try {
   await previewPage.goto(origin + '/contratar/entre-estacoes/?preview=1', { waitUntil:'networkidle' })
   await previewPage.waitForSelector('#admin-preview-banner:not(.hidden)')
   assert.equal(await previewPage.locator('#contract-form').isVisible(), true)
-  assert.equal(await previewPage.locator('#submit-order').isDisabled(), true)
+  assert.equal(await previewPage.locator('#submit-order').isVisible(), false)
+  await previewPage.locator('#form-next').click()
+  await previewPage.locator('[data-name]').first().fill('Bailarina da Prévia')
+  await previewPage.locator('[data-class]').first().fill('Intermediário')
+  await previewPage.locator('[data-package]').first().selectOption('22222222-2222-4222-8222-222222222222')
+  await previewPage.locator('#form-next').click()
+  await previewPage.locator('#responsavel-nome').fill('Responsável Exemplo')
+  await previewPage.locator('#responsavel-whatsapp').fill('(34) 99999-9999')
+  await previewPage.locator('#responsavel-email').fill('exemplo@example.com')
+  await previewPage.locator('#form-next').click()
+  assert.equal(await previewPage.locator('#preview-final-info').isVisible(), true)
+  assert.equal(await previewPage.locator('#submit-order').isVisible(), false)
+  assert.match(await previewPage.locator('#payment-instructions').textContent(), /Nenhuma cobrança/)
+  assert.match(await previewPage.locator('#preview-final-info').textContent(), /Não é possível concluir nem pagar/)
+  assert.equal(await previewPage.locator('#preview-admin-link').getAttribute('href'),
+    '/contratar/entre-estacoes/admin/')
   assert.equal(previewPublicRequests, 0, 'A prévia jamais pode consultar a API de contratação pública.')
   assert.equal(previewAdminRequests, 1, 'A prévia deve carregar dados apenas pela API privada autenticada.')
   await previewPage.close()
@@ -283,7 +300,7 @@ try {
   }
   const adminPackages = [
     { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0, ativo:true, ordem:1 },
-    { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Mínimo de 10 fotos por coreografia'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:2 },
+    { id:'22222222-2222-4222-8222-222222222222', codigo:'palco', nome:'Fotos de palco', descricao:['Cobertura fotográfica do palco com imagens coletivas e de pequenos grupos'], preco_centavos:7900, inclui_miniensaio:false, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:2 },
     { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Experiência completa', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:3 }
   ]
   const adminIntegration = { pagamentos_reais_ativados:false, api_key_configurada:true, infinite_tag_configurada:true, webhook_token_configurado:true }
