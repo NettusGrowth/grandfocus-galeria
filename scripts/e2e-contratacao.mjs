@@ -287,6 +287,17 @@ try {
     { id:'33333333-3333-4333-8333-333333333333', codigo:'completo', nome:'Experiência completa', descricao:['Miniensaio e fotos de palco'], preco_centavos:15900, inclui_miniensaio:true, inclui_palco:true, minimo_fotos_por_coreografia:10, ativo:true, ordem:3 }
   ]
   const adminIntegration = { pagamentos_reais_ativados:false, api_key_configurada:true, infinite_tag_configurada:true, webhook_token_configurado:true }
+  const centralExternal = {
+    id:'88888888-8888-4888-8888-888888888888',origem:'google_forms',
+    origem_chave:'e2e-google-form',origem_linha:2,respondido_em:'2026-11-05T12:00:00Z',
+    responsavel_nome:'Mãe de Teste',responsavel_whatsapp:'34999998888',
+    bailarina_nome:'Bailarina de Teste',modalidade_original:'Ballet',
+    experiencia_original:'Fotos de palco — R$ 79,00',valor_informado_centavos:7900,
+    pagamento_preferido:'Pix',pagamento_situacao:'nao_conferido',valor_recebido_centavos:0,
+    pagamento_metodo:null,pagamento_referencia:null,pagamento_observacao:null,pagamento_conferido_em:null,
+  }
+  const centralFollow = []
+
   adminPage.on('pageerror', error => adminErrors.push(error.message))
   await adminPage.route('https://esm.sh/@supabase/supabase-js@2', route => route.fulfill({
     status:200,
@@ -304,6 +315,39 @@ try {
     }
     if (body.action === 'config') {
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ evento:adminEvent, pacotes:adminPackages, integracao:adminIntegration }) })
+      return
+    }
+    if (body.action === 'central_listar') {
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({
+        campanha:{id:adminEvent.id,nome:adminEvent.nome_publico,status:adminEvent.status},
+        pedidos:[],respostas:[centralExternal],acompanhamentos:centralFollow,
+        resultados_possivelmente_truncados:false,
+      }) })
+      return
+    }
+    if (body.action === 'central_salvar_acompanhamento') {
+      centralFollow.length=0
+      centralFollow.push({
+        pedido_id:null,resposta_form_id:centralExternal.id,
+        situacao:body.situacao,proximo_contato_em:body.proximo_contato_em,
+        ultimo_contato_em:body.registrar_contato?'2026-11-09T00:00:00Z':null,
+        observacoes:body.observacoes,
+      })
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ok:true}) })
+      return
+    }
+    if (body.action === 'central_registrar_pagamento') {
+      if (!body.conferencia_confirmada || body.valor_recebido_centavos !== 7900 ||
+          body.situacao !== 'pago_manual' || body.referencia.length<5) {
+        await route.fulfill({ status:400, contentType:'application/json', body:JSON.stringify({error:'Pagamento não conferido.'}) })
+        return
+      }
+      centralExternal.pagamento_situacao=body.situacao
+      centralExternal.valor_recebido_centavos=body.valor_recebido_centavos
+      centralExternal.pagamento_metodo=body.metodo
+      centralExternal.pagamento_referencia=body.referencia
+      centralExternal.pagamento_conferido_em='2026-11-09T00:00:00Z'
+      await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ok:true}) })
       return
     }
     if (body.action === 'pedidos') {
@@ -347,6 +391,35 @@ try {
   assert.match(await adminPage.locator('#integration-status').textContent(), /Pagamentos reais desativados/)
   assert.match(await adminPage.locator('#integration-status').textContent(), /Token do webhook configurado/)
   assert.equal(await adminPage.locator('#orders-body').textContent().then(text => /Nenhum pedido/.test(text)), true)
+  await adminPage.waitForFunction(() => document.querySelectorAll('#gf-central-list .gf-result-card').length===1)
+  assert.match(await adminPage.locator('#gf-central-metrics').textContent(), /R\\$ 79,00/)
+  assert.match(await adminPage.locator('#gf-central-list').textContent(), /Mãe de Teste/)
+  assert.equal(adminCalls.filter(call => call.action==='central_listar').length,1)
+  await adminPage.locator('#gf-central-tabs [data-view="pagos"]').click()
+  assert.equal(await adminPage.locator('#gf-central-list .gf-result-card').count(),0)
+  await adminPage.locator('#gf-central-tabs [data-view="conferir"]').click()
+  await adminPage.locator('#gf-central-list .gf-result-card').first().click()
+  await adminPage.waitForSelector('#gf-central-detail:not([hidden])')
+  assert.match(await adminPage.locator('#gf-central-detail').textContent(), /Conferência de pagamento/)
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('select').first().selectOption('pago_manual')
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('input[type="text"]').nth(0).fill('79,00')
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('select').nth(1).selectOption('pix')
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('input[type="text"]').nth(1).fill('ID_PIX_TESTE')
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('input[type="checkbox"]').check()
+  adminPage.on('dialog', dialog => dialog.accept())
+  await adminPage.locator('#gf-central-detail .gf-editor').nth(1).locator('button[type="submit"]').click()
+  await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Conferência registrada'))
+  assert.ok(adminCalls.some(call => call.action==='central_registrar_pagamento'), 'A central não salvou conferência do pagamento.')
+  assert.match(await adminPage.locator('#gf-central-metrics').textContent(), /Conferido manualmente/)
+  await adminPage.locator('#gf-central-tabs [data-view="todos"]').click()
+  await adminPage.locator('#gf-central-list .gf-result-card').first().click()
+  await adminPage.locator('#gf-central-detail .gf-editor').first().locator('select').first().selectOption('contatar')
+  await adminPage.locator('#gf-central-detail .gf-editor').first().locator('input[type="date"]').fill('2026-11-10')
+  await adminPage.locator('#gf-central-detail .gf-editor').first().locator('textarea').fill('Retornar para a mãe após o espetáculo.')
+  await adminPage.locator('#gf-central-detail .gf-editor').first().locator('button[type="submit"]').click()
+  await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Acompanhamento salvo'))
+  assert.ok(adminCalls.some(call => call.action==='central_salvar_acompanhamento'), 'A central não salvou o follow-up.')
+
   await adminPage.locator('#save-button').click()
   await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Configuração salva'))
   const saveCall = adminCalls.find(call => call.action === 'salvar')
