@@ -1,0 +1,488 @@
+/* Central de Gestão Grand Focus — exclusiva da área administrativa autenticada.
+ * Sem edição do status pago dos pedidos InfinitePay; pagamentos históricos exigem conferência.
+ */
+const centralRoot = document.getElementById('gf-central')
+const centralList = document.getElementById('gf-central-list')
+const centralDetail = document.getElementById('gf-central-detail')
+const centralMetrics = document.getElementById('gf-central-metrics')
+const centralNotice = document.getElementById('gf-central-notice')
+const centralSearch = document.getElementById('gf-central-search')
+const centralOrigin = document.getElementById('gf-central-origin')
+const centralSort = document.getElementById('gf-central-sort')
+const centralResultCount = document.getElementById('gf-central-results-count')
+const centralState = { data: [], view: 'todos', selected: null, loading: false, ready: false }
+const brl = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(value)||0)/100)
+const safeDate = value => {
+  if (!value) return 'Não informado'
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? 'Não informado' : date.toLocaleString('pt-BR', { dateStyle:'short', timeStyle:'short', timeZone:'America/Sao_Paulo' })
+}
+const escapeSearch = value => String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
+
+function apiCentral(action, fields) {
+  const request = window.gfContratacaoAdminRequest
+  if (typeof request !== 'function') throw new Error('Entre como administrador para acessar esta central.')
+  return request(action, fields || {})
+}
+function dom(tag, className, text) {
+  const el = document.createElement(tag)
+  if (className) el.className = className
+  if (text !== undefined && text !== null) el.textContent = String(text)
+  return el
+}
+function notice(text, kind) {
+  centralNotice.textContent = text
+  centralNotice.dataset.kind = kind||'info'
+}
+function tag(text, tone) {
+  const element = dom('span','gf-tag',text)
+  element.dataset.tone = tone||'neutral'
+  return element
+}
+function countBy(predicate) { return centralState.data.filter(predicate).length }
+function nativePaid(record) { return record.source === 'online' && record.status === 'pago' }
+function legacyPaid(record) { return record.source === 'formulario' && record.status === 'pago_manual' }
+function paid(record) { return nativePaid(record)||legacyPaid(record) }
+function confirmedMoney(record) {
+  if (record.source==='online') return nativePaid(record) ? Number(record.paidValue) : 0
+  return ['parcial','pago_manual'].includes(record.status) ? Number(record.paidValue) : 0
+}
+function pendingMoney(record) {
+  if (record.source==='online') {
+    return ['aguardando_pagamento','pagamento_pendente'].includes(record.status) ? Math.max(0,record.value-confirmedMoney(record)) : 0
+  }
+  return ['pendente','parcial'].includes(record.status) ?
+    Math.max(0,(record.value||0)-confirmedMoney(record)) : 0
+}
+function needsReview(record) { return record.source==='formulario' && record.status==='nao_conferido' || record.source==='online' && record.status==='conciliacao_pendente' }
+function needsFollow(record) {
+  const follow = record.follow||{}
+  if (follow.situacao==='concluido'||follow.situacao==='nao_precisa') return false
+  if (follow.situacao==='contatar') return true
+  if (follow.proximo_contato_em) return follow.proximo_contato_em <= new Date().toISOString().slice(0,10)
+  return false
+}
+function openPending(record) { return pendingMoney(record)>0 || record.status==='conciliacao_pendente' }
+function statusDisplay(record) {
+  const map = record.source==='online' ? {
+    pago:['Pago pela InfinitePay','positive'],
+    aguardando_pagamento:['Aguardando pagamento','attention'],
+    pagamento_pendente:['Pagamento pendente','attention'],
+    conciliacao_pendente:['Em conferência','danger'],
+    reembolsado:['Reembolsado','neutral'],
+    expirado:['Pedido expirado','neutral'],
+    cancelado:['Cancelado','neutral'],
+  } : {
+    nao_conferido:['Pagamento não conferido','attention'],
+    pendente:['Pagamento pendente','attention'],
+    parcial:['Recebimento parcial','attention'],
+    pago_manual:['Pago · conferido manualmente','positive'],
+    cancelado:['Cancelado','neutral'],
+  }
+  return map[record.status]||[record.status||'Sem classificação','neutral']
+}
+function normalizedEntries(payload) {
+  const follows = new Map((payload.acompanhamentos||[]).map(f=>[
+    (f.pedido_id ? 'online:' + f.pedido_id : 'formulario:' + f.resposta_form_id),f,
+  ]))
+  const online=(payload.pedidos||[]).map(p=>{
+    const people=Array.isArray(p.participantes)?p.participantes:[]
+    const entry={
+      source:'online',id:p.id,label:'#'+p.numero,
+      name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:p.responsavel_email,
+      people, dancer:people.map(x=>x.nome).join(', '),package:people.map(x=>x.pacote).join(' / '),
+      value:Number(p.valor_total_centavos)||0,
+      paidValue:Number(p.valor_pago_centavos)||Number(p.valor_total_centavos)||0,
+      paymentMethod:p.metodo_pagamento||'',preferred:'',
+      status:p.status,when:p.criado_em,reference:'Pagamento automático conforme provedor',
+    }
+    entry.follow=follows.get('online:'+p.id)||null
+    return entry
+  })
+  const forms=(payload.respostas||[]).map(p=>{
+    const entry={
+      source:'formulario',id:p.id,label:'Google Forms · linha '+p.origem_linha,
+      name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:'',
+      people:[{nome:p.bailarina_nome,turma:p.modalidade_original,pacote:p.experiencia_original}],
+      dancer:p.bailarina_nome,package:p.experiencia_original,
+      value:p.valor_informado_centavos==null?null:Number(p.valor_informado_centavos),
+      paidValue:Number(p.valor_recebido_centavos)||0,
+      paymentMethod:p.pagamento_metodo||'',
+      preferred:p.pagamento_preferido||'',status:p.pagamento_situacao,
+      when:p.respondido_em||p.criado_em,reference:p.pagamento_referencia||'',
+      sourceNote:p.observacao_origem||'',paymentNote:p.pagamento_observacao||'',
+      paymentChecked:p.pagamento_conferido_em||null,
+    }
+    entry.follow=follows.get('formulario:'+p.id)||null
+    return entry
+  })
+  return [...online,...forms]
+}
+function metric(label,value,caption,tone) {
+  const card=dom('article','gf-metric')
+  if (tone) card.dataset.tone=tone
+  card.append(dom('span','gf-metric-label',label),dom('strong','gf-metric-value',value),dom('p','gf-metric-caption',caption))
+  return card
+}
+function updateMetrics() {
+  const entries=centralState.data
+  const originalSum=entries.reduce((s,r)=>s+(r.value||0),0)
+  const autoSum=entries.filter(nativePaid).reduce((s,r)=>s+confirmedMoney(r),0)
+  const manualSum=entries.filter(r=>r.source==='formulario').reduce((s,r)=>s+confirmedMoney(r),0)
+  const pendingSum=entries.reduce((s,r)=>s+pendingMoney(r),0)
+  centralMetrics.replaceChildren(
+    metric('Total recebido conferido',brl(autoSum+manualSum),'InfinitePay + conferências manuais','positive'),
+    metric('Confirmado pela InfinitePay',brl(autoSum),'Pedidos da galeria com status pago','positive'),
+    metric('Conferido manualmente',brl(manualSum),'Registros antigos com referência de pagamento','positive'),
+    metric('A cobrar · pendências identificadas',brl(pendingSum),'Não inclui respostas antigas ainda não conferidas','attention'),
+    metric('Valores informados',brl(originalSum),'Não é faturamento nem comprovante de recebimento'),
+    metric('A conferir / follow-up',countBy(needsReview)+' / '+countBy(needsFollow),
+      'Pendências de conferência e contatos que precisam de atenção','attention'),
+  )
+}
+function updateViewCounters() {
+  const counters={
+    todos:centralState.data.length,
+    conferir:countBy(needsReview),
+    follow:countBy(needsFollow),
+    pendentes:countBy(openPending),
+    pagos:countBy(paid),
+  }
+  for(const [name,n] of Object.entries(counters)) {
+    const el=document.getElementById('gf-count-'+name)
+    if(el)el.textContent='('+n+')'
+  }
+}
+function viewMatch(r) {
+  switch(centralState.view){
+    case 'conferir':return needsReview(r)
+    case 'follow':return needsFollow(r)
+    case 'pendentes':return openPending(r)
+    case 'pagos':return paid(r)
+    default:return true
+  }
+}
+function visibleRecords() {
+  const term=escapeSearch(centralSearch.value.trim())
+  const source=centralOrigin.value
+  const order=centralSort.value
+  const list=centralState.data.filter(r=>{
+    if(!viewMatch(r)||source!=='todas'&&source!==r.source)return false
+    if(!term)return true
+    return escapeSearch([r.name,r.dancer,r.whatsapp,r.package,r.label,r.email,r.follow?.observacoes].join(' ')).includes(term)
+  })
+  return list.sort((a,b)=>{
+    if(order==='valor')return (b.value||0)-(a.value||0)
+    if(order==='follow')return (a.follow?.proximo_contato_em||'9999').localeCompare(b.follow?.proximo_contato_em||'9999')
+    const at=new Date(a.when||0).getTime()||0
+    const bt=new Date(b.when||0).getTime()||0
+    return order==='antigos'?at-bt:bt-at
+  })
+}
+function renderRecord(record) {
+  const card=dom('button','gf-result-card')
+  card.type='button'
+  card.dataset.selected=String(centralState.selected===record.source+':'+record.id)
+  card.setAttribute('aria-label','Abrir ficha de '+record.name+', '+statusDisplay(record)[0])
+  const header=dom('div','gf-record-head')
+  header.append(dom('strong','gf-record-name',record.name))
+  const m=dom('div','gf-record-meta')
+  const [title,tone]=statusDisplay(record)
+  m.append(tag(title,tone))
+  if(needsFollow(record))m.append(tag('Follow-up','danger'))
+  if(record.follow?.situacao==='aguardando_resposta')m.append(tag('Aguardando resposta','attention'))
+  card.append(header,dom('div','gf-record-sub',record.dancer||'Participantes não cadastrados'))
+  if(record.package)card.append(dom('div','gf-record-sub',record.package))
+  card.append(m)
+  const bottom=dom('div','gf-record-bottom')
+  bottom.append(dom('strong','gf-record-value',record.value==null?'Valor a conferir':brl(record.value)),
+    dom('span','gf-record-sub',record.source==='formulario'?'Google Forms':'Pedido online'))
+  card.append(bottom)
+  card.addEventListener('click',()=>selectRecord(record))
+  return card
+}
+function renderList() {
+  updateViewCounters()
+  const list=visibleRecords()
+  centralResultCount.textContent=list.length+' registro(s) encontrados'
+  centralList.replaceChildren()
+  if(!list.length) {
+    centralList.append(dom('div','gf-empty','Nenhum registro corresponde aos filtros. Tente outra busca ou veja a opção “Todos”.'))
+  } else {
+    const fragment=document.createDocumentFragment()
+    list.forEach(r=>fragment.append(renderRecord(r)))
+    centralList.append(fragment)
+  }
+}
+function phoneLink(phone) {
+  let digits=String(phone||'').replace(/\D/g,'')
+  if(!digits)return null
+  if(digits.length===10||digits.length===11)digits='55'+digits
+  if(digits.length<12||digits.length>13||!digits.startsWith('55'))return null
+  return 'https://wa.me/'+digits+'?text='+encodeURIComponent('Olá! Aqui é da Grand Focus Fotografia. Podemos conversar sobre seu pedido de fotos?')
+}
+function detailBox(label,value) {
+  const box=dom('div','gf-detail-box')
+  box.append(dom('small','',label),dom('strong','',value||'Não informado'))
+  return box
+}
+function labeledInput(label,type,value) {
+  const wrap=dom('label','')
+  wrap.append(document.createTextNode(label))
+  const input=dom(type==='select'?'select':type==='textarea'?'textarea':'input')
+  if(type!=='select'&&type!=='textarea')input.type=type
+  if(value!=null)input.value=String(value)
+  wrap.append(input)
+  return {wrap,input}
+}
+function addChoice(select,value,text) {
+  const opt=dom('option','',text);opt.value=value;select.append(opt)
+}
+function actionButton(label,className) {
+  const button=dom('button',className||'btn btn-secondary',label);button.type='button';return button
+}
+function scrollDetails() {
+  centralDetail.scrollIntoView({behavior:'auto',block:'start'})
+  const heading=centralDetail.querySelector('h3')
+  if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}
+}
+function selectRecord(record) {
+  centralState.selected=record.source+':'+record.id
+  for(const card of centralList.querySelectorAll('.gf-result-card')) {
+    card.dataset.selected='false'
+  }
+  const lookup=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
+  if(!lookup)return
+  centralDetail.hidden=false
+  centralDetail.replaceChildren()
+  const header=dom('div','gf-detail-toolbar')
+  const headerMain=dom('div')
+  headerMain.append(dom('h3','gf-detail-title',record.name),dom('p','gf-detail-subtitle',record.label))
+  const close=actionButton('Fechar ficha')
+  close.addEventListener('click',()=>{centralDetail.hidden=true;centralState.selected=null;renderList()})
+  header.append(headerMain,close)
+  centralDetail.append(header)
+  const [statusText,statusTone]=statusDisplay(record)
+  const flags=dom('div','gf-record-meta')
+  flags.append(tag(statusText,statusTone),tag(record.source==='online'?'Pedido pelo site':'Resposta do Google Forms','neutral'))
+  centralDetail.append(flags)
+  const grid=dom('div','gf-detail-grid')
+  grid.append(
+    detailBox('Bailarina(s)',record.dancer),
+    detailBox('Pacote / experiência',record.package),
+    detailBox('Valor informado',record.value==null?'A conferir':brl(record.value)),
+    detailBox('Valor recebido e conferido',brl(confirmedMoney(record))),
+    detailBox('Registro recebido em',safeDate(record.when)),
+    detailBox(record.source==='formulario'?'Preferência de pagamento':'Meio de pagamento',record.preferred||record.paymentMethod||'Não informado'),
+  )
+  if(record.source==='formulario'&&record.sourceNote)grid.append(detailBox('Observação da planilha',record.sourceNote))
+  if(record.paymentChecked)grid.append(detailBox('Pagamento conferido em',safeDate(record.paymentChecked)))
+  if(record.reference)grid.append(detailBox('Referência de pagamento',record.reference))
+  if(record.email)grid.append(detailBox('E-mail',record.email))
+  if(record.whatsapp)grid.append(detailBox('WhatsApp',record.whatsapp))
+  centralDetail.append(grid)
+  const phone=phoneLink(record.whatsapp)
+  if(phone){
+    const links=dom('div','gf-contact-row')
+    const link=dom('a','', 'Conversar no WhatsApp')
+    link.href=phone;link.target='_blank';link.rel='noopener noreferrer'
+    links.append(link)
+    centralDetail.append(links)
+  }
+  centralDetail.append(makeFollowEditor(record))
+  if(record.source==='formulario') centralDetail.append(makePaymentEditor(record))
+  else {
+    const text=dom('p','gf-small-note','Pagamento dos pedidos online é confirmado somente pela InfinitePay. Nenhuma ação manual desta central altera o status pago do provedor.')
+    centralDetail.append(text)
+    if(['pagamento_pendente','conciliacao_pendente'].includes(record.status)) {
+      const reconcile=actionButton('Consultar pagamento na InfinitePay','btn btn-secondary')
+      reconcile.addEventListener('click',async()=>{
+        reconcile.disabled=true
+        try { await apiCentral('reconciliar',{pedido_id:record.id});notice('Consulta à InfinitePay concluída. Confira o status atualizado.','success');await loadCentral(false, true) }
+        catch(error){notice(error.message,'error')}
+        finally{reconcile.disabled=false}
+      })
+      centralDetail.append(reconcile)
+    }
+  }
+  scrollDetails()
+}
+function makeFollowEditor(record) {
+  const follow=record.follow||{}
+  const form=dom('form','gf-editor')
+  form.append(dom('h3','','Acompanhamento e follow-up'),
+    dom('p','gf-editor-description','Organize os próximos contatos sem precisar de uma planilha. Nada é enviado automaticamente ao responsável.'))
+  const grid=dom('div','gf-editor-grid')
+  const status=labeledInput('Situação do atendimento','select')
+  for(const [v,text] of [
+    ['nao_iniciado','Ainda não comecei'],
+    ['contatar','Preciso entrar em contato'],
+    ['aguardando_resposta','Aguardando resposta da família'],
+    ['concluido','Atendimento concluído'],
+    ['nao_precisa','Não precisa de contato'],
+  ])addChoice(status.input,v,text)
+  status.input.value=follow.situacao||'nao_iniciado'
+  const next=labeledInput('Próximo contato (opcional)','date',follow.proximo_contato_em||'')
+  const notes=labeledInput('Anotações do atendimento','textarea',follow.observacoes||'')
+  notes.wrap.classList.add('gf-full');notes.input.maxLength=3000
+  notes.input.placeholder='Ex.: Enviar mensagem amanhã para conferir o pagamento.'
+  const contact=dom('label','gf-check-row')
+  const contactInput=dom('input');contactInput.type='checkbox'
+  contact.append(contactInput,document.createTextNode('Registrar que entrei em contato com esta família agora'))
+  contact.classList.add('gf-full')
+  grid.append(status.wrap,next.wrap,notes.wrap,contact)
+  form.append(grid)
+  if(follow.ultimo_contato_em)form.append(dom('p','gf-small-note','Último contato registrado: '+safeDate(follow.ultimo_contato_em)))
+  const save=actionButton('Salvar acompanhamento','btn btn-primary');save.type='submit'
+  const controls=dom('div','gf-form-actions');controls.append(save);form.append(controls)
+  form.addEventListener('submit',async e=>{
+    e.preventDefault();save.disabled=true
+    try {
+      await apiCentral('central_salvar_acompanhamento',{
+        origem:record.source,referencia_id:record.id,situacao:status.input.value,
+        proximo_contato_em:next.input.value||null,observacoes:notes.input.value,
+        registrar_contato:contactInput.checked,
+      })
+      notice('Acompanhamento salvo. Próximo contato e observações atualizados.','success')
+      await loadCentral(false, true)
+    }catch(error){notice(error.message||'Não foi possível salvar.','error')}
+    finally{save.disabled=false}
+  })
+  return form
+}
+function inputCents(value) {
+  const string=String(value||'').trim()
+  if(!/^\d{1,8}(?:[.,]\d{1,2})?$/.test(string))return NaN
+  return Math.round(Number(string.replace(',','.'))*100)
+}
+function makePaymentEditor(record) {
+  const form=dom('form','gf-editor')
+  form.append(dom('h3','','Conferência de pagamento'),
+    dom('p','gf-editor-description',
+      'Este registro veio do Google Forms. Confira o pagamento na sua conta bancária ou no comprovante antes de marcar como recebido. A preferência por Pix ou cartão não é prova de pagamento.'))
+  const grid=dom('div','gf-editor-grid')
+  const status=labeledInput('Situação financeira','select')
+  for(const [v,text] of [
+    ['nao_conferido','Ainda não conferi'],
+    ['pendente','Conferi: pagamento pendente'],
+    ['parcial','Recebi parte do valor'],
+    ['pago_manual','Pago — conferido manualmente'],
+    ['cancelado','Cancelado / não contratado'],
+  ])addChoice(status.input,v,text)
+  status.input.value=record.status
+  const value=labeledInput('Valor efetivamente recebido (R$)','text',((record.paidValue||0)/100).toFixed(2).replace('.',','))
+  value.input.inputMode='decimal';value.input.placeholder='0,00'
+  const method=labeledInput('Meio de pagamento','select')
+  for(const [v,text] of [
+    ['','Selecione'],['pix','Pix'],['credito','Crédito'],['dinheiro','Dinheiro'],['outro','Outro'],
+  ])addChoice(method.input,v,text)
+  method.input.value=record.paymentMethod||''
+  const reference=labeledInput('Comprovante / identificador da transação','text',record.reference||'')
+  reference.input.maxLength=180;reference.input.placeholder='Ex.: ID no extrato ou referência do comprovante'
+  const notes=labeledInput('Observação da conferência','textarea',record.paymentNote||'')
+  notes.wrap.classList.add('gf-full');notes.input.maxLength=1200
+  notes.input.placeholder='Ex.: Identifiquei o Pix no extrato de 08/11.'
+  const confirm=dom('label','gf-check-row')
+  const checked=dom('input');checked.type='checkbox'
+  confirm.append(checked,document.createTextNode('Eu conferi o recebimento fora deste formulário e confirmo a informação acima.'))
+  confirm.classList.add('gf-full')
+  grid.append(status.wrap,value.wrap,method.wrap,reference.wrap,notes.wrap,confirm)
+  const refreshInputs=()=>{
+    const confirming=['parcial','pago_manual'].includes(status.input.value)
+    method.wrap.hidden=!confirming
+    reference.wrap.hidden=!confirming
+    confirm.hidden=!confirming
+    value.wrap.hidden=!confirming
+    if(!confirming)value.input.value='0,00'
+  }
+  status.input.addEventListener('change',refreshInputs)
+  refreshInputs()
+  form.append(grid)
+  const save=actionButton('Salvar conferência','btn btn-primary');save.type='submit'
+  const controls=dom('div','gf-form-actions');controls.append(save);form.append(controls)
+  form.addEventListener('submit',async e=>{
+    e.preventDefault()
+    const verifying=['parcial','pago_manual'].includes(status.input.value)
+    const cents=verifying?inputCents(value.input.value):0
+    if(!Number.isSafeInteger(cents)||cents<0){notice('Informe o valor recebido corretamente. Ex.: 159,00.','error');value.input.focus();return}
+    if(verifying&&(!checked.checked||!method.input.value||reference.input.value.trim().length<5)){
+      notice('Para registrar recebimento, confira o comprovante, informe o meio e uma referência e marque a confirmação.','error')
+      return
+    }
+    if(verifying&&!window.confirm('Você já verificou que este dinheiro realmente entrou na conta? Registrar como recebido manualmente?'))return
+    save.disabled=true
+    try{
+      await apiCentral('central_registrar_pagamento',{
+        resposta_id:record.id,situacao:status.input.value,
+        valor_recebido_centavos:cents,metodo:method.input.value,
+        referencia:reference.input.value.trim(),observacao:notes.input.value.trim(),
+        conferencia_confirmada:checked.checked,
+      })
+      notice('Conferência registrada com histórico de auditoria.','success')
+      await loadCentral(false, true)
+    }catch(error){notice(error.message||'Não foi possível registrar o pagamento.','error')}
+    finally{save.disabled=false}
+  })
+  return form
+}
+async function loadCentral(initial, preserveNotice = false) {
+  if(centralState.loading)return
+  centralState.loading=true
+  const refresh=document.getElementById('gf-central-refresh')
+  refresh.disabled=true
+  try {
+    const payload=await apiCentral('central_listar')
+    centralState.data=normalizedEntries(payload)
+    centralState.ready=true
+    updateMetrics()
+    renderList()
+    if (!preserveNotice) notice('Central atualizada: '+centralState.data.length+' registros. Valores recebidos são separados dos valores apenas informados.','success')
+    if(payload.resultados_possivelmente_truncados)notice('A consulta atingiu o limite de 1.000 registros por origem. Consulte a exportação completa antes de tomar decisões financeiras.','error')
+    if(centralState.selected) {
+      const selected=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
+      if(selected)selectRecord(selected)
+      else{centralState.selected=null;centralDetail.hidden=true}
+    }
+  }catch(error) {
+    notice(error.message||'Não foi possível carregar os registros.','error')
+    if(initial){centralMetrics.replaceChildren();centralList.replaceChildren(dom('p','gf-empty','Verifique sua conexão ou entre novamente como administrador.'))}
+  }finally {centralState.loading=false;refresh.disabled=false}
+}
+function csvSafe(value) {
+  let text=String(value??'')
+  if(/^[\s]*[=+@\-]/.test(text))text="'"+text
+  return '"'+text.replace(/"/g,'""')+'"'
+}
+function exportCsv() {
+  if(!centralState.ready){notice('Carregue a central antes de exportar.','error');return}
+  const cols=['Origem','Identificador','Data da resposta','Responsável','WhatsApp','E-mail','Bailarinas','Experiência','Valor informado (R$)','Valor recebido confirmado (R$)','Situação financeira','Preferência de pagamento','Meio confirmado','Referência','Follow-up','Próximo contato','Último contato','Observações']
+  const lines=[cols]
+  for(const r of visibleRecords())lines.push([
+    r.source==='formulario'?'Google Forms':'Galeria',r.label,safeDate(r.when),
+    r.name,r.whatsapp,r.email,r.dancer,r.package,
+    r.value==null?'':(r.value/100).toFixed(2).replace('.',','),
+    (confirmedMoney(r)/100).toFixed(2).replace('.',','),
+    statusDisplay(r)[0],r.preferred,r.paymentMethod,r.reference,
+    r.follow?.situacao||'nao_iniciado',r.follow?.proximo_contato_em||'',
+    r.follow?.ultimo_contato_em?safeDate(r.follow.ultimo_contato_em):'',r.follow?.observacoes||'',
+  ])
+  const csv='\uFEFF'+lines.map(row=>row.map(csvSafe).join(';')).join('\r\n')
+  const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}))
+  const link=dom('a');link.href=url;link.download='Grand_Focus_Central_Respostas_'+new Date().toISOString().slice(0,10)+'.csv'
+  document.body.append(link);link.click();link.remove()
+  URL.revokeObjectURL(url)
+  notice('Exportação preparada com os '+(lines.length-1)+' registros filtrados.','success')
+}
+document.getElementById('gf-central-refresh').addEventListener('click',()=>loadCentral(false))
+document.getElementById('gf-central-export').addEventListener('click',exportCsv)
+for(const button of document.querySelectorAll('#gf-central-tabs [data-view]')){
+  button.addEventListener('click',()=>{
+    centralState.view=button.dataset.view
+    for(const tab of document.querySelectorAll('#gf-central-tabs [data-view]'))
+      tab.setAttribute('aria-pressed',String(tab===button))
+    renderList()
+  })
+}
+for(const el of [centralSearch,centralOrigin,centralSort])el.addEventListener(el===centralSearch?'input':'change',renderList)
+window.addEventListener('gf-contratacao-admin-ready',()=>loadCentral(true))
+if(!document.getElementById('admin-area')?.classList.contains('hidden') && typeof window.gfContratacaoAdminRequest==='function')loadCentral(true)

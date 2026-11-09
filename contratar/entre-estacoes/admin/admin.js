@@ -84,6 +84,9 @@ async function adminRequest(action, values = {}) {
   return data
 }
 
+// A Central de Gestão compartilha esta chamada com a sessão autenticada atual.
+window.gfContratacaoAdminRequest = adminRequest
+
 function setField(id, value) {
   const element = document.getElementById(id)
   if (element) element.value = value ?? ''
@@ -524,6 +527,7 @@ async function enterAdmin() {
     await loadOrders()
     loginCard.classList.add('hidden')
     adminArea.classList.remove('hidden')
+    window.dispatchEvent(new Event('gf-contratacao-admin-ready'))
   } catch (error) {
     adminArea.classList.add('hidden')
     loginCard.classList.remove('hidden')
