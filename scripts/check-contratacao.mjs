@@ -32,6 +32,7 @@ const publicPage = read('contratar/entre-estacoes/index.html')
 const adminPage = read('contratar/entre-estacoes/admin/index.html')
 const managerPage = read('contratar/admin/index.html')
 const managerScript = read('contratar/admin/manager.js')
+const managerPremiumCss = read('contratar/admin/manager-premium.css')
 const galleryAdminPage = read('index.html')
 const vercelConfig = read('vercel.json')
 const workflow = read('.github/workflows/edge-functions-check.yml')
@@ -53,6 +54,28 @@ assert.ok(managerPage.includes('id="login-email" type="text"') && adminPage.incl
 assert.ok(managerScript.includes("supabase.rpc('email_por_usuario'") && adminScript.includes("supabase.rpc('email_por_usuario'"), 'Os dois painéis devem resolver o nome de usuário pelo mesmo mecanismo da galeria principal.')
 assert.ok(adminPage.includes('grand-focus-assinatura-ouro.png'), 'A administração deve usar a assinatura oficial da marca.')
 assert.ok(managerPage.includes('id="new-campaign-form"') && managerPage.includes('id="school-select"'), 'O gerenciador deve criar evento e contratação no mesmo formulário.')
+
+assert.ok(managerPage.includes('id="manager-heading"') &&
+  managerPage.includes('Suas campanhas,') &&
+  managerPage.includes('class="manager-hero-emblem"') &&
+  managerPage.includes('/assets/logo-icone.png') &&
+  managerPage.includes('manager-premium.css'),
+  'A gestão de campanhas deve usar o hero e logo circular oficial da Grand Focus.')
+assert.ok(managerPage.includes('id="manager-stat-total"') &&
+  managerPage.includes('id="manager-stat-published"') &&
+  managerPage.includes('id="manager-stat-orders"') &&
+  managerPage.includes('id="campaign-list"'),
+  'Visão geral deve mostrar indicadores reais de campanha sem substituir listagem.')
+assert.ok(managerScript.includes('function setCampaignOverview(campaigns)') &&
+  managerScript.includes("manage.className = 'campaign-manage'") &&
+  managerScript.includes("status.dataset.status") &&
+  managerScript.includes("adminRequest('criar_campanha'"),
+  'Novo visual deve manter edição, estados dos cartões e criação de campanhas.')
+assert.ok(managerPremiumCss.includes('.manager-hero-ring') &&
+  managerPremiumCss.includes('.manager-campaigns-section') &&
+  managerPremiumCss.includes('@media(max-width:560px)'),
+  'CSS premium precisa contemplar a logo redonda, lista e layout mobile.')
+
 assert.ok(managerPage.includes('grand-focus-assinatura-ouro.png'), 'O gerenciador deve usar a assinatura oficial da marca.')
 assert.ok(managerScript.includes("adminRequest('criar_campanha'") && managerScript.includes('grandfocus:contratacao-event-created'), 'O gerenciador deve criar a campanha e sinalizar a galeria para atualizar os eventos.')
 assert.ok(galleryAdminPage.includes('data-tab="contratacoes"') && galleryAdminPage.includes('src="/contratar/admin/"'), 'O gerenciador deve estar integrado ao menu administrativo da galeria.')
