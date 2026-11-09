@@ -1,0 +1,83 @@
+/* Editor de Formulários — painel privado Grand Focus. */
+.gf-builder {
+ --b-wine:#4B0416;--b-border:#DED5D7;--b-muted:#4E4951;
+ font-family:"Jost",system-ui,sans-serif;color:#27232A;line-height:1.6;
+}
+.gf-builder-head,.gf-builder-questions-head,.gf-builder-actions {
+ display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.gf-builder-head h2,.gf-builder h3 {color:var(--b-wine);line-height:1.3}
+.gf-builder-head h2 {font-size:clamp(26px,3.5vw,34px)}
+.gf-builder-head .panel-intro {max-width:680px;font-size:16px}
+.gf-builder-head .btn {min-height:48px;padding:11px 16px;text-decoration:none;display:inline-flex;align-items:center}
+.gf-builder-status {
+ margin:18px 0;padding:13px 16px;border-radius:9px;
+ background:#F5EFF1;border:1px solid #D7C9CE;color:#4B2132;font-size:15px;
+}
+.gf-builder-status[data-kind="error"] {background:#FFF0EF;border-color:#E0B3B0;color:#8A1E1E}
+.gf-builder-themes {
+ padding:19px;border:1px solid var(--b-border);border-radius:12px;background:#FFFDFC;margin-bottom:24px;
+}
+.gf-builder-themes h3,.gf-builder-questions-head h3 {margin:0 0 10px;font-size:21px}
+.gf-builder-theme-grid,.gf-builder-fields {
+ display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px;
+}
+.gf-builder-label,.gf-builder-theme-grid label {
+ min-width:0;display:flex;flex-direction:column;gap:7px;
+ font-size:15px;font-weight:600;color:#342E36;line-height:1.5;
+}
+.gf-builder :is(input[type="text"],input:not([type]),select,textarea) {
+ box-sizing:border-box;width:100%;min-width:0;min-height:49px;padding:11px 13px;
+ border:1px solid #AFA5AB;border-radius:8px;background:#FFF;color:#24202A;font-size:16px;
+ font-family:inherit;line-height:1.5;
+}
+.gf-builder textarea {min-height:100px;resize:vertical}
+.gf-builder input[type="color"] {
+ cursor:pointer;width:100%;max-width:150px;height:50px;padding:4px;border-radius:8px;
+ border:1px solid #AFA5AB;background:#FFF;
+}
+.gf-builder input[type="checkbox"] {height:23px;width:23px;accent-color:var(--b-wine)}
+.gf-builder .gf-builder-full {grid-column:1/-1}
+.gf-builder .hint {color:var(--b-muted);font-size:14px;line-height:1.6}
+.gf-builder-questions-head {margin:12px 0}
+.gf-builder-questions-head .hint {max-width:620px;margin:7px 0 0}
+.gf-builder-questions-head button {min-height:48px;white-space:normal;font-size:15px}
+.gf-builder-list {display:grid;gap:14px;margin:20px 0}
+.gf-builder-question {
+ min-width:0;background:white;border:1px solid #D9D0D5;
+ border-left:5px solid var(--b-wine);border-radius:12px;padding:19px 18px;
+}
+.gf-builder-question-top {display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:17px}
+.gf-builder-question-top strong {font-size:18px;color:var(--b-wine)}
+.gf-builder-question-tools {display:flex;gap:7px;flex-wrap:wrap}
+.gf-builder-tool {
+ display:inline-flex;justify-content:center;align-items:center;cursor:pointer;
+ border:1px solid #CBBFC6;border-radius:7px;background:#FFF;color:var(--b-wine);
+ min-height:42px;padding:8px 11px;font-family:inherit;font-size:14px;font-weight:600;
+}
+.gf-builder-tool:hover {background:#F8F0F3}
+.gf-builder-tool.gf-builder-delete {color:#9B2B34;border-color:#E5C0C3}
+.gf-builder-tool:disabled {opacity:.4;cursor:not-allowed}
+.gf-builder-condition {
+ display:flex;flex-direction:column;gap:10px;padding:16px;border-radius:10px;
+ border:1px solid #E5D9DF;background:#FBF8FA;grid-column:1/-1;
+}
+.gf-builder-condition strong {font-size:16px}
+.gf-builder-empty {padding:24px;border:1px dashed #C9B4BF;border-radius:12px;background:#FDF9FB}
+.gf-builder-empty p {margin:5px 0 0;color:#4A454F}
+.gf-builder-actions {padding:17px 0 7px}
+.gf-builder-actions button {min-height:50px;font-size:16px}
+.gf-builder-unsaved {font-size:14px;color:#506052}
+.gf-builder-unsaved[data-pending="true"] {color:#8B4E12;font-weight:700}
+.gf-builder :is(input,select,textarea,button,a):focus-visible {outline:3px solid #8C5670;outline-offset:3px}
+@media(max-width:650px) {
+ .gf-builder {padding:17px 13px !important}
+ .gf-builder-theme-grid,.gf-builder-fields {grid-template-columns:1fr}
+ .gf-builder .gf-builder-full {grid-column:1}
+ .gf-builder-question {padding:15px 12px}
+ .gf-builder-question-tools {width:100%}
+ .gf-builder-tool {flex:1 1 auto}
+ .gf-builder-head .btn,.gf-builder-questions-head button,.gf-builder-actions button {width:100%;justify-content:center}
+ .gf-builder-questions-head {align-items:stretch}
+ .gf-builder-themes {padding:15px}
+}
