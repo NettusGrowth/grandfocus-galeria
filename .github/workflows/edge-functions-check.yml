@@ -56,6 +56,7 @@ jobs:
           node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
           node --input-type=module --check < contratar/entre-estacoes/admin/central.js
           node --input-type=module --check < contratar/entre-estacoes/admin/form-builder.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/workspace.js
           node --input-type=module --check < contratar/entre-estacoes/questions.js
           node --input-type=module --check < contratar/admin/manager.js
       - name: Check contracting security and structure
@@ -81,6 +82,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/085_contratacao_pagamento_admin_perfis.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/086_contratacao_sem_coreografias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/087_editor_formularios_dinamicos.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/088_central_arquivamento_seguro.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-archive-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/form-builder-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/contratacao-tests.sql

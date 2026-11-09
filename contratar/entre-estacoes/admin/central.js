@@ -2,6 +2,7 @@
  * Sem edição do status pago dos pedidos InfinitePay; pagamentos históricos exigem conferência.
  */
 const centralRoot = document.getElementById('gf-central')
+const centralDialog = document.getElementById('gf-central-dialog')
 const centralList = document.getElementById('gf-central-list')
 const centralDetail = document.getElementById('gf-central-detail')
 const centralMetrics = document.getElementById('gf-central-metrics')
@@ -10,7 +11,7 @@ const centralSearch = document.getElementById('gf-central-search')
 const centralOrigin = document.getElementById('gf-central-origin')
 const centralSort = document.getElementById('gf-central-sort')
 const centralResultCount = document.getElementById('gf-central-results-count')
-const centralState = { data: [], view: 'todos', selected: null, loading: false, ready: false }
+const centralState = { data: [], view: 'todos', layout: 'compact', selected: null, loading: false, ready: false, section: null }
 const brl = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(value)||0)/100)
 const safeDate = value => {
   if (!value) return 'Não informado'
@@ -33,6 +34,11 @@ function dom(tag, className, text) {
 function notice(text, kind) {
   centralNotice.textContent = text
   centralNotice.dataset.kind = kind||'info'
+  const dialogNotice=document.getElementById('gf-modal-notice')
+  if(dialogNotice && centralDialog.open){
+    dialogNotice.textContent=text
+    dialogNotice.dataset.kind=kind||'info'
+  }
 }
 function tag(text, tone) {
   const element = dom('span','gf-tag',text)
@@ -95,6 +101,7 @@ function normalizedEntries(payload) {
       paidValue:Number(p.valor_pago_centavos)||Number(p.valor_total_centavos)||0,
       paymentMethod:p.metodo_pagamento||'',preferred:'',
       status:p.status,when:p.criado_em,reference:'Pagamento automático conforme provedor',
+      archived:!!p.arquivado_em, archivedAt:p.arquivado_em||null,
       questionAnswers:p.formulario_respostas||{},
       questionSnapshot:p.formulario_modelo_snapshot||{},
     }
@@ -114,11 +121,24 @@ function normalizedEntries(payload) {
       when:p.respondido_em||p.criado_em,reference:p.pagamento_referencia||'',
       sourceNote:p.observacao_origem||'',paymentNote:p.pagamento_observacao||'',
       paymentChecked:p.pagamento_conferido_em||null,
+      archived:!!p.arquivado_em, archivedAt:p.arquivado_em||null,
     }
     entry.follow=follows.get('formulario:'+p.id)||null
     return entry
   })
   return [...online,...forms]
+}
+function hasContact(record) {
+  const follow=record.follow||{}
+  return !!follow.ultimo_contato_em || ['aguardando_resposta','concluido','nao_precisa'].includes(follow.situacao)
+}
+function isNewRecord(record) {return !record.archived && !paid(record) && !hasContact(record)}
+function crmDisplay(record) {
+  if(record.archived)return ['Arquivado','neutral','arquivado']
+  if(paid(record))return ['Pago','positive','pago']
+  if(needsFollow(record))return ['Precisa de retorno','attention','atencao']
+  if(hasContact(record))return ['Já contatado','contact','contatado']
+  return [record.source==='online'?'Novo cadastro':'Sem contato registrado','new','novo']
 }
 function metric(label,value,caption,tone) {
   const card=dom('article','gf-metric')
@@ -127,28 +147,33 @@ function metric(label,value,caption,tone) {
   return card
 }
 function updateMetrics() {
-  const entries=centralState.data
+  const entries=centralState.data.filter(r=>!r.archived||paid(r))
   const originalSum=entries.reduce((s,r)=>s+(r.value||0),0)
   const autoSum=entries.filter(nativePaid).reduce((s,r)=>s+confirmedMoney(r),0)
   const manualSum=entries.filter(r=>r.source==='formulario').reduce((s,r)=>s+confirmedMoney(r),0)
   const pendingSum=entries.reduce((s,r)=>s+pendingMoney(r),0)
   centralMetrics.replaceChildren(
-    metric('Total recebido conferido',brl(autoSum+manualSum),'InfinitePay + conferências manuais','positive'),
-    metric('Confirmado pela InfinitePay',brl(autoSum),'Pedidos da galeria com status pago','positive'),
-    metric('Conferido manualmente',brl(manualSum),'Registros antigos com referência de pagamento','positive'),
-    metric('A cobrar · pendências identificadas',brl(pendingSum),'Não inclui respostas antigas ainda não conferidas','attention'),
-    metric('Valores informados',brl(originalSum),'Não é faturamento nem comprovante de recebimento'),
-    metric('A conferir / follow-up',countBy(needsReview)+' / '+countBy(needsFollow),
-      'Pendências de conferência e contatos que precisam de atenção','attention'),
+    metric('Cadastros ativos',String(entries.filter(r=>!r.archived).length),'Famílias e pedidos visíveis'),
+    metric('Recebido confirmado',brl(autoSum+manualSum),'Somente pagamentos verificados','positive'),
+    metric('A conferir',String(entries.filter(needsReview).length),'Pagamentos que ainda precisam de revisão','attention'),
+    metric('Valores informados',brl(originalSum),'Não representa faturamento'),
+    metric('Pendências a cobrar',brl(pendingSum),'Não inclui históricos sem conferência','attention'),
+    metric('Confirmado pela InfinitePay',brl(autoSum),'Pagamento online conferido','positive'),
+    metric('Conferido manualmente',brl(manualSum),'Com referência da conferência','positive'),
+    metric('Contatos pendentes',String(entries.filter(needsFollow).length),'Follow-ups agendados ou marcados','attention'),
   )
 }
 function updateViewCounters() {
+  const active=centralState.data.filter(r=>!r.archived)
   const counters={
-    todos:centralState.data.length,
-    conferir:countBy(needsReview),
-    follow:countBy(needsFollow),
-    pendentes:countBy(openPending),
-    pagos:countBy(paid),
+    todos:active.length,
+    novos:active.filter(isNewRecord).length,
+    contatados:active.filter(hasContact).length,
+    conferir:active.filter(needsReview).length,
+    follow:active.filter(needsFollow).length,
+    pendentes:active.filter(openPending).length,
+    pagos:active.filter(paid).length,
+    arquivados:centralState.data.filter(r=>r.archived).length,
   }
   for(const [name,n] of Object.entries(counters)) {
     const el=document.getElementById('gf-count-'+name)
@@ -156,7 +181,11 @@ function updateViewCounters() {
   }
 }
 function viewMatch(r) {
+  if(centralState.view==='arquivados')return r.archived
+  if(r.archived)return false
   switch(centralState.view){
+    case 'novos':return isNewRecord(r)
+    case 'contatados':return hasContact(r)
     case 'conferir':return needsReview(r)
     case 'follow':return needsFollow(r)
     case 'pendentes':return openPending(r)
@@ -184,21 +213,21 @@ function visibleRecords() {
 function renderRecord(record) {
   const card=dom('button','gf-result-card')
   card.type='button'
+  const [crmLabel,crmTone,crmKind]=crmDisplay(record)
+  card.dataset.crm=crmKind
   card.dataset.selected=String(centralState.selected===record.source+':'+record.id)
-  card.setAttribute('aria-label','Abrir ficha de '+record.name+', '+statusDisplay(record)[0])
+  card.setAttribute('aria-label','Abrir ficha de '+record.name+', '+crmLabel)
   const header=dom('div','gf-record-head')
   header.append(dom('strong','gf-record-name',record.name))
-  const m=dom('div','gf-record-meta')
-  const [title,tone]=statusDisplay(record)
-  m.append(tag(title,tone))
-  if(needsFollow(record))m.append(tag('Follow-up','danger'))
-  if(record.follow?.situacao==='aguardando_resposta')m.append(tag('Aguardando resposta','attention'))
-  card.append(header,dom('div','gf-record-sub',record.dancer||'Participantes não cadastrados'))
-  if(record.package)card.append(dom('div','gf-record-sub',record.package))
-  card.append(m)
+  const badges=dom('div','gf-record-meta')
+  badges.append(tag(crmLabel,crmTone))
+  if(needsReview(record)&&!record.archived&&!paid(record))badges.append(tag('Pagamento a conferir','attention'))
+  card.append(header,dom('div','gf-record-sub',record.dancer||'Participantes não informados'))
+  if(record.package)card.append(dom('div','gf-record-sub gf-record-package',record.package))
+  card.append(badges)
   const bottom=dom('div','gf-record-bottom')
   bottom.append(dom('strong','gf-record-value',record.value==null?'Valor a conferir':brl(record.value)),
-    dom('span','gf-record-sub',record.source==='formulario'?'Google Forms':'Pedido online'))
+    dom('span','gf-record-sub',record.source==='formulario'?'Histórico':'Pedido online'))
   card.append(bottom)
   card.addEventListener('click',()=>selectRecord(record))
   return card
@@ -208,6 +237,7 @@ function renderList() {
   const list=visibleRecords()
   centralResultCount.textContent=list.length+' registro(s) encontrados'
   centralList.replaceChildren()
+  centralList.dataset.layout=centralState.layout
   if(!list.length) {
     centralList.append(dom('div','gf-empty','Nenhum registro corresponde aos filtros. Tente outra busca ou veja a opção “Todos”.'))
   } else {
@@ -243,85 +273,148 @@ function addChoice(select,value,text) {
 function actionButton(label,className) {
   const button=dom('button',className||'btn btn-secondary',label);button.type='button';return button
 }
-function scrollDetails() {
-  centralDetail.scrollIntoView({behavior:'auto',block:'start'})
-  const heading=centralDetail.querySelector('h3')
-  if(heading){heading.tabIndex=-1;heading.focus({preventScroll:true})}
+function closeRecord() {
+  if(centralDialog.open)centralDialog.close()
+  centralState.selected=null
+  centralState.section=null
+  renderList()
+}
+function detailAccordion(title,form,key){
+  const wrap=dom('details','gf-detail-accordion')
+  wrap.dataset.accordion=key
+  const summary=dom('summary','',title+'  ⌄')
+  wrap.append(summary,form)
+  if(centralState.section===key)wrap.open=true
+  wrap.addEventListener('toggle',()=>{
+    if(wrap.open)centralState.section=key
+    else if(centralState.section===key)centralState.section=null
+  })
+  return wrap
+}
+function canArchive(record){
+  if(record.archived)return true
+  if(paid(record)||confirmedMoney(record)>0)return false
+  if(record.source==='online')return ['aguardando_pagamento','pagamento_pendente','expirado','cancelado'].includes(record.status)
+  return ['nao_conferido','pendente','cancelado'].includes(record.status)
+}
+function addArchiveControls(record){
+  const bar=dom('div','gf-archive-bar')
+  const description=dom('p','','Registros de teste podem sair da lista sem destruir o histórico. Você poderá recuperá-los em “Arquivados”. Pagamentos confirmados não podem ser arquivados.')
+  bar.append(description)
+  if(!canArchive(record)){
+    bar.append(dom('span','gf-small-note','Registro financeiro protegido'))
+    return bar
+  }
+  const button=actionButton(record.archived?'Restaurar cadastro':'Arquivar cadastro')
+  button.addEventListener('click',async()=>{
+    const willArchive=!record.archived
+    if(!window.confirm(willArchive
+      ?'Arquivar o cadastro de '+record.name+'? Ele sairá dos indicadores e da lista principal. Nenhum dado será apagado, e o arquivamento não cancela links externos de pagamento.'
+      :'Restaurar o cadastro de '+record.name+' para a lista principal?'))return
+    button.disabled=true
+    try{
+      await apiCentral('central_arquivar',{origem:record.source,referencia_id:record.id,arquivar:willArchive})
+      closeRecord()
+      notice(willArchive?'Cadastro arquivado. Você pode restaurá-lo em “Arquivados”.':'Cadastro restaurado para a lista ativa.','success')
+      await loadCentral(false,true)
+    }catch(error){
+      notice(error.message||'Não foi possível atualizar o cadastro.','error')
+    }finally{button.disabled=false}
+  })
+  bar.append(button)
+  return bar
 }
 function selectRecord(record) {
   centralState.selected=record.source+':'+record.id
-  for(const card of centralList.querySelectorAll('.gf-result-card')) {
-    card.dataset.selected='false'
-  }
   const lookup=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
   if(!lookup)return
-  centralDetail.hidden=false
   centralDetail.replaceChildren()
   const header=dom('div','gf-detail-toolbar')
   const headerMain=dom('div')
-  headerMain.append(dom('h3','gf-detail-title',record.name),dom('p','gf-detail-subtitle',record.label))
-  const close=actionButton('Fechar ficha')
-  close.addEventListener('click',()=>{centralDetail.hidden=true;centralState.selected=null;renderList()})
+  headerMain.append(dom('h3','gf-detail-title',record.name),dom('p','gf-detail-subtitle',record.dancer||'Cadastro'))
+  const close=actionButton('✕ Fechar')
+  close.setAttribute('aria-label','Fechar ficha e voltar à lista')
+  close.addEventListener('click',closeRecord)
   header.append(headerMain,close)
   centralDetail.append(header)
+  const feedback=dom('p','gf-modal-notice')
+  feedback.id='gf-modal-notice';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite')
+  if(centralNotice.dataset.kind==='error' || centralNotice.dataset.kind==='success'){
+    feedback.textContent=centralNotice.textContent
+    feedback.dataset.kind=centralNotice.dataset.kind
+  }else feedback.hidden=true
+  centralDetail.append(feedback)
   const [statusText,statusTone]=statusDisplay(record)
   const flags=dom('div','gf-record-meta')
-  flags.append(tag(statusText,statusTone),tag(record.source==='online'?'Pedido pelo site':'Resposta do Google Forms','neutral'))
+  const [crmLabel,crmTone]=crmDisplay(record)
+  flags.append(tag(crmLabel,crmTone),tag(statusText,statusTone))
   centralDetail.append(flags)
   const grid=dom('div','gf-detail-grid')
   grid.append(
     detailBox('Bailarina(s)',record.dancer),
     detailBox('Pacote / experiência',record.package),
     detailBox('Valor informado',record.value==null?'A conferir':brl(record.value)),
-    detailBox('Valor recebido e conferido',brl(confirmedMoney(record))),
-    detailBox('Registro recebido em',safeDate(record.when)),
-    detailBox(record.source==='formulario'?'Preferência de pagamento':'Meio de pagamento',record.preferred||record.paymentMethod||'Não informado'),
+    detailBox('Recebido confirmado',brl(confirmedMoney(record))),
   )
-  if(record.source==='formulario'&&record.sourceNote)grid.append(detailBox('Observação da planilha',record.sourceNote))
-  if(record.paymentChecked)grid.append(detailBox('Pagamento conferido em',safeDate(record.paymentChecked)))
-  if(record.reference)grid.append(detailBox('Referência de pagamento',record.reference))
-  if(record.email)grid.append(detailBox('E-mail',record.email))
-  if(record.whatsapp)grid.append(detailBox('WhatsApp',record.whatsapp))
   centralDetail.append(grid)
-  // Respostas pessoais aparecem somente nesta ficha, sem sobrescrever o modelo original.
+  const info=dom('details','gf-detail-accordion')
+  info.append(dom('summary','','Ver demais informações  ⌄'))
+  const extras=dom('div','gf-detail-grid')
+  extras.append(
+    detailBox('Data de cadastro',safeDate(record.when)),
+    detailBox('Meio de pagamento',record.preferred||record.paymentMethod||'Não informado'),
+  )
+  if(record.source==='formulario'&&record.sourceNote)extras.append(detailBox('Observação do formulário',record.sourceNote))
+  if(record.paymentChecked)extras.append(detailBox('Pagamento conferido em',safeDate(record.paymentChecked)))
+  if(record.reference)extras.append(detailBox('Referência',record.reference))
+  if(record.email)extras.append(detailBox('E-mail',record.email))
+  if(record.whatsapp)extras.append(detailBox('WhatsApp',record.whatsapp))
+  info.append(extras);centralDetail.append(info)
   if(record.source==='online' && record.questionSnapshot?.modelo?.perguntas?.length){
-    const block=dom('section','gf-editor')
-    block.append(dom('h3','','Respostas do formulário personalizado'))
-    const version=record.questionSnapshot.versao||'não informada'
-    block.append(dom('p','gf-editor-description','Perguntas e respostas preservadas na versão '+version+' desta contratação.'))
+    const block=dom('details','gf-detail-accordion')
+    block.append(dom('summary','','Respostas adicionais do formulário  ⌄'))
     const answers=dom('div','gf-detail-grid')
     for(const question of record.questionSnapshot.modelo.perguntas){
       const answer=record.questionAnswers?.[question.id]
-      const display=Array.isArray(answer)?answer.join(' • '):String(answer||'Não respondida')
-      answers.append(detailBox(question.titulo,display))
+      answers.append(detailBox(question.titulo,Array.isArray(answer)?answer.join(' • '):String(answer||'Não respondida')))
     }
     block.append(answers);centralDetail.append(block)
   }
   const phone=phoneLink(record.whatsapp)
   if(phone){
     const links=dom('div','gf-contact-row')
-    const link=dom('a','', 'Conversar no WhatsApp')
+    const link=dom('a','', 'Conversar no WhatsApp ↗')
     link.href=phone;link.target='_blank';link.rel='noopener noreferrer'
-    links.append(link)
-    centralDetail.append(links)
+    links.append(link);centralDetail.append(links)
   }
-  centralDetail.append(makeFollowEditor(record))
-  if(record.source==='formulario') centralDetail.append(makePaymentEditor(record))
-  else {
-    const text=dom('p','gf-small-note','Pagamento dos pedidos online é confirmado somente pela InfinitePay. Nenhuma ação manual desta central altera o status pago do provedor.')
-    centralDetail.append(text)
-    if(['pagamento_pendente','conciliacao_pendente'].includes(record.status)) {
-      const reconcile=actionButton('Consultar pagamento na InfinitePay','btn btn-secondary')
-      reconcile.addEventListener('click',async()=>{
-        reconcile.disabled=true
-        try { await apiCentral('reconciliar',{pedido_id:record.id});notice('Consulta à InfinitePay concluída. Confira o status atualizado.','success');await loadCentral(false, true) }
-        catch(error){notice(error.message,'error')}
-        finally{reconcile.disabled=false}
-      })
-      centralDetail.append(reconcile)
+  if(!record.archived){
+    centralDetail.append(detailAccordion('Acompanhamento e contato',makeFollowEditor(record),'contato'))
+    if(record.source==='formulario'){
+      centralDetail.append(detailAccordion('Conferência de pagamento',makePaymentEditor(record),'pagamento'))
+    }else{
+      const box=dom('details','gf-detail-accordion')
+      box.append(dom('summary','','Pagamento pela InfinitePay  ⌄'),
+        dom('p','gf-small-note','Pagamentos online são confirmados apenas pela InfinitePay; esta central não marca pedidos automaticamente como pagos.'))
+      if(['pagamento_pendente','conciliacao_pendente'].includes(record.status)){
+        const reconcile=actionButton('Consultar pagamento na InfinitePay')
+        reconcile.addEventListener('click',async()=>{
+          reconcile.disabled=true
+          try{await apiCentral('reconciliar',{pedido_id:record.id});notice('Consulta concluída. Confira o status atualizado.','success');await loadCentral(false,true)}
+          catch(error){notice(error.message||'Erro na consulta.','error')}
+          finally{reconcile.disabled=false}
+        })
+        box.append(reconcile)
+      }
+      centralDetail.append(box)
     }
+  }else {
+    centralDetail.append(dom('p','gf-small-note','Cadastro arquivado. Para voltar a editar ou registrar contato, restaure primeiro.'))
   }
-  scrollDetails()
+  centralDetail.append(addArchiveControls(record))
+  if(!centralDialog.open)centralDialog.showModal()
+  centralDetail.scrollTop=0
+  const title=centralDetail.querySelector('.gf-detail-title')
+  if(title){title.tabIndex=-1;title.focus({preventScroll:true})}
 }
 function makeFollowEditor(record) {
   const follow=record.follow||{}
@@ -452,12 +545,12 @@ async function loadCentral(initial, preserveNotice = false) {
     centralState.ready=true
     updateMetrics()
     renderList()
-    if (!preserveNotice) notice('Central atualizada: '+centralState.data.length+' registros. Valores recebidos são separados dos valores apenas informados.','success')
+    if (!preserveNotice) notice('Atualizado: '+centralState.data.filter(r=>!r.archived).length+' cadastros ativos.','success')
     if(payload.resultados_possivelmente_truncados)notice('A consulta atingiu o limite de 1.000 registros por origem. Consulte a exportação completa antes de tomar decisões financeiras.','error')
     if(centralState.selected) {
       const selected=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
       if(selected)selectRecord(selected)
-      else{centralState.selected=null;centralDetail.hidden=true}
+      else{centralState.selected=null;if(centralDialog.open)centralDialog.close()}
     }
   }catch(error) {
     notice(error.message||'Não foi possível carregar os registros.','error')
@@ -493,6 +586,26 @@ function exportCsv() {
   URL.revokeObjectURL(url)
   notice('Exportação preparada com os '+(lines.length-1)+' registros filtrados.','success')
 }
+const metricToggle=document.getElementById('gf-metrics-toggle')
+metricToggle.addEventListener('click',()=>{
+  const expanded=centralRoot.classList.toggle('gf-metrics-expanded')
+  metricToggle.setAttribute('aria-expanded',String(expanded))
+  metricToggle.textContent=expanded?'Mostrar menos indicadores  ⌃':'Ver todos os indicadores  ⌄'
+})
+for(const [buttonId,mode] of [['gf-layout-compact','compact'],['gf-layout-cards','cards']]){
+  document.getElementById(buttonId).addEventListener('click',()=>{
+    centralState.layout=mode
+    document.getElementById('gf-layout-compact').setAttribute('aria-pressed',String(mode==='compact'))
+    document.getElementById('gf-layout-cards').setAttribute('aria-pressed',String(mode==='cards'))
+    renderList()
+  })
+}
+centralDialog.addEventListener('close',()=>{
+  centralState.selected=null;centralState.section=null;renderList()
+})
+centralDialog.addEventListener('click',event=>{
+  if(event.target===centralDialog)closeRecord()
+})
 document.getElementById('gf-central-refresh').addEventListener('click',()=>loadCentral(false))
 document.getElementById('gf-central-export').addEventListener('click',exportCsv)
 for(const button of document.querySelectorAll('#gf-central-tabs [data-view]')){

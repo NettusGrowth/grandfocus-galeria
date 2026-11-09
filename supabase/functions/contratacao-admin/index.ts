@@ -65,6 +65,7 @@ Deno.serve(async (req: Request) => {
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_registrar_pagamento': return await actionCentralRegistrarPagamento(req, admin, user.id, body, requestedCampaignSlug(body))
+      case 'central_arquivar': return await actionCentralArquivar(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'criar_campanha': return await actionCriarCampanha(req, admin, user.id, body)
       case 'config': return await actionConfig(req, admin, requestedCampaignSlug(body))
       case 'salvar': return await actionSalvar(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -437,11 +438,11 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   const evento = await getCampaign(admin, slug)
   const [nativeResult, formsResult, followResult] = await Promise.all([
     admin.from('gf_contratacao_pedidos')
-      .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,valor_pago_centavos,pagamento_confirmado_em,metodo_pagamento,criado_em,formulario_respostas,formulario_modelo_snapshot')
+      .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,valor_pago_centavos,pagamento_confirmado_em,metodo_pagamento,criado_em,formulario_respostas,formulario_modelo_snapshot,arquivado_em')
       .eq('evento_contratacao_id',evento.id)
       .order('criado_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_form_respostas')
-      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em')
+      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em')
       .eq('evento_contratacao_id',evento.id)
       .order('respondido_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_acompanhamentos')
@@ -486,6 +487,24 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
     resultados_possivelmente_truncados:
       pedidos.length>=1000||(formsResult.data||[]).length>=1000||(followResult.data||[]).length>=1000,
   })
+}
+
+
+async function actionCentralArquivar(req:Request,admin:any,userId:string,body:any,slug:string){
+  const evento=await getCampaign(admin,slug)
+  const origem=String(body?.origem||'')
+  const referencia=String(body?.referencia_id||'')
+  const arquivar=body?.arquivar
+  if(!/^[0-9a-f-]{36}$/i.test(referencia) ||
+     !['formulario','online'].includes(origem) || typeof arquivar!=='boolean'){
+    return jsonResponse(req,{error:'Não foi possível identificar o registro a arquivar.'},400)
+  }
+  const {data,error}=await admin.rpc('gf_contratacao_admin_arquivar_registro',{
+    p_campanha_id:evento.id,p_origem:origem,
+    p_referencia_id:referencia,p_arquivar:arquivar,p_usuario_id:userId
+  })
+  if(error)return jsonResponse(req,{error:error.message||'Este registro não pode ser arquivado.'},409)
+  return jsonResponse(req,data||{ok:true,arquivado:arquivar})
 }
 
 async function actionCentralSalvarAcompanhamento(req:Request,admin:any,userId:string,body:any,slug:string){

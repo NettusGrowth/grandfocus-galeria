@@ -14,6 +14,8 @@
   <script type="module" src="/contratar/entre-estacoes/admin/admin.js"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/central.js"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/form-builder.js"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/workspace.js"></script>
+  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/workspace.css">
 </head>
 <body>
   <header class="site-header">
@@ -43,51 +45,70 @@
       </form>
     </section>
 
-    <section id="admin-area" class="hidden">
-      <div class="panel">
-        <div class="participant-head">
+    <section id="admin-area" class="hidden gf-workspace" data-workspace-view="respostas">
+      <header class="gf-workspace-head">
+        <div class="gf-workspace-brand">
+          <img src="/assets/logo-icone.png" alt="" width="56" height="56">
           <div>
-            <p class="eyebrow">Painel da campanha</p>
-            <h2 id="campaign-title">Configuração da contratação</h2>
-            <p class="panel-intro" id="campaign-status">Carregando configuração…</p>
-            <a id="public-link" class="text-button" href="#" target="_blank" rel="noopener noreferrer">Abrir página pública</a>
-            <a id="preview-link" class="text-button" href="#" target="_blank" rel="noopener noreferrer">Pré-visualizar formulário</a>
-            <a class="text-button" href="/contratar/admin/">Voltar ao gerenciador</a>
-            <a class="text-button" href="#gf-central">Abrir Central de Gestão</a>
+            <span class="gf-workspace-eyebrow">Grand Focus • Administração</span>
+            <h1 id="campaign-title">Sua contratação</h1>
+            <p id="campaign-status">Carregando campanha…</p>
           </div>
-          <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
         </div>
-        <div class="admin-actions">
-          <button class="btn btn-secondary" type="button" id="save-button">Salvar configuração</button>
-          <button class="btn btn-primary" type="button" id="publish-button">Publicar campanha</button>
-          <button class="btn btn-secondary" type="button" id="pause-button">Pausar campanha</button>
-          <button class="btn btn-danger" type="button" id="close-button">Encerrar campanha</button>
+        <div class="gf-workspace-shortcuts">
+          <a id="preview-link" class="gf-workspace-link" href="#" target="_blank" rel="noopener noreferrer">Ver formulário <span aria-hidden="true">↗</span></a>
+          <a id="public-link" class="gf-workspace-link" href="#" target="_blank" rel="noopener noreferrer">Página pública <span aria-hidden="true">↗</span></a>
+          <details class="gf-workspace-more">
+            <summary>Mais opções <span aria-hidden="true">⌄</span></summary>
+            <div class="gf-workspace-more-menu">
+              <a href="/contratar/admin/">Todas as campanhas</a>
+              <div class="gf-workspace-more-actions">
+                <button class="btn btn-secondary" type="button" id="publish-button">Publicar campanha</button>
+                <button class="btn btn-secondary" type="button" id="pause-button">Pausar campanha</button>
+                <button class="btn btn-danger" type="button" id="close-button">Encerrar campanha</button>
+              </div>
+              <button class="btn btn-secondary" type="button" id="logout-button">Sair da conta</button>
+            </div>
+          </details>
         </div>
-        <p class="admin-message hidden" id="admin-message" role="status"></p>
-        <div class="status-card" id="integration-status" aria-live="polite">Verificando a integração de pagamentos…</div>
-      </div>
+      </header>
+      <nav class="gf-workspace-nav" aria-label="O que você quer administrar?" role="group">
+        <button type="button" data-workspace-tab="respostas" aria-pressed="true"><span aria-hidden="true">▤</span> Respostas</button>
+        <button type="button" data-workspace-tab="perguntas" aria-pressed="false"><span aria-hidden="true">✎</span> Perguntas</button>
+        <button type="button" data-workspace-tab="aparencia" aria-pressed="false"><span aria-hidden="true">◈</span> Aparência</button>
+        <button type="button" data-workspace-tab="evento" aria-pressed="false"><span aria-hidden="true">⚙</span> Evento e pacotes</button>
+      </nav>
+      <p class="admin-message hidden" id="admin-message" role="status"></p>
+      <details class="gf-workspace-integration" data-workspace-page="evento">
+        <summary>Integração e pagamentos <span class="gf-workspace-integration-tag">Configurações avançadas</span></summary>
+        <div class="status-card" id="integration-status" aria-live="polite">Verificando integração…</div>
+      </details>
 
-      <section class="panel gf-central" id="gf-central" aria-labelledby="gf-central-title">
+      <section class="panel gf-central" id="gf-central" data-workspace-page="respostas" aria-labelledby="gf-central-title">
         <header class="gf-central-header">
           <div>
-            <p class="gf-central-eyebrow">Gestão de respostas, pagamentos e relacionamento</p>
-            <h2 id="gf-central-title">Central de Gestão</h2>
-            <p class="gf-central-subtitle">Tudo em um só lugar: quem respondeu, quem pagou, o que falta conferir e quando entrar em contato.</p>
+            <p class="gf-central-eyebrow">Visão geral</p>
+            <h2 id="gf-central-title">Respostas e pagamentos</h2>
+            <p class="gf-central-subtitle">Encontre uma família, veja o status e organize o próximo contato.</p>
           </div>
           <div class="gf-central-actions">
-            <button class="btn btn-secondary" type="button" id="gf-central-refresh">Atualizar</button>
-            <button class="btn btn-secondary" type="button" id="gf-central-export" title="Baixa um arquivo CSV que pode ser aberto no Excel">Baixar planilha</button>
+            <button class="btn btn-secondary" type="button" id="gf-central-refresh">↻ Atualizar</button>
+            <button class="btn btn-secondary" type="button" id="gf-central-export">↓ Exportar</button>
           </div>
         </header>
         <div class="gf-central-notice" id="gf-central-notice" role="status" aria-live="polite">Preparando seus registros…</div>
-        <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Indicadores financeiros e de acompanhamento"></div>
-        <p class="gf-central-trust">Atenção: a escolha de Pix ou cartão no Google Forms não comprova pagamento. Registros antigos entram como <strong>a conferir</strong> até a confirmação manual. Pedidos online só ficam pagos após confirmação do provedor.</p>
+        <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
+        <button type="button" class="gf-metrics-toggle" id="gf-metrics-toggle" aria-expanded="false">Ver todos os indicadores <span aria-hidden="true">⌄</span></button>
+        <details class="gf-trust-details"><summary>Como os pagamentos são contabilizados?</summary><p>Escolher Pix ou cartão no formulário não comprova pagamento. Somente recebimentos conferidos manualmente ou confirmados pela InfinitePay entram como pagos. Registros arquivados sem recebimento ficam fora dos indicadores ativos.</p></details>
         <div class="gf-central-tabs" id="gf-central-tabs" role="group" aria-label="Filtrar registros">
           <button type="button" data-view="todos" aria-pressed="true">Todos <span id="gf-count-todos"></span></button>
+          <button type="button" data-view="novos" aria-pressed="false">Novos <span id="gf-count-novos"></span></button>
+          <button type="button" data-view="contatados" aria-pressed="false">Contatados <span id="gf-count-contatados"></span></button>
           <button type="button" data-view="conferir" aria-pressed="false">A conferir <span id="gf-count-conferir"></span></button>
           <button type="button" data-view="follow" aria-pressed="false">Follow-ups <span id="gf-count-follow"></span></button>
           <button type="button" data-view="pendentes" aria-pressed="false">Pendências <span id="gf-count-pendentes"></span></button>
           <button type="button" data-view="pagos" aria-pressed="false">Pagos <span id="gf-count-pagos"></span></button>
+          <button type="button" data-view="arquivados" aria-pressed="false">Arquivados <span id="gf-count-arquivados"></span></button>
         </div>
         <div class="gf-central-filter-grid">
           <label for="gf-central-search">Buscar responsável, bailarina ou telefone
@@ -109,22 +130,30 @@
             </select>
           </label>
         </div>
-        <p class="gf-central-results-count" id="gf-central-results-count" aria-live="polite"></p>
+        <div class="gf-central-viewbar">
+          <p class="gf-central-results-count" id="gf-central-results-count" aria-live="polite"></p>
+          <div class="gf-central-layout-switch" role="group" aria-label="Modo de visualização">
+            <button type="button" id="gf-layout-compact" aria-pressed="true" title="Lista resumida">☷ <span>Lista</span></button>
+            <button type="button" id="gf-layout-cards" aria-pressed="false" title="Cartões com detalhes">▦ <span>Cartões</span></button>
+          </div>
+        </div>
         <div class="gf-central-list" id="gf-central-list"></div>
-        <div class="gf-central-detail" id="gf-central-detail" hidden aria-label="Detalhes do registro"></div>
+        <dialog id="gf-central-dialog" class="gf-central-dialog" aria-label="Ficha da família">
+          <div class="gf-central-detail" id="gf-central-detail" aria-label="Detalhes do registro"></div>
+        </dialog>
       </section>
 
-      <section class="panel gf-builder" id="gf-builder" aria-labelledby="gf-builder-heading">
+      <section class="panel gf-builder" id="gf-builder" data-workspace-page="perguntas aparencia" aria-labelledby="gf-builder-heading">
         <header class="gf-builder-head">
           <div>
-            <p class="eyebrow">Personalização por evento</p>
-            <h2 id="gf-builder-heading">Editor de perguntas</h2>
-            <p class="panel-intro">Cada escola e cada evento podem ter perguntas diferentes. O formulário registra as respostas junto ao pedido. Os dados de responsável, bailarina, pacote, pagamento e termos continuam protegidos e obrigatórios.</p>
+            <p class="eyebrow">Personalizar formulário</p>
+            <h2 id="gf-builder-heading">Perguntas</h2>
+            <p class="panel-intro" id="gf-builder-explainer">Adicione e organize as perguntas que esta escola precisa responder.</p>
           </div>
           <a class="btn btn-secondary" id="gf-builder-preview-link" href="/contratar/entre-estacoes/?preview=1" target="_blank" rel="noopener noreferrer">Ver prévia</a>
         </header>
         <div class="gf-builder-status" id="gf-builder-status" role="status" aria-live="polite">Carregando perguntas…</div>
-        <div class="gf-builder-themes">
+        <div class="gf-builder-themes" data-builder-pane="aparencia">
           <h3>Aparência do formulário</h3>
           <div class="gf-builder-theme-grid">
             <label>Cor principal
@@ -142,21 +171,22 @@
           </div>
           <p class="hint">Escolha uma cor principal escura e um fundo claro. Isso melhora a leitura no celular.</p>
         </div>
-        <div class="gf-builder-questions-head">
+        <div class="gf-builder-questions-head" data-builder-pane="perguntas">
           <div>
             <h3>Perguntas personalizadas</h3>
             <p class="hint">Até 30 perguntas por evento. Mude o tipo, obrigatoriedade, alternativas e a ordem. Use condições para exibir perguntas somente após uma resposta específica.</p>
           </div>
           <button type="button" class="btn btn-secondary" id="gf-builder-add">+ Adicionar pergunta</button>
         </div>
-        <div id="gf-builder-items" class="gf-builder-list" aria-live="polite"></div>
+        <div id="gf-builder-items" class="gf-builder-list" data-builder-pane="perguntas" aria-live="polite"></div>
         <div class="gf-builder-actions">
-          <button class="btn btn-primary" type="button" id="gf-builder-save">Salvar perguntas e aparência</button>
+          <button class="btn btn-primary" type="button" id="gf-builder-save">Salvar alterações</button>
           <span class="gf-builder-unsaved" id="gf-builder-unsaved">Nenhuma alteração pendente.</span>
         </div>
       </section>
 
-      <form id="config-form">
+      <form id="config-form" data-workspace-page="evento">
+        <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Edite os dados deste espetáculo sem misturar com as respostas das famílias.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
         <section class="panel">
           <h2>Informações do evento</h2>
           <p class="panel-intro">Horários e capacidade só são obrigatórios quando alguma experiência incluir miniensaio.</p>
@@ -209,6 +239,7 @@
           <p class="hint">Quando houver miniensaio, ele será realizado por ordem de chegada dentro do período configurado, sem horário individual por bailarina.</p>
         </section>
 
+        <details class="gf-config-advanced"><summary>Documentos e dados legais <span class="gf-secondary-label">Configuração avançada</span></summary>
         <section class="panel">
           <h2>Dados do fornecedor</h2>
           <p class="panel-intro">Preencha com os dados oficiais que devem constar na contratação.</p>
@@ -268,6 +299,7 @@
           </div>
         </section>
 
+        </details>
         <section class="panel">
           <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
           <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
@@ -276,7 +308,7 @@
       </form>
 
 
-      <details class="gf-technical-details">
+      <details class="gf-technical-details" data-workspace-page="evento">
         <summary>Detalhes técnicos de pedidos online (opcional)</summary>
       <section class="panel">
         <h2>Pedidos recebidos</h2>
