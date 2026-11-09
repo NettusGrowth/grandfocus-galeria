@@ -20,19 +20,26 @@ function money(cents) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(cents) || 0) / 100)
 }
 
-function api(action, values = {}) {
-  return fetch(API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_PUBLIC_KEY,
-    },
-    body: JSON.stringify({ action, campaign_slug: CAMPAIGN_SLUG, ...values }),
-  }).then(async (response) => {
+async function api(action, values = {}) {
+  try {
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_PUBLIC_KEY,
+      },
+      body: JSON.stringify({ action, campaign_slug: CAMPAIGN_SLUG, ...values }),
+      signal: AbortSignal.timeout(action === 'contratar' ? 20000 : 15000),
+    })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a solicitação.')
     return data
-  })
+  } catch (error) {
+    if (error.name === 'TimeoutError' || error.name === 'AbortError') {
+      throw new Error('A conexão demorou além do esperado. Não faça um novo pagamento sem confirmar o status com a Grand Focus. Você pode tentar novamente sem perder as respostas.')
+    }
+    throw error
+  }
 }
 
 function formatDate(value) {
