@@ -145,6 +145,55 @@ function patchIndex(html) {
   ].join('\n');
   html = html.replace(helperMarker, '\n' + helper + helperMarker);
 
+
+  // A área de contratação fica em uma aba própria. Embutir o editor em um
+  // iframe cria duas barras de rolagem e deixa o formulário pequeno.
+  // O index.html legado é grande: ajustamos somente sua saída de build,
+  // com uma âncora explícita que falha caso a estrutura original mude.
+  const oldContractFrame = '<iframe title="Gerenciador de contratações e experiências" src="/contratar/admin/" loading="lazy" referrerpolicy="same-origin"></iframe>';
+  if (html.split(oldContractFrame).length !== 2) {
+    throw new Error('Expected exactly one embedded contracting panel; cannot replace it safely.');
+  }
+  const contractLauncher = [
+    '<section class="gf-contract-launch" aria-labelledby="gf-contract-launch-title">',
+    '  <div class="gf-contract-launch-top">',
+    '    <span class="gf-contract-launch-eyebrow">GRAND FOCUS · CONTRATAÇÕES</span>',
+    '    <span class="gf-contract-launch-symbol" aria-hidden="true">↗</span>',
+    '  </div>',
+    '  <h2 id="gf-contract-launch-title">Seu painel, agora com espaço de verdade.</h2>',
+    '  <p>Edite formulários, perguntas, pacotes e pagamentos em uma aba independente, sem a barra lateral da galeria nem rolagem dentro de uma janela pequena.</p>',
+    '  <div class="gf-contract-launch-actions">',
+    '    <a class="gf-contract-launch-primary" href="/contratar/admin/" target="_blank" rel="noopener noreferrer">Abrir gerenciador em tela inteira <span aria-hidden="true">↗</span></a>',
+    '    <a class="gf-contract-launch-secondary" href="/contratar/entre-estacoes/admin/" target="_blank" rel="noopener noreferrer">Ir direto ao Entre Estações <span aria-hidden="true">↗</span></a>',
+    '  </div>',
+    '  <p class="gf-contract-launch-note">O gerenciador continua conectado à Grand Focus. Seu acesso administrativo é verificado normalmente e os dados permanecem na galeria.</p>',
+    '</section>'
+  ].join('\n');
+  html = html.replace(oldContractFrame, contractLauncher);
+  const launchCss = [
+    '<style id="gf-contratacoes-launch-style">',
+    '  #admintab-contratacoes .gf-contract-launch { max-width: 1040px; margin: 0 auto; padding: clamp(26px,5vw,52px); border: 1px solid rgba(200,170,113,.42); border-radius: 20px; background: #F9F4EB; box-shadow: 0 12px 42px rgba(25,3,11,.12); color: #382F35; box-sizing: border-box; }',
+    '  #admintab-contratacoes .gf-contract-launch-top { display:flex; gap:12px; justify-content:space-between; align-items:center; }',
+    '  #admintab-contratacoes .gf-contract-launch-eyebrow { font-size:12px; font-weight:700; letter-spacing:.12em; color:#77394C; }',
+    '  #admintab-contratacoes .gf-contract-launch-symbol { font-size:28px; font-weight:600; color:#5B0D27; }',
+    '  #admintab-contratacoes .gf-contract-launch h2 { max-width:850px; margin:20px 0 14px; font-size:clamp(26px,3vw,38px); line-height:1.22; color:#4B0416; font-family:Georgia,serif; }',
+    '  #admintab-contratacoes .gf-contract-launch p { max-width:780px; margin:0; font-size:clamp(16px,1.7vw,19px); line-height:1.65; }',
+    '  #admintab-contratacoes .gf-contract-launch-actions { display:flex; gap:13px; flex-wrap:wrap; margin:28px 0 21px; }',
+    '  #admintab-contratacoes .gf-contract-launch-actions a { display:inline-flex; align-items:center; justify-content:center; gap:12px; min-height:52px; padding:12px 19px; border-radius:10px; box-sizing:border-box; text-align:center; font-size:16px; font-weight:700; line-height:1.35; text-decoration:none; }',
+    '  #admintab-contratacoes .gf-contract-launch-primary { background:#4B0416; color:white; border:2px solid #4B0416; }',
+    '  #admintab-contratacoes .gf-contract-launch-primary:hover { background:#750B2C; color:white; }',
+    '  #admintab-contratacoes .gf-contract-launch-secondary { background:#FFFDF8; color:#4B0416; border:2px solid #C2A36D; }',
+    '  #admintab-contratacoes .gf-contract-launch-secondary:hover { background:#F3E6D0; color:#4B0416; }',
+    '  #admintab-contratacoes .gf-contract-launch-note { font-size:14px; color:#625560; }',
+    '  #admintab-contratacoes .gf-contract-launch-actions a:focus-visible { outline:3px solid #C89E56; outline-offset:3px; }',
+    '  @media (max-width:640px) { #admintab-contratacoes .gf-contract-launch { padding:22px 16px; border-radius:12px; } #admintab-contratacoes .gf-contract-launch-actions a { width:100%; } }',
+    '</style>'
+  ].join('\n');
+  if (html.split('</head>').length !== 2) {
+    throw new Error('Cannot place contracting launcher styles without one closing head tag.');
+  }
+  html = html.replace('</head>', launchCss + '\n</head>');
+
   const lightboxStart = html.indexOf('async function renderLightboxAtual() {');
   const lightboxCall = html.indexOf("  img.src = _imgCache(path) || ''", lightboxStart);
   const lightboxEnd = html.indexOf('\n  const evento = store.eventos.find', lightboxCall);
@@ -198,6 +247,11 @@ function main() {
   if (!deployed.includes('_carregarImgCache(path).then(blobUrl =>')) throw new Error('Non-blocking lightbox cache missing.');
   if (deployed.includes('const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()')) throw new Error('Stale R2 migration autostart must not run on administrator login.');
   if (!deployed.includes('_ativarFallbackImagemVisivel(img, path)')) throw new Error('Visible image error fallback missing.');
+  if (!deployed.includes('id="gf-contract-launch-title"') ||
+      !deployed.includes('href="/contratar/admin/" target="_blank"') ||
+      deployed.includes('<iframe title="Gerenciador de contratações e experiências"')) {
+    throw new Error('The contracting panel must open independently instead of using an embedded iframe.');
+  }
   console.log('Gallery build passed: timeout fallback, visible-image fallback, and no migration autostart.');
   console.log('Static output:', dist, 'index bytes:', Buffer.byteLength(deployed));
 }
