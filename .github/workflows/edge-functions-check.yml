@@ -79,6 +79,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Test public contracting flow and admin login gate in Chromium
         run: node scripts/e2e-contratacao.mjs
+      - name: Test Christmas booking with family pricing, paid branches and mobile view
+        run: node scripts/test-fada-booking.mjs
       - name: Test Christmas family scheduling, pricing and accessible mobile form
         run: node scripts/e2e-fada-natal.mjs
       - name: Validate contracting migration and reservation logic in temporary PostgreSQL
