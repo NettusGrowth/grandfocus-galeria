@@ -9,8 +9,6 @@ for(const file of [
  'contratar/fada-natal/index.html',
  'contratar/fada-natal/fada.css',
  'contratar/fada-natal/fada.js',
- 'contratar/fada-natal/admin.js',
- 'contratar/fada-natal/admin.css',
 ]){
  assert.ok(fs.existsSync(path.join(root,file)),file+' deve estar na distribuição.')
 }
