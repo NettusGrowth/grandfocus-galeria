@@ -67,3 +67,20 @@ body.gf-large{font-size:20px}body.gf-large .gf-fields input,body.gf-large .gf-fi
 @media(max-width:760px){.gf-emblem{height:125px;width:125px;border-width:6px}.gf-emblem img{width:67px;height:67px}.gf-hero{padding:30px}.gf-choice-group{grid-template-columns:1fr}.gf-fields{grid-template-columns:1fr}}
 @media(max-width:520px){.gf-container{width:calc(100% - 20px);margin:14px auto 36px}.gf-header{min-height:72px;padding:10px 14px}.gf-header img{height:46px}.gf-header span{font-size:11px}.gf-hero{padding:23px;border-radius:15px}.gf-emblem{display:none}.gf-hero h1{font-size:42px}.gf-chips{gap:6px}.gf-card{border-radius:12px;padding:19px 14px;margin:12px 0}.gf-count-choices{grid-template-columns:repeat(2,minmax(0,1fr))}.gf-date-tabs button{padding:12px 10px}.gf-date-tabs button strong{font-size:15px}.gf-recap{grid-template-columns:1fr}.gf-total{padding:13px}.gf-total strong{font-size:25px}.gf-toolbar{padding:0 2px}.gf-student .gf-fields{grid-template-columns:1fr}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+/* Agenda natalina: vitrine progressiva e retenção real de 10 minutos. */
+.gf-slots .gf-more-slots{
+ grid-column:1/-1;min-height:44px;padding:12px 14px;
+ background:transparent;border:1px dashed rgba(75,4,22,.38);color:#4B0416;
+ border-radius:12px;font-weight:600;cursor:pointer;
+}
+.gf-hold{
+ display:flex;align-items:flex-start;gap:12px;margin:15px 0 12px;
+ border:1px solid #d8bcb8;border-radius:13px;background:#fff8ed;
+ padding:14px 16px;color:#4B0416;
+}
+.gf-hold[hidden]{display:none!important}
+.gf-hold-icon{font-size:26px;line-height:1}
+.gf-hold strong{font-size:1rem}
+.gf-hold p{margin:7px 0 0;font-size:.89rem;line-height:1.5;color:#665157}
+.gf-hold[data-urgent="true"]{border-color:#ba675d;background:#fff4ee}
+.gf-hold-time{font-variant-numeric:tabular-nums;font-size:1.1em}

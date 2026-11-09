@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
     switch (body?.action) {
       case 'listar_campanhas': return await actionListarCampanhas(req, admin)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
-      case 'natal_agenda': return await actionNatalAgenda(req,admin,requestedCampaignSlug(body))
+      case 'natal_agenda': return await actionNatalAgenda(req,admin,requestedCampaignSlug(body),body)
       case 'natal_gerar_horarios': return await actionNatalGerarHorarios(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_desativar_horario': return await actionNatalDesativar(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
@@ -92,10 +92,14 @@ Deno.serve(async (req: Request) => {
 
 // Agenda e inscrições de Natal são separadas do checkout InfinitePay.
 // Somente usuários admin/super_admin chegam a estas rotas.
-async function actionNatalAgenda(req:Request,admin:any,slug:string){
+async function actionNatalAgenda(req:Request,admin:any,slug:string,body:any={}){
  if(slug!=='natal-fada-acucarada-2026')
    return jsonResponse(req,{error:'Esta agenda não pertence à campanha.'},404)
- const {data,error}=await admin.rpc('gf_natal_listar_horarios',{p_slug:slug,p_preview:true})
+ const quantity=Number(body?.quantidade||1)
+ if(!Number.isInteger(quantity)||quantity<1||quantity>4)return jsonResponse(req,{error:'Quantidade de alunos inválida.'},400)
+ const {data,error}=await admin.rpc('gf_natal_listar_inicios',{
+  p_slug:slug,p_quantidade:quantity,p_token:null,p_preview:true
+ })
  if(error)return jsonResponse(req,{error:error.message||'Agenda indisponível.'},409)
  return jsonResponse(req,data||{horarios:[]})
 }
