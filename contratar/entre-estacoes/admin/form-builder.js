@@ -12,7 +12,7 @@ const bIntro=document.getElementById('gf-builder-intro');
 const bKinds={texto:'Resposta curta',paragrafo:'Parágrafo',numero:'Número',
  email:'E-mail',telefone:'Telefone',data:'Data',unica:'Escolha única',
  multipla:'Múltiplas escolhas',lista:'Lista suspensa',sim_nao:'Sim ou não'};
-const bDraft={version:1,status:'rascunho',questions:[],loaded:false,dirty:false};
+const bDraft={version:1,status:'rascunho',questions:[],loaded:false,dirty:false,expandedId:null};
 function bEl(tag,cl,text){const e=document.createElement(tag);if(cl)e.className=cl;if(text!==undefined)e.textContent=String(text);return e;}
 function bL(text,input){const l=bEl('label','gf-builder-label');l.append(bEl('span','',text),input);return l;}
 function bInput(value,placeholder,max){const e=bEl('input');e.type='text';e.value=value||'';e.placeholder=placeholder||'';if(max)e.maxLength=max;return e;}
@@ -32,7 +32,9 @@ function bReorder(index,delta){
 function bDuplicate(index){
  if(bDraft.questions.length>=30){bNotice('Limite de 30 perguntas.',true);return;}
  const q=bDraft.questions[index];
- bDraft.questions.splice(index+1,0,bNew({...q,id:bId(),titulo:q.titulo+' (cópia)',opcoes:[...q.opcoes],condicao:q.condicao?{...q.condicao}:null}));
+ const duplicated=bNew({...q,id:bId(),titulo:q.titulo+' (cópia)',opcoes:[...q.opcoes],condicao:q.condicao?{...q.condicao}:null});
+ bDraft.questions.splice(index+1,0,duplicated);
+ bDraft.expandedId=duplicated.id;
  bDirty();bRender();
 }
 function bDelete(index){
@@ -50,8 +52,13 @@ function bRender(){
  }
  bDraft.questions.forEach((q,index)=>{
    const card=bEl('article','gf-builder-question');
+   card.dataset.expanded=String(q.id===bDraft.expandedId);
    const top=bEl('div','gf-builder-question-top');
-   top.append(bEl('strong','','Pergunta '+(index+1)));
+   const expand=bAction((index+1)+'. '+(q.titulo||'Nova pergunta')+'  '+(q.id===bDraft.expandedId?'⌃':'⌄'),()=>{
+     bDraft.expandedId=bDraft.expandedId===q.id?null:q.id;bRender();
+   },'gf-builder-question-title');
+   expand.setAttribute('aria-expanded',String(card.dataset.expanded==='true'));
+   top.append(expand);
    const tools=bEl('div','gf-builder-question-tools');
    const up=bAction('↑ Subir',()=>bReorder(index,-1));
    const down=bAction('↓ Descer',()=>bReorder(index,1));
@@ -126,6 +133,7 @@ function bLoad(data){
  const model=data.evento?.formulario_modelo||{},appearance=model.aparencia||{};
  bDraft.version=Number(data.evento?.formulario_versao)||1;
  bDraft.status=data.evento?.status||'rascunho';
+ bDraft.expandedId=null;
  bDraft.questions=(Array.isArray(model.perguntas)?model.perguntas:[]).map(q=>({...q,
     opcoes:Array.isArray(q.opcoes)?q.opcoes:[],condicao:q.condicao||null}));
  bColor.value=appearance.cor||'#4B0416';bBackground.value=appearance.fundo||'#F1EDF1';
@@ -148,7 +156,7 @@ async function bSave(){
 }
 bAddBtn.addEventListener('click',()=>{
  if(bDraft.questions.length>=30){bNotice('Máximo de 30 perguntas por evento.',true);return;}
- bDraft.questions.push(bNew());bDirty();bRender();
+ const fresh=bNew();bDraft.questions.push(fresh);bDraft.expandedId=fresh.id;bDirty();bRender();
  bList.lastElementChild?.scrollIntoView({block:'center'});
  bList.lastElementChild?.querySelector('input[type="text"]')?.focus();
 });
