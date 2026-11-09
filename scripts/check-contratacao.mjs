@@ -366,7 +366,7 @@ assert.ok(natalUi.includes("value=\"ja_paguei\"") &&
  natalUi.includes("2 alunos · R$ 145,00") &&
  natalUi.includes("3 alunos · R$ 215,00") &&
  natalUi.includes("4 alunos · R$ 285,00") &&
- natalUi.includes("name='fada_horario'") &&
+ natalUi.includes("input.name='fada_horario'") &&
  natalUi.includes("'natal_inscrever'") &&
  !natalUi.includes("checkout_url"),
  'Natal deve diferenciar pagamentos, calcular valores por família e não criar checkout.')
