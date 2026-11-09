@@ -353,14 +353,28 @@ function addArchiveControls(record){
   bar.append(button)
   return bar
 }
+function openDetailSection(name){
+  const box=centralDetail.querySelector('[data-accordion="'+name+'"]')
+  if(!box)return
+  box.open=true;centralState.section=name
+  box.scrollIntoView({block:'nearest',behavior:'smooth'})
+  box.querySelector('select,input,textarea,button')?.focus({preventScroll:true})
+}
 function selectRecord(record) {
   centralState.selected=record.source+':'+record.id
   const lookup=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
   if(!lookup)return
   centralDetail.replaceChildren()
   const header=dom('div','gf-detail-toolbar')
-  const headerMain=dom('div')
-  headerMain.append(dom('h3','gf-detail-title',record.name),dom('p','gf-detail-subtitle',record.dancer||'Cadastro'))
+  const headerMain=dom('div','gf-detail-head-main')
+  const personIcon=dom('span','gf-detail-avatar')
+  personIcon.setAttribute('aria-hidden','true')
+  personIcon.textContent=String(record.name||'?').trim().slice(0,1).toUpperCase()
+  const personText=dom('div','gf-detail-person')
+  personText.append(dom('span','gf-detail-eyebrow','FICHA DE ATENDIMENTO'),
+    dom('h3','gf-detail-title',record.name),
+    dom('p','gf-detail-subtitle',record.dancer||'Cadastro'))
+  headerMain.append(personIcon,personText)
   const close=actionButton('✕ Fechar')
   close.setAttribute('aria-label','Fechar ficha e voltar à lista')
   close.addEventListener('click',closeRecord)
@@ -368,13 +382,11 @@ function selectRecord(record) {
   centralDetail.append(header)
   const feedback=dom('p','gf-modal-notice')
   feedback.id='gf-modal-notice';feedback.setAttribute('role','status');feedback.setAttribute('aria-live','polite')
-  if(centralNotice.dataset.kind==='error' || centralNotice.dataset.kind==='success'){
-    feedback.textContent=centralNotice.textContent
-    feedback.dataset.kind=centralNotice.dataset.kind
-  }else feedback.hidden=true
+  // Não repetir no pop-up a mensagem genérica de atualização da lista.
+  feedback.hidden=true
   centralDetail.append(feedback)
   const [statusText,statusTone]=statusDisplay(record)
-  const flags=dom('div','gf-record-meta')
+  const flags=dom('div','gf-record-meta gf-modal-status')
   const [crmLabel,crmTone]=crmDisplay(record)
   flags.append(tag(crmLabel,crmTone),tag(statusText,statusTone))
   centralDetail.append(flags)
@@ -388,7 +400,11 @@ function selectRecord(record) {
     detailBox('Recebido bruto confirmado',brl(confirmedMoney(record))),
     detailBox('Líquido recebido estimado',brl(estimatedNet(confirmedMoney(record),record))),
   )
+  grid.classList.add('gf-detail-summary')
   centralDetail.append(grid)
+  const feeHelp=dom('p','gf-detail-fee-note',
+    'Estimativa com taxa de crédito à vista de '+financeRateLabel()+'. Valores efetivos devem ser conferidos no extrato.')
+  centralDetail.append(feeHelp)
   const info=dom('details','gf-detail-accordion')
   info.append(dom('summary','','Ver demais informações  ⌄'))
   const extras=dom('div','gf-detail-grid')
@@ -412,19 +428,47 @@ function selectRecord(record) {
     }
     block.append(answers);centralDetail.append(block)
   }
+  const quickActions=dom('section','gf-modal-actions')
+  quickActions.append(dom('strong','gf-modal-section-heading','Próximo passo'))
+  const actions=dom('div','gf-modal-action-buttons')
   const phone=phoneLink(record.whatsapp)
   if(phone){
-    const links=dom('div','gf-contact-row')
-    const link=dom('a','', 'Conversar no WhatsApp ↗')
+    const link=dom('a','gf-whatsapp-action')
     link.href=phone;link.target='_blank';link.rel='noopener noreferrer'
-    links.append(link);centralDetail.append(links)
+    const whatsappIcon=dom('span','gf-whatsapp-mark')
+    whatsappIcon.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.6A8.5 8.5 0 0 1 8 19.1L3.2 20.8l1.7-4.7A8.5 8.5 0 1 1 20.5 11.6Z"/><path d="M8.5 8.7c.2 3 3.1 5.8 6 6 .7.1 1.5-.8 1.6-1.3l-2-1.1-1.1 1.1a7 7 0 0 1-2.6-2.5l1-1.1-1.2-2.1c-.8-.2-1.6.2-1.7 1Z"/></svg>'
+    link.append(whatsappIcon,dom('span','','Enviar mensagem no WhatsApp'),dom('span','gf-action-arrow','↗'))
+    actions.append(link)
+    const copy=actionButton('Copiar número','gf-copy-phone')
+    copy.addEventListener('click',async()=>{
+      try{
+        const digits=String(record.whatsapp||'').replace(/\D/g,'')
+        await navigator.clipboard.writeText(digits)
+        copy.textContent='Número copiado ✓'
+      }catch(error){
+        copy.textContent='Não foi possível copiar'
+        notice('Não foi possível copiar o telefone.','error')
+      }
+    })
+    actions.append(copy)
+  }else actions.append(dom('span','gf-no-phone','Telefone indisponível'))
+  quickActions.append(actions)
+  if(!record.archived){
+    const steps=dom('div','gf-modal-step-actions')
+    const follow=actionButton('Registrar contato','gf-quick-step')
+    follow.addEventListener('click',()=>openDetailSection('contato'))
+    const payment=actionButton('Ver pagamento','gf-quick-step')
+    payment.addEventListener('click',()=>openDetailSection('pagamento'))
+    steps.append(follow,payment);quickActions.append(steps)
   }
+  centralDetail.append(quickActions)
   if(!record.archived){
     centralDetail.append(detailAccordion('Acompanhamento e contato',makeFollowEditor(record),'contato'))
     if(record.source==='formulario'){
       centralDetail.append(detailAccordion('Conferência de pagamento',makePaymentEditor(record),'pagamento'))
     }else{
       const box=dom('details','gf-detail-accordion')
+      box.dataset.accordion='pagamento'
       box.append(dom('summary','','Pagamento pela InfinitePay  ⌄'),
         dom('p','gf-small-note','Pagamentos online são confirmados apenas pela InfinitePay; esta central não marca pedidos automaticamente como pagos.'))
       if(['pagamento_pendente','conciliacao_pendente'].includes(record.status)){
@@ -500,7 +544,7 @@ function makePaymentEditor(record) {
   const form=dom('form','gf-editor')
   form.append(dom('h3','','Conferência de pagamento'),
     dom('p','gf-editor-description',
-      'Este registro veio do Google Forms. Confira o pagamento na sua conta bancária ou no comprovante antes de marcar como recebido. A preferência por Pix ou cartão não é prova de pagamento.'))
+      'Este registro veio do Google Forms. Confira o comprovante e registre o valor bruto pago pelo cliente. A taxa do cartão é estimada separadamente no painel. A preferência por Pix ou cartão não prova pagamento.'))
   const grid=dom('div','gf-editor-grid')
   const status=labeledInput('Situação financeira','select')
   for(const [v,text] of [
@@ -511,7 +555,7 @@ function makePaymentEditor(record) {
     ['cancelado','Cancelado / não contratado'],
   ])addChoice(status.input,v,text)
   status.input.value=record.status
-  const value=labeledInput('Valor efetivamente recebido (R$)','text',((record.paidValue||0)/100).toFixed(2).replace('.',','))
+  const value=labeledInput('Valor pago pelo cliente, antes da taxa (R$)','text',((record.paidValue||0)/100).toFixed(2).replace('.',','))
   value.input.inputMode='decimal';value.input.placeholder='0,00'
   const method=labeledInput('Meio de pagamento','select')
   for(const [v,text] of [
