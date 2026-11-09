@@ -80,13 +80,18 @@
     <section class="gf-card" aria-labelledby="gf-slots-heading">
       <div class="gf-card-index">03 · DATA E HORÁRIO</div>
       <h2 id="gf-slots-heading">Escolha um horário disponível</h2>
-      <p class="gf-help">Cada horário corresponde a uma família. As vagas mudam conforme os agendamentos são solicitados.</p>
+      <p class="gf-help">Escolha apenas o início. O sistema reserva automaticamente 15 minutos consecutivos para cada aluno, sem misturar famílias.</p>
       <div class="gf-date-tabs" role="group" aria-label="Dia da sessão">
         <button type="button" data-day="2026-12-12" aria-pressed="true"><span>Sábado</span><strong>12 de dezembro</strong></button>
         <button type="button" data-day="2026-12-13" aria-pressed="false"><span>Domingo</span><strong>13 de dezembro</strong></button>
       </div>
       <div id="gf-slots" class="gf-slots" role="group" aria-label="Horários do dia" aria-live="polite"></div>
-      <p class="gf-neutral-note">O horário selecionado será solicitado por até 48 horas. A reserva só será confirmada após a conferência do pagamento pela Grand Focus.</p>
+      <div id="gf-hold" class="gf-hold" hidden role="status" aria-live="polite">
+        <span class="gf-hold-icon" aria-hidden="true">◷</span>
+        <div><strong>Seu horário fica reservado por <span id="gf-hold-time">10:00</span>.</strong>
+          <p>Conclua o formulário nesse prazo. Caso expire, seus dados serão mantidos, mas o horário poderá ser escolhido por outra família.</p></div>
+      </div>
+      <p class="gf-neutral-note">Os 10 minutos são para concluir o formulário, não para pagar. Depois do envio, a equipe cuidará da conferência e confirmação do agendamento.</p>
     </section>
     <section class="gf-card" aria-labelledby="gf-family-heading">
       <div class="gf-card-index">04 · CONTATO E PARTICIPANTES DA FAMÍLIA</div>
@@ -119,7 +124,7 @@
     <section class="gf-card gf-confirmation" aria-labelledby="gf-confirm-heading">
       <div class="gf-card-index">05 · REVISÃO</div>
       <h2 id="gf-confirm-heading">Confira antes de enviar</h2>
-      <div id="gf-recap" class="gf-recap">Escolha um horário para ver seu resumo.</div>
+      <div id="gf-recap" class="gf-recap">Escolha o horário de início para ver o resumo da família.</div>
       <label class="gf-consent"><input type="checkbox" id="gf-consent" required><span>Sou responsável pela inscrição e autorizo o uso dos dados informados para organizar a sessão, entrar em contato e conferir o pagamento. Estou ciente de que <strong>a solicitação não equivale a pagamento confirmado</strong>.</span></label>
       <div class="gf-honey" aria-hidden="true"><label>Não preencher <input id="gf-website" type="text" tabindex="-1" autocomplete="off"></label></div>
       <p id="gf-error" class="gf-error" role="alert" hidden></p>
