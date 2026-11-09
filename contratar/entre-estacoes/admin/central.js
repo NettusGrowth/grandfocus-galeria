@@ -113,8 +113,12 @@ function normalizedEntries(payload) {
   })
   const forms=(payload.respostas||[]).map(p=>{
     const entry={
-      source:'formulario',id:p.id,label:'Google Forms · linha '+p.origem_linha,
-      name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:'',
+      source:'formulario',id:p.id,
+      label:p.origem==='formulario_site'?'Natal · inscrição '+p.origem_linha:'Google Forms · linha '+p.origem_linha,
+      name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:p.email_responsavel||'',
+      slotId:p.horario_id||null,scheduleStatus:p.agendamento_status||null,
+      declaredPayment:p.pagamento_declarado||null,
+      scheduleExpiry:p.agendamento_expira_em||null,
       people:[{nome:p.bailarina_nome,turma:p.modalidade_original,pacote:p.experiencia_original}],
       dancer:p.bailarina_nome,package:p.experiencia_original,
       value:p.valor_informado_centavos==null?null:Number(p.valor_informado_centavos),
@@ -363,6 +367,50 @@ function openDetailSection(name){
   box.scrollIntoView({block:'nearest',behavior:'smooth'})
   box.querySelector('select,input,textarea,button')?.focus({preventScroll:true})
 }
+function natalAppointmentControls(record){
+  const block=dom('section','gf-modal-actions gf-natal-actions')
+  block.append(dom('strong','gf-modal-section-heading','Horário do Especial de Natal'))
+  const status=record.scheduleStatus||'solicitado'
+  block.append(dom('p','gf-detail-fee-note',
+    status==='confirmado'?'Horário confirmado pela Grand Focus.':
+    status==='cancelado'?'Solicitação cancelada.':
+    status==='expirado'?'O prazo desta solicitação expirou. Confirme somente se a vaga continuar livre.':
+    'Solicitação de horário ainda não confirmada. A família aguarda a conferência da equipe.'))
+  if(record.archived)return block
+  if(status!=='confirmado'&&status!=='cancelado'){
+    const row=dom('div','gf-modal-step-actions')
+    if(record.status==='pago_manual'&&confirmedMoney(record)>=record.value){
+      const confirm=actionButton('✓ Confirmar horário','gf-quick-step')
+      confirm.addEventListener('click',async()=>{
+        if(!window.confirm('Você já conferiu o pagamento integral? Confirmar este horário da família?'))return
+        confirm.disabled=true
+        try{
+          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'confirmado'})
+          notice('Horário confirmado após conferência financeira.','success')
+          await loadCentral(false,true)
+        }catch(error){notice(error.message||'Não foi possível confirmar.','error');confirm.disabled=false}
+      })
+      row.append(confirm)
+    }else{
+      block.append(dom('p','gf-neutral-note','Para confirmar, primeiro registre o pagamento integral em “Conferência de pagamento” e salve a comprovação.'))
+    }
+    if(confirmedMoney(record)===0){
+      const cancel=actionButton('Cancelar solicitação','gf-quick-step')
+      cancel.addEventListener('click',async()=>{
+        if(!window.confirm('Cancelar a solicitação desta família? A vaga ficará disponível novamente.'))return
+        cancel.disabled=true
+        try{
+          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'cancelado'})
+          notice('Solicitação cancelada e horário liberado.','success')
+          await loadCentral(false,true)
+        }catch(error){notice(error.message||'Não foi possível cancelar.','error');cancel.disabled=false}
+      })
+      row.append(cancel)
+    }
+    block.append(row)
+  }
+  return block
+}
 function selectRecord(record) {
   centralState.selected=record.source+':'+record.id
   const lookup=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
@@ -416,6 +464,14 @@ function selectRecord(record) {
     detailBox('Meio de pagamento',record.preferred||record.paymentMethod||'Não informado'),
   )
   if(record.source==='formulario'&&record.sourceNote)extras.append(detailBox('Observação do formulário',record.sourceNote))
+  if(record.slotId){
+    const statuses={solicitado:'Aguardando confirmação',confirmado:'Horário confirmado',cancelado:'Solicitação cancelada',expirado:'Prazo expirado'}
+    extras.append(detailBox('Situação do horário',statuses[record.scheduleStatus]||'Solicitação pendente'))
+    if(record.scheduleExpiry&&record.scheduleStatus==='solicitado')
+      extras.append(detailBox('Prazo para conferência',safeDate(record.scheduleExpiry)))
+    extras.append(detailBox('Pagamento informado na inscrição',
+      record.declaredPayment==='ja_paguei'?'Família declarou que já pagou · conferir':'Família ainda não pagou'))
+  }
   if(record.paymentChecked)extras.append(detailBox('Pagamento conferido em',safeDate(record.paymentChecked)))
   if(record.reference)extras.append(detailBox('Referência',record.reference))
   if(record.email)extras.append(detailBox('E-mail',record.email))
@@ -489,6 +545,7 @@ function selectRecord(record) {
   }else {
     centralDetail.append(dom('p','gf-small-note','Cadastro arquivado. Para voltar a editar ou registrar contato, restaure primeiro.'))
   }
+  if(record.slotId)centralDetail.append(natalAppointmentControls(record))
   centralDetail.append(addArchiveControls(record))
   if(!centralDialog.open)centralDialog.showModal()
   centralDetail.scrollTop=0
