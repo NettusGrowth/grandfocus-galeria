@@ -11,6 +11,9 @@ const paymentPermissionMigration = read('supabase/sql/085_contratacao_pagamento_
 const simplifiedContractMigration = read('supabase/sql/086_contratacao_sem_coreografias.sql')
 const formBuilderMigration = read('supabase/sql/087_editor_formularios_dinamicos.sql')
 const archiveMigration = read('supabase/sql/088_central_arquivamento_seguro.sql')
+const feeMigration = read('supabase/sql/089_central_previsao_recebimento_liquido.sql')
+const feeCalculator = read('contratar/entre-estacoes/admin/fees.js')
+const premiumStyles = read('contratar/entre-estacoes/admin/premium.css')
 const archiveTests = read('scripts/test-fixtures/central-archive-tests.sql')
 const workspaceScript = read('contratar/entre-estacoes/admin/workspace.js')
 const workspaceCss = read('contratar/entre-estacoes/admin/workspace.css')
@@ -295,4 +298,34 @@ assert.ok(workflow.includes('supabase/sql/088_central_arquivamento_seguro.sql') 
   workflow.includes('scripts/test-fixtures/central-archive-tests.sql'),
   'CI deve rodar migração e testes de arquivamento.')
 
+
+assert.ok(build.includes('Suas campanhas, em um só lugar.') && build.includes('gf-contract-module-grid') &&
+ !build.includes('Ir direto ao Entre Estações') && !build.includes('Seu painel, agora com espaço de verdade.'),
+ 'Tela inicial da galeria não pode privilegiar uma campanha nem usar texto de teste.')
+assert.ok(adminPage.includes('admin/premium.css') &&
+ adminPage.includes('id="gf-fee-rate"') && adminPage.includes('id="gf-fee-form"'),
+ 'Painel financeiro deve ter visual premium e taxa de cartão editável por campanha.')
+assert.ok(centralUi.includes("import { processingFeeCents, projectedNetCents }") &&
+ centralUi.includes("apiCentral('central_salvar_taxa'") &&
+ centralUi.includes('Líquido previsto') && centralUi.includes('Taxas estimadas'),
+ 'Resumo deve mostrar líquido após taxa configurável, sem esconder o bruto.')
+assert.ok(centralUi.includes("className='gf-whatsapp-action'") === false &&
+ centralUi.includes("dom('a','gf-whatsapp-action')") &&
+ premiumStyles.includes('.gf-whatsapp-action') &&
+ premiumStyles.includes('.gf-detail-toolbar'),
+ 'Ficha deve oferecer WhatsApp em destaque, resumo e seções bem separadas.')
+assert.ok(feeCalculator.includes('Math.round(grossCents*bps/10000)') &&
+ feeMigration.includes('taxa_credito_a_vista_bps') &&
+ feeMigration.includes('gf_contratacao_admin_salvar_taxa_liquida'),
+ 'Estimativa precisa arredondar por transação, ser configurável e persistida.')
+assert.ok(feeMigration.includes('revoke all on function') &&
+ feeMigration.includes("role in ('admin','super_admin')"),
+ 'Somente administração pode alterar a taxa de referência.')
+assert.ok(workflow.includes('089_central_previsao_recebimento_liquido.sql') &&
+ workflow.includes('scripts/test-finance-net.mjs') &&
+ workflow.includes('scripts/test-fixtures/finance-fee-tests.sql'),
+ 'CI deve validar taxa, segurança e projeções em centavos.')
+assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') &&
+ adminApi.includes('const REAL_PAYMENTS_ENABLED = false'),
+ 'Redesenho não pode habilitar cobrança de clientes.')
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
