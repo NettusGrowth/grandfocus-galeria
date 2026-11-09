@@ -29,10 +29,15 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 const origin='http://127.0.0.1:'+server.address().port
 const browser=await chromium.launch({headless:true})
 const slots=[
- {id:'11111111-1111-4111-8111-111111111111',dia:'2026-12-12',inicio:'14:00',duracao_minutos:20,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
- {id:'22222222-2222-4222-8222-222222222222',dia:'2026-12-12',inicio:'14:20',duracao_minutos:20,capacidade:1,ocupados:1,disponiveis:0,ativo:true},
- {id:'33333333-3333-4333-8333-333333333333',dia:'2026-12-13',inicio:'15:00',duracao_minutos:20,capacidade:1,ocupados:0,disponiveis:1,ativo:true}
+ {id:'11111111-1111-4111-8111-111111111111',dia:'2026-12-12',inicio:'08:00',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'22222222-2222-4222-8222-222222222222',dia:'2026-12-12',inicio:'08:15',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'33333333-3333-4333-8333-333333333333',dia:'2026-12-12',inicio:'08:30',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'44444444-4444-4444-8444-444444444444',dia:'2026-12-12',inicio:'14:00',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'55555555-5555-4555-8555-555555555555',dia:'2026-12-12',inicio:'14:15',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'66666666-6666-4666-8666-666666666666',dia:'2026-12-13',inicio:'09:00',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true},
+ {id:'77777777-7777-4777-8777-777777777777',dia:'2026-12-13',inicio:'09:15',duracao_minutos:15,capacidade:1,ocupados:0,disponiveis:1,ativo:true}
 ]
+const holds=[]
 const submissions=[]
 async function newPage(available=true){
  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1})
@@ -44,6 +49,19 @@ async function newPage(available=true){
   if(body.action==='natal_horarios'){
    await route.fulfill({status:200,contentType:'application/json',
     body:JSON.stringify({disponivel:available,horarios:available?slots:[]})})
+   return
+  }
+
+  if(body.action==='natal_seguranca_horario'){
+   holds.push(body)
+   await route.fulfill({status:200,contentType:'application/json',
+    body:JSON.stringify({ok:true,horario_id:body.horario_id,
+     expira_em:'2026-11-09T21:10:00.000Z',server_now:'2026-11-09T21:00:00.000Z',
+     duracao_minutos:body.quantidade*15})})
+   return
+  }
+  if(body.action==='natal_liberar_horario'){
+   await route.fulfill({status:200,contentType:'application/json',body:JSON.stringify({ok:true})})
    return
   }
   if(body.action==='natal_inscrever'){
@@ -62,8 +80,10 @@ try{
  await page.waitForSelector('#gf-fada-form:not([hidden])')
  assert.match(await page.title(),/Natal/)
  assert.equal(await page.locator('#gf-total').textContent(),'R$ 80,00')
+ assert.equal(await page.locator('#gf-slots button').count(),3)
+ await page.locator('[data-period="afternoon"]').click()
  assert.equal(await page.locator('#gf-slots button').count(),2)
- assert.equal(await page.locator('#gf-slots button').nth(1).isDisabled(),true)
+ await page.locator('[data-period="morning"]').click()
  // Responsividade em vários tamanhos, inclusive mães/pais idosos com fonte ampliada.
  for(const width of [320,360,390,430,768,1440]){
    await page.setViewportSize({width,height:850})
@@ -86,6 +106,8 @@ try{
  await page.locator('#gf-aluno-1').fill('Bailarina Segunda')
  await page.locator('#gf-turma-0').fill('Turma infantil')
  await page.locator('#gf-slots button').first().click()
+ await page.waitForSelector('#gf-hold:not([hidden])')
+ assert.equal((await page.locator('#gf-hold-time').textContent()).length,5)
  await page.locator('#gf-responsavel').fill('Responsável Teste')
  await page.locator('#gf-whatsapp').fill('(16) 99999-8888')
  await page.locator('#gf-family-options input').first().check()
@@ -96,6 +118,7 @@ try{
  assert.equal(submissions[0].action,'natal_inscrever')
  assert.equal(submissions[0].pagamento,'ja_paguei')
  assert.equal(submissions[0].horario_id,slots[0].id)
+ assert.equal(holds[0].quantidade,2)
  assert.equal(submissions[0].alunos.length,2)
  assert.equal(submissions[0].company_website,'')
  assert.match(await page.locator('#gf-success-message').textContent(),/Não realize outro pagamento/)
@@ -118,7 +141,8 @@ try{
  assert.equal(submissions.length,2)
  assert.equal(submissions[1].pagamento,'a_pagar')
  assert.equal(submissions[1].alunos.length,4)
- assert.equal(submissions[1].horario_id,slots[2].id)
+ assert.equal(submissions[1].horario_id,slots[5].id)
+ assert.equal(holds[holds.length-1].quantidade,4)
  assert.match(await second.page.locator('#gf-success-message').textContent(),/orientações de pagamento/)
  assert.deepEqual(second.errors,[])
  await second.page.close()
