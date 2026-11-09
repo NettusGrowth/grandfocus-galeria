@@ -26,6 +26,7 @@
     .manager-shell .section-h { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
     @media(max-width:640px){.manager-shell{padding:18px 12px 40px}.campaign-card{padding:14px}.campaign-actions{align-items:flex-start}}
   </style>
+  <link rel="stylesheet" href="/contratar/admin/manager-premium.css">
   <script type="module" src="/contratar/admin/manager.js"></script>
   <link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">
   <link rel="apple-touch-icon" href="/assets/logo-icone.png?v=20261109">
@@ -61,25 +62,54 @@
     </section>
 
     <section id="manager-area" class="hidden">
-      <div class="panel">
-        <div class="participant-head">
-          <div>
-            <p class="eyebrow">Área administrativa</p>
-            <h1>Contratações e experiências</h1>
-            <p class="panel-intro">Crie eventos vinculados às escolas da galeria, configure experiências e acompanhe cada contratação em um só lugar.</p>
+      <section class="manager-hero" aria-labelledby="manager-heading">
+        <div class="manager-hero-copy">
+          <p class="manager-hero-eyebrow"><span class="manager-eyebrow-dot" aria-hidden="true"></span> GRAND FOCUS · GESTÃO DE CAMPANHAS</p>
+          <h1 id="manager-heading">Suas campanhas,<br>em um só lugar.</h1>
+          <p class="manager-hero-intro">Crie eventos, personalize formulários e acompanhe as famílias e os recebimentos de cada escola com clareza.</p>
+          <div class="manager-hero-actions">
+            <button class="manager-primary-action" type="button" id="show-create-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              Criar campanha
+            </button>
+            <button class="manager-secondary-action" type="button" id="refresh-campaigns">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.8 9.2A7.5 7.5 0 0 1 19.5 12M18.2 14.8A7.5 7.5 0 0 1 4.5 12"/></svg>
+              Atualizar
+            </button>
           </div>
-          <button class="btn btn-secondary" type="button" id="logout-button">Sair</button>
+          <p class="admin-message hidden" id="manager-message" role="status" aria-live="polite"></p>
         </div>
-        <div class="admin-actions">
-          <button class="btn btn-primary" type="button" id="show-create-button">+ Nova contratação</button>
-          <button class="btn btn-secondary" type="button" id="refresh-campaigns">Atualizar lista</button>
+        <div class="manager-hero-art" aria-hidden="true">
+          <div class="manager-hero-ring"></div>
+          <div class="manager-hero-emblem">
+            <img src="/assets/logo-icone.png" alt="" width="112" height="112">
+          </div>
         </div>
-        <p class="admin-message hidden" id="manager-message" role="status"></p>
-      </div>
+        <button class="manager-exit" type="button" id="logout-button" aria-label="Sair da administração">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H4"/><path d="M12 4h5a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3h-5"/></svg>
+          Sair
+        </button>
+      </section>
+
+      <section class="manager-overview" aria-label="Resumo das campanhas">
+        <div class="manager-overview-card">
+          <span class="manager-stat-icon manager-stat-icon-all" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.3"/><rect x="14" y="3" width="7" height="7" rx="1.3"/><rect x="3" y="14" width="7" height="7" rx="1.3"/><rect x="14" y="14" width="7" height="7" rx="1.3"/></svg></span>
+          <div><span class="manager-stat-label">Total de campanhas</span><strong id="manager-stat-total" class="manager-stat-number">—</strong><span class="manager-stat-description">Eventos cadastrados</span></div>
+        </div>
+        <div class="manager-overview-card">
+          <span class="manager-stat-icon manager-stat-icon-live" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.7 2.7L16.5 9"/></svg></span>
+          <div><span class="manager-stat-label">Campanhas publicadas</span><strong id="manager-stat-published" class="manager-stat-number">—</strong><span class="manager-stat-description">Páginas disponíveis</span></div>
+        </div>
+        <div class="manager-overview-card">
+          <span class="manager-stat-icon manager-stat-icon-orders" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
+          <div><span class="manager-stat-label">Pedidos registrados</span><strong id="manager-stat-orders" class="manager-stat-number">—</strong><span class="manager-stat-description">Pedidos online das campanhas</span></div>
+        </div>
+      </section>
 
       <form id="new-campaign-form" class="panel manager-form hidden">
-        <h2>Novo evento e contratação</h2>
-        <p class="manager-help">Preencha os dados iniciais. O sistema criará o evento na galeria e a contratação vinculada a ele na mesma operação. Depois você poderá configurar valores, experiências, horários e termos antes de publicar.</p>
+        <p class="eyebrow">CRIAR NOVA CAMPANHA</p>
+        <h2>Vamos preparar seu próximo evento?</h2>
+        <p class="manager-help">Informe os dados essenciais. Depois você poderá configurar as perguntas, os pacotes e a página pública antes de disponibilizar a campanha.</p>
         <div class="admin-grid">
           <div class="field full">
             <label for="event-name">Nome do evento</label>
@@ -107,9 +137,14 @@
         </div>
       </form>
 
-      <section class="panel">
-        <div class="section-h">
-          <h2>Campanhas cadastradas</h2>
+      <section class="manager-campaigns-section" aria-labelledby="campaigns-title">
+        <div class="manager-campaigns-head">
+          <div>
+            <p class="manager-section-eyebrow">SUAS CAMPANHAS</p>
+            <h2 id="campaigns-title">Campanhas cadastradas</h2>
+            <p>Abra uma campanha para configurar o formulário, acompanhar os cadastros e consultar os pagamentos.</p>
+          </div>
+          <span class="manager-campaign-count" id="manager-campaign-count" aria-live="polite">Carregando…</span>
         </div>
         <div id="campaign-list" class="campaign-list" aria-live="polite">
           <div class="manager-empty">Carregando contratações…</div>
