@@ -62,6 +62,9 @@ Deno.serve(async (req: Request) => {
     switch (body?.action) {
       case 'listar_campanhas': return await actionListarCampanhas(req, admin)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
+      case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
+      case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
+      case 'central_registrar_pagamento': return await actionCentralRegistrarPagamento(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'criar_campanha': return await actionCriarCampanha(req, admin, user.id, body)
       case 'config': return await actionConfig(req, admin, requestedCampaignSlug(body))
       case 'salvar': return await actionSalvar(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -432,4 +435,107 @@ async function actionMarcarReembolsado(req: Request, admin: any, userId: string,
   })
   if (error) return jsonResponse(req, { error: error.message }, 409)
   return jsonResponse(req, data || { ok: true, status: 'reembolsado' })
+}
+
+
+// Central de Respostas. Todas as ações passam pela autenticação admin/super_admin acima.
+// A situação "pago" dos pedidos online continua exclusiva do webhook/payment_check
+// verificado. Este painel NÃO permite alterar esse status manualmente.
+async function actionCentralListar(req: Request, admin: any, slug: string) {
+  const evento = await getCampaign(admin, slug)
+  const [nativeResult, formsResult, followResult] = await Promise.all([
+    admin.from('gf_contratacao_pedidos')
+      .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,valor_pago_centavos,pagamento_confirmado_em,metodo_pagamento,criado_em')
+      .eq('evento_contratacao_id',evento.id)
+      .order('criado_em',{ascending:false}).limit(1000),
+    admin.from('gf_contratacao_form_respostas')
+      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em')
+      .eq('evento_contratacao_id',evento.id)
+      .order('respondido_em',{ascending:false}).limit(1000),
+    admin.from('gf_contratacao_acompanhamentos')
+      .select('pedido_id,resposta_form_id,situacao,proximo_contato_em,ultimo_contato_em,observacoes,atualizado_em')
+      .eq('evento_contratacao_id',evento.id).limit(1000),
+  ])
+  if(nativeResult.error || formsResult.error || followResult.error)
+    throw new Error('Não foi possível consultar os registros da central de gestão.')
+  const pedidos = nativeResult.data || []
+  const participantes: any[] = []
+  const ids = pedidos.map((item:any)=>item.id)
+  if(ids.length) {
+    // Pedidos de uma mesma campanha possuem no máximo dez participantes cada.
+    const {data,error}=await admin.from('gf_contratacao_participantes')
+      .select('pedido_id,bailarina_nome,turma,preco_centavos,pacote_id')
+      .in('pedido_id',ids).limit(10000)
+    if(error) throw new Error('Não foi possível consultar as bailarinas dos pedidos.')
+    participantes.push(...(data||[]))
+  }
+  const pacoteIds=[...new Set(participantes.map((p:any)=>p.pacote_id))]
+  let pacoteMap:Record<string,string>={}
+  if(pacoteIds.length) {
+    const {data,error}=await admin.from('gf_contratacao_pacotes')
+      .select('id,nome').in('id',pacoteIds)
+    if(error)throw new Error('Não foi possível consultar os pacotes.')
+    pacoteMap=Object.fromEntries((data||[]).map((p:any)=>[p.id,p.nome]))
+  }
+  const grouped:Record<string,any[]>={}
+  for(const p of participantes) {
+    (grouped[p.pedido_id] ||= []).push({
+      nome:p.bailarina_nome,turma:p.turma,pacote:pacoteMap[p.pacote_id]||'Pacote cadastrado',
+      preco_centavos:p.preco_centavos,
+    })
+  }
+  const rows=pedidos.map((p:any)=>({...p,participantes:grouped[p.id]||[]}))
+  return jsonResponse(req, {
+    campanha:{id:evento.id,nome:evento.nome_publico,status:evento.status},
+    pedidos:rows,
+    respostas:formsResult.data||[],
+    acompanhamentos:followResult.data||[],
+    limite_por_origem:1000,
+    resultados_possivelmente_truncados:
+      pedidos.length>=1000||(formsResult.data||[]).length>=1000||(followResult.data||[]).length>=1000,
+  })
+}
+
+async function actionCentralSalvarAcompanhamento(req:Request,admin:any,userId:string,body:any,slug:string){
+  const evento=await getCampaign(admin,slug)
+  const origem=String(body?.origem||'')
+  const referencia=String(body?.referencia_id||'')
+  const situacao=String(body?.situacao||'')
+  const notas=String(body?.observacoes||'')
+  const data=body?.proximo_contato_em==null||body.proximo_contato_em===''?null:String(body.proximo_contato_em)
+  if(!/^[0-9a-f-]{36}$/i.test(referencia)||!['online','formulario'].includes(origem)
+     ||!['nao_iniciado','contatar','aguardando_resposta','concluido','nao_precisa'].includes(situacao)
+     ||notas.length>3000||(data!==null&&!/^\d{4}-\d{2}-\d{2}$/.test(data)))
+    return jsonResponse(req,{error:'Verifique a situação, a data e as observações de acompanhamento.'},400)
+  const {data:resultado,error}=await admin.rpc('gf_contratacao_admin_salvar_acompanhamento',{
+    p_campanha_id:evento.id,p_origem:origem,p_referencia_id:referencia,
+    p_situacao:situacao,p_proximo_contato_em:data,p_observacoes:notas,
+    p_registrar_contato:body?.registrar_contato===true,p_usuario_id:userId,
+  })
+  if(error)return jsonResponse(req,{error:error.message||'Não foi possível salvar o acompanhamento.'},400)
+  return jsonResponse(req,resultado||{ok:true})
+}
+
+async function actionCentralRegistrarPagamento(req:Request,admin:any,userId:string,body:any,slug:string){
+  const evento=await getCampaign(admin,slug)
+  const id=String(body?.resposta_id||'')
+  const situacao=String(body?.situacao||'')
+  const valor=Number(body?.valor_recebido_centavos)
+  const metodo=String(body?.metodo||'')
+  const referencia=String(body?.referencia||'').trim()
+  const observacao=String(body?.observacao||'').trim()
+  if(!/^[0-9a-f-]{36}$/i.test(id)||!Number.isSafeInteger(valor)||valor<0||valor>100000000
+    ||!['nao_conferido','pendente','parcial','pago_manual','cancelado'].includes(situacao)
+    ||referencia.length>180||observacao.length>1200)
+    return jsonResponse(req,{error:'Verifique os dados de conferência do pagamento.'},400)
+  // Pagamentos dos pedidos nativos não podem ser alterados nesta ação:
+  // apenas respostas históricas do Google Forms podem ter conferência manual.
+  const {data:resultado,error}=await admin.rpc('gf_contratacao_admin_registrar_pagamento_externo',{
+    p_campanha_id:evento.id,p_resposta_id:id,p_situacao:situacao,
+    p_valor_recebido_centavos:valor,p_metodo:metodo,
+    p_referencia:referencia,p_observacao:observacao,
+    p_conferencia_confirmada:body?.conferencia_confirmada===true,p_usuario_id:userId,
+  })
+  if(error)return jsonResponse(req,{error:error.message||'Não foi possível conferir o pagamento.'},400)
+  return jsonResponse(req,resultado||{ok:true})
 }
