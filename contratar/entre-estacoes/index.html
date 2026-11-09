@@ -12,7 +12,7 @@
   <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
   <script type="module" src="/contratar/entre-estacoes/app.js"></script>
 </head>
-<body>
+<body class="gf-form-view">
   <header class="site-header">
     <a class="brand" href="/" aria-label="Voltar à galeria Grand Focus"><img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance"></a>
     <span class="header-note">Contratação da experiência fotográfica</span>
@@ -28,6 +28,7 @@
       </p>
       <div class="event-meta" id="event-meta" aria-live="polite"></div>
       <p class="hero-copy" id="mini-session-note">O miniensaio será realizado por ordem de chegada dentro do período informado, sem horário individual para cada bailarina.</p>
+      <p class="gf-required-legend">* Perguntas obrigatórias para concluir a contratação</p>
     </section>
 
     <section class="status-card" id="loading-state">
@@ -47,17 +48,21 @@
     </section>
 
     <form id="contract-form" class="hidden" novalidate>
+      <div class="gf-form-progress" aria-live="polite">
+        <div class="gf-progress-header"><strong id="form-step-heading">Conheça as experiências</strong><span id="form-step-count">Página 1 de 4</span></div>
+        <div class="gf-progress-track" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-label="Progresso do formulário"><div id="form-step-fill" class="gf-progress-fill"></div></div>
+      </div>
       <div class="honeypot" aria-hidden="true">
         <label for="company-website">Deixe este campo vazio</label>
         <input id="company-website" name="company_website" type="text" tabindex="-1" autocomplete="off">
       </div>
-      <section class="panel experience-overview">
+      <section class="panel experience-overview" data-form-step="0">
         <h2>Conheça as experiências</h2>
         <p class="panel-intro">Cada experiência registra uma parte diferente da trajetória da bailarina. Leia o que está incluído antes de escolher a opção de cada participante.</p>
         <div id="package-overview-list" class="experience-grid" aria-live="polite"></div>
       </section>
 
-      <section class="panel">
+      <section class="panel" data-form-step="1">
         <h2>Escolha a experiência</h2>
         <p class="panel-intro">
           Você pode incluir mais de uma bailarina no mesmo pedido. Cada participante terá sua própria experiência e suas próprias coreografias.
@@ -68,7 +73,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" data-form-step="2">
         <h2>Dados do responsável</h2>
         <p class="panel-intro">Informe os dados de quem está realizando a contratação e receberá as atualizações do pedido.</p>
         <div class="field-grid">
@@ -87,7 +92,7 @@
         </div>
       </section>
 
-      <section class="panel">
+      <section class="panel" data-form-step="3">
         <h2>Termos da contratação</h2>
         <p class="panel-intro">Leia as condições antes de concluir. O aceite será registrado junto ao pedido e à versão apresentada.</p>
         <div class="terms-box" id="terms-content"></div>
@@ -122,7 +127,7 @@
         </details>
       </section>
 
-      <section class="panel">
+      <section class="panel" data-form-step="3">
         <h2>Resumo do pedido</h2>
         <div id="order-summary"></div>
         <div class="total-bar">
@@ -132,12 +137,17 @@
           </div>
           <div class="total-value" id="order-total">R$ 0,00</div>
         </div>
-        <div class="action-row">
-          <button class="btn btn-primary" type="submit" id="submit-order">Continuar para pagamento</button>
-          <span class="hint">A disponibilidade do miniensaio é reservada temporariamente durante a finalização do pagamento.</span>
-        </div>
-        <p class="admin-message hidden" id="form-message" role="alert"></p>
+        <p class="hint gf-summary-note">A disponibilidade do miniensaio é reservada temporariamente durante a finalização do pagamento.</p>
       </section>
+      <div class="gf-form-navigation" aria-label="Navegação entre páginas do formulário">
+        <div class="gf-navigation-buttons">
+          <button class="btn btn-secondary" id="form-back" type="button" hidden>Voltar</button>
+          <button class="btn btn-primary" id="form-next" type="button">Próxima</button>
+          <button class="btn btn-primary" type="submit" id="submit-order" hidden>Continuar para pagamento</button>
+        </div>
+        <span class="gf-navigation-hint">Página <span id="form-nav-current">1</span> de 4</span>
+      </div>
+      <p class="admin-message hidden" id="form-message" role="alert" aria-live="assertive"></p>
     </form>
 
     <footer class="site-footer">
