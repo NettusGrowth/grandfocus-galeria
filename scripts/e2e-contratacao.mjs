@@ -430,7 +430,6 @@ try {
   assert.equal(saveCall.body.pacotes[0].preco_centavos, 11900)
   assert.ok(saveCall.authorization.toLowerCase().includes('mock-admin-user-jwt'))
   assert.ok(saveCall.apikey.startsWith('sb_publishable_'))
-  adminPage.on('dialog', dialog => dialog.accept())
   await adminPage.locator('#publish-button').click()
   await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Campanha publicada'))
   assert.equal(adminEvent.status, 'publicado')
