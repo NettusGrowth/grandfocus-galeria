@@ -392,7 +392,7 @@ try {
   assert.match(await adminPage.locator('#integration-status').textContent(), /Token do webhook configurado/)
   assert.equal(await adminPage.locator('#orders-body').textContent().then(text => /Nenhum pedido/.test(text)), true)
   await adminPage.waitForFunction(() => document.querySelectorAll('#gf-central-list .gf-result-card').length===1)
-  assert.match(await adminPage.locator('#gf-central-metrics').textContent(), /R\\$ 79,00/)
+  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$79,00/)
   assert.match(await adminPage.locator('#gf-central-list').textContent(), /Mãe de Teste/)
   assert.equal(adminCalls.filter(call => call.action==='central_listar').length,1)
   await adminPage.locator('#gf-central-tabs [data-view="pagos"]').click()
