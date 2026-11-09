@@ -193,7 +193,6 @@ function patchIndex(html) {
     '  #admintab-contratacoes .gf-contract-launch-note { font-size:14px; color:#625560; }',
     '  #admintab-contratacoes .gf-contract-launch-actions a:focus-visible { outline:3px solid #C89E56; outline-offset:3px; }',
     '  @media (max-width:640px) { #admintab-contratacoes .gf-contract-launch { padding:22px 16px; border-radius:12px; } #admintab-contratacoes .gf-contract-launch-actions a { width:100%; } }',
-    '</style>'
     '  #admintab-contratacoes .gf-contract-launch {max-width:1160px;overflow:hidden;padding:0;background:#FFFCF7;border:1px solid #E4D7C3;border-radius:23px;box-shadow:0 20px 54px rgba(31,7,17,.13);}',
     '  #admintab-contratacoes .gf-contract-hero{min-height:315px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;padding:clamp(26px,5vw,57px);background:radial-gradient(circle at 82% 17%,rgba(213,168,103,.23),transparent 39%),linear-gradient(115deg,#fffaf3 0%,#f5ebdf 100%);}',
     '  #admintab-contratacoes .gf-contract-hero-copy{position:relative;z-index:2;max-width:675px;}',
@@ -219,6 +218,7 @@ function patchIndex(html) {
     '  #admintab-contratacoes .gf-hero-note-dot{width:7px;height:7px;border-radius:50%;background:#5B9D79;display:inline-block;flex:none;}',
     '  @media(max-width:900px){#admintab-contratacoes .gf-contract-hero-mark{width:145px;height:145px;}#admintab-contratacoes .gf-hero-mark-inner{width:126px;height:126px;border-width:5px;}#admintab-contratacoes .gf-hero-mark-inner img{width:74px;height:74px;}#admintab-contratacoes .gf-contract-module-grid{grid-template-columns:1fr;}}',
     '  @media(max-width:620px){#admintab-contratacoes .gf-contract-hero{padding:30px 21px;min-height:0;}#admintab-contratacoes .gf-contract-hero-mark{display:none;}#admintab-contratacoes .gf-contract-launch-primary{width:100%;box-sizing:border-box;}#admintab-contratacoes .gf-contract-module-grid{padding:15px;}#admintab-contratacoes .gf-contract-launch-note{padding:4px 20px 20px;}}',
+    '</style>',
   ].join('\n');
   if (html.split('</head>').length !== 2) {
     throw new Error('Cannot place contracting launcher styles without one closing head tag.');
