@@ -89,7 +89,8 @@ async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
    return jsonResponse(req,{error:'Solicitação não aceita.'},400)
  const payload=body||{}
  const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
- if(!uuidPattern.test(String(payload.horario_id||''))||
+ const horario=payload.horario_id==null||payload.horario_id===''?null:String(payload.horario_id)
+ if((horario!==null&&!uuidPattern.test(horario))||
     !uuidPattern.test(String(payload.idempotencia||''))||
     !Array.isArray(payload.alunos)||payload.alunos.length<1||payload.alunos.length>4||
     !['ja_paguei','a_pagar'].includes(payload.pagamento)||
@@ -116,7 +117,7 @@ async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
   },429)
  }
  const {data,error}=await admin.rpc('gf_natal_solicitar_horario',{
-  p_slug:slug,p_horario:payload.horario_id,
+  p_slug:slug,p_horario:horario,
   p_nome:String(payload.nome||''),p_whatsapp:String(payload.whatsapp||''),
   p_email:String(payload.email||''),p_alunos:payload.alunos,
   p_pagamento:payload.pagamento,p_meio:String(payload.meio_pagamento||''),
