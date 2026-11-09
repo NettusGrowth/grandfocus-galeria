@@ -28,8 +28,16 @@
       </p>
       <div class="event-meta" id="event-meta" aria-live="polite"></div>
       <p class="hero-copy" id="mini-session-note">O miniensaio será realizado por ordem de chegada dentro do período informado, sem horário individual para cada bailarina.</p>
-      <p class="gf-required-legend">* Perguntas obrigatórias para concluir a contratação</p>
+      <p class="gf-required-legend">Os campos com <strong>*</strong> são obrigatórios.</p>
     </section>
+
+    <div class="gf-reader-toolbar" role="group" aria-label="Acessibilidade e ajuda">
+      <button id="gf-font-toggle" class="gf-font-toggle" type="button" aria-pressed="false">
+        <span class="gf-font-icon" aria-hidden="true">A+</span>
+        <span id="gf-font-label">Aumentar letras</span>
+      </button>
+      <a id="gf-help-link" class="gf-help-link hidden" href="#" target="_blank" rel="noopener noreferrer">Precisa de ajuda? Fale com nossa equipe</a>
+    </div>
 
     <div id="admin-preview-banner" class="gf-preview-banner hidden" role="status">Pré-visualização administrativa. Nenhuma contratação ou cobrança será registrada nesta tela.</div>
 
@@ -52,6 +60,7 @@
     <form id="contract-form" class="hidden" novalidate>
       <div class="gf-form-progress" aria-live="polite">
         <div class="gf-progress-header"><strong id="form-step-heading">Conheça as experiências</strong><span id="form-step-count">Página 1 de 4</span></div>
+        <p class="gf-step-description" id="gf-step-description">Veja os pacotes disponíveis. Na próxima página, você poderá escolher.</p>
         <div class="gf-progress-track" role="progressbar" aria-valuemin="1" aria-valuemax="4" aria-valuenow="1" aria-label="Progresso do formulário"><div id="form-step-fill" class="gf-progress-fill"></div></div>
       </div>
       <div class="honeypot" aria-hidden="true">
@@ -60,14 +69,14 @@
       </div>
       <section class="panel experience-overview" data-form-step="0">
         <h2>Conheça as experiências</h2>
-        <p class="panel-intro">Cada experiência registra uma parte diferente da trajetória da bailarina. Leia o que está incluído antes de escolher a opção de cada participante.</p>
+        <p class="panel-intro">Veja com calma o que está incluído em cada opção. Você fará sua escolha na próxima página.</p>
         <div id="package-overview-list" class="experience-grid" aria-live="polite"></div>
       </section>
 
       <section class="panel" data-form-step="1">
         <h2>Escolha a experiência</h2>
         <p class="panel-intro">
-          Você pode incluir mais de uma bailarina no mesmo pedido. Cada participante terá sua própria experiência e suas próprias coreografias.
+          Preencha os dados de cada bailarina. Se tiver mais de uma, use o botão “Adicionar outra bailarina”. Cada uma pode escolher um pacote diferente.
         </p>
         <div id="participants-list"></div>
         <div class="action-row">
@@ -85,11 +94,13 @@
           </div>
           <div class="field">
             <label for="responsavel-whatsapp">WhatsApp com DDD</label>
-            <input id="responsavel-whatsapp" name="responsavel_whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="(34) 99999-9999" maxlength="20" required>
+            <input id="responsavel-whatsapp" name="responsavel_whatsapp" type="tel" autocomplete="tel" inputmode="tel" placeholder="(34) 99999-9999" maxlength="20" aria-describedby="gf-whatsapp-hint" required>
+            <span class="gf-field-help" id="gf-whatsapp-hint">Inclua o DDD, por exemplo: (34) 99999-9999.</span>
           </div>
           <div class="field">
             <label for="responsavel-email">E-mail</label>
-            <input id="responsavel-email" name="responsavel_email" type="email" autocomplete="email" maxlength="180" required>
+            <input id="responsavel-email" name="responsavel_email" type="email" autocomplete="email" maxlength="180" aria-describedby="gf-email-hint" required>
+            <span class="gf-field-help" id="gf-email-hint">Confira a escrita do e-mail antes de continuar.</span>
           </div>
         </div>
       </section>
