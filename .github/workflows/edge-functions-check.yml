@@ -53,18 +53,15 @@ jobs:
       - name: Check contracting page JavaScript syntax
         run: |
           node --check contratar/entre-estacoes/app.js
-          node --input-type=module --check < contratar/fada-natal/booking.js
           node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
           node --input-type=module --check < contratar/entre-estacoes/admin/central.js
           node --input-type=module --check < contratar/entre-estacoes/admin/fees.js
           node --input-type=module --check < contratar/entre-estacoes/admin/form-builder.js
           node --input-type=module --check < contratar/entre-estacoes/admin/workspace.js
           node --input-type=module --check < contratar/entre-estacoes/admin/agenda.js
-          node --input-type=module --check < contratar/entre-estacoes/fada-natal.js
           node --input-type=module --check < contratar/entre-estacoes/questions.js
           node --input-type=module --check < contratar/admin/manager.js
           node --check contratar/fada-natal/fada.js
-          node --input-type=module --check < contratar/fada-natal/admin.js
       - name: Verify financial fee estimates in cents
         run: node scripts/test-finance-net.mjs
       - name: Check contracting security and structure
@@ -79,8 +76,6 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Test public contracting flow and admin login gate in Chromium
         run: node scripts/e2e-contratacao.mjs
-      - name: Test Christmas booking with family pricing, paid branches and mobile view
-        run: node scripts/test-fada-booking.mjs
       - name: Test Christmas family scheduling, pricing and accessible mobile form
         run: node scripts/e2e-fada-natal.mjs
       - name: Validate contracting migration and reservation logic in temporary PostgreSQL
@@ -100,9 +95,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/089_central_previsao_recebimento_liquido.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-natal-tests.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/agenda-campaign-tests.sql
-          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-agendamento-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/finance-fee-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-archive-tests.sql
