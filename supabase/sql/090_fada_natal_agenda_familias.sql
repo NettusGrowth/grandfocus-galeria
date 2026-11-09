@@ -1,6 +1,56 @@
 -- 090 • Agendamento familiar do Natal Fada Açucarada.
 -- Sem checkout e sem confirmação automática de pagamento.
 -- Acesso público exclusivamente pela Edge Function. Não concede SELECT/INSERT a anon.
+-- Modo de atendimento configurável de forma independente para cada campanha.
+alter table public.gf_contratacao_eventos
+  add column if not exists modo_agendamento text not null default 'ordem_chegada';
+alter table public.gf_contratacao_eventos
+  add constraint gf_eventos_modo_agendamento_check
+  check (modo_agendamento in ('ordem_chegada','horario_marcado'));
+-- O Natal da Fada Açucarada foi solicitado com horário marcado.
+update public.gf_contratacao_eventos
+ set modo_agendamento='horario_marcado'
+ where slug='natal-fada-acucarada-2026'
+   and status='rascunho'
+   and modo_agendamento='ordem_chegada';
+
+create or replace function public.gf_contratacao_admin_salvar_modo_agendamento(
+ p_slug text,p_modo text,p_usuario uuid
+) returns jsonb language plpgsql security invoker set search_path=''
+as $
+declare v_evento public.gf_contratacao_eventos%rowtype;
+begin
+ if p_usuario is null or not exists (
+  select 1 from public.perfis where user_id=p_usuario and role in ('admin','super_admin')
+ ) then raise exception 'Acesso administrativo necessário.';end if;
+ if p_modo not in ('ordem_chegada','horario_marcado') then
+  raise exception 'Escolha um modo de agendamento válido.';end if;
+ select * into v_evento from public.gf_contratacao_eventos where slug=p_slug for update;
+ if not found then raise exception 'Campanha não encontrada.';end if;
+ if v_evento.status='encerrado' then raise exception 'Campanha encerrada.';end if;
+ if v_evento.modo_agendamento=p_modo then
+  return jsonb_build_object('ok',true,'modo_agendamento',p_modo,'sem_alteracao',true);
+ end if;
+ if p_modo='ordem_chegada' and exists(
+   select 1 from public.gf_contratacao_form_respostas r
+   where r.evento_contratacao_id=v_evento.id and r.horario_id is not null
+      and r.arquivado_em is null
+      and (r.agendamento_status='confirmado' or
+         (r.agendamento_status='solicitado' and
+          (r.agendamento_expira_em>now() or r.pagamento_situacao in ('pago_manual','parcial'))))
+ ) then raise exception 'Não é possível remover o agendamento com reservas ativas. Resolva os agendamentos primeiro.';end if;
+ update public.gf_contratacao_eventos
+  set modo_agendamento=p_modo,atualizado_em=now() where id=v_evento.id;
+ insert into public.gf_contratacao_auditoria(evento_contratacao_id,usuario_id,acao,detalhes)
+ values(v_evento.id,p_usuario,'modo_agendamento_alterado',
+  jsonb_build_object('anterior',v_evento.modo_agendamento,'novo',p_modo));
+ return jsonb_build_object('ok',true,'modo_agendamento',p_modo);
+end;$;
+revoke all on function public.gf_contratacao_admin_salvar_modo_agendamento(text,text,uuid)
+ from public,anon,authenticated;
+grant execute on function public.gf_contratacao_admin_salvar_modo_agendamento(text,text,uuid)
+ to service_role;
+
 create table if not exists public.gf_contratacao_horarios (
  id uuid primary key default gen_random_uuid(),
  evento_contratacao_id uuid not null references public.gf_contratacao_eventos(id) on delete restrict,
@@ -47,9 +97,7 @@ returns jsonb language plpgsql security invoker set search_path=''
 as $$
 declare v_evento public.gf_contratacao_eventos%rowtype;
 begin
- if p_slug <> 'natal-fada-acucarada-2026' then
-  raise exception 'Agenda indisponível para esta campanha.';
- end if;
+ if nullif(btrim(coalesce(p_slug,'')),'') is null then raise exception 'Campanha inválida.';end if;
  select * into v_evento from public.gf_contratacao_eventos where slug=p_slug;
  if not found then raise exception 'Campanha não encontrada.';end if;
  if v_evento.status <> 'publicado' and not p_preview then
@@ -58,6 +106,7 @@ begin
  return jsonb_build_object(
   'disponivel',v_evento.status='publicado',
   'campanha',v_evento.nome_publico,
+  'modo_agendamento',v_evento.modo_agendamento,
   'horarios',coalesce((
    select jsonb_agg(
     jsonb_build_object(
@@ -75,7 +124,8 @@ begin
        and (r.agendamento_status='confirmado' or
             (r.agendamento_status='solicitado' and (r.agendamento_expira_em > now() or r.pagamento_situacao in ('parcial','pago_manual'))))
    ) ocup on true
-   where h.evento_contratacao_id=v_evento.id and (p_preview or h.ativo)
+   where h.evento_contratacao_id=v_evento.id and v_evento.modo_agendamento='horario_marcado'
+   and (p_preview or h.ativo)
   ),'[]'::jsonb)
  );
 end;$$;
@@ -91,13 +141,16 @@ begin
  if p_usuario is null or not exists(select 1 from public.perfis where user_id=p_usuario and role in ('admin','super_admin'))
  then raise exception 'Acesso administrativo necessário.';end if;
  select * into v_evento from public.gf_contratacao_eventos where slug=p_slug for update;
- if not found or p_slug <> 'natal-fada-acucarada-2026' then raise exception 'Campanha de Natal não encontrada.';end if;
+ if not found then raise exception 'Campanha não encontrada.';end if;
  if v_evento.status='encerrado' then raise exception 'Campanha encerrada.';end if;
- if p_dia not in ('2026-12-12'::date,'2026-12-13'::date)
- or p_inicio is null or p_fim is null or p_fim<=p_inicio
+ if v_evento.modo_agendamento<>'horario_marcado' then
+  raise exception 'Escolha o modo Horário marcado antes de criar vagas.';end if;
+ if p_dia is null or p_inicio is null or p_fim is null or p_fim<=p_inicio
  or p_duracao not between 5 and 90 then
-  raise exception 'Escolha 12 ou 13 de dezembro, horas válidas e duração entre 5 e 90 minutos.';
+  raise exception 'Escolha um dia, horas válidas e duração entre 5 e 90 minutos.';
  end if;
+ if v_evento.data_evento is not null and abs(p_dia-v_evento.data_evento)>30 then
+  raise exception 'Os horários precisam estar próximos da data do evento.';end if;
  if extract(epoch from (p_fim-p_inicio)) /60 > 720 then
   raise exception 'Um intervalo de agendamento não pode ultrapassar 12 horas.';
  end if;
@@ -130,7 +183,7 @@ begin
  then raise exception 'Acesso administrativo necessário.';end if;
  select h.* into v_slot from public.gf_contratacao_horarios h
  join public.gf_contratacao_eventos e on e.id=h.evento_contratacao_id
- where h.id=p_horario and e.slug=p_slug and p_slug='natal-fada-acucarada-2026'
+ where h.id=p_horario and e.slug=p_slug
  for update of h;
  if not found then raise exception 'Horário não encontrado.';end if;
  if exists(
@@ -162,7 +215,7 @@ declare
 begin
  if p_slug<>'natal-fada-acucarada-2026' or p_aceite is distinct from true
  then raise exception 'O cadastro de Natal não está disponível.';end if;
- if p_idempotencia is null or p_horario is null or p_pagamento not in ('ja_paguei','a_pagar')
+ if p_idempotencia is null or p_pagamento not in ('ja_paguei','a_pagar')
   or nullif(btrim(p_nome),'') is null or length(btrim(p_nome)) not between 5 and 120
   or p_alunos is null or jsonb_typeof(p_alunos)<>'array'
   or jsonb_array_length(p_alunos) not between 1 and 4
@@ -187,6 +240,10 @@ begin
  select * into v_evento from public.gf_contratacao_eventos where slug=p_slug;
  if not found or v_evento.status<>'publicado' then
   raise exception 'O agendamento ainda não foi liberado.';end if;
+ if v_evento.modo_agendamento='horario_marcado' and p_horario is null then
+   raise exception 'Selecione um horário para participar.';end if;
+ if v_evento.modo_agendamento='ordem_chegada' and p_horario is not null then
+   raise exception 'Este evento utiliza ordem de chegada, sem horário marcado.';end if;
  v_key:='fada-natal-2026:'||p_idempotencia::text;
  select * into v_existing from public.gf_contratacao_form_respostas
  where evento_contratacao_id=v_evento.id and origem_chave=v_key;
@@ -198,6 +255,7 @@ begin
    'ja_pago_declarado',v_existing.pagamento_declarado='ja_paguei',
    'reutilizado',true);
  end if;
+ if v_evento.modo_agendamento='horario_marcado' then
  select * into v_slot from public.gf_contratacao_horarios
  where id=p_horario and evento_contratacao_id=v_evento.id and ativo=true for update;
  if not found then raise exception 'Horário indisponível. Escolha outro.';end if;
@@ -214,6 +272,7 @@ begin
    (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))));
  if v_ocupados>=v_slot.capacidade then
   raise exception 'Este horário acabou de ser escolhido por outra família. Selecione outro.';end if;
+ end if;
  insert into public.gf_contratacao_form_respostas (
   evento_contratacao_id,origem_chave,origem,origem_linha,respondido_em,
   responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,
@@ -231,12 +290,14 @@ begin
        else 'Ainda não pagou' end,
   p_pagamento,
   case when p_pagamento='ja_paguei' then 'nao_conferido' else 'pendente' end,
-  'Horário solicitado: '||to_char(v_slot.dia,'DD/MM/YYYY')||' '||to_char(v_slot.inicio,'HH24:MI')||
+  case when v_evento.modo_agendamento='horario_marcado'
+       then 'Horário solicitado: '||to_char(v_slot.dia,'DD/MM/YYYY')||' '||to_char(v_slot.inicio,'HH24:MI')
+       else 'Atendimento por ordem de chegada' end||
   ' • Aguardando confirmação da equipe. '||
   'Alunos: '||array_to_string(v_nomes,', ')||
   case when p_data_pagamento is not null then ' • Pagou em '||to_char(p_data_pagamento,'DD/MM/YYYY') else '' end||
   case when nullif(btrim(coalesce(p_observacao,'')),'') is not null then ' • Observações: '||btrim(p_observacao) else '' end,
-  v_slot.id,'solicitado',now()+interval '48 hours',p_alunos,true,true
+  p_horario,'solicitado',case when p_horario is null then null else now()+interval '48 hours' end,p_alunos,true,true
  ) returning id into v_id;
  return jsonb_build_object('ok',true,'codigo',left(v_id::text,8),'valor_centavos',v_preco,
    'ja_pago_declarado',p_pagamento='ja_paguei',
