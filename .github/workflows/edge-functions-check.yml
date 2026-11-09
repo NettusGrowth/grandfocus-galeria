@@ -66,6 +66,8 @@ jobs:
         run: node scripts/test-finance-net.mjs
       - name: Check contracting security and structure
         run: node scripts/check-contratacao.mjs
+      - name: Check Christmas family scheduling safety and routes
+        run: node scripts/check-fada-natal.mjs
       - name: Build static site and verify isolated contracting pages
         run: npm run build
       - name: Install Playwright for browser verification
