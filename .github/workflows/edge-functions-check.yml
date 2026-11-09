@@ -54,6 +54,7 @@ jobs:
         run: |
           node --check contratar/entre-estacoes/app.js
           node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/central.js
           node --input-type=module --check < contratar/admin/manager.js
       - name: Check contracting security and structure
         run: node scripts/check-contratacao.mjs
@@ -74,6 +75,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/081_contratacao_sem_limite_e_prazo_opcional.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/082_contratacao_endereco_fornecedor_opcional.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/083_contratacao_gerenciador_dinamico.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/084_central_respostas_financeiro.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/contratacao-tests.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
