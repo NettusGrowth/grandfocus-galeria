@@ -94,6 +94,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/088_central_arquivamento_seguro.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/089_central_previsao_recebimento_liquido.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/091_fada_natal_sem_sobreposicao.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-no-overlap-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-agendamento-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/finance-fee-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-archive-tests.sql
