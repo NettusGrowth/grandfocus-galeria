@@ -62,6 +62,10 @@ Deno.serve(async (req: Request) => {
     switch (body?.action) {
       case 'listar_campanhas': return await actionListarCampanhas(req, admin)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
+      case 'natal_agenda': return await actionNatalAgenda(req,admin,requestedCampaignSlug(body))
+      case 'natal_gerar_horarios': return await actionNatalGerarHorarios(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'natal_desativar_horario': return await actionNatalDesativar(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
       case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -85,6 +89,52 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: safeErrorMessage(error) || 'Não foi possível concluir a ação.' }, 400)
   }
 })
+
+// Agenda e inscrições de Natal são separadas do checkout InfinitePay.
+// Somente usuários admin/super_admin chegam a estas rotas.
+async function actionNatalAgenda(req:Request,admin:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')
+   return jsonResponse(req,{error:'Esta agenda não pertence à campanha.'},404)
+ const {data,error}=await admin.rpc('gf_natal_listar_horarios',{p_slug:slug,p_preview:true})
+ if(error)return jsonResponse(req,{error:error.message||'Agenda indisponível.'},409)
+ return jsonResponse(req,data||{horarios:[]})
+}
+async function actionNatalGerarHorarios(req:Request,admin:any,userId:string,body:any,slug:string){
+ const dia=String(body?.dia||'')
+ const inicio=String(body?.inicio||'')
+ const fim=String(body?.fim||'')
+ const duracao=Number(body?.duracao_minutos)
+ if(!['2026-12-12','2026-12-13'].includes(dia)||
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(inicio)||
+    !/^([01]\d|2[0-3]):[0-5]\d$/.test(fim)||
+    !Number.isSafeInteger(duracao)||duracao<5||duracao>90)
+  return jsonResponse(req,{error:'Informe data, horários e duração válidos.'},400)
+ const {data,error}=await admin.rpc('gf_natal_gerar_horarios',{
+  p_slug:slug,p_dia:dia,p_inicio:inicio,p_fim:fim,p_duracao:duracao,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível gerar os horários.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
+async function actionNatalDesativar(req:Request,admin:any,userId:string,body:any,slug:string){
+ const id=String(body?.horario_id||'')
+ if(!/^[0-9a-f-]{36}$/i.test(id))return jsonResponse(req,{error:'Horário inválido.'},400)
+ const {data,error}=await admin.rpc('gf_natal_desativar_horario',{
+  p_slug:slug,p_horario:id,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível alterar o horário.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
+async function actionNatalStatus(req:Request,admin:any,userId:string,body:any,slug:string){
+ const id=String(body?.resposta_id||'')
+ const status=String(body?.status||'')
+ if(!/^[0-9a-f-]{36}$/i.test(id)||!['confirmado','cancelado'].includes(status))
+  return jsonResponse(req,{error:'Informe agendamento e situação válidos.'},400)
+ const {data,error}=await admin.rpc('gf_natal_atualizar_agendamento',{
+  p_slug:slug,p_resposta:id,p_status:status,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível atualizar o agendamento.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
 
 async function actionListarCampanhas(req: Request, admin: any) {
   const { data: campanhas, error } = await admin.from('gf_contratacao_eventos')
@@ -443,7 +493,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
       .eq('evento_contratacao_id',evento.id)
       .order('criado_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_form_respostas')
-      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em')
+      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_declarado,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em,horario_id,agendamento_status,agendamento_expira_em')
       .eq('evento_contratacao_id',evento.id)
       .order('respondido_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_acompanhamentos')
