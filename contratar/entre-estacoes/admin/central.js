@@ -1,3 +1,5 @@
+import { processingFeeCents, projectedNetCents } from './fees.js'
+
 /* Central de Gestão Grand Focus — exclusiva da área administrativa autenticada.
  * Sem edição do status pago dos pedidos InfinitePay; pagamentos históricos exigem conferência.
  */
@@ -151,11 +153,11 @@ function isProjectedCredit(record) {
 }
 function estimatedCharge(amount,record){
   const cents=Math.max(0,Math.round(Number(amount)||0))
-  return isProjectedCredit(record)?Math.round(cents*centralState.feeBps/10000):0
+  return isProjectedCredit(record)?processingFeeCents(cents,centralState.feeBps):0
 }
 function estimatedNet(amount,record){
   const cents=Math.max(0,Math.round(Number(amount)||0))
-  return cents-estimatedCharge(cents,record)
+  return isProjectedCredit(record)?projectedNetCents(cents,centralState.feeBps):cents
 }
 function isForecastEligible(record){
   return !record.archived && !['cancelado','expirado','reembolsado'].includes(record.status)
