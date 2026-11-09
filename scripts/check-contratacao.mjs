@@ -191,7 +191,7 @@ assert.ok(adminApi.includes("case 'central_listar'") && adminApi.includes("case 
 assert.ok(centralMigration.includes('enable row level security') && centralMigration.includes('revoke all on table') && centralMigration.includes('from public, anon, authenticated'), 'Tabelas históricas e de follow-up devem ser privadas.')
 assert.ok(centralMigration.includes('gf_contratacao_admin_registrar_pagamento_externo') && centralMigration.includes('p_conferencia_confirmada is distinct from true'), 'Pagamentos manuais precisam de confirmação explícita e trilha.')
 assert.ok(centralSqlTests.includes('Conferência parcial foi perdida') && centralSqlTests.includes('Follow-up do formulário não foi salvo'), 'Os testes SQL devem cobrir recebimento e acompanhamento.')
-assert.ok((paymentPermissionMigration.match(/from public\\.perfis/g) || []).length === 2 &&
+assert.ok((paymentPermissionMigration.match(/from public\.perfis/g) || []).length === 2 &&
   !paymentPermissionMigration.includes('from auth.users'),
   'Funções financeiras devem verificar permissão por perfis administrativos em vez de ler auth.users como service_role.')
 assert.ok(centralSqlTests.includes('set local role service_role') &&
