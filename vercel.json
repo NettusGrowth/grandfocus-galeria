@@ -23,6 +23,14 @@
       "destination": "/contratar/entre-estacoes/admin/index.html"
     },
     {
+      "source": "/contratar/natal-fada-acucarada-2026",
+      "destination": "/contratar/fada-natal/index.html"
+    },
+    {
+      "source": "/contratar/natal-fada-acucarada-2026/",
+      "destination": "/contratar/fada-natal/index.html"
+    },
+    {
       "source": "/contratar/:slug",
       "destination": "/contratar/entre-estacoes/index.html"
     },
