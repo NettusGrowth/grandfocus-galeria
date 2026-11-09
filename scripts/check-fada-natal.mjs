@@ -40,4 +40,19 @@ assert.ok(sql.includes('alter table public.gf_contratacao_horarios enable row le
 assert.ok(!sql.includes('delete from public.gf_contratacao_pedidos')&&
  !sql.includes('drop table')&&
  !sql.includes('truncate '),'Não apagar histórico de clientes/pedidos.')
-console.log('Fada Natal: verificações de segurança, preços, rotas e controle administrativo aprovadas.')
+const sql92=read('supabase/sql/092_fada_natal_reserva_consecutiva_temporaria.sql')
+assert.ok(sql92.includes('gf_natal_holds')&&sql92.includes("interval '10 minutes'")&&
+ sql92.includes('gf_natal_intervalo_livre')&&sql92.includes('gf_natal_reservar_temporariamente')&&
+ sql92.includes('for update')&&sql92.includes('gf_natal_liberar_reserva'),
+ 'A retenção de 10 minutos deve ser garantida transacionalmente no banco.')
+assert.ok(sql92.includes("v_preco:=case v_count when 1 then 8000 when 2 then 14500 when 3 then 21500 else 28500 end")&&
+ sql92.includes('p_quantidade*15')&&
+ sql92.includes('gf_natal_atualizar_agendamento')&&
+ sql92.includes("revoke all on public.gf_natal_holds from public,anon,authenticated"),
+ 'A nova versão deve preservar preço familiar, escopo e política de permissões.')
+assert.ok(!sql92.includes('drop table')&&!sql92.includes('truncate '),
+ 'A mudança não pode excluir histórico existente.')
+assert.ok(publicJs.includes('natal_seguranca_horario')&&
+ publicJs.includes('gf-hold-time')&&publicJs.includes('natal_liberar_horario'),
+ 'O cronômetro deve usar a retenção do servidor e permitir liberação.')
+console.log('Fada Natal: verificações de segurança, preços, rotas, reservas consecutivas e retenção de 10 minutos aprovadas.')
