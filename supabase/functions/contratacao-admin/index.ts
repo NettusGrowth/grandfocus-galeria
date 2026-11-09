@@ -146,7 +146,7 @@ async function actionConfig(req: Request, admin: any, slug: string) {
   const evento = await getCampaign(admin, slug)
   const { data: pacotes, error } = await admin
     .from('gf_contratacao_pacotes')
-    .select('id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,minimo_fotos_por_coreografia,ativo,ordem')
+    .select('id,codigo,nome,descricao,preco_centavos,inclui_miniensaio,inclui_palco,ativo,ordem')
     .eq('evento_contratacao_id', evento.id)
     .order('ordem', { ascending: true })
   if (error) throw new Error('Não foi possível consultar os pacotes.')
@@ -225,8 +225,6 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any,
     if(!Number.isInteger(preco)||preco<100||preco>100000000)return jsonResponse(req,{error:'O valor de cada experiência deve ficar entre R$ 1,00 e R$ 1.000.000,00.'},400)
     if(!Array.isArray(item?.descricao)||item.descricao.length>20||item.descricao.some((line:unknown)=>typeof line!=='string'||line.length>300))return jsonResponse(req,{error:'Revise a descrição das experiências. Use até 20 linhas de 300 caracteres.'},400)
     if(typeof item?.ativo!=='boolean'||typeof item?.inclui_miniensaio!=='boolean'||typeof item?.inclui_palco!=='boolean')return jsonResponse(req,{error:'Revise a disponibilidade e os itens incluídos na experiência.'},400)
-    const minimo=Number(item?.minimo_fotos_por_coreografia||0)
-    if(!Number.isInteger(minimo)||minimo<0||minimo>1000||(item.inclui_palco&&minimo<10))return jsonResponse(req,{error:'Experiências com fotos de palco precisam manter no mínimo 10 fotos por coreografia.'},400)
   }
   const {error:saveError}=await admin.rpc('gf_contratacao_admin_salvar_config',{p_slug:slug,p_evento:update,p_pacotes:pacotes,p_usuario_id:userId})
   if(saveError){console.error('contratacao-admin[salvar]: falha transacional',saveError.message);throw new Error('Não foi possível salvar a configuração completa. Nenhuma alteração parcial foi mantida.')}
@@ -322,24 +320,17 @@ async function actionDetalhe(req: Request, admin: any, body: any, slug: string) 
   }
 
   const participantes = participantesResult.data || []
-  const participanteIds = participantes.map((item: any) => item.id)
-  const [pacotesResult, coreografiasResult] = await Promise.all([
-    admin.from('gf_contratacao_pacotes').select('id,codigo,nome').in('id', participantes.map((item: any) => item.pacote_id)),
-    participanteIds.length
-      ? admin.from('gf_contratacao_coreografias').select('*').in('participante_id', participanteIds)
-      : Promise.resolve({ data: [], error: null }),
-  ])
-  if (pacotesResult.error || coreografiasResult.error) throw new Error('Não foi possível carregar pacotes e coreografias.')
+  const {data: pacotes, error: pacotesError} = await admin.from('gf_contratacao_pacotes')
+    .select('id,codigo,nome').in('id', participantes.map((item: any) => item.pacote_id))
+  if (pacotesError) throw new Error('Não foi possível carregar os pacotes.')
 
-  const pacotesById = Object.fromEntries((pacotesResult.data || []).map((item: any) => [item.id, item]))
-  const coreografias = coreografiasResult.data || []
+  const pacotesById = Object.fromEntries((pacotes || []).map((item: any) => [item.id, item]))
 
   return jsonResponse(req, {
     pedido,
     participantes: participantes.map((item: any) => ({
       ...item,
       pacote: pacotesById[item.pacote_id] || null,
-      coreografias: coreografias.filter((coreografia: any) => coreografia.participante_id === item.id),
     })),
     pagamento: pagamentoResult.data,
     aceite: aceiteResult.data,
