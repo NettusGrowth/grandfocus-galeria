@@ -10,7 +10,7 @@ assert.ok(galleryHtml.includes('id="gf-contract-launch-title"'), 'O gerenciador 
 assert.ok(galleryHtml.includes('Suas campanhas, em um só lugar.'),'Nova entrada deve servir todas as campanhas.')
 assert.ok(!galleryHtml.includes('Ir direto ao Entre Estações'),'Entrada não deve ser limitada a uma escola.')
 assert.ok(galleryHtml.includes('href="/contratar/admin/" target="_blank"'), 'O botão deve abrir o painel independente.')
-assert.ok(galleryHtml.includes('href="/contratar/entre-estacoes/admin/" target="_blank"'), 'A escola principal deve ter acesso direto.')
+assert.ok(!galleryHtml.includes('href="/contratar/entre-estacoes/admin/" target="_blank"'), 'Entrada geral não pode privilegiar uma escola específica.')
 assert.ok(!galleryHtml.includes('<iframe title="Gerenciador de contratações e experiências"'),
  'O painel pequeno embutido não pode permanecer no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/index.html')), 'Página pública não foi gerada no build.')
