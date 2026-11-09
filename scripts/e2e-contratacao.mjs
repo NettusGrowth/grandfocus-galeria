@@ -289,6 +289,8 @@ try {
   await previewPage.locator('[data-class]').first().fill('Intermediário')
   await previewPage.locator('[data-package]').first().selectOption('22222222-2222-4222-8222-222222222222')
   await previewPage.locator('#form-next').click()
+  await previewPage.locator('[data-question-id="q_11111111"] input[value="Jazz"]').check()
+  assert.equal(await previewPage.locator('[data-question-id="q_22222222"]').isVisible(),false)
   await previewPage.locator('#responsavel-nome').fill('Responsável Exemplo')
   await previewPage.locator('#responsavel-whatsapp').fill('(34) 99999-9999')
   await previewPage.locator('#responsavel-email').fill('exemplo@example.com')
