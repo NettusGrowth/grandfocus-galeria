@@ -6,6 +6,22 @@ import { chromium } from 'playwright'
 
 const root = path.resolve('dist')
 const galleryHtml = fs.readFileSync(path.join(root,'index.html'),'utf8')
+const faviconPath='/assets/logo-icone.png?v=20261109'
+assert.ok(fs.existsSync(path.join(root,'assets/logo-icone.png')),'O arquivo do favicon Grand Focus deve existir no build.')
+for (const file of [
+  'index.html',
+  'contratar/admin/index.html',
+  'contratar/entre-estacoes/index.html',
+  'contratar/entre-estacoes/admin/index.html',
+  'contratar/entre-estacoes/privacidade.html',
+  'r2-migration.html',
+]) {
+  const pageHtml=fs.readFileSync(path.join(root,file),'utf8')
+  assert.ok(pageHtml.includes('<link rel="icon" type="image/png" href="'+faviconPath+'">'),
+    'A página '+file+' precisa mostrar o favicon oficial na aba.')
+  assert.ok(pageHtml.includes('<link rel="apple-touch-icon" href="'+faviconPath+'">'),
+    'A página '+file+' precisa oferecer o ícone para atalhos no celular.')
+}
 assert.ok(galleryHtml.includes('id="gf-contract-launch-title"'), 'O gerenciador deve ser aberto de uma nova aba.')
 assert.ok(galleryHtml.includes('Suas campanhas, em um só lugar.'),'Nova entrada deve servir todas as campanhas.')
 assert.ok(!galleryHtml.includes('Ir direto ao Entre Estações'),'Entrada não deve ser limitada a uma escola.')
