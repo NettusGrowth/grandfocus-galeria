@@ -15,10 +15,12 @@
   <script type="module" src="/contratar/entre-estacoes/admin/central.js"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/form-builder.js"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/workspace.js"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/agenda.js"></script>
   <script type="module" src="/contratar/fada-natal/admin.js"></script>
   <link rel="stylesheet" href="/contratar/fada-natal/admin.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/workspace.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/agenda.css">
   <link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">
   <link rel="apple-touch-icon" href="/assets/logo-icone.png?v=20261109">
 </head>
@@ -208,42 +210,32 @@
         </div>
       </section>
 
-      <section id="gf-natal-schedule" class="panel gf-natal-admin" data-workspace-page="evento" hidden aria-labelledby="gf-natal-schedule-title">
-        <div class="gf-natal-head">
-          <span class="gf-natal-icon" aria-hidden="true">⌚</span>
-          <div>
-            <p class="eyebrow">FADA AÇUCARADA • NATAL 2026</p>
-            <h2 id="gf-natal-schedule-title">Agenda de horários por família</h2>
-            <p>As famílias escolhem uma vaga disponível no formulário. Nenhum pagamento ou horário é confirmado automaticamente.</p>
-          </div>
-        </div>
-        <p class="gf-natal-warning">Cada horário comporta uma família de até quatro alunos. Uma solicitação ocupa a vaga temporariamente por 48 horas; a equipe precisa conferir o pagamento na Central antes de confirmar o horário.</p>
-        <form id="gf-natal-build" class="gf-natal-create">
-          <label>Dia do ensaio
-            <select id="gf-natal-date" required><option value="2026-12-12">Sábado, 12/12</option><option value="2026-12-13">Domingo, 13/12</option></select>
-          </label>
-          <label>Começa às
-            <input type="time" id="gf-natal-start" required>
-          </label>
-          <label>Termina às
-            <input type="time" id="gf-natal-end" required>
-          </label>
-          <label>Duração de cada família
-            <input type="number" id="gf-natal-duration" min="5" max="90" step="5" placeholder="Em minutos" required>
-          </label>
-          <button type="submit" class="btn btn-primary" id="gf-natal-build-button">Criar horários</button>
-        </form>
-        <p class="gf-natal-hint">Exemplo: se você escolher 14h às 16h com duração de 20 minutos, o sistema oferece 14h, 14h20, 14h40 e assim por diante. O intervalo final não ultrapassa o horário de término. Nada será criado sem você preencher os horários.</p>
-        <div class="gf-natal-toolbar">
-          <strong>Horários cadastrados</strong>
-          <button type="button" class="btn btn-secondary" id="gf-natal-refresh">Atualizar vagas</button>
-        </div>
-        <p id="gf-natal-notice" class="gf-natal-notice" role="status" aria-live="polite"></p>
-        <div id="gf-natal-slots-admin" class="gf-natal-slots-admin" aria-live="polite"><p>Carregando agenda…</p></div>
-      </section>
-
       <form id="config-form" data-workspace-page="evento">
         <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Edite os dados deste espetáculo sem misturar com as respostas das famílias.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
+        <section class="panel gf-agenda-chooser" aria-labelledby="gf-scheduling-title">
+          <span class="gf-agenda-brow">COMO SERÁ O ATENDIMENTO?</span>
+          <h2 id="gf-scheduling-title">Agendamento das fotografias</h2>
+          <p class="panel-intro">Escolha uma opção para esta campanha. Você poderá usar uma forma diferente em cada escola ou evento.</p>
+          <div class="gf-scheduling-choices" role="radiogroup" aria-label="Tipo de agendamento">
+            <label class="gf-mode-card" for="gf-mode-arrival">
+              <input type="radio" name="gf-scheduling-mode" id="gf-mode-arrival" value="ordem_chegada" checked>
+              <span class="gf-mode-card-content">
+                <span class="gf-mode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/><circle cx="19" cy="17" r="2"/></svg></span>
+                <strong>Ordem de chegada</strong>
+                <small>Sem hora individual. A família se inscreve e recebe as orientações de comparecimento.</small>
+              </span>
+            </label>
+            <label class="gf-mode-card" for="gf-mode-fixed">
+              <input type="radio" name="gf-scheduling-mode" id="gf-mode-fixed" value="horario_marcado">
+              <span class="gf-mode-card-content">
+                <span class="gf-mode-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="M11 14h5"/></svg></span>
+                <strong>Horário marcado</strong>
+                <small>Crie dias e intervalos. As famílias veem as vagas disponíveis e escolhem um horário.</small>
+              </span>
+            </label>
+          </div>
+          <p id="gf-mode-note" class="gf-mode-note" role="status">O modo será salvo com as demais configurações da campanha.</p>
+        </section>
         <section class="panel">
           <h2>Informações do evento</h2>
           <p class="panel-intro">Horários e capacidade só são obrigatórios quando alguma experiência incluir miniensaio.</p>
@@ -293,7 +285,7 @@
               <input id="support-whatsapp" type="tel" maxlength="30">
             </div>
           </div>
-          <p class="hint">Quando houver miniensaio, ele será realizado por ordem de chegada dentro do período configurado, sem horário individual por bailarina.</p>
+          <p class="hint">Quando escolher “Ordem de chegada”, não haverá horário individual; quando escolher “Horário marcado”, você criará os intervalos na agenda abaixo. As configurações antigas de miniensaio continuam disponíveis para campanhas já existentes.</p>
         </section>
 
         <details class="gf-config-advanced"><summary>Documentos e dados legais <span class="gf-secondary-label">Configuração avançada</span></summary>
@@ -363,6 +355,40 @@
           <div id="package-fields" class="admin-grid"></div>
         </section>
       </form>
+
+      <section id="gf-natal-schedule" class="panel gf-natal-admin gf-agenda-manager" data-workspace-page="evento" hidden aria-labelledby="gf-natal-schedule-title">
+        <div class="gf-natal-head">
+          <span class="gf-natal-icon" aria-hidden="true"> <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4M17 3v4M3 10h18"/><path d="M12 13v4l2 1"/></svg></span>
+          <div>
+            <p class="eyebrow">AGENDA DO EVENTO</p>
+            <h2 id="gf-natal-schedule-title">Horários disponíveis para reserva</h2>
+            <p>As famílias poderão visualizar e escolher vagas livres. O sistema impede duas reservas simultâneas para a mesma vaga.</p>
+          </div>
+        </div>
+        <p class="gf-natal-warning">Cada horário comporta uma reserva. Uma escolha ocupa a vaga temporariamente, respeitando o prazo da campanha. Para quem já pagou, a equipe precisa conferir o recebimento antes de confirmar. Pagamentos online só serão confirmados automaticamente quando o checkout for ativado e conciliado com segurança.</p>
+        <form id="gf-natal-build" class="gf-natal-create">
+          <label>Dia do ensaio
+            <input type="date" id="gf-natal-date" required>
+          </label>
+          <label>Começa às
+            <input type="time" id="gf-natal-start" required>
+          </label>
+          <label>Termina às
+            <input type="time" id="gf-natal-end" required>
+          </label>
+          <label>Duração de cada atendimento
+            <input type="number" id="gf-natal-duration" min="5" max="90" step="5" placeholder="Em minutos" required>
+          </label>
+          <button type="submit" class="btn btn-primary" id="gf-natal-build-button">Criar horários</button>
+        </form>
+        <p class="gf-natal-hint">Você define os dias, as faixas de horário e os minutos por atendimento. Exemplo: 14h–16h, com sessões de 20 minutos, gera 14h, 14h20, 14h40 etc. A capacidade de vagas só começa a existir depois que você salvar a configuração e criar os intervalos.</p>
+        <div class="gf-natal-toolbar">
+          <strong>Vagas e horários cadastrados</strong>
+          <button type="button" class="btn btn-secondary" id="gf-natal-refresh">Atualizar vagas</button>
+        </div>
+        <p id="gf-natal-notice" class="gf-natal-notice" role="status" aria-live="polite"></p>
+        <div id="gf-natal-slots-admin" class="gf-natal-slots-admin" aria-live="polite"><p>Carregando agenda…</p></div>
+      </section>
 
 
       <details class="gf-technical-details" data-workspace-page="evento">
