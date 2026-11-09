@@ -58,6 +58,8 @@ jobs:
           node --input-type=module --check < contratar/entre-estacoes/admin/fees.js
           node --input-type=module --check < contratar/entre-estacoes/admin/form-builder.js
           node --input-type=module --check < contratar/entre-estacoes/admin/workspace.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/agenda.js
+          node --input-type=module --check < contratar/entre-estacoes/fada-natal.js
           node --input-type=module --check < contratar/entre-estacoes/questions.js
           node --input-type=module --check < contratar/admin/manager.js
           node --check contratar/fada-natal/fada.js
@@ -93,6 +95,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/087_editor_formularios_dinamicos.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/088_central_arquivamento_seguro.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/089_central_previsao_recebimento_liquido.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/agenda-campaign-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/090_fada_natal_agenda_familias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-agendamento-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/finance-fee-tests.sql
