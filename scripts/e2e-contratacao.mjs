@@ -100,7 +100,8 @@ try {
       await page.setViewportSize(viewport)
       const metrics = await page.evaluate(() => {
         const root = document.documentElement
-        const next = document.getElementById('form-next')
+        const next = document.getElementById('form-next').hidden
+          ? document.getElementById('submit-order') : document.getElementById('form-next')
         const reader = document.getElementById('gf-font-toggle')
         const sampleInput = document.getElementById('responsavel-nome')
         const help = document.getElementById('gf-help-link')
