@@ -547,7 +547,10 @@ try {
   await paymentEditor.locator('button[type="submit"]').click()
   await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Conferência registrada'))
   assert.ok(adminCalls.some(call=>call.action==='central_registrar_pagamento'),'A central não salvou conferência do pagamento.')
-  assert.equal(await adminPage.locator('.gf-archive-bar button').count(),0,'Pagamentos conferidos não podem ser arquivados.')
+  await adminPage.waitForFunction(() => !document.querySelector('.gf-archive-bar button'),
+    {timeout:5000})
+  assert.equal(await adminPage.locator('.gf-archive-bar button').count(),0,
+    'Pagamentos conferidos não podem ser arquivados.')
   await adminPage.locator('#gf-central-detail .gf-detail-toolbar button').click()
   await adminPage.locator('#gf-central-tabs [data-view="todos"]').click()
   await adminPage.locator('#gf-central-list .gf-result-card').first().click()
