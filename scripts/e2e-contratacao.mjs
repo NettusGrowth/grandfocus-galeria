@@ -661,7 +661,44 @@ try {
   await managerPage.locator('#login-password').fill('not-a-real-password')
   await managerPage.locator('#login-button').click()
   await managerPage.waitForSelector('#manager-area:not(.hidden)')
+  assert.match(await managerPage.locator('#manager-heading').textContent(), /Suas campanhas/)
+  assert.equal(await managerPage.locator('.manager-hero-emblem img').getAttribute('src'),
+    '/assets/logo-icone.png')
+  assert.equal(await managerPage.locator('#manager-stat-total').textContent(),'1')
+  assert.equal(await managerPage.locator('#manager-stat-published').textContent(),'1')
+  assert.equal(await managerPage.locator('#manager-stat-orders').textContent(),'1')
+  assert.equal(await managerPage.locator('#manager-campaign-count').textContent(),'1 campanha')
+  assert.equal(await managerPage.locator('.campaign-card').count(),1)
+  assert.equal(await managerPage.locator('.campaign-card').first().getAttribute('data-status'),'publicado')
+  assert.match(await managerPage.locator('.campaign-card').first().textContent(),/Studio Entrepliés/)
+  assert.match(await managerPage.locator('.campaign-manage').textContent(),/Gerenciar campanha/)
+  assert.equal(await managerPage.locator('.campaign-manage').getAttribute('href'),'/contratar/entre-estacoes/admin/')
+  assert.equal(await managerPage.locator('.campaign-public').getAttribute('target'),'_blank')
+  assert.equal(await managerPage.locator('.campaign-copy').count(),1)
+
+  // Layout adaptativo: controles legíveis, sem scroll horizontal no celular.
+  await managerPage.setViewportSize({width:390,height:844})
+  const mobileManager=await managerPage.evaluate(()=>{
+    const hero=document.querySelector('.manager-hero')
+    const button=document.querySelector('#show-create-button')
+    const card=document.querySelector('.campaign-card')
+    const metrics=document.querySelector('.manager-overview')
+    return {
+      viewport:document.documentElement.clientWidth,
+      pageWidth:document.documentElement.scrollWidth,
+      buttonHeight:button.getBoundingClientRect().height,
+      cardWidth:card.getBoundingClientRect().width,
+      heroWidth:hero.getBoundingClientRect().width,
+      metricColumns:getComputedStyle(metrics).gridTemplateColumns.split(' ').length,
+    }
+  })
+  assert.ok(mobileManager.pageWidth<=mobileManager.viewport+1,
+    'O gerenciador tem rolagem horizontal: '+JSON.stringify(mobileManager))
+  assert.ok(mobileManager.buttonHeight>=48,'O botão principal deve ser fácil de tocar.')
+  assert.ok(mobileManager.cardWidth<=mobileManager.viewport,'Cartões devem caber no celular.')
+  await managerPage.setViewportSize({width:1280,height:900})
   await managerPage.locator('#show-create-button').click()
+  assert.equal(await managerPage.locator('#new-campaign-form').isVisible(),true)
   await managerPage.locator('#event-name').fill('Espetáculo de Teste')
   await managerPage.locator('#event-date').fill('2026-12-12')
   await managerPage.locator('#school-select').selectOption('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa')
