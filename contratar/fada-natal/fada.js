@@ -7,7 +7,7 @@ const SUPABASE_URL='https://selnsjtumkxjrtnqofqx.supabase.co'
 const PUBLIC_KEY='sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const preview=new URLSearchParams(location.search).get('preview')==='1'
 const prices=Object.freeze({1:8000,2:14500,3:21500,4:28500})
-const state={day:'2026-12-12',count:1,slot:null,slots:[],preview,expanded:false,holding:false,submitting:false,holdExpiresAt:0}
+const state={day:'2026-12-12',count:1,period:'morning',slot:null,slots:[],preview,expanded:false,holding:false,submitting:false,holdExpiresAt:0}
 const $=id=>document.getElementById(id)
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100)
 function notify(message){
@@ -48,7 +48,7 @@ function renderStudents(){
  updateRecap()
 }
 function availability(){
- return state.slots.filter(x=>x.dia===state.day&&x.ativo&&x.disponiveis>0)
+ return state.slots.filter(x=>x.dia===state.day&&x.ativo&&x.disponiveis>0&&((x.inicio<'13:00')===(state.period==='morning')))
 }
 function renderSlots(){
  const root=$('gf-slots');root.replaceChildren()
@@ -78,6 +78,10 @@ function renderSlots(){
    }
  }
  for(const btn of document.querySelectorAll('[data-day]'))btn.setAttribute('aria-pressed',String(btn.dataset.day===state.day))
+ for(const btn of document.querySelectorAll('[data-period]')){
+   btn.hidden=state.day==='2026-12-13'&&btn.dataset.period==='afternoon'
+   btn.setAttribute('aria-pressed',String(btn.dataset.period===state.period))
+ }
  updateRecap();renderHold()
 }
 function holdToken(){
@@ -122,7 +126,7 @@ async function changeAgenda(nextCount,nextDay){
  if(state.holding||state.submitting)return
  state.holding=true
  await releaseHold()
- state.count=nextCount;state.day=nextDay;state.expanded=false
+ state.count=nextCount;state.day=nextDay;if(nextDay==='2026-12-13')state.period='morning';state.expanded=false
  renderStudents();clearError()
  try{await loadSlots()}catch(error){notify(error.message||'Não foi possível atualizar os horários.')}
  finally{state.holding=false;renderSlots()}
@@ -234,6 +238,14 @@ async function loadSlots(){
 }
 document.querySelectorAll('[data-count]').forEach(btn=>btn.addEventListener('click',()=>{void changeAgenda(Number(btn.dataset.count),state.day)}))
 document.querySelectorAll('[data-day]').forEach(btn=>btn.addEventListener('click',()=>{void changeAgenda(state.count,btn.dataset.day)}))
+document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',async()=>{
+ if(state.holding||state.submitting||state.period===btn.dataset.period)return
+ state.holding=true
+ await releaseHold()
+ state.period=btn.dataset.period;state.expanded=false
+ try{await loadSlots()}catch(error){notify(error.message||'Não foi possível atualizar os horários.')}
+ finally{state.holding=false;renderSlots()}
+}))
 document.querySelectorAll('input[name="pagamento"]').forEach(input=>input.addEventListener('change',()=>{
  $('gf-paid-details').hidden=input.value!=='ja_paguei' || !input.checked
  updateRecap();clearError()
