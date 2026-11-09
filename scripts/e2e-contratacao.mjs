@@ -87,8 +87,15 @@ try {
   assert.match(await page.locator('h1').first().textContent(), /Entre Estações/)
   assert.match(await page.locator('#event-meta').textContent(), /Teatro de Teste/)
 
+  // The Google Forms-style questionnaire starts at page 1 and keeps future fields hidden.
+  assert.match(await page.locator('#form-step-count').textContent(), /Página 1 de 4/)
+  assert.equal(await page.locator('[data-form-step="2"]').isVisible(), false)
+  assert.equal(await page.locator('#submit-order').isVisible(), false)
+  await page.locator('#form-next').click()
+  assert.match(await page.locator('#form-step-count').textContent(), /Página 2 de 4/)
+
   // Form validation must stop an incomplete request before calling the API.
-  await page.locator('#submit-order').click()
+  await page.locator('#form-next').click()
   assert.match(await page.locator('#form-message').textContent(), /Preencha/)
   assert.equal(submitted, null, 'O formulário incompleto não deve enviar uma contratação.')
 
@@ -101,11 +108,16 @@ try {
   await page.locator('[data-class]').nth(1).fill('Avançado')
   await page.locator('[data-package]').nth(1).selectOption('22222222-2222-4222-8222-222222222222')
   await page.locator('[data-coreo-list] input[type="text"]').fill('Valsa das Estações')
+  await page.locator('#form-next').click()
+  assert.match(await page.locator('#form-step-count').textContent(), /Página 3 de 4/)
   assert.match((await page.locator('#order-total').textContent()).replace(/\s/g,''), /198,00/)
 
   await page.locator('#responsavel-nome').fill('Responsável de Teste')
   await page.locator('#responsavel-whatsapp').fill('(34) 99999-9999')
   await page.locator('#responsavel-email').fill('responsavel@example.com')
+  await page.locator('#form-next').click()
+  assert.match(await page.locator('#form-step-count').textContent(), /Página 4 de 4/)
+  assert.equal(await page.locator('#submit-order').isVisible(), true)
   await page.locator('#responsavel-legal').check()
   await page.locator('#terms-accepted').check()
 

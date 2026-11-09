@@ -499,6 +499,11 @@ function collectPayload() {
 
 async function submitOrder(event) {
   event.preventDefault()
+  // O Enter em um campo de texto não pode enviar o pedido antes da revisão final.
+  if (currentFormStep !== FORM_STEPS.length - 1) {
+    if (validateFormStep(currentFormStep)) setFormStep(currentFormStep + 1)
+    return
+  }
   hideMessage()
 
   let payload
@@ -631,6 +636,82 @@ async function loadOrderReturn() {
   panel.classList.add('warning')
   return true
 }
+
+// Apresentação inspirada nas páginas de perguntas do Google Forms.
+// A navegação muda apenas a interface; o payload, os aceites e os valores não mudam.
+const FORM_STEPS = [
+  'Conheça as experiências',
+  'Bailarinas e experiências',
+  'Dados do responsável',
+  'Termos e revisão',
+]
+let currentFormStep = 0
+const formStepSections = [...form.querySelectorAll('[data-form-step]')]
+const formStepBack = document.getElementById('form-back')
+const formStepNext = document.getElementById('form-next')
+const formProgress = document.querySelector('.gf-progress-track')
+
+function showStepError(message) {
+  showMessage(message, 'error')
+  formMessage.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+function validateFormStep(step) {
+  if (step === 1) {
+    try {
+      collectParticipants()
+    } catch (error) {
+      showStepError(error.message)
+      return false
+    }
+  }
+
+  if (step === 2) {
+    const nome = document.getElementById('responsavel-nome').value.trim()
+    const digits = document.getElementById('responsavel-whatsapp').value.replace(/\D/g, '')
+    const email = document.getElementById('responsavel-email').value.trim()
+    if (nome.length < 5) {
+      showStepError('Informe o nome completo do responsável.')
+      return false
+    }
+    if (digits.length < 10 || digits.length > 13) {
+      showStepError('Informe um WhatsApp válido com DDD.')
+      return false
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      showStepError('Informe um e-mail válido.')
+      return false
+    }
+  }
+
+  return true
+}
+
+function setFormStep(step, scroll = true) {
+  currentFormStep = Math.max(0, Math.min(FORM_STEPS.length - 1, step))
+  const isLast = currentFormStep === FORM_STEPS.length - 1
+  formStepSections.forEach((section) => {
+    section.hidden = Number(section.dataset.formStep) !== currentFormStep
+  })
+  document.getElementById('form-step-heading').textContent = FORM_STEPS[currentFormStep]
+  document.getElementById('form-step-count').textContent = 'Página ' + (currentFormStep + 1) + ' de ' + FORM_STEPS.length
+  document.getElementById('form-nav-current').textContent = String(currentFormStep + 1)
+  document.getElementById('form-step-fill').style.width = ((currentFormStep + 1) / FORM_STEPS.length * 100) + '%'
+  formProgress.setAttribute('aria-valuenow', String(currentFormStep + 1))
+  formStepBack.hidden = currentFormStep === 0
+  formStepNext.hidden = isLast
+  submitButton.hidden = !isLast
+  hideMessage()
+  if (isLast) updateSummary()
+  if (scroll) document.querySelector('.gf-form-progress').scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+formStepBack.addEventListener('click', () => setFormStep(currentFormStep - 1))
+formStepNext.addEventListener('click', () => {
+  if (validateFormStep(currentFormStep)) setFormStep(currentFormStep + 1)
+})
+form.classList.add('gf-steps-enabled')
+setFormStep(0, false)
 
 document.getElementById('add-participant').addEventListener('click', addParticipant)
 form.addEventListener('submit', submitOrder)
