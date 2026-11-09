@@ -226,7 +226,7 @@ async function submit(event){
  }finally{state.submitting=false}
 }
 async function loadSlots(){
- const data=preview?await api('natal_agenda',{},true):await api('natal_horarios',{quantidade:state.count,idempotencia:sessionStorage.getItem('gf_natal_submission_id')||undefined})
+ const data=preview?await api('natal_agenda',{quantidade:state.count},true):await api('natal_horarios',{quantidade:state.count,idempotencia:sessionStorage.getItem('gf_natal_submission_id')||undefined})
  state.slots=Array.isArray(data.horarios)?data.horarios:[]
  if(!preview&&!data.disponivel){
   $('gf-closed').hidden=false;$('gf-fada-form').hidden=true
