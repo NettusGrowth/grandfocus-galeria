@@ -298,7 +298,7 @@ function selectRecord(record) {
       const reconcile=actionButton('Consultar pagamento na InfinitePay','btn btn-secondary')
       reconcile.addEventListener('click',async()=>{
         reconcile.disabled=true
-        try { await apiCentral('reconciliar',{pedido_id:record.id});notice('Consulta à InfinitePay concluída. Confira o status atualizado.','success');await loadCentral(false) }
+        try { await apiCentral('reconciliar',{pedido_id:record.id});notice('Consulta à InfinitePay concluída. Confira o status atualizado.','success');await loadCentral(false, true) }
         catch(error){notice(error.message,'error')}
         finally{reconcile.disabled=false}
       })
@@ -344,7 +344,7 @@ function makeFollowEditor(record) {
         registrar_contato:contactInput.checked,
       })
       notice('Acompanhamento salvo. Próximo contato e observações atualizados.','success')
-      await loadCentral(false)
+      await loadCentral(false, true)
     }catch(error){notice(error.message||'Não foi possível salvar.','error')}
     finally{save.disabled=false}
   })
@@ -419,13 +419,13 @@ function makePaymentEditor(record) {
         conferencia_confirmada:checked.checked,
       })
       notice('Conferência registrada com histórico de auditoria.','success')
-      await loadCentral(false)
+      await loadCentral(false, true)
     }catch(error){notice(error.message||'Não foi possível registrar o pagamento.','error')}
     finally{save.disabled=false}
   })
   return form
 }
-async function loadCentral(initial) {
+async function loadCentral(initial, preserveNotice = false) {
   if(centralState.loading)return
   centralState.loading=true
   const refresh=document.getElementById('gf-central-refresh')
@@ -436,7 +436,7 @@ async function loadCentral(initial) {
     centralState.ready=true
     updateMetrics()
     renderList()
-    notice('Central atualizada: '+centralState.data.length+' registros. Valores recebidos são separados dos valores apenas informados.','success')
+    if (!preserveNotice) notice('Central atualizada: '+centralState.data.length+' registros. Valores recebidos são separados dos valores apenas informados.','success')
     if(payload.resultados_possivelmente_truncados)notice('A consulta atingiu o limite de 1.000 registros por origem. Consulte a exportação completa antes de tomar decisões financeiras.','error')
     if(centralState.selected) {
       const selected=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
