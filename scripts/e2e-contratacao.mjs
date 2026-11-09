@@ -52,7 +52,16 @@ const campaign = {
     privacidade_conteudo:'Política de privacidade de teste com informações sobre finalidade, base legal, dados coletados, armazenamento, compartilhamento, direitos dos titulares e canal de contato.',
     fornecedor_nome:'Grand Focus Fotografia', fornecedor_documento:'12345678901',
     fornecedor_endereco:'Rua de Teste, 100, Centro', fornecedor_email:'teste@grandfocus.com.br',
-    autorizacao_imagem_conteudo:null, autorizacao_imagem_versao:null
+    autorizacao_imagem_conteudo:null, autorizacao_imagem_versao:null,
+    formulario_versao:4,
+    formulario_modelo:{
+      aparencia:{cor:'#4B0416',fundo:'#F1EDF1',titulo:'Memórias em cena',introducao:'Teste das perguntas da escola.'},
+      perguntas:[
+        {id:'q_11111111',titulo:'Qual modalidade?',ajuda:'Escolha sua modalidade.',tipo:'unica',obrigatoria:true,opcoes:['Ballet','Jazz'],condicao:null,ordem:0},
+        {id:'q_22222222',titulo:'Qual turma do Ballet?',ajuda:'Informe a turma.',tipo:'texto',obrigatoria:true,opcoes:[],
+          condicao:{pergunta_id:'q_11111111',valor:'Ballet'},ordem:1},
+      ],
+    }
   },
   pacotes: [
     { id:'11111111-1111-4111-8111-111111111111', codigo:'miniensaio', nome:'Miniensaio no teatro', descricao:['3 fotos individuais','2 fotos com familiares','5 fotos digitais tratadas'], preco_centavos:11900, inclui_miniensaio:true, inclui_palco:false, minimo_fotos_por_coreografia:0 },
@@ -148,6 +157,8 @@ try {
 
 
   // The Google Forms-style questionnaire starts at page 1 and keeps future fields hidden.
+  assert.match(await page.locator('#campaign-title').textContent(), /Memórias em cena/)
+  assert.match(await page.locator('#gf-custom-intro').textContent(), /Teste das perguntas/)
   assert.match(await page.locator('#form-step-count').textContent(), /Página 1 de 4/)
   assert.equal(await page.locator('[data-form-step="2"]').isVisible(), false)
   assert.equal(await page.locator('#submit-order').isVisible(), false)
@@ -175,6 +186,15 @@ try {
   await page.locator('#form-next').click()
   assert.match(await page.locator('#form-step-count').textContent(), /Página 3 de 4/)
   assert.match((await page.locator('#order-total').textContent()).replace(/\s/g,''), /198,00/)
+  await page.locator('#form-next').click()
+  assert.match(await page.locator('#form-message').textContent(), /Qual modalidade/)
+  await page.locator('[data-question-id="q_11111111"] input[value="Jazz"]').check()
+  assert.equal(await page.locator('[data-question-id="q_22222222"]').isVisible(),false)
+  await page.locator('[data-question-id="q_11111111"] input[value="Ballet"]').check()
+  assert.equal(await page.locator('[data-question-id="q_22222222"]').isVisible(),true)
+  await page.locator('#form-next').click()
+  assert.match(await page.locator('#form-message').textContent(), /Qual turma do Ballet/)
+  await page.locator('#gf-question-q_22222222').fill('Intermediário')
   await page.locator('#form-next').click()
   assert.equal(await page.locator('#responsavel-nome').getAttribute('aria-invalid'), 'true')
   assert.equal(await page.locator('#responsavel-nome').evaluate(el => document.activeElement === el), true)
@@ -213,6 +233,9 @@ try {
   assert.equal(Object.hasOwn(submitted.participantes[1],'coreografias'),false,
     'Pedido deve conter bailarina e pacote, sem detalhes obrigatórios de apresentações.')
   assert.equal(submitted.aceite.ciente_privacidade, true)
+  assert.equal(submitted.formulario.versao,4)
+  assert.equal(submitted.formulario.respostas.q_11111111,'Ballet')
+  assert.equal(submitted.formulario.respostas.q_22222222,'Intermediário')
   assert.equal(submitted.company_website, '')
   assert.equal(submitted.campaign_slug, 'teste-publico')
   assert.deepEqual(publicCampaignSlugs, ['teste-publico','teste-publico'])
@@ -371,6 +394,17 @@ try {
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({ pedidos:[] }) })
       return
     }
+    if (body.action === 'formulario_salvar') {
+      if(Number(body.versao) !== Number(adminEvent.formulario_versao||1)){
+        await route.fulfill({status:409,contentType:'application/json',body:JSON.stringify({error:'Versão desatualizada.'})})
+        return
+      }
+      adminEvent.formulario_modelo=body.modelo
+      adminEvent.formulario_versao=(adminEvent.formulario_versao||1)+1
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({ok:true,versao:adminEvent.formulario_versao,modelo:body.modelo})})
+      return
+    }
     if (body.action === 'salvar') {
       Object.assign(adminEvent, body.evento)
       for (const item of body.pacotes || []) {
@@ -437,6 +471,27 @@ try {
   await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Acompanhamento salvo'))
   assert.ok(adminCalls.some(call => call.action==='central_salvar_acompanhamento'), 'A central não salvou o follow-up.')
 
+  await adminPage.waitForFunction(() => document.getElementById('gf-builder-status')?.textContent.includes('Editor pronto'))
+  assert.equal(await adminPage.locator('#gf-builder-items .gf-builder-question').count(),0)
+  await adminPage.locator('#gf-builder-add').click()
+  const builderFirst=adminPage.locator('#gf-builder-items .gf-builder-question').first()
+  await builderFirst.locator('input[type="text"]').first().fill('Qual modalidade?')
+  await builderFirst.locator('.gf-builder-fields > label select').first().selectOption('unica')
+  await builderFirst.locator('textarea').fill('Ballet\nJazz')
+  await builderFirst.locator('input[type="checkbox"]').check()
+  await adminPage.locator('#gf-builder-add').click()
+  const builderSecond=adminPage.locator('#gf-builder-items .gf-builder-question').nth(1)
+  await builderSecond.locator('input[type="text"]').first().fill('Qual turma do Ballet?')
+  await builderSecond.locator('.gf-builder-condition select').first().selectOption({label:'Qual modalidade?'})
+  await builderSecond.locator('.gf-builder-condition select').nth(1).selectOption({label:'Ballet'})
+  await builderSecond.locator('input[type="checkbox"]').check()
+  await adminPage.locator('#gf-builder-save').click()
+  await adminPage.waitForFunction(() => document.getElementById('gf-builder-status')?.textContent.includes('salvas'))
+  const formSave=adminCalls.find(call=>call.action==='formulario_salvar')
+  assert.ok(formSave,'O editor não salvou as perguntas via backend administrativo.')
+  assert.equal(formSave.body.modelo.perguntas.length,2)
+  assert.equal(formSave.body.modelo.perguntas[1].condicao.valor,'Ballet')
+  assert.equal(adminEvent.formulario_versao,2)
   await adminPage.locator('#save-button').click()
   await adminPage.waitForFunction(() => document.getElementById('admin-message')?.textContent.includes('Configuração salva'))
   const saveCall = adminCalls.find(call => call.action === 'salvar')
