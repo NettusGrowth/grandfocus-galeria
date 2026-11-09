@@ -319,10 +319,12 @@ begin
  then raise exception 'Acesso administrativo necessário.';end if;
  if p_status not in ('confirmado','cancelado') then raise exception 'Status inválido.';end if;
  select * into v_row from public.gf_contratacao_form_respostas where id=p_resposta;
- if not found or v_row.horario_id is null or v_row.origem<>'formulario_site' then
+ if not found or v_row.origem<>'formulario_site' then
   raise exception 'Agendamento não encontrado.';end if;
- select * into v_slot from public.gf_contratacao_horarios
- where id=v_row.horario_id for update;
+ if v_row.horario_id is not null then
+  select * into v_slot from public.gf_contratacao_horarios
+   where id=v_row.horario_id for update;
+ end if;
  select * into v_row from public.gf_contratacao_form_respostas
  where id=p_resposta for update;
  if not exists(select 1 from public.gf_contratacao_eventos where id=v_row.evento_contratacao_id
@@ -331,11 +333,13 @@ begin
   if v_row.pagamento_situacao<>'pago_manual' or
     v_row.valor_recebido_centavos<v_row.valor_informado_centavos then
     raise exception 'Confira e registre o pagamento integral na Central antes de confirmar o horário.';end if;
-  select count(*) into v_total from public.gf_contratacao_form_respostas r
-   where r.horario_id=v_slot.id and r.id<>v_row.id and r.arquivado_em is null
-    and (r.agendamento_status='confirmado' or
-         (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))));
-  if v_total>=v_slot.capacidade then raise exception 'Horário já ocupado por outra família.';end if;
+  if v_row.horario_id is not null then
+   select count(*) into v_total from public.gf_contratacao_form_respostas r
+    where r.horario_id=v_slot.id and r.id<>v_row.id and r.arquivado_em is null
+     and (r.agendamento_status='confirmado' or
+          (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))));
+   if v_total>=v_slot.capacidade then raise exception 'Horário já ocupado por outra família.';end if;
+  end if;
  else
   if v_row.valor_recebido_centavos>0 then
     raise exception 'Existe recebimento confirmado. Resolva o reembolso antes de cancelar.';end if;
