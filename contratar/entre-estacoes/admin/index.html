@@ -11,6 +11,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
   <script type="module" src="/contratar/entre-estacoes/admin/admin.js"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/central.js"></script>
 </head>
 <body>
   <header class="site-header">
@@ -181,6 +182,54 @@
           <div id="package-fields" class="admin-grid"></div>
         </section>
       </form>
+
+
+      <section class="panel gf-central" id="gf-central" aria-labelledby="gf-central-title">
+        <header class="gf-central-header">
+          <div>
+            <p class="gf-central-eyebrow">Gestão de respostas, pagamentos e relacionamento</p>
+            <h2 id="gf-central-title">Central de Gestão</h2>
+            <p class="gf-central-subtitle">Tudo em um só lugar: quem respondeu, quem pagou, o que falta conferir e quando entrar em contato.</p>
+          </div>
+          <div class="gf-central-actions">
+            <button class="btn btn-secondary" type="button" id="gf-central-refresh">Atualizar</button>
+            <button class="btn btn-secondary" type="button" id="gf-central-export">Exportar CSV</button>
+          </div>
+        </header>
+        <div class="gf-central-notice" id="gf-central-notice" role="status" aria-live="polite">Preparando seus registros…</div>
+        <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Indicadores financeiros e de acompanhamento"></div>
+        <p class="gf-central-trust">Atenção: a escolha de Pix ou cartão no Google Forms não comprova pagamento. Registros antigos entram como <strong>a conferir</strong> até a confirmação manual. Pedidos online só ficam pagos após confirmação do provedor.</p>
+        <div class="gf-central-tabs" id="gf-central-tabs" role="group" aria-label="Filtrar registros">
+          <button type="button" data-view="todos" aria-pressed="true">Todos <span id="gf-count-todos"></span></button>
+          <button type="button" data-view="conferir" aria-pressed="false">A conferir <span id="gf-count-conferir"></span></button>
+          <button type="button" data-view="follow" aria-pressed="false">Follow-ups <span id="gf-count-follow"></span></button>
+          <button type="button" data-view="pendentes" aria-pressed="false">Pendências <span id="gf-count-pendentes"></span></button>
+          <button type="button" data-view="pagos" aria-pressed="false">Pagos <span id="gf-count-pagos"></span></button>
+        </div>
+        <div class="gf-central-filter-grid">
+          <label for="gf-central-search">Buscar responsável, bailarina ou telefone
+            <input id="gf-central-search" type="search" placeholder="Digite o nome ou telefone…" autocomplete="off">
+          </label>
+          <label for="gf-central-origin">Origem
+            <select id="gf-central-origin">
+              <option value="todas">Todas as origens</option>
+              <option value="formulario">Google Forms (histórico)</option>
+              <option value="online">Pedidos da galeria</option>
+            </select>
+          </label>
+          <label for="gf-central-sort">Organizar
+            <select id="gf-central-sort">
+              <option value="recentes">Mais recentes primeiro</option>
+              <option value="antigos">Mais antigos primeiro</option>
+              <option value="valor">Maior valor informado</option>
+              <option value="follow">Próximo follow-up</option>
+            </select>
+          </label>
+        </div>
+        <p class="gf-central-results-count" id="gf-central-results-count" aria-live="polite"></p>
+        <div class="gf-central-list" id="gf-central-list"></div>
+        <div class="gf-central-detail" id="gf-central-detail" hidden aria-label="Detalhes do registro"></div>
+      </section>
 
       <section class="panel">
         <h2>Pedidos recebidos</h2>
