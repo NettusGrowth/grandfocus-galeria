@@ -9,6 +9,10 @@ const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico
 const centralMigration = read('supabase/sql/084_central_respostas_financeiro.sql')
 const paymentPermissionMigration = read('supabase/sql/085_contratacao_pagamento_admin_perfis.sql')
 const simplifiedContractMigration = read('supabase/sql/086_contratacao_sem_coreografias.sql')
+const formBuilderMigration = read('supabase/sql/087_editor_formularios_dinamicos.sql')
+const formBuilderScript = read('contratar/entre-estacoes/admin/form-builder.js')
+const formQuestionScript = read('contratar/entre-estacoes/questions.js')
+const formBuilderTests = read('scripts/test-fixtures/form-builder-tests.sql')
 const staticPrivacyPage = read('contratar/entre-estacoes/privacidade.html')
 const centralUi = read('contratar/entre-estacoes/admin/central.js')
 const centralSqlTests = read('scripts/test-fixtures/central-tests.sql')
@@ -222,5 +226,36 @@ assert.ok(centralSqlTests.includes('set local role service_role') &&
 
 assert.ok(workflow.includes('supabase/sql/084_central_respostas_financeiro.sql') && workflow.includes('scripts/test-fixtures/central-tests.sql') && workflow.includes('node --input-type=module --check < contratar/entre-estacoes/admin/central.js'), 'CI deve validar migração e JS da central.')
 assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') && adminApi.includes('const REAL_PAYMENTS_ENABLED = false'), 'O bloqueio de pagamentos deve permanecer fixo.')
+
+
+assert.ok(adminPage.includes('id="gf-builder"') && adminPage.includes('admin/form-builder.js'),
+ 'Editor dinâmico deve aparecer no painel autenticado da campanha.')
+assert.ok(adminApi.includes("case 'formulario_salvar'") && adminApi.includes("p_versao_esperada:expected"),
+ 'API administrativa deve validar e versionar novos formulários.')
+assert.ok(formBuilderScript.includes('gf-contratacao-admin-ready') && formBuilderScript.includes('formulario_salvar') &&
+ formBuilderScript.includes('Regra de exibição'), 'Editor deve possuir autenticação, salvamento e condições.')
+assert.ok(formQuestionScript.includes('collectCustomAnswers') &&
+ formQuestionScript.includes('updateVisibility') &&
+ formQuestionScript.includes('setFormPresentation'), 'Página pública deve coletar respostas condicionais.')
+assert.ok(publicScript.includes("from './questions.js'") &&
+ publicScript.includes('formulario:collectCustomAnswers()') &&
+ publicPage.includes('id="gf-custom-questions"'), 'Formulário dinâmico deve acompanhar os demais campos de contratação.')
+assert.ok(formBuilderMigration.includes('formulario_modelo_snapshot') &&
+ formBuilderMigration.includes('formulario_respostas') &&
+ formBuilderMigration.includes('gf_contratacao_admin_salvar_formulario') &&
+ formBuilderMigration.includes('v_answers :='),
+ 'Respostas personalizadas devem ser versionadas e persistidas dentro da transação do pedido.')
+assert.ok(formBuilderTests.includes('set local role service_role') &&
+ formBuilderTests.includes('rollback;'), 'Suíte precisa verificar segurança e versão sem persistir fixtures.')
+assert.ok(workflow.includes('supabase/sql/087_editor_formularios_dinamicos.sql') &&
+ workflow.includes('scripts/test-fixtures/form-builder-tests.sql') &&
+ workflow.includes('admin/form-builder.js'), 'CI precisa verificar editor JS e nova migration.')
+assert.ok(publicApi.includes('formulario:aceite.formulario') &&
+ publicApi.includes("formulario_modelo,formulario_versao"), 'Backend público deve sincronizar modelo/versão no checkout.')
+assert.ok(adminApi.includes('formulario_respostas,formulario_modelo_snapshot') &&
+ centralUi.includes('questionSnapshot'), 'A Central precisa mostrar respostas adicionais por pedido.')
+assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') &&
+ adminApi.includes('const REAL_PAYMENTS_ENABLED = false'),
+ 'Formulário dinâmico não pode ativar pagamentos.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
