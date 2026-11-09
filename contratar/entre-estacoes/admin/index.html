@@ -16,6 +16,7 @@
   <script type="module" src="/contratar/entre-estacoes/admin/form-builder.js"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/workspace.js"></script>
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/workspace.css">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css">
 </head>
 <body>
   <header class="site-header">
@@ -73,10 +74,10 @@
         </div>
       </header>
       <nav class="gf-workspace-nav" aria-label="O que você quer administrar?" role="group">
-        <button type="button" data-workspace-tab="respostas" aria-pressed="true"><span aria-hidden="true">▤</span> Respostas</button>
-        <button type="button" data-workspace-tab="perguntas" aria-pressed="false"><span aria-hidden="true">✎</span> Perguntas</button>
-        <button type="button" data-workspace-tab="aparencia" aria-pressed="false"><span aria-hidden="true">◈</span> Aparência</button>
-        <button type="button" data-workspace-tab="evento" aria-pressed="false"><span aria-hidden="true">⚙</span> Evento e pacotes</button>
+        <button type="button" data-workspace-tab="respostas" aria-pressed="true"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> Respostas</button>
+        <button type="button" data-workspace-tab="perguntas" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.7 3.7a2.1 2.1 0 0 1 3 3L9 17.4 4 19l1.6-5L16.7 3.7Z"/></svg></span> Perguntas</button>
+        <button type="button" data-workspace-tab="aparencia" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="1.4"/><circle cx="15" cy="7.5" r="1.4"/><circle cx="8" cy="15" r="1.4"/><path d="M15 13c3.5 0 4.5 4.5 1.3 6.3"/></svg></span> Aparência</button>
+        <button type="button" data-workspace-tab="evento" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 1.4 1.1-2 3.5-1.8-.7a8 8 0 0 1-1.7 1l-.3 1.8h-4l-.3-1.8a8 8 0 0 1-1.7-1l-1.8.7-2-3.5L6.6 15a8 8 0 0 1 0-2l-1.4-1.1 2-3.5 1.8.7a8 8 0 0 1 1.7-1l.3-1.8h4l.3 1.8a8 8 0 0 1 1.7 1l1.8-.7 2 3.5L19.4 13a8 8 0 0 1 0 2Z"/></svg></span> Evento e pacotes</button>
       </nav>
       <p class="admin-message hidden" id="admin-message" role="status"></p>
       <details class="gf-workspace-integration" data-workspace-page="evento">
@@ -99,7 +100,25 @@
         <div class="gf-central-notice" id="gf-central-notice" role="status" aria-live="polite">Preparando seus registros…</div>
         <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
         <button type="button" class="gf-metrics-toggle" id="gf-metrics-toggle" aria-expanded="false">Ver todos os indicadores <span aria-hidden="true">⌄</span></button>
-        <details class="gf-trust-details"><summary>Como os pagamentos são contabilizados?</summary><p>Escolher Pix ou cartão no formulário não comprova pagamento. Somente recebimentos conferidos manualmente ou confirmados pela InfinitePay entram como pagos. Registros arquivados sem recebimento ficam fora dos indicadores ativos.</p></details>
+        <details class="gf-fee-settings" id="gf-fee-settings">
+          <summary><span class="gf-fee-icon" aria-hidden="true">%</span> Configurar estimativa da taxa do cartão <span class="gf-fee-chevron" aria-hidden="true">⌄</span></summary>
+          <div class="gf-fee-body">
+            <div>
+              <strong>Taxa do crédito à vista assumida pela Grand Focus</strong>
+              <p>O painel estima a tarifa em cada pagamento no cartão, inclusive se o cliente escolher parcelar e pagar os juros adicionais. Pix fica com taxa zero nesta simulação. Não altera o valor cobrado nem comprova pagamento.</p>
+              <small>Referência inicial: Link InfinitePay, recebimento em 1 dia útil, crédito à vista 4,20%. A taxa real varia conforme produto, plano e condições da transação.</small>
+            </div>
+            <form class="gf-fee-control" id="gf-fee-form">
+              <label for="gf-fee-rate">Taxa de referência (%)</label>
+              <div class="gf-fee-input-row">
+                <input id="gf-fee-rate" type="number" inputmode="decimal" min="0" max="20" step="0.01" value="4.20" required>
+                <button type="submit" class="btn btn-primary" id="gf-fee-save">Salvar taxa</button>
+              </div>
+              <span class="gf-fee-message" id="gf-fee-message" aria-live="polite">Aplicada somente às estimativas financeiras desta campanha.</span>
+            </form>
+          </div>
+        </details>
+        <details class="gf-trust-details"><summary>Como os pagamentos são contabilizados?</summary><p>O valor líquido é uma <strong>projeção</strong> após a taxa de referência do cartão, calculada por cadastro e arredondada em centavos. Para parcelas com juros pagos pelo cliente, projetamos somente a taxa à vista assumida pela Grand Focus. Os dados históricos de preferência por Pix ou cartão não provam pagamento. O valor real recebido deve ser conciliado no extrato da InfinitePay ou banco; pedidos sem meio registrado usam cartão como hipótese.</p></details>
         <div class="gf-central-tabs" id="gf-central-tabs" role="group" aria-label="Filtrar registros">
           <button type="button" data-view="todos" aria-pressed="true">Todos <span id="gf-count-todos"></span></button>
           <button type="button" data-view="novos" aria-pressed="false">Novos <span id="gf-count-novos"></span></button>

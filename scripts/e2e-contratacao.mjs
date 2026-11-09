@@ -7,8 +7,10 @@ import { chromium } from 'playwright'
 const root = path.resolve('dist')
 const galleryHtml = fs.readFileSync(path.join(root,'index.html'),'utf8')
 assert.ok(galleryHtml.includes('id="gf-contract-launch-title"'), 'O gerenciador deve ser aberto de uma nova aba.')
+assert.ok(galleryHtml.includes('Suas campanhas, em um só lugar.'),'Nova entrada deve servir todas as campanhas.')
+assert.ok(!galleryHtml.includes('Ir direto ao Entre Estações'),'Entrada não deve ser limitada a uma escola.')
 assert.ok(galleryHtml.includes('href="/contratar/admin/" target="_blank"'), 'O botão deve abrir o painel independente.')
-assert.ok(galleryHtml.includes('href="/contratar/entre-estacoes/admin/" target="_blank"'), 'A escola principal deve ter acesso direto.')
+assert.ok(!galleryHtml.includes('href="/contratar/entre-estacoes/admin/" target="_blank"'), 'Entrada geral não pode privilegiar uma escola específica.')
 assert.ok(!galleryHtml.includes('<iframe title="Gerenciador de contratações e experiências"'),
  'O painel pequeno embutido não pode permanecer no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/index.html')), 'Página pública não foi gerada no build.')
@@ -318,6 +320,7 @@ try {
   const adminSession = { access_token:'mock-admin-user-jwt' }
   const adminEvent = {
     id:'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', slug:'entre-estacoes', nome_publico:'Entre Estações',
+    taxa_credito_a_vista_bps:420,
     escola_nome:'Studio Entrepliés', status:'rascunho', data_evento:'2026-11-07', local:'Teatro de Teste',
     miniensaio_inicio:'2026-11-07T20:30:00.000Z', miniensaio_fim:'2026-11-07T21:45:00.000Z',
     duracao_minutos:5, capacidade_miniensaios:15, vendas_encerram_em:'2026-11-06T23:00:00.000Z',
@@ -342,7 +345,7 @@ try {
     responsavel_nome:'Mãe de Teste',responsavel_whatsapp:'34999998888',
     bailarina_nome:'Bailarina de Teste',modalidade_original:'Ballet',
     experiencia_original:'Fotos de palco — R$ 79,00',valor_informado_centavos:7900,
-    pagamento_preferido:'Pix',pagamento_situacao:'nao_conferido',valor_recebido_centavos:0,
+    pagamento_preferido:'Cartão (com taxa)',pagamento_situacao:'nao_conferido',valor_recebido_centavos:0,
     pagamento_metodo:null,pagamento_referencia:null,pagamento_observacao:null,pagamento_conferido_em:null,
   }
   const centralFollow = []
@@ -368,10 +371,22 @@ try {
     }
     if (body.action === 'central_listar') {
       await route.fulfill({ status:200, contentType:'application/json', body:JSON.stringify({
-        campanha:{id:adminEvent.id,nome:adminEvent.nome_publico,status:adminEvent.status},
+        campanha:{id:adminEvent.id,nome:adminEvent.nome_publico,status:adminEvent.status,
+          taxa_credito_a_vista_bps:adminEvent.taxa_credito_a_vista_bps},
         pedidos:[],respostas:[centralExternal],acompanhamentos:centralFollow,
         resultados_possivelmente_truncados:false,
       }) })
+      return
+    }
+    if (body.action === 'central_salvar_taxa') {
+      if (!Number.isInteger(body.taxa_credito_a_vista_bps) ||
+          body.taxa_credito_a_vista_bps<0 || body.taxa_credito_a_vista_bps>2000) {
+        await route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({error:'Taxa inválida'})})
+        return
+      }
+      adminEvent.taxa_credito_a_vista_bps=body.taxa_credito_a_vista_bps
+      await route.fulfill({status:200,contentType:'application/json',
+        body:JSON.stringify({ok:true,taxa_bps:adminEvent.taxa_credito_a_vista_bps})})
       return
     }
     if (body.action === 'central_arquivar') {
@@ -461,7 +476,9 @@ try {
   assert.match(await adminPage.locator('#integration-status').textContent(), /Token do webhook configurado/)
   assert.equal(await adminPage.locator('#orders-body').textContent().then(text => /Nenhum pedido/.test(text)), true)
   await adminPage.waitForFunction(() => document.querySelectorAll('#gf-central-list .gf-result-card').length===1)
-  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$79,00/)
+  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$75,68/)
+  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$3,32/)
+  assert.match(await adminPage.locator('#gf-central-metrics').textContent(), /Líquido previsto/)
   assert.equal(await adminPage.locator('#gf-central-list').getAttribute('data-layout'),'compact')
   assert.equal(await adminPage.locator('#gf-central-list .gf-result-card').first().getAttribute('data-crm'),'novo')
   await adminPage.locator('#gf-layout-cards').click()
@@ -470,12 +487,23 @@ try {
   assert.equal(await adminPage.locator('#gf-central-list').getAttribute('data-layout'),'compact')
   assert.match(await adminPage.locator('#gf-central-list').textContent(), /Mãe de Teste/)
   assert.equal(adminCalls.filter(call => call.action==='central_listar').length,1)
+  await adminPage.locator('#gf-fee-settings summary').click()
+  await adminPage.locator('#gf-fee-rate').fill('3.15')
+  await adminPage.locator('#gf-fee-save').click()
+  await adminPage.waitForFunction(()=>document.getElementById('gf-fee-message')?.textContent.includes('Taxa salva'))
+  assert.equal(adminEvent.taxa_credito_a_vista_bps,315)
+  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$76,51/)
+  assert.ok(adminCalls.some(call=>call.action==='central_salvar_taxa'))
   adminPage.on('dialog', dialog => dialog.accept())
 
   // Arquivar um teste sem apagar dados e depois recuperá-lo pela aba Arquivados.
   await adminPage.locator('#gf-central-list .gf-result-card').first().click()
   await adminPage.waitForSelector('#gf-central-dialog[open]')
   assert.equal(await adminPage.locator('#gf-central-dialog').isVisible(),true)
+  assert.equal(await adminPage.locator('.gf-whatsapp-action').count(),1)
+  assert.match(await adminPage.locator('.gf-whatsapp-action').textContent(), /Enviar mensagem no WhatsApp/)
+  assert.equal(await adminPage.locator('.gf-copy-phone').count(),1)
+  assert.match(await adminPage.locator('#gf-central-detail').textContent(), /Líquido previsto/)
   await adminPage.locator('.gf-archive-bar button').click()
   await adminPage.waitForFunction(() => document.querySelector('#gf-count-arquivados')?.textContent.includes('1'))
   assert.equal(await adminPage.locator('#gf-central-list .gf-result-card').count(),0)

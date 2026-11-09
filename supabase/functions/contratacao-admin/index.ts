@@ -63,6 +63,7 @@ Deno.serve(async (req: Request) => {
       case 'listar_campanhas': return await actionListarCampanhas(req, admin)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
+      case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_registrar_pagamento': return await actionCentralRegistrarPagamento(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_arquivar': return await actionCentralArquivar(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -479,7 +480,8 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   }
   const rows=pedidos.map((p:any)=>({...p,participantes:grouped[p.id]||[]}))
   return jsonResponse(req, {
-    campanha:{id:evento.id,nome:evento.nome_publico,status:evento.status},
+    campanha:{id:evento.id,nome:evento.nome_publico,status:evento.status,
+      taxa_credito_a_vista_bps:evento.taxa_credito_a_vista_bps},
     pedidos:rows,
     respostas:formsResult.data||[],
     acompanhamentos:followResult.data||[],
@@ -489,6 +491,18 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   })
 }
 
+
+async function actionCentralSalvarTaxa(req:Request,admin:any,userId:string,body:any,slug:string){
+  const bps=Number(body?.taxa_credito_a_vista_bps)
+  if(!Number.isSafeInteger(bps)||bps<0||bps>2000){
+    return jsonResponse(req,{error:'Informe uma taxa válida entre 0% e 20%.'},400)
+  }
+  const {data,error}=await admin.rpc('gf_contratacao_admin_salvar_taxa_liquida',{
+    p_slug:slug,p_taxa_bps:bps,p_usuario_id:userId
+  })
+  if(error)return jsonResponse(req,{error:error.message||'Não foi possível salvar a taxa.'},409)
+  return jsonResponse(req,data||{ok:true,taxa_bps:bps})
+}
 
 async function actionCentralArquivar(req:Request,admin:any,userId:string,body:any,slug:string){
   const evento=await getCampaign(admin,slug)

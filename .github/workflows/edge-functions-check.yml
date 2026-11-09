@@ -55,10 +55,13 @@ jobs:
           node --check contratar/entre-estacoes/app.js
           node --input-type=module --check < contratar/entre-estacoes/admin/admin.js
           node --input-type=module --check < contratar/entre-estacoes/admin/central.js
+          node --input-type=module --check < contratar/entre-estacoes/admin/fees.js
           node --input-type=module --check < contratar/entre-estacoes/admin/form-builder.js
           node --input-type=module --check < contratar/entre-estacoes/admin/workspace.js
           node --input-type=module --check < contratar/entre-estacoes/questions.js
           node --input-type=module --check < contratar/admin/manager.js
+      - name: Verify financial fee estimates in cents
+        run: node scripts/test-finance-net.mjs
       - name: Check contracting security and structure
         run: node scripts/check-contratacao.mjs
       - name: Build static site and verify isolated contracting pages
@@ -83,6 +86,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/086_contratacao_sem_coreografias.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/087_editor_formularios_dinamicos.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/088_central_arquivamento_seguro.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/089_central_previsao_recebimento_liquido.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/finance-fee-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-archive-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/form-builder-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/central-tests.sql
