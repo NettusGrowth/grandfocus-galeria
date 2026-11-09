@@ -1240,3 +1240,33 @@ body.gf-form-view.gf-large-text { font-size: 20px; }
 .gf-technical-details[open] > summary {border-bottom:1px solid #D5BEC5;}
 .gf-technical-details > .panel {margin:0; border:0; border-radius:0;}
 .gf-technical-details > summary:focus-visible {outline:3px solid #976D7D;outline-offset:-3px;}
+
+/* A prévia é uma demonstração e nunca disponibiliza checkout. */
+.gf-form-view .gf-preview-finish {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid #C7AB75;
+  border-left: 5px solid #4B0416;
+  background: #FFFAEF;
+  color: #362631;
+  font-size: 17px;
+  line-height: 1.6;
+}
+.gf-form-view .gf-preview-finish[hidden] { display: none !important; }
+.gf-form-view .gf-preview-finish strong { display: block; font-size: 19px; }
+.gf-form-view .gf-preview-finish p { margin: 9px 0 15px; }
+.gf-form-view .gf-preview-finish .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-width: 330px;
+  min-height: 52px;
+  text-align: center;
+  text-decoration: none;
+}
+@media (max-width: 450px) {
+  .gf-form-view .gf-preview-finish { padding: 15px; }
+  .gf-form-view .gf-preview-finish .btn { max-width: none; }
+}
