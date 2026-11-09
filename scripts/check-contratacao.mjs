@@ -7,6 +7,7 @@ const exists = (path) => assert.ok(fs.existsSync(path), 'Arquivo obrigatório au
 const migration = read('supabase/sql/080_contratacao_experiencias.sql')
 const dynamicMigration = read('supabase/sql/083_contratacao_gerenciador_dinamico.sql')
 const centralMigration = read('supabase/sql/084_central_respostas_financeiro.sql')
+const paymentPermissionMigration = read('supabase/sql/085_contratacao_pagamento_admin_perfis.sql')
 const centralUi = read('contratar/entre-estacoes/admin/central.js')
 const centralSqlTests = read('scripts/test-fixtures/central-tests.sql')
 const publicApi = read('supabase/functions/contratacao-publica/index.ts')
@@ -190,6 +191,13 @@ assert.ok(adminApi.includes("case 'central_listar'") && adminApi.includes("case 
 assert.ok(centralMigration.includes('enable row level security') && centralMigration.includes('revoke all on table') && centralMigration.includes('from public, anon, authenticated'), 'Tabelas históricas e de follow-up devem ser privadas.')
 assert.ok(centralMigration.includes('gf_contratacao_admin_registrar_pagamento_externo') && centralMigration.includes('p_conferencia_confirmada is distinct from true'), 'Pagamentos manuais precisam de confirmação explícita e trilha.')
 assert.ok(centralSqlTests.includes('Conferência parcial foi perdida') && centralSqlTests.includes('Follow-up do formulário não foi salvo'), 'Os testes SQL devem cobrir recebimento e acompanhamento.')
+assert.ok((paymentPermissionMigration.match(/from public\\.perfis/g) || []).length === 2 &&
+  !paymentPermissionMigration.includes('from auth.users'),
+  'Funções financeiras devem verificar permissão por perfis administrativos em vez de ler auth.users como service_role.')
+assert.ok(centralSqlTests.includes('set local role service_role') &&
+  centralSqlTests.includes('has_table_privilege'),
+  'Testar as RPCs sob as permissões reais do backend, sem acesso a auth.users.')
+
 assert.ok(workflow.includes('supabase/sql/084_central_respostas_financeiro.sql') && workflow.includes('scripts/test-fixtures/central-tests.sql') && workflow.includes('node --input-type=module --check < contratar/entre-estacoes/admin/central.js'), 'CI deve validar migração e JS da central.')
 assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') && adminApi.includes('const REAL_PAYMENTS_ENABLED = false'), 'O bloqueio de pagamentos deve permanecer fixo.')
 
