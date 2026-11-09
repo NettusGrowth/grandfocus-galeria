@@ -95,6 +95,8 @@ function normalizedEntries(payload) {
       paidValue:Number(p.valor_pago_centavos)||Number(p.valor_total_centavos)||0,
       paymentMethod:p.metodo_pagamento||'',preferred:'',
       status:p.status,when:p.criado_em,reference:'Pagamento automático conforme provedor',
+      questionAnswers:p.formulario_respostas||{},
+      questionSnapshot:p.formulario_modelo_snapshot||{},
     }
     entry.follow=follows.get('online:'+p.id)||null
     return entry
@@ -281,6 +283,20 @@ function selectRecord(record) {
   if(record.email)grid.append(detailBox('E-mail',record.email))
   if(record.whatsapp)grid.append(detailBox('WhatsApp',record.whatsapp))
   centralDetail.append(grid)
+  // Respostas pessoais aparecem somente nesta ficha, sem sobrescrever o modelo original.
+  if(record.source==='online' && record.questionSnapshot?.modelo?.perguntas?.length){
+    const block=dom('section','gf-editor')
+    block.append(dom('h3','','Respostas do formulário personalizado'))
+    const version=record.questionSnapshot.versao||'não informada'
+    block.append(dom('p','gf-editor-description','Perguntas e respostas preservadas na versão '+version+' desta contratação.'))
+    const answers=dom('div','gf-detail-grid')
+    for(const question of record.questionSnapshot.modelo.perguntas){
+      const answer=record.questionAnswers?.[question.id]
+      const display=Array.isArray(answer)?answer.join(' • '):String(answer||'Não respondida')
+      answers.append(detailBox(question.titulo,display))
+    }
+    block.append(answers);centralDetail.append(block)
+  }
   const phone=phoneLink(record.whatsapp)
   if(phone){
     const links=dom('div','gf-contact-row')
@@ -455,7 +471,7 @@ function csvSafe(value) {
 }
 function exportCsv() {
   if(!centralState.ready){notice('Carregue a central antes de exportar.','error');return}
-  const cols=['Origem','Identificador','Data da resposta','Responsável','WhatsApp','E-mail','Bailarinas','Experiência','Valor informado (R$)','Valor recebido confirmado (R$)','Situação financeira','Preferência de pagamento','Meio confirmado','Referência','Follow-up','Próximo contato','Último contato','Observações']
+  const cols=['Origem','Identificador','Data da resposta','Responsável','WhatsApp','E-mail','Bailarinas','Experiência','Valor informado (R$)','Valor recebido confirmado (R$)','Situação financeira','Preferência de pagamento','Meio confirmado','Referência','Follow-up','Próximo contato','Último contato','Observações','Respostas adicionais (pergunta: resposta)']
   const lines=[cols]
   for(const r of visibleRecords())lines.push([
     r.source==='formulario'?'Google Forms':'Galeria',r.label,safeDate(r.when),
@@ -465,6 +481,10 @@ function exportCsv() {
     statusDisplay(r)[0],r.preferred,r.paymentMethod,r.reference,
     r.follow?.situacao||'nao_iniciado',r.follow?.proximo_contato_em||'',
     r.follow?.ultimo_contato_em?safeDate(r.follow.ultimo_contato_em):'',r.follow?.observacoes||'',
+    (r.questionSnapshot?.modelo?.perguntas||[]).map(q=>{
+      const a=r.questionAnswers?.[q.id]
+      return q.titulo+': '+(Array.isArray(a)?a.join(' / '):String(a||'Não respondida'))
+    }).join(' | '),
   ])
   const csv='\uFEFF'+lines.map(row=>row.map(csvSafe).join(';')).join('\r\n')
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}))

@@ -1,3 +1,5 @@
+import { setFormPresentation, renderCustomQuestions, collectCustomAnswers, customQuestionsAreValid } from './questions.js'
+
 const SUPABASE_URL = 'https://selnsjtumkxjrtnqofqx.supabase.co'
 const SUPABASE_PUBLIC_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const API_URL = SUPABASE_URL + '/functions/v1/contratacao-publica'
@@ -317,6 +319,8 @@ function renderCampaign(data) {
   const campaignTitle = campaign.nome_publico || 'Contratação da experiência fotográfica'
   document.getElementById('campaign-title').textContent = campaignTitle
   document.title = campaignTitle + ' | Grand Focus Fotografia'
+  setFormPresentation(campaign)
+  renderCustomQuestions(campaign)
   const description = document.querySelector('meta[name="description"]')
   if (description) description.content = 'Contratação de experiências fotográficas Grand Focus para ' + campaignTitle + '.'
   renderPackageOverview()
@@ -477,7 +481,7 @@ function collectPayload() {
   if (!aceite.responsavel_legal || !aceite.aceitou_termos || !aceite.ciente_privacidade) {
     throw new Error('É necessário declarar a responsabilidade, aceitar os termos e confirmar a ciência da política de privacidade.')
   }
-  return { responsavel, participantes, aceite }
+  return { responsavel, participantes, aceite, formulario:collectCustomAnswers() }
 }
 
 async function submitOrder(event) {
@@ -709,6 +713,8 @@ function validateFormStep(step) {
   }
 
   if (step === 2) {
+    try { customQuestionsAreValid() }
+    catch (error) { showStepError(error.message);return false }
     const nameInput = document.getElementById('responsavel-nome')
     const phoneInput = document.getElementById('responsavel-whatsapp')
     const emailInput = document.getElementById('responsavel-email')

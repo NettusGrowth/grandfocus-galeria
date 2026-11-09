@@ -81,7 +81,13 @@ async function actionDados(req: Request, admin: any, campaignSlug: string) {
     return jsonResponse(req, { error: 'Não foi possível carregar esta campanha.' }, 503)
   }
   if (!data) return jsonResponse(req, { disponivel: false, mensagem: 'As contratações desta experiência ainda não foram liberadas.' })
-  return jsonResponse(req, { disponivel: true, ...data })
+  const {data:modelo,error:modeloError}=await admin.from('gf_contratacao_eventos')
+    .select('formulario_modelo,formulario_versao').eq('slug',campaignSlug).eq('status','publicado').maybeSingle()
+  if(modeloError || !modelo) return jsonResponse(req,{error:'Não foi possível carregar as perguntas da campanha.'},503)
+  return jsonResponse(req, {
+    disponivel: true,...data,
+    evento:{...data.evento,formulario_modelo:modelo.formulario_modelo,formulario_versao:modelo.formulario_versao}
+  })
 }
 
 async function actionContratar(req: Request, admin: any, body: any, campaignSlug: string) {
@@ -171,18 +177,26 @@ async function actionContratar(req: Request, admin: any, body: any, campaignSlug
     return jsonResponse(req, { error: 'Esta campanha não está aberta para contratação.' }, 409)
   }
   const participantes = Array.isArray(body?.participantes) ? body.participantes : []
+  const formulario = body?.formulario
+  if (!formulario || typeof formulario !== 'object' || Array.isArray(formulario) ||
+      !Number.isInteger(formulario.versao) || formulario.versao < 1 ||
+      typeof formulario.respostas !== 'object' || formulario.respostas === null ||
+      Array.isArray(formulario.respostas) || JSON.stringify(formulario).length > 22000)
+    return jsonResponse(req,{error:'As respostas adicionais estão inválidas. Atualize o formulário e tente novamente.'},400)
   const aceite = {
     responsavel_legal: body?.aceite?.responsavel_legal === true,
     aceitou_termos: body?.aceite?.aceitou_termos === true,
     ciente_privacidade: body?.aceite?.ciente_privacidade === true,
     uso_imagem: body?.aceite?.uso_imagem === true,
     metadados: { user_agent: String(req.headers.get('user-agent') || '').slice(0, 300) },
+    formulario: {versao:formulario.versao,respostas:formulario.respostas},
   }
 
   const requestHash = await sha256Hex(JSON.stringify({
     slug: campaignSlug,
     responsavel,
     participantes,
+    formulario:aceite.formulario,
     aceite: {
       responsavel_legal: aceite.responsavel_legal,
       aceitou_termos: aceite.aceitou_termos,

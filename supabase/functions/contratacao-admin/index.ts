@@ -68,6 +68,7 @@ Deno.serve(async (req: Request) => {
       case 'criar_campanha': return await actionCriarCampanha(req, admin, user.id, body)
       case 'config': return await actionConfig(req, admin, requestedCampaignSlug(body))
       case 'salvar': return await actionSalvar(req, admin, user.id, body, requestedCampaignSlug(body))
+      case 'formulario_salvar': return await actionFormularioSalvar(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'publicar': return await actionPublicar(req, admin, user.id, requestedCampaignSlug(body))
       case 'pausar': return await actionStatus(req, admin, user.id, 'pausado', requestedCampaignSlug(body))
       case 'encerrar': return await actionStatus(req, admin, user.id, 'encerrado', requestedCampaignSlug(body))
@@ -436,7 +437,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   const evento = await getCampaign(admin, slug)
   const [nativeResult, formsResult, followResult] = await Promise.all([
     admin.from('gf_contratacao_pedidos')
-      .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,valor_pago_centavos,pagamento_confirmado_em,metodo_pagamento,criado_em')
+      .select('id,numero,responsavel_nome,responsavel_whatsapp,responsavel_email,valor_total_centavos,status,valor_pago_centavos,pagamento_confirmado_em,metodo_pagamento,criado_em,formulario_respostas,formulario_modelo_snapshot')
       .eq('evento_contratacao_id',evento.id)
       .order('criado_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_form_respostas')
@@ -529,4 +530,74 @@ async function actionCentralRegistrarPagamento(req:Request,admin:any,userId:stri
   })
   if(error)return jsonResponse(req,{error:error.message||'Não foi possível conferir o pagamento.'},400)
   return jsonResponse(req,resultado||{ok:true})
+}
+
+/** A cada escola/evento corresponde um modelo independente. Sem HTML arbitrário. */
+function normalizeFormularioModelo(value: any) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Modelo de formulário inválido.')
+  const appearance = value.aparencia || {}
+  const color = String(appearance.cor || '#4B0416')
+  const bg = String(appearance.fundo || '#F1EDF1')
+  const hex = /^#[0-9a-f]{6}$/i
+  if (!hex.test(color) || !hex.test(bg)) throw new Error('Informe cores no formato hexadecimal #RRGGBB.')
+  const lightness = (value:string) => {
+    const p = [1,3,5].map(i => parseInt(value.slice(i,i+2),16)/255)
+      .map(v => v <= .04045 ? v/12.92 : ((v+.055)/1.055)**2.4)
+    return p[0]*.2126+p[1]*.7152+p[2]*.0722
+  }
+  if (lightness(color) > .18 || lightness(bg) < .78)
+    throw new Error('Escolha uma cor principal escura e um fundo claro para manter a leitura acessível.')
+  const titulo = String(appearance.titulo || '').trim()
+  const introducao = String(appearance.introducao || '').trim()
+  if (titulo.length>90 || introducao.length>700) throw new Error('Título ou texto de abertura longo demais.')
+  const items = value.perguntas
+  if (!Array.isArray(items) || items.length>30) throw new Error('O formulário aceita até 30 perguntas extras.')
+  const types = new Set(['texto','paragrafo','numero','email','telefone','data','unica','multipla','lista','sim_nao'])
+  const seen = new Map<string,any>()
+  const questions = items.map((item:any,index:number)=>{
+    const id=String(item?.id||'')
+    const titulo=String(item?.titulo||'').trim()
+    const ajuda=String(item?.ajuda||'').trim()
+    const tipo=String(item?.tipo||'')
+    const obrigatoria=item?.obrigatoria===true
+    if(!/^q_[a-z0-9]{8,40}$/.test(id)||seen.has(id))
+      throw new Error('Existe uma pergunta com identificador inválido ou repetido.')
+    if(!types.has(tipo) || titulo.length<3 || titulo.length>180 || ajuda.length>350)
+      throw new Error('Revise o título, a descrição e o tipo de cada pergunta.')
+    const raw=Array.isArray(item?.opcoes)?item.opcoes:[]
+    const opcoes=['unica','multipla','lista'].includes(tipo)?raw.map((x:unknown)=>String(x).trim()):[]
+    if(opcoes.length>12 || (['unica','multipla','lista'].includes(tipo)&&opcoes.length<2) ||
+       opcoes.some((v:string)=>!v || v.length>100) ||
+       new Set(opcoes.map((v:string)=>v.toLowerCase())).size!==opcoes.length)
+      throw new Error('Perguntas de escolha precisam de 2 a 12 alternativas únicas.')
+    let condicao=null
+    if(item.condicao && item.condicao.pergunta_id){
+      const parent=seen.get(String(item.condicao.pergunta_id))
+      const chosen=String(item.condicao.valor||'')
+      if(!parent || !['unica','lista','sim_nao'].includes(parent.tipo) ||
+       !(parent.tipo==='sim_nao'?['Sim','Não']:parent.opcoes).includes(chosen))
+        throw new Error('Uma condição só pode depender de uma pergunta anterior de escolha única.')
+      condicao={pergunta_id:parent.id,valor:chosen}
+    }
+    const normalized={id,titulo,ajuda,tipo,obrigatoria,opcoes,condicao,ordem:index}
+    seen.set(id,normalized)
+    return normalized
+  })
+  const modelo={aparencia:{cor:color.toUpperCase(),fundo:bg.toUpperCase(),titulo,introducao},perguntas:questions}
+  if(JSON.stringify(modelo).length>28000)throw new Error('O formulário ultrapassou o tamanho permitido.')
+  return modelo
+}
+async function actionFormularioSalvar(req:Request,admin:any,userId:string,body:any,slug:string){
+  const evento=await getCampaign(admin,slug)
+  if(evento.status==='publicado')
+    return jsonResponse(req,{error:'Pause a campanha antes de editar as perguntas.'},409)
+  const modelo=normalizeFormularioModelo(body?.modelo)
+  const expected=Number(body?.versao)
+  if(!Number.isInteger(expected)||expected<1)
+    return jsonResponse(req,{error:'Atualize o editor antes de salvar novamente.'},400)
+  const {data,error}=await admin.rpc('gf_contratacao_admin_salvar_formulario',{
+    p_slug:slug,p_modelo:modelo,p_versao_esperada:expected,p_usuario_id:userId
+  })
+  if(error) return jsonResponse(req,{error:error.message || 'Não foi possível salvar as perguntas.'},409)
+  return jsonResponse(req,{ok:true,versao:data?.versao,modelo})
 }
