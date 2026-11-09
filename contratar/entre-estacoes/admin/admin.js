@@ -101,6 +101,8 @@ async function loadConfig() {
   const publicLink = document.getElementById('public-link')
   publicLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/'
   publicLink.hidden = currentEvent.status !== 'publicado'
+  const previewLink = document.getElementById('preview-link')
+  previewLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/?preview=1'
   setField('event-date', currentEvent.data_evento)
   setField('event-place', currentEvent.local)
   setField('mini-start', toLocalInput(currentEvent.miniensaio_inicio))

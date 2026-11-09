@@ -127,6 +127,12 @@ assert.ok(publicPage.includes('/contratar/entre-estacoes/app.js'), 'Página púb
 assert.ok(publicPage.includes('class="gf-form-view"'), 'A experiência estilo formulários deve afetar apenas a página pública.')
 assert.equal((publicPage.match(/data-form-step="/g) || []).length, 5, 'O formulário público deve ter cinco cartões agrupados em quatro páginas.')
 assert.ok(publicPage.includes('role="progressbar"') && publicPage.includes('id="form-next"') && publicPage.includes('id="form-back"'), 'A navegação deve exibir progresso e controles de avançar/voltar.')
+assert.ok(publicPage.includes('id="admin-preview-banner"'), 'A prévia deve informar visualmente que não realiza cobranças.')
+assert.ok(adminPage.includes('id="preview-link"') && adminScript.includes("'/?preview=1'"), 'O editor deve oferecer prévia mesmo para campanhas em rascunho.')
+assert.ok(publicScript.includes('const ADMIN_PREVIEW =') && publicScript.includes("action: 'config', slug: CAMPAIGN_SLUG"), 'Prévia deve buscar configuração apenas pela API administrativa.')
+assert.ok(publicScript.includes('Authorization: \'Bearer \' + token') && publicScript.includes('if (!token) throw new Error'), 'Prévia exige uma sessão real antes de buscar dados privados.')
+assert.ok(publicScript.includes('if (ADMIN_PREVIEW) {\n    showMessage') && publicScript.includes('submitButton.disabled = true'), 'Prévia não deve enviar pedidos nem permitir pagar.')
+
 assert.ok(publicScript.includes('function validateFormStep') && publicScript.includes('collectParticipants()') && publicScript.includes('function setFormStep'), 'Navegação deve validar participantes e responsável antes da etapa seguinte.')
 assert.ok(publicScript.includes('currentFormStep !== FORM_STEPS.length - 1'), 'Tecla Enter não deve enviar pedido antes da página final.')
 assert.ok(publicPage.includes('id="responsavel-legal"') && publicPage.includes('id="terms-accepted"') && publicPage.includes('id="privacy-acknowledged"'), 'Termos e declaração LGPD devem permanecer no formulário.')

@@ -3,6 +3,7 @@ const SUPABASE_PUBLIC_KEY = 'sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const API_URL = SUPABASE_URL + '/functions/v1/contratacao-publica'
 const CAMPAIGN_SLUG = decodeURIComponent(window.location.pathname.split('/').filter(Boolean)[1] || 'entre-estacoes').toLowerCase()
 const CAMPAIGN_STORAGE_PREFIX = 'gf_contratacao_' + CAMPAIGN_SLUG
+const ADMIN_PREVIEW = new URLSearchParams(window.location.search).get('preview') === '1'
 
 const loading = document.getElementById('loading-state')
 const closed = document.getElementById('closed-state')
@@ -441,9 +442,38 @@ function renderCampaign(data) {
   addParticipant()
 }
 
+async function loadAdminPreview() {
+  // A prévia depende de sessão administrativa e usa a própria função protegida.
+  // Jamais exibir configurações privadas com base apenas na query string.
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+  const client = createClient(SUPABASE_URL, SUPABASE_PUBLIC_KEY, {
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
+  })
+  const { data: sessionData } = await client.auth.getSession()
+  const token = sessionData?.session?.access_token
+  if (!token) throw new Error('Entre primeiro como administrador na Galeria Grand Focus para visualizar o formulário.')
+
+  const response = await fetch(SUPABASE_URL + '/functions/v1/contratacao-admin', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_PUBLIC_KEY,
+      Authorization: 'Bearer ' + token,
+    },
+    body: JSON.stringify({ action: 'config', slug: CAMPAIGN_SLUG }),
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(result.error || 'Prévia disponível apenas para administradores autorizados.')
+  return {
+    disponivel: true,
+    evento: result.evento,
+    pacotes: (result.pacotes || []).filter((item) => item.ativo === true),
+  }
+}
+
 async function loadCampaign() {
   try {
-    const data = await api('dados')
+    const data = ADMIN_PREVIEW ? await loadAdminPreview() : await api('dados')
     loading.classList.add('hidden')
     if (!data.disponivel) {
       document.getElementById('closed-message').textContent = data.mensagem || 'As contratações ainda não foram liberadas.'
@@ -451,6 +481,11 @@ async function loadCampaign() {
       return
     }
     renderCampaign(data)
+    if (ADMIN_PREVIEW) {
+      document.getElementById('admin-preview-banner').classList.remove('hidden')
+      submitButton.disabled = true
+      submitButton.textContent = 'Prévia sem pagamento'
+    }
   } catch (error) {
     loading.classList.add('hidden')
     closed.classList.remove('hidden')
@@ -499,6 +534,10 @@ function collectPayload() {
 
 async function submitOrder(event) {
   event.preventDefault()
+  if (ADMIN_PREVIEW) {
+    showMessage('Esta tela é apenas uma prévia administrativa. Nenhum pedido será criado ou cobrado.', 'warning')
+    return
+  }
   // O Enter em um campo de texto não pode enviar o pedido antes da revisão final.
   if (currentFormStep !== FORM_STEPS.length - 1) {
     if (validateFormStep(currentFormStep)) setFormStep(currentFormStep + 1)
