@@ -10,6 +10,10 @@ const centralMigration = read('supabase/sql/084_central_respostas_financeiro.sql
 const paymentPermissionMigration = read('supabase/sql/085_contratacao_pagamento_admin_perfis.sql')
 const simplifiedContractMigration = read('supabase/sql/086_contratacao_sem_coreografias.sql')
 const formBuilderMigration = read('supabase/sql/087_editor_formularios_dinamicos.sql')
+const archiveMigration = read('supabase/sql/088_central_arquivamento_seguro.sql')
+const archiveTests = read('scripts/test-fixtures/central-archive-tests.sql')
+const workspaceScript = read('contratar/entre-estacoes/admin/workspace.js')
+const workspaceCss = read('contratar/entre-estacoes/admin/workspace.css')
 const formBuilderScript = read('contratar/entre-estacoes/admin/form-builder.js')
 const formQuestionScript = read('contratar/entre-estacoes/questions.js')
 const formBuilderTests = read('scripts/test-fixtures/form-builder-tests.sql')
@@ -211,12 +215,12 @@ assert.ok(workflow.includes('node scripts/e2e-contratacao.mjs'), 'O CI precisa e
 
 assert.ok(adminPage.includes('id="gf-central"') && adminPage.includes('/contratar/entre-estacoes/admin/central.js'), 'Central deve estar dentro do painel administrativo existente.')
 assert.ok(adminPage.indexOf('id="gf-central"') < adminPage.indexOf('id="config-form"'), 'O administrador deve encontrar a central de pagamentos antes das configurações técnicas.')
-assert.ok(adminPage.includes('gf-technical-details') && adminPage.includes('Baixar planilha'), 'A tela principal deve ser simples, com exportação e detalhes técnicos opcionais.')
+assert.ok(adminPage.includes('gf-technical-details') && adminPage.includes('id="gf-central-export"'), 'A tela principal deve ser simples, com exportação e detalhes técnicos opcionais.')
 
 assert.ok(adminScript.includes('window.gfContratacaoAdminRequest = adminRequest') && adminScript.includes('gf-contratacao-admin-ready'), 'Central deve reutilizar a autenticação administrativa.')
 assert.ok(centralUi.includes("apiCentral('central_listar')") && centralUi.includes("apiCentral('central_salvar_acompanhamento'") && centralUi.includes("apiCentral('central_registrar_pagamento'"), 'Interface deve carregar registros e salvar follow-up/pagamento via ações autenticadas.')
 assert.ok(centralUi.includes('URL.createObjectURL') && centralUi.includes('csvSafe') && centralUi.includes('visibleRecords()'), 'Central precisa exportar os registros filtrados com proteção CSV.')
-assert.ok(centralUi.includes("record.source==='formulario'") && centralUi.includes("Pagamento dos pedidos online é confirmado somente pela InfinitePay"), 'A central não pode marcar pedidos do provedor como pagos manualmente.')
+assert.ok(centralUi.includes("record.source==='formulario'") && centralUi.includes("Pagamentos online são confirmados apenas pela InfinitePay"), 'A central não pode marcar pedidos do provedor como pagos manualmente.')
 assert.ok(adminApi.includes("case 'central_listar'") && adminApi.includes("case 'central_salvar_acompanhamento'") && adminApi.includes("case 'central_registrar_pagamento'"), 'As ações devem exigir autenticação admin antes de executar.')
 assert.ok(centralMigration.includes('enable row level security') && centralMigration.includes('revoke all on table') && centralMigration.includes('from public, anon, authenticated'), 'Tabelas históricas e de follow-up devem ser privadas.')
 assert.ok(centralMigration.includes('gf_contratacao_admin_registrar_pagamento_externo') && centralMigration.includes('p_conferencia_confirmada is distinct from true'), 'Pagamentos manuais precisam de confirmação explícita e trilha.')
@@ -261,5 +265,34 @@ assert.ok(adminApi.includes('formulario_respostas,formulario_modelo_snapshot') &
 assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') &&
  adminApi.includes('const REAL_PAYMENTS_ENABLED = false'),
  'Formulário dinâmico não pode ativar pagamentos.')
+
+assert.ok(adminPage.includes('id="gf-central-dialog"') &&
+  adminPage.includes('id="gf-layout-compact"') && adminPage.includes('id="gf-layout-cards"'),
+  'Ficha da família deve abrir em diálogo com alternância de lista e cartões.')
+assert.ok(adminPage.includes('data-workspace-tab="perguntas"') &&
+  adminPage.includes('data-workspace-tab="aparencia"') &&
+  adminPage.includes('data-workspace-tab="evento"') &&
+  adminPage.includes('/admin/workspace.js'), 'Painel deve separar tarefas em abas claras.')
+assert.ok(workspaceScript.includes('openWorkspace(') &&
+  workspaceCss.includes('.gf-central-dialog') && workspaceCss.includes('gf-record-card')===false,
+  'Nova navegação e estilos de pop-up devem estar presentes.')
+assert.ok(centralUi.includes("apiCentral('central_arquivar'") &&
+  centralUi.includes('centralDialog.showModal()') &&
+  centralUi.includes("centralState.layout='compact'")===false,
+  'Arquivamento autenticado, pop-up nativo e lista compacta devem estar presentes.')
+assert.ok(adminApi.includes("case 'central_arquivar'") &&
+  adminApi.includes('gf_contratacao_admin_arquivar_registro'),
+  'Arquivamento deve passar por função administrativa protegida.')
+assert.ok(archiveMigration.includes('revoke all on function') &&
+  archiveMigration.includes('registro_arquivado') &&
+  archiveMigration.includes('pagamento_confirmado_em is not null') &&
+  archiveMigration.includes('valor_recebido_centavos'),
+  'Arquivar não pode excluir pedidos nem ocultar pagamento confirmado.')
+assert.ok(archiveTests.includes('set local role service_role') &&
+  archiveTests.includes('Permitiu arquivamento de recebimento confirmado') &&
+  archiveTests.includes('rollback;'), 'Testar restauração, registro de auditoria e proteção financeira.')
+assert.ok(workflow.includes('supabase/sql/088_central_arquivamento_seguro.sql') &&
+  workflow.includes('scripts/test-fixtures/central-archive-tests.sql'),
+  'CI deve rodar migração e testes de arquivamento.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
