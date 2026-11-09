@@ -50,6 +50,10 @@ Deno.serve(async (req: Request) => {
 
   try {
     switch (body?.action) {
+      case 'natal_horarios':
+        return await actionNatalHorarios(req, admin, campaignSlug)
+      case 'natal_inscrever':
+        return await actionNatalInscrever(req, admin, body, campaignSlug)
       case 'dados':
         return await actionDados(req, admin, campaignSlug)
       case 'contratar':
@@ -66,6 +70,66 @@ Deno.serve(async (req: Request) => {
     return jsonResponse(req, { error: safeErrorMessage(error) || 'Não foi possível concluir a solicitação.' }, 400)
   }
 })
+
+// Agendamento *manual* do Natal: não envolve InfinitePay, não gera checkout,
+// não registra um pagamento confirmado. Disponível exclusivamente para esta campanha.
+async function actionNatalHorarios(req:Request,admin:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')
+   return jsonResponse(req,{error:'Agenda não disponível nesta campanha.'},404)
+ const {data,error}=await admin.rpc('gf_natal_listar_horarios',{
+  p_slug:slug,p_preview:false
+ })
+ if(error)return jsonResponse(req,{error:'Não foi possível consultar os horários.'},503)
+ return jsonResponse(req,data||{disponivel:false,horarios:[]})
+}
+async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='natal-fada-acucarada-2026')
+   return jsonResponse(req,{error:'Inscrição indisponível nesta campanha.'},404)
+ if(String(body?.company_website||'').trim())
+   return jsonResponse(req,{error:'Solicitação não aceita.'},400)
+ const payload=body||{}
+ const uuidPattern=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+ if(!uuidPattern.test(String(payload.horario_id||''))||
+    !uuidPattern.test(String(payload.idempotencia||''))||
+    !Array.isArray(payload.alunos)||payload.alunos.length<1||payload.alunos.length>4||
+    !['ja_paguei','a_pagar'].includes(payload.pagamento)||
+    typeof payload.aceite!=='boolean'||payload.aceite!==true||
+    JSON.stringify(payload).length>14000)
+   return jsonResponse(req,{error:'Revise as informações do formulário.'},400)
+ const phone=String(payload.whatsapp||'').replace(/\D/g,'')
+ if(phone.length<10||phone.length>13)return jsonResponse(req,{error:'WhatsApp inválido.'},400)
+ // Limites do projeto: apenas hashes são registrados (nunca o telefone em texto).
+ const ip=(req.headers.get('cf-connecting-ip')||
+    req.headers.get('x-real-ip')||
+    req.headers.get('x-forwarded-for')?.split(',')[0]||'').trim()
+ const limits=[
+  {hash:await sha256Hex('natal:phone:'+phone),limit:6,window:3600},
+  ...(ip?[{hash:await sha256Hex('natal:ip:'+ip),limit:20,window:900}]:[])
+ ]
+ for(const limit of limits){
+  const {data,error}=await admin.rpc('gf_contratacao_registrar_tentativa',{
+   p_chave_hash:limit.hash,p_limite:limit.limit,p_janela_segundos:limit.window
+  })
+  if(error||!data)return jsonResponse(req,{error:'Não foi possível validar a segurança da inscrição.'},503)
+  if(data.permitido!==true)return jsonResponse(req,{
+    error:'Muitas tentativas. Aguarde alguns minutos para continuar.'
+  },429)
+ }
+ const {data,error}=await admin.rpc('gf_natal_solicitar_horario',{
+  p_slug:slug,p_horario:payload.horario_id,
+  p_nome:String(payload.nome||''),p_whatsapp:String(payload.whatsapp||''),
+  p_email:String(payload.email||''),p_alunos:payload.alunos,
+  p_pagamento:payload.pagamento,p_meio:String(payload.meio_pagamento||''),
+  p_data_pagamento:payload.data_pagamento||null,
+  p_familia:String(payload.familia||''),p_observacao:String(payload.observacao||''),
+  p_idempotencia:payload.idempotencia,p_aceite:true
+ })
+ if(error){
+  console.error('contratacao-publica[natal_inscrever]: solicitação recusada',error.message)
+  return jsonResponse(req,{error:error.message||'Não foi possível solicitar o horário.'},409)
+ }
+ return jsonResponse(req,data||{ok:false})
+}
 
 async function actionDados(req: Request, admin: any, campaignSlug: string) {
   // Mantenha a página pública fechada enquanto o checkout real não estiver autorizado.
