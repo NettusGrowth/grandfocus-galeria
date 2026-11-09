@@ -93,7 +93,8 @@ try {
   })
   await page.goto(origin + '/contratar/teste-publico/', { waitUntil:'networkidle' })
   await page.waitForSelector('#contract-form:not(.hidden)')
-  assert.match(await page.locator('h1').first().textContent(), /Entre Estações/)
+  assert.match(await page.title(), /Entre Estações/)
+  assert.match(await page.locator('h1').first().textContent(), /Memórias em cena/)
   assert.match(await page.locator('#event-meta').textContent(), /Teatro de Teste/)
 
   
