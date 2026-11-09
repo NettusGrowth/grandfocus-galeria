@@ -62,8 +62,12 @@ Deno.serve(async (req: Request) => {
     switch (body?.action) {
       case 'listar_campanhas': return await actionListarCampanhas(req, admin)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
+      case 'agenda_listar':
       case 'natal_agenda': return await actionNatalAgenda(req,admin,requestedCampaignSlug(body))
+      case 'agenda_salvar_modo': return await actionAgendaSalvarModo(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'agenda_gerar_horarios':
       case 'natal_gerar_horarios': return await actionNatalGerarHorarios(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'agenda_desativar_horario':
       case 'natal_desativar_horario': return await actionNatalDesativar(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
@@ -92,9 +96,18 @@ Deno.serve(async (req: Request) => {
 
 // Agenda e inscrições de Natal são separadas do checkout InfinitePay.
 // Somente usuários admin/super_admin chegam a estas rotas.
+async function actionAgendaSalvarModo(req:Request,admin:any,userId:string,body:any,slug:string){
+ const modo=String(body?.modo_agendamento||'')
+ if(!['ordem_chegada','horario_marcado'].includes(modo))
+  return jsonResponse(req,{error:'Escolha Ordem de chegada ou Horário marcado.'},400)
+ const {data,error}=await admin.rpc('gf_contratacao_admin_salvar_modo_agendamento',{
+  p_slug:slug,p_modo:modo,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível salvar o tipo de agendamento.'},409)
+ return jsonResponse(req,data||{ok:true,modo_agendamento:modo})
+}
+
 async function actionNatalAgenda(req:Request,admin:any,slug:string){
- if(slug!=='natal-fada-acucarada-2026')
-   return jsonResponse(req,{error:'Esta agenda não pertence à campanha.'},404)
  const {data,error}=await admin.rpc('gf_natal_listar_horarios',{p_slug:slug,p_preview:true})
  if(error)return jsonResponse(req,{error:error.message||'Agenda indisponível.'},409)
  return jsonResponse(req,data||{horarios:[]})
@@ -104,7 +117,7 @@ async function actionNatalGerarHorarios(req:Request,admin:any,userId:string,body
  const inicio=String(body?.inicio||'')
  const fim=String(body?.fim||'')
  const duracao=Number(body?.duracao_minutos)
- if(!['2026-12-12','2026-12-13'].includes(dia)||
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(dia)||
     !/^([01]\d|2[0-3]):[0-5]\d$/.test(inicio)||
     !/^([01]\d|2[0-3]):[0-5]\d$/.test(fim)||
     !Number.isSafeInteger(duracao)||duracao<5||duracao>90)
