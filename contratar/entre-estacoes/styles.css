@@ -1270,3 +1270,52 @@ body.gf-form-view.gf-large-text { font-size: 20px; }
   .gf-form-view .gf-preview-finish { padding: 15px; }
   .gf-form-view .gf-preview-finish .btn { max-width: none; }
 }
+
+/* Campos configuráveis por escola — mesmo padrão de leitura acessível. */
+.gf-form-view .gf-intro-custom {
+  margin:16px 0 7px;color:#353A40;font-size:17px;line-height:1.7;
+}
+.gf-form-view .gf-intro-custom[hidden],
+.gf-form-view .gf-custom-questions[hidden],
+.gf-form-view .gf-custom-question[hidden] {display:none !important}
+.gf-form-view .gf-custom-questions {
+  margin:0 0 28px;padding-bottom:23px;border-bottom:1px solid #DDDBDE;
+}
+.gf-form-view .gf-custom-title {
+  margin:0 0 6px;color:var(--form-accent);font-size:22px;font-weight:650;line-height:1.3;
+}
+.gf-form-view .gf-custom-description {margin:0 0 18px;color:#3B4148;font-size:16px;line-height:1.6}
+.gf-form-view .gf-custom-question {
+  display:flex;flex-direction:column;gap:11px;margin:0 0 14px;
+  padding:20px;border:1px solid #D7D8DB;border-radius:12px;background:#FFF;
+}
+.gf-form-view .gf-custom-field {display:flex;flex-direction:column;gap:12px;align-items:start}
+.gf-form-view .gf-custom-label {
+  display:block;color:#202124;font-size:18px;font-weight:650;line-height:1.45;
+}
+.gf-form-view .gf-custom-question :is(input:not([type="radio"]):not([type="checkbox"]),select,textarea){
+  box-sizing:border-box;width:100%;min-width:0;min-height:52px;
+  border:1px solid #A8ACB2;border-radius:8px;padding:12px 13px;
+  font-family:inherit;font-size:17px;line-height:1.5;background:#FFF;color:#202124;
+}
+.gf-form-view .gf-custom-question textarea {resize:vertical;min-height:104px}
+.gf-form-view .gf-custom-options {display:grid;gap:11px}
+.gf-form-view .gf-custom-option {
+  display:flex;align-items:center;gap:13px;cursor:pointer;padding:11px 12px;
+  min-height:51px;border:1px solid #DDDFE2;border-radius:9px;
+  font-size:17px;line-height:1.5;color:#292D33;
+}
+.gf-form-view .gf-custom-option:has(input:checked) {border-color:var(--form-accent);background:#F7EFF2}
+.gf-form-view .gf-custom-option input {width:23px;height:23px;flex:none;accent-color:var(--form-accent)}
+.gf-form-view .gf-custom-help {margin:0;color:#4F5660;font-size:15px;line-height:1.55}
+.gf-form-view .gf-custom-question :is(input,select,textarea):focus-visible {
+  outline:3px solid #945C76;outline-offset:3px;
+}
+.gf-form-view.gf-large-text .gf-custom-label,
+.gf-form-view.gf-large-text .gf-custom-option,
+.gf-form-view.gf-large-text .gf-custom-question :is(input,select,textarea) {font-size:20px}
+.gf-form-view.gf-large-text .gf-custom-help {font-size:18px}
+@media(max-width:620px) {
+ .gf-form-view .gf-custom-question {padding:16px 12px}
+ .gf-form-view .gf-custom-label {font-size:17px}
+}
