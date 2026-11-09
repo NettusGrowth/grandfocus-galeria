@@ -138,6 +138,16 @@ assert.ok(publicScript.includes('currentFormStep !== FORM_STEPS.length - 1'), 'T
 assert.ok(publicPage.includes('id="responsavel-legal"') && publicPage.includes('id="terms-accepted"') && publicPage.includes('id="privacy-acknowledged"'), 'Termos e declaração LGPD devem permanecer no formulário.')
 assert.ok(read('contratar/entre-estacoes/styles.css').includes('body.gf-form-view') && read('contratar/entre-estacoes/styles.css').includes('.gf-form-view .gf-form-navigation'), 'O tema deve preservar os estilos da administração e definir navegação do formulário.')
 
+assert.ok(publicPage.includes('id="gf-font-toggle"') && publicScript.includes("localStorage.getItem('gf_form_big_text')"), 'A página deve oferecer ampliação opcional e persistente de letras.')
+assert.ok(publicPage.includes('id="gf-help-link"') && publicScript.includes("'https://wa.me/'"), 'O visitante deve conseguir solicitar suporte pelo WhatsApp cadastrado na campanha.')
+assert.ok(publicScript.includes('function showStepError(message, field = null)') && publicScript.includes("field.setAttribute('aria-invalid', 'true')"), 'Erros de preenchimento precisam identificar e focar o campo inadequado.')
+assert.ok(publicScript.includes('function firstIncompleteParticipantField()'), 'O formulário deve levar a pessoa diretamente ao campo incompleto da bailarina.')
+assert.ok(publicScript.includes("heading.focus({ preventScroll: true })"), 'Ao avançar, o foco precisa acompanhar a nova página para leitores de tela.')
+assert.ok(publicScript.includes('if (ADMIN_PREVIEW)') && publicScript.includes('submitButton.disabled = true'), 'Melhorias públicas não podem reativar pedidos em prévia.')
+assert.ok(read('contratar/entre-estacoes/styles.css').includes('@media (max-width: 370px)') && read('contratar/entre-estacoes/styles.css').includes('body.gf-form-view.gf-large-text'), 'A interface deve suportar celulares compactos e letras ampliadas.')
+assert.ok(e2eScript.includes('auditResponsiveLayout') && e2eScript.includes('width:320') && e2eScript.includes("await auditResponsiveLayout('texto ampliado')"), 'O navegador deve testar reflow de 320px e texto ampliado.')
+
+
 assert.ok(publicPage.includes('privacy-acknowledged'), 'A ciência da política de privacidade deve ser separada do aceite dos termos.')
 assert.ok(publicPage.includes('company-website'), 'O formulário deve conter o campo honeypot.')
 assert.ok(adminPage.includes('/contratar/entre-estacoes/admin/admin.js'), 'Painel precisa carregar seu script isolado.')
