@@ -191,12 +191,11 @@ begin
   end if;
 
 
-  -- Guardar respostas EXATAMENTE com a versão visualizada; mudanças feitas depois
-  -- não reescrevem pedidos anteriores. Respostas são validadas novamente no banco.
+  -- O modelo da campanha e as respostas fazem parte da mesma transação do pedido.
   v_form := coalesce(v_evento.formulario_modelo,'{"perguntas":[]}'::jsonb);
   if p_aceite ? 'formulario' then
     if jsonb_typeof(p_aceite->'formulario') is distinct from 'object'
-      or coalesce((p_aceite->'formulario'->>'versao')::integer,0) <> v_evento.formulario_versao then
+       or coalesce((p_aceite->'formulario'->>'versao')::integer,0) <> v_evento.formulario_versao then
       raise exception 'As perguntas do formulário foram atualizadas. Recarregue a página antes de contratar.';
     end if;
   elsif jsonb_array_length(coalesce(v_form->'perguntas','[]'::jsonb)) > 0 then
@@ -206,6 +205,7 @@ begin
   if jsonb_typeof(v_answers) is distinct from 'object' then
     raise exception 'As respostas adicionais estão em formato inválido.';
   end if;
+
   for v_key in select jsonb_object_keys(v_answers) loop
     if not exists (
       select 1 from jsonb_array_elements(v_form->'perguntas') q
@@ -214,12 +214,14 @@ begin
       raise exception 'Uma resposta não corresponde às perguntas desta campanha.';
     end if;
   end loop;
+
   for v_question in select value from jsonb_array_elements(v_form->'perguntas') loop
     v_qid := v_question->>'id';
     v_qtype := v_question->>'tipo';
     v_answer := v_answers->v_qid;
     v_condition := v_question->'condicao';
     v_show := true;
+
     if jsonb_typeof(v_condition)='object' and coalesce(v_condition->>'pergunta_id','')<>'' then
       v_show := coalesce(v_answers->>(v_condition->>'pergunta_id'),'') = coalesce(v_condition->>'valor','');
     end if;
@@ -229,6 +231,7 @@ begin
       end if;
       continue;
     end if;
+
     if v_answer is null or v_answer='null'::jsonb
        or (jsonb_typeof(v_answer)='string' and btrim(v_answer #>> '{}')='')
        or (jsonb_typeof(v_answer)='array' and jsonb_array_length(v_answer)=0) then
@@ -237,6 +240,7 @@ begin
       end if;
       continue;
     end if;
+
     if v_qtype='multipla' then
       if jsonb_typeof(v_answer) is distinct from 'array' or jsonb_array_length(v_answer)>12 then
         raise exception 'Resposta de múltipla seleção inválida.';
@@ -244,7 +248,7 @@ begin
       v_choices := coalesce(v_question->'opcoes','[]'::jsonb);
       for v_choice in select value #>> '{}' from jsonb_array_elements(v_answer) loop
         if length(v_choice)>160 or not v_choices ? v_choice then
-          raise exception 'Uma das alternativas escolhidas não existe.';
+          raise exception 'Uma alternativa escolhida não pertence ao formulário.';
         end if;
       end loop;
     else
@@ -255,527 +259,24 @@ begin
       if length(v_value)>1000 then raise exception 'Resposta maior que o permitido.'; end if;
       if v_qtype in ('unica','lista','sim_nao') then
         v_choices := case when v_qtype='sim_nao' then '["Sim","Não"]'::jsonb
-           else coalesce(v_question->'opcoes','[]'::jsonb) end;
+          else coalesce(v_question->'opcoes','[]'::jsonb) end;
         if not v_choices ? v_value then raise exception 'Alternativa inválida.'; end if;
       elsif v_qtype='email' then
-        if v_value !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}
-    raise exception 'O prazo de contratação foi encerrado.';
-  end if;
-
-  select exists (
-    select 1 from public.gf_contratacao_pacotes
-    where evento_contratacao_id = v_evento.id and ativo = true and inclui_miniensaio = true
-  ) into v_campanha_tem_mini;
-
-  if v_evento.data_evento is null
-    or (v_campanha_tem_mini and (v_evento.miniensaio_inicio is null or v_evento.miniensaio_fim is null))
-    or nullif(btrim(v_evento.local),'') is null
-    or v_evento.termos_versao is null
-    or v_evento.termos_conteudo is null
-    or coalesce(v_evento.privacidade_url,'') !~ '^https://[^[:space:]]+$'
-    or nullif(btrim(v_evento.privacidade_versao),'') is null
-    or length(coalesce(v_evento.privacidade_conteudo,'')) < 100
-    or v_evento.fornecedor_nome is null
-    or v_evento.fornecedor_documento is null
-    or v_evento.fornecedor_email is null then
-    raise exception 'A campanha ainda não possui todas as configurações obrigatórias.';
-  end if;
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    if coalesce(length(btrim(v_item->>'nome')),0) not between 3 and 120
-      or coalesce(length(btrim(v_item->>'turma')),0) not between 1 and 80 then
-      raise exception 'Informe o nome e a turma de cada bailarina.';
-    end if;
-
-    if nullif(v_item->>'idade','') is not null then
-      if length(v_item->>'idade') not between 1 and 2
-        or (v_item->>'idade') ~ '[^0-9]' then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-      if (v_item->>'idade')::integer not between 1 and 99 then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-    end if;
-
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid
-      and evento_contratacao_id = v_evento.id
-      and ativo = true;
-
-    if not found then
-      raise exception 'Experiência inválida para esta campanha.';
-    end if;
-
-    v_total := v_total + v_pacote.preco_centavos;
-    v_tem_mini := v_tem_mini or v_pacote.inclui_miniensaio;
-  end loop;
-
-  if v_tem_mini then
-    select count(*) into v_usadas
-    from public.gf_contratacao_participantes p
-    join public.gf_contratacao_pedidos o on o.id = p.pedido_id
-    where o.evento_contratacao_id = v_evento.id
-      and p.consome_miniensaio = true
-      and (
-        o.status in ('pago','conciliacao_pendente')
-        or (
-          o.status in ('aguardando_pagamento','pagamento_pendente')
-          and (o.reserva_expira_em > now() or o.reserva_status = 'conciliacao_pendente')
-        )
-      );
-
-    select count(*) into v_vagas
-    from jsonb_array_elements(p_participantes) x(value)
-    join public.gf_contratacao_pacotes p
-      on p.id = (x.value->>'pacote_id')::uuid
-    where p.evento_contratacao_id = v_evento.id
-      and p.inclui_miniensaio = true;
-
-    if v_evento.capacidade_miniensaios is not null
-      and v_usadas + v_vagas > v_evento.capacidade_miniensaios then
-      raise exception 'Não há vagas suficientes para o miniensaio.';
-    end if;
-  end if;
-
-  -- Uma reserva nunca pode ultrapassar o encerramento das vendas.
-  v_expira := case
-    when v_tem_mini then least(
-      now() + make_interval(mins => v_evento.reserva_minutos),
-      v_evento.vendas_encerram_em
-    )
-    else null
-  end;
-  v_order_nsu := v_pedido_id::text;
-  v_imagem_aceita := coalesce((p_aceite->>'uso_imagem')::boolean,false);
-
-  insert into public.gf_contratacao_pedidos(
-    id,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,
-    valor_total_centavos,status,reserva_status,reserva_expira_em,order_nsu,
-    idempotency_key,request_hash,acesso_publico_hash,formulario_respostas,formulario_modelo_snapshot
-  ) values (
-    v_pedido_id,v_evento.id,btrim(p_responsavel->>'nome'),v_telefone,
-    lower(btrim(p_responsavel->>'email')),v_total,'aguardando_pagamento',
-    case when v_tem_mini then 'ativa' else 'nao_aplicavel' end,
-    v_expira,v_order_nsu,p_idempotency_key,p_request_hash,p_acesso_hash,v_answers,
-    jsonb_build_object('versao',v_evento.formulario_versao,'modelo',v_form)
-  );
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid;
-
-    v_participante_id := gen_random_uuid();
-
-    insert into public.gf_contratacao_participantes(
-      id,pedido_id,pacote_id,bailarina_nome,turma,idade,preco_centavos,consome_miniensaio
-    ) values (
-      v_participante_id,v_pedido_id,v_pacote.id,btrim(v_item->>'nome'),
-      btrim(v_item->>'turma'),nullif(v_item->>'idade','')::smallint,
-      v_pacote.preco_centavos,v_pacote.inclui_miniensaio
-    );
-
-  end loop;
-
-  if v_imagem_aceita and (
-    nullif(v_evento.autorizacao_imagem_versao,'') is null
-    or nullif(v_evento.autorizacao_imagem_conteudo,'') is null
-  ) then
-    raise exception 'A autorização de uso de imagem não está configurada corretamente.';
-  end if;
-
-  insert into public.gf_contratacao_aceites(
-    pedido_id,responsavel_nome,declarou_responsavel_legal,termos_versao,
-    termos_conteudo,termos_sha256,privacidade_url,privacidade_versao,
-    privacidade_conteudo,privacidade_sha256,autorizacao_uso_imagem,
-    autorizacao_uso_imagem_versao,metadados_tecnicos
-  ) values (
-    v_pedido_id,btrim(p_responsavel->>'nome'),true,v_evento.termos_versao,
-    v_evento.termos_conteudo,
-    encode(extensions.digest(v_evento.termos_conteudo,'sha256'),'hex'),
-    v_evento.privacidade_url,v_evento.privacidade_versao,v_evento.privacidade_conteudo,
-    encode(extensions.digest(v_evento.privacidade_conteudo,'sha256'),'hex'),
-    v_imagem_aceita,
-    case when v_imagem_aceita then v_evento.autorizacao_imagem_versao else null end,
-    case
-      when jsonb_typeof(p_aceite->'metadados') = 'object' then p_aceite->'metadados'
-      else '{}'::jsonb
-    end
-  );
-
-  insert into public.gf_contratacao_pagamentos(pedido_id,order_nsu,valor_centavos)
-  values(v_pedido_id,v_order_nsu,v_total);
-
-  insert into public.gf_contratacao_auditoria(
-    evento_contratacao_id,pedido_id,acao,detalhes
-  ) values (
-    v_evento.id,v_pedido_id,'pedido_criado',
-    jsonb_build_object(
-      'reserva_miniensaio',v_tem_mini,
-      'reserva_expira_em',v_expira,
-      'participantes',jsonb_array_length(p_participantes)
-    )
-  );
-
-  return jsonb_build_object(
-    'pedido_id',v_pedido_id,
-    'order_nsu',v_order_nsu,
-    'valor_total_centavos',v_total,
-    'reserva_expira_em',v_expira,
-    'vendas_encerram_em',v_evento.vendas_encerram_em,
-    'checkout_url',null,
-    'status','aguardando_pagamento',
-    'reutilizado',false
-  );
-end;
-$$; then raise exception 'E-mail de resposta adicional inválido.';end if;
+        if v_value !~* '^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$' then
+          raise exception 'E-mail de resposta adicional inválido.';
+        end if;
       elsif v_qtype='telefone' then
-        if length(regexp_replace(v_value,'\D','','g')) not between 10 and 13 then raise exception 'Telefone adicional inválido.';end if;
+        if length(regexp_replace(v_value,'\D','','g')) not between 10 and 13 then
+          raise exception 'Telefone adicional inválido.';
+        end if;
       elsif v_qtype='numero' then
-        if v_value !~ '^-?[0-9]{1,12}(\.[0-9]{1,4})?
-    raise exception 'O prazo de contratação foi encerrado.';
-  end if;
-
-  select exists (
-    select 1 from public.gf_contratacao_pacotes
-    where evento_contratacao_id = v_evento.id and ativo = true and inclui_miniensaio = true
-  ) into v_campanha_tem_mini;
-
-  if v_evento.data_evento is null
-    or (v_campanha_tem_mini and (v_evento.miniensaio_inicio is null or v_evento.miniensaio_fim is null))
-    or nullif(btrim(v_evento.local),'') is null
-    or v_evento.termos_versao is null
-    or v_evento.termos_conteudo is null
-    or coalesce(v_evento.privacidade_url,'') !~ '^https://[^[:space:]]+$'
-    or nullif(btrim(v_evento.privacidade_versao),'') is null
-    or length(coalesce(v_evento.privacidade_conteudo,'')) < 100
-    or v_evento.fornecedor_nome is null
-    or v_evento.fornecedor_documento is null
-    or v_evento.fornecedor_email is null then
-    raise exception 'A campanha ainda não possui todas as configurações obrigatórias.';
-  end if;
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    if coalesce(length(btrim(v_item->>'nome')),0) not between 3 and 120
-      or coalesce(length(btrim(v_item->>'turma')),0) not between 1 and 80 then
-      raise exception 'Informe o nome e a turma de cada bailarina.';
-    end if;
-
-    if nullif(v_item->>'idade','') is not null then
-      if length(v_item->>'idade') not between 1 and 2
-        or (v_item->>'idade') ~ '[^0-9]' then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-      if (v_item->>'idade')::integer not between 1 and 99 then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-    end if;
-
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid
-      and evento_contratacao_id = v_evento.id
-      and ativo = true;
-
-    if not found then
-      raise exception 'Experiência inválida para esta campanha.';
-    end if;
-
-    v_total := v_total + v_pacote.preco_centavos;
-    v_tem_mini := v_tem_mini or v_pacote.inclui_miniensaio;
-  end loop;
-
-  if v_tem_mini then
-    select count(*) into v_usadas
-    from public.gf_contratacao_participantes p
-    join public.gf_contratacao_pedidos o on o.id = p.pedido_id
-    where o.evento_contratacao_id = v_evento.id
-      and p.consome_miniensaio = true
-      and (
-        o.status in ('pago','conciliacao_pendente')
-        or (
-          o.status in ('aguardando_pagamento','pagamento_pendente')
-          and (o.reserva_expira_em > now() or o.reserva_status = 'conciliacao_pendente')
-        )
-      );
-
-    select count(*) into v_vagas
-    from jsonb_array_elements(p_participantes) x(value)
-    join public.gf_contratacao_pacotes p
-      on p.id = (x.value->>'pacote_id')::uuid
-    where p.evento_contratacao_id = v_evento.id
-      and p.inclui_miniensaio = true;
-
-    if v_evento.capacidade_miniensaios is not null
-      and v_usadas + v_vagas > v_evento.capacidade_miniensaios then
-      raise exception 'Não há vagas suficientes para o miniensaio.';
-    end if;
-  end if;
-
-  -- Uma reserva nunca pode ultrapassar o encerramento das vendas.
-  v_expira := case
-    when v_tem_mini then least(
-      now() + make_interval(mins => v_evento.reserva_minutos),
-      v_evento.vendas_encerram_em
-    )
-    else null
-  end;
-  v_order_nsu := v_pedido_id::text;
-  v_imagem_aceita := coalesce((p_aceite->>'uso_imagem')::boolean,false);
-
-  insert into public.gf_contratacao_pedidos(
-    id,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,
-    valor_total_centavos,status,reserva_status,reserva_expira_em,order_nsu,
-    idempotency_key,request_hash,acesso_publico_hash
-  ) values (
-    v_pedido_id,v_evento.id,btrim(p_responsavel->>'nome'),v_telefone,
-    lower(btrim(p_responsavel->>'email')),v_total,'aguardando_pagamento',
-    case when v_tem_mini then 'ativa' else 'nao_aplicavel' end,
-    v_expira,v_order_nsu,p_idempotency_key,p_request_hash,p_acesso_hash
-  );
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid;
-
-    v_participante_id := gen_random_uuid();
-
-    insert into public.gf_contratacao_participantes(
-      id,pedido_id,pacote_id,bailarina_nome,turma,idade,preco_centavos,consome_miniensaio
-    ) values (
-      v_participante_id,v_pedido_id,v_pacote.id,btrim(v_item->>'nome'),
-      btrim(v_item->>'turma'),nullif(v_item->>'idade','')::smallint,
-      v_pacote.preco_centavos,v_pacote.inclui_miniensaio
-    );
-
-  end loop;
-
-  if v_imagem_aceita and (
-    nullif(v_evento.autorizacao_imagem_versao,'') is null
-    or nullif(v_evento.autorizacao_imagem_conteudo,'') is null
-  ) then
-    raise exception 'A autorização de uso de imagem não está configurada corretamente.';
-  end if;
-
-  insert into public.gf_contratacao_aceites(
-    pedido_id,responsavel_nome,declarou_responsavel_legal,termos_versao,
-    termos_conteudo,termos_sha256,privacidade_url,privacidade_versao,
-    privacidade_conteudo,privacidade_sha256,autorizacao_uso_imagem,
-    autorizacao_uso_imagem_versao,metadados_tecnicos
-  ) values (
-    v_pedido_id,btrim(p_responsavel->>'nome'),true,v_evento.termos_versao,
-    v_evento.termos_conteudo,
-    encode(extensions.digest(v_evento.termos_conteudo,'sha256'),'hex'),
-    v_evento.privacidade_url,v_evento.privacidade_versao,v_evento.privacidade_conteudo,
-    encode(extensions.digest(v_evento.privacidade_conteudo,'sha256'),'hex'),
-    v_imagem_aceita,
-    case when v_imagem_aceita then v_evento.autorizacao_imagem_versao else null end,
-    case
-      when jsonb_typeof(p_aceite->'metadados') = 'object' then p_aceite->'metadados'
-      else '{}'::jsonb
-    end
-  );
-
-  insert into public.gf_contratacao_pagamentos(pedido_id,order_nsu,valor_centavos)
-  values(v_pedido_id,v_order_nsu,v_total);
-
-  insert into public.gf_contratacao_auditoria(
-    evento_contratacao_id,pedido_id,acao,detalhes
-  ) values (
-    v_evento.id,v_pedido_id,'pedido_criado',
-    jsonb_build_object(
-      'reserva_miniensaio',v_tem_mini,
-      'reserva_expira_em',v_expira,
-      'participantes',jsonb_array_length(p_participantes)
-    )
-  );
-
-  return jsonb_build_object(
-    'pedido_id',v_pedido_id,
-    'order_nsu',v_order_nsu,
-    'valor_total_centavos',v_total,
-    'reserva_expira_em',v_expira,
-    'vendas_encerram_em',v_evento.vendas_encerram_em,
-    'checkout_url',null,
-    'status','aguardando_pagamento',
-    'reutilizado',false
-  );
-end;
-$$; then raise exception 'Número adicional inválido.';end if;
+        if v_value !~ '^-?[0-9]{1,12}(\.[0-9]{1,4})?$' then
+          raise exception 'Número adicional inválido.';
+        end if;
       elsif v_qtype='data' then
-        if v_value !~ '^\d{4}-\d{2}-\d{2}
-    raise exception 'O prazo de contratação foi encerrado.';
-  end if;
-
-  select exists (
-    select 1 from public.gf_contratacao_pacotes
-    where evento_contratacao_id = v_evento.id and ativo = true and inclui_miniensaio = true
-  ) into v_campanha_tem_mini;
-
-  if v_evento.data_evento is null
-    or (v_campanha_tem_mini and (v_evento.miniensaio_inicio is null or v_evento.miniensaio_fim is null))
-    or nullif(btrim(v_evento.local),'') is null
-    or v_evento.termos_versao is null
-    or v_evento.termos_conteudo is null
-    or coalesce(v_evento.privacidade_url,'') !~ '^https://[^[:space:]]+$'
-    or nullif(btrim(v_evento.privacidade_versao),'') is null
-    or length(coalesce(v_evento.privacidade_conteudo,'')) < 100
-    or v_evento.fornecedor_nome is null
-    or v_evento.fornecedor_documento is null
-    or v_evento.fornecedor_email is null then
-    raise exception 'A campanha ainda não possui todas as configurações obrigatórias.';
-  end if;
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    if coalesce(length(btrim(v_item->>'nome')),0) not between 3 and 120
-      or coalesce(length(btrim(v_item->>'turma')),0) not between 1 and 80 then
-      raise exception 'Informe o nome e a turma de cada bailarina.';
-    end if;
-
-    if nullif(v_item->>'idade','') is not null then
-      if length(v_item->>'idade') not between 1 and 2
-        or (v_item->>'idade') ~ '[^0-9]' then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-      if (v_item->>'idade')::integer not between 1 and 99 then
-        raise exception 'A idade informada deve ser um número inteiro entre 1 e 99.';
-      end if;
-    end if;
-
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid
-      and evento_contratacao_id = v_evento.id
-      and ativo = true;
-
-    if not found then
-      raise exception 'Experiência inválida para esta campanha.';
-    end if;
-
-    v_total := v_total + v_pacote.preco_centavos;
-    v_tem_mini := v_tem_mini or v_pacote.inclui_miniensaio;
-  end loop;
-
-  if v_tem_mini then
-    select count(*) into v_usadas
-    from public.gf_contratacao_participantes p
-    join public.gf_contratacao_pedidos o on o.id = p.pedido_id
-    where o.evento_contratacao_id = v_evento.id
-      and p.consome_miniensaio = true
-      and (
-        o.status in ('pago','conciliacao_pendente')
-        or (
-          o.status in ('aguardando_pagamento','pagamento_pendente')
-          and (o.reserva_expira_em > now() or o.reserva_status = 'conciliacao_pendente')
-        )
-      );
-
-    select count(*) into v_vagas
-    from jsonb_array_elements(p_participantes) x(value)
-    join public.gf_contratacao_pacotes p
-      on p.id = (x.value->>'pacote_id')::uuid
-    where p.evento_contratacao_id = v_evento.id
-      and p.inclui_miniensaio = true;
-
-    if v_evento.capacidade_miniensaios is not null
-      and v_usadas + v_vagas > v_evento.capacidade_miniensaios then
-      raise exception 'Não há vagas suficientes para o miniensaio.';
-    end if;
-  end if;
-
-  -- Uma reserva nunca pode ultrapassar o encerramento das vendas.
-  v_expira := case
-    when v_tem_mini then least(
-      now() + make_interval(mins => v_evento.reserva_minutos),
-      v_evento.vendas_encerram_em
-    )
-    else null
-  end;
-  v_order_nsu := v_pedido_id::text;
-  v_imagem_aceita := coalesce((p_aceite->>'uso_imagem')::boolean,false);
-
-  insert into public.gf_contratacao_pedidos(
-    id,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,
-    valor_total_centavos,status,reserva_status,reserva_expira_em,order_nsu,
-    idempotency_key,request_hash,acesso_publico_hash
-  ) values (
-    v_pedido_id,v_evento.id,btrim(p_responsavel->>'nome'),v_telefone,
-    lower(btrim(p_responsavel->>'email')),v_total,'aguardando_pagamento',
-    case when v_tem_mini then 'ativa' else 'nao_aplicavel' end,
-    v_expira,v_order_nsu,p_idempotency_key,p_request_hash,p_acesso_hash
-  );
-
-  for v_item in select value from jsonb_array_elements(p_participantes) loop
-    select * into v_pacote
-    from public.gf_contratacao_pacotes
-    where id = (v_item->>'pacote_id')::uuid;
-
-    v_participante_id := gen_random_uuid();
-
-    insert into public.gf_contratacao_participantes(
-      id,pedido_id,pacote_id,bailarina_nome,turma,idade,preco_centavos,consome_miniensaio
-    ) values (
-      v_participante_id,v_pedido_id,v_pacote.id,btrim(v_item->>'nome'),
-      btrim(v_item->>'turma'),nullif(v_item->>'idade','')::smallint,
-      v_pacote.preco_centavos,v_pacote.inclui_miniensaio
-    );
-
-  end loop;
-
-  if v_imagem_aceita and (
-    nullif(v_evento.autorizacao_imagem_versao,'') is null
-    or nullif(v_evento.autorizacao_imagem_conteudo,'') is null
-  ) then
-    raise exception 'A autorização de uso de imagem não está configurada corretamente.';
-  end if;
-
-  insert into public.gf_contratacao_aceites(
-    pedido_id,responsavel_nome,declarou_responsavel_legal,termos_versao,
-    termos_conteudo,termos_sha256,privacidade_url,privacidade_versao,
-    privacidade_conteudo,privacidade_sha256,autorizacao_uso_imagem,
-    autorizacao_uso_imagem_versao,metadados_tecnicos
-  ) values (
-    v_pedido_id,btrim(p_responsavel->>'nome'),true,v_evento.termos_versao,
-    v_evento.termos_conteudo,
-    encode(extensions.digest(v_evento.termos_conteudo,'sha256'),'hex'),
-    v_evento.privacidade_url,v_evento.privacidade_versao,v_evento.privacidade_conteudo,
-    encode(extensions.digest(v_evento.privacidade_conteudo,'sha256'),'hex'),
-    v_imagem_aceita,
-    case when v_imagem_aceita then v_evento.autorizacao_imagem_versao else null end,
-    case
-      when jsonb_typeof(p_aceite->'metadados') = 'object' then p_aceite->'metadados'
-      else '{}'::jsonb
-    end
-  );
-
-  insert into public.gf_contratacao_pagamentos(pedido_id,order_nsu,valor_centavos)
-  values(v_pedido_id,v_order_nsu,v_total);
-
-  insert into public.gf_contratacao_auditoria(
-    evento_contratacao_id,pedido_id,acao,detalhes
-  ) values (
-    v_evento.id,v_pedido_id,'pedido_criado',
-    jsonb_build_object(
-      'reserva_miniensaio',v_tem_mini,
-      'reserva_expira_em',v_expira,
-      'participantes',jsonb_array_length(p_participantes)
-    )
-  );
-
-  return jsonb_build_object(
-    'pedido_id',v_pedido_id,
-    'order_nsu',v_order_nsu,
-    'valor_total_centavos',v_total,
-    'reserva_expira_em',v_expira,
-    'vendas_encerram_em',v_evento.vendas_encerram_em,
-    'checkout_url',null,
-    'status','aguardando_pagamento',
-    'reutilizado',false
-  );
-end;
-$$; then raise exception 'Data adicional inválida.';end if;
+        if v_value !~ '^\d{4}-\d{2}-\d{2}$' then
+          raise exception 'Data adicional inválida.';
+        end if;
       elsif v_qtype not in ('texto','paragrafo') then
         raise exception 'Tipo de pergunta não suportado.';
       end if;
@@ -876,12 +377,13 @@ $$; then raise exception 'Data adicional inválida.';end if;
   insert into public.gf_contratacao_pedidos(
     id,evento_contratacao_id,responsavel_nome,responsavel_whatsapp,responsavel_email,
     valor_total_centavos,status,reserva_status,reserva_expira_em,order_nsu,
-    idempotency_key,request_hash,acesso_publico_hash
+    idempotency_key,request_hash,acesso_publico_hash,formulario_respostas,formulario_modelo_snapshot
   ) values (
     v_pedido_id,v_evento.id,btrim(p_responsavel->>'nome'),v_telefone,
     lower(btrim(p_responsavel->>'email')),v_total,'aguardando_pagamento',
     case when v_tem_mini then 'ativa' else 'nao_aplicavel' end,
-    v_expira,v_order_nsu,p_idempotency_key,p_request_hash,p_acesso_hash
+    v_expira,v_order_nsu,p_idempotency_key,p_request_hash,p_acesso_hash,v_answers,
+    jsonb_build_object('versao',v_evento.formulario_versao,'modelo',v_form)
   );
 
   for v_item in select value from jsonb_array_elements(p_participantes) loop
