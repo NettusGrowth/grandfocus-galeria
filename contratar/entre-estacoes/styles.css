@@ -713,3 +713,17 @@ body.gf-form-view {
   .gf-form-view .gf-navigation-buttons .btn { width: auto; flex: 1 1 auto; min-width: 110px; }
   .gf-form-view .gf-navigation-hint { margin-left: auto; }
 }
+
+/* Prévia acessível somente após verificação de administrador no servidor. */
+.gf-form-view .gf-preview-banner {
+  margin: 12px 0 16px;
+  padding: 14px 17px;
+  border: 1px solid #C8AF7F;
+  border-left: 5px solid #4B0416;
+  border-radius: 7px;
+  background: #FFF9EA;
+  color: #422333;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.55;
+}
