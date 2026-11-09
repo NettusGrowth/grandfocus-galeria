@@ -194,9 +194,13 @@ begin
   -- Guardar respostas EXATAMENTE com a versão visualizada; mudanças feitas depois
   -- não reescrevem pedidos anteriores. Respostas são validadas novamente no banco.
   v_form := coalesce(v_evento.formulario_modelo,'{"perguntas":[]}'::jsonb);
-  if jsonb_typeof(p_aceite->'formulario') is distinct from 'object'
-    or coalesce((p_aceite->'formulario'->>'versao')::integer,0) <> v_evento.formulario_versao then
-    raise exception 'As perguntas do formulário foram atualizadas. Recarregue a página antes de contratar.';
+  if p_aceite ? 'formulario' then
+    if jsonb_typeof(p_aceite->'formulario') is distinct from 'object'
+      or coalesce((p_aceite->'formulario'->>'versao')::integer,0) <> v_evento.formulario_versao then
+      raise exception 'As perguntas do formulário foram atualizadas. Recarregue a página antes de contratar.';
+    end if;
+  elsif jsonb_array_length(coalesce(v_form->'perguntas','[]'::jsonb)) > 0 then
+    raise exception 'Este evento exige respostas adicionais. Atualize o formulário.';
   end if;
   v_answers := coalesce(p_aceite->'formulario'->'respostas','{}'::jsonb);
   if jsonb_typeof(v_answers) is distinct from 'object' then
