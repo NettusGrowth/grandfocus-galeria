@@ -87,6 +87,65 @@ try {
   assert.match(await page.locator('h1').first().textContent(), /Entre Estações/)
   assert.match(await page.locator('#event-meta').textContent(), /Teatro de Teste/)
 
+  
+  // Check reflow at elderly-friendly text sizes and device widths (WCAG 2.2 Reflow).
+  const auditResponsiveLayout = async (stage) => {
+    const sizes = [
+      { width:320, height:568 }, { width:360, height:700 },
+      { width:390, height:844 }, { width:430, height:932 },
+      { width:768, height:1024 }, { width:1024, height:768 },
+      { width:1440, height:900 },
+    ]
+    for (const viewport of sizes) {
+      await page.setViewportSize(viewport)
+      const metrics = await page.evaluate(() => {
+        const root = document.documentElement
+        const next = document.getElementById('form-next')
+        const reader = document.getElementById('gf-font-toggle')
+        const sampleInput = document.getElementById('responsavel-nome')
+        const help = document.getElementById('gf-help-link')
+        const overflow = Array.from(document.querySelectorAll('body *'))
+          .filter(node => {
+            const style = getComputedStyle(node)
+            const bounds = node.getBoundingClientRect()
+            return style.display !== 'none' && style.visibility !== 'hidden' &&
+              bounds.width > 0 && bounds.right > innerWidth + 2
+          })
+          .slice(0,6)
+          .map(node => node.id || node.className || node.tagName)
+        return {
+          viewport: root.clientWidth,
+          scrollWidth: root.scrollWidth,
+          inputFontSize: parseFloat(getComputedStyle(sampleInput).fontSize),
+          nextHeight: next.getBoundingClientRect().height,
+          readerHeight: reader.getBoundingClientRect().height,
+          helpHeight: help.getBoundingClientRect().height,
+          helpVisible: getComputedStyle(help).display !== 'none',
+          overflow,
+        }
+      })
+      assert.ok(metrics.scrollWidth <= metrics.viewport + 1,
+        stage + ' com largura ' + viewport.width + 'px apresenta rolagem horizontal: ' + JSON.stringify(metrics))
+      assert.ok(metrics.inputFontSize >= 16,
+        stage + ' com largura ' + viewport.width + 'px usa texto pequeno em campo: ' + JSON.stringify(metrics))
+      assert.ok(metrics.nextHeight >= 48,
+        stage + ' com largura ' + viewport.width + 'px apresenta botão pequeno: ' + JSON.stringify(metrics))
+      assert.ok(metrics.readerHeight >= 48 && (!metrics.helpVisible || metrics.helpHeight >= 48),
+        stage + ' com largura ' + viewport.width + 'px apresenta controle de ajuda pequeno: ' + JSON.stringify(metrics))
+    }
+    await page.setViewportSize({ width:390, height:844 })
+  }
+  assert.equal(await page.locator('#gf-help-link').isVisible(), true)
+  assert.match(await page.locator('#gf-help-link').getAttribute('href'), /wa.me\/5534999999999/)
+  await auditResponsiveLayout('apresentação')
+  await page.locator('#gf-font-toggle').click()
+  assert.equal(await page.locator('#gf-font-toggle').getAttribute('aria-pressed'), 'true')
+  assert.ok((await page.locator('.hero-copy').first().evaluate(el => parseFloat(getComputedStyle(el).fontSize))) >= 19)
+  await auditResponsiveLayout('texto ampliado')
+  await page.locator('#gf-font-toggle').click()
+  assert.equal(await page.locator('#gf-font-toggle').getAttribute('aria-pressed'), 'false')
+
+
   // The Google Forms-style questionnaire starts at page 1 and keeps future fields hidden.
   assert.match(await page.locator('#form-step-count').textContent(), /Página 1 de 4/)
   assert.equal(await page.locator('[data-form-step="2"]').isVisible(), false)
@@ -97,6 +156,8 @@ try {
   // Form validation must stop an incomplete request before calling the API.
   await page.locator('#form-next').click()
   assert.match(await page.locator('#form-message').textContent(), /Preencha/)
+  assert.equal(await page.locator('[data-name]').nth(0).getAttribute('aria-invalid'), 'true')
+  assert.equal(await page.locator('[data-name]').nth(0).evaluate(el => document.activeElement === el), true)
   assert.equal(submitted, null, 'O formulário incompleto não deve enviar uma contratação.')
 
   // One mini-session participant plus one stage-only participant.
@@ -108,13 +169,18 @@ try {
   await page.locator('[data-class]').nth(1).fill('Avançado')
   await page.locator('[data-package]').nth(1).selectOption('22222222-2222-4222-8222-222222222222')
   await page.locator('[data-coreo-list] input[type="text"]').fill('Valsa das Estações')
+  await auditResponsiveLayout('bailarinas e coreografias')
   await page.locator('#form-next').click()
   assert.match(await page.locator('#form-step-count').textContent(), /Página 3 de 4/)
   assert.match((await page.locator('#order-total').textContent()).replace(/\s/g,''), /198,00/)
+  await page.locator('#form-next').click()
+  assert.equal(await page.locator('#responsavel-nome').getAttribute('aria-invalid'), 'true')
+  assert.equal(await page.locator('#responsavel-nome').evaluate(el => document.activeElement === el), true)
 
   await page.locator('#responsavel-nome').fill('Responsável de Teste')
   await page.locator('#responsavel-whatsapp').fill('(34) 99999-9999')
   await page.locator('#responsavel-email').fill('responsavel@example.com')
+  await auditResponsiveLayout('responsável')
   await page.locator('#form-next').click()
   assert.match(await page.locator('#form-step-count').textContent(), /Página 4 de 4/)
   assert.equal(await page.locator('#submit-order').isVisible(), true)
@@ -124,8 +190,11 @@ try {
   // A privacy acknowledgement is mandatory and independent from the contract terms.
   await page.locator('#submit-order').click()
   assert.match(await page.locator('#form-message').textContent(), /política de privacidade/)
+  assert.equal(await page.locator('#privacy-acknowledged').getAttribute('aria-invalid'), 'true')
+  assert.equal(await page.locator('#privacy-acknowledged').evaluate(el => document.activeElement === el), true)
   assert.equal(submitted, null, 'O pedido não pode ser enviado sem ciência da política de privacidade.')
   await page.locator('#privacy-acknowledged').check()
+  await auditResponsiveLayout('termos e revisão')
 
   const widths = await page.evaluate(() => ({ viewport:document.documentElement.clientWidth, content:document.documentElement.scrollWidth }))
   assert.ok(widths.content <= widths.viewport + 1, 'A página mobile apresenta rolagem horizontal inesperada: ' + JSON.stringify(widths))
