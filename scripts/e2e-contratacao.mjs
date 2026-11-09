@@ -5,6 +5,12 @@ import path from 'node:path'
 import { chromium } from 'playwright'
 
 const root = path.resolve('dist')
+const galleryHtml = fs.readFileSync(path.join(root,'index.html'),'utf8')
+assert.ok(galleryHtml.includes('id="gf-contract-launch-title"'), 'O gerenciador deve ser aberto de uma nova aba.')
+assert.ok(galleryHtml.includes('href="/contratar/admin/" target="_blank"'), 'O botão deve abrir o painel independente.')
+assert.ok(galleryHtml.includes('href="/contratar/entre-estacoes/admin/" target="_blank"'), 'A escola principal deve ter acesso direto.')
+assert.ok(!galleryHtml.includes('<iframe title="Gerenciador de contratações e experiências"'),
+ 'O painel pequeno embutido não pode permanecer no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/index.html')), 'Página pública não foi gerada no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/entre-estacoes/admin/index.html')), 'Painel administrativo não foi gerado no build.')
 assert.ok(fs.existsSync(path.join(root,'contratar/admin/index.html')), 'Gerenciador de contratações não foi gerado no build.')
