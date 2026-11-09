@@ -179,6 +179,9 @@ assert.ok(workflow.includes('node scripts/e2e-contratacao.mjs'), 'O CI precisa e
 
 
 assert.ok(adminPage.includes('id="gf-central"') && adminPage.includes('/contratar/entre-estacoes/admin/central.js'), 'Central deve estar dentro do painel administrativo existente.')
+assert.ok(adminPage.indexOf('id="gf-central"') < adminPage.indexOf('id="config-form"'), 'O administrador deve encontrar a central de pagamentos antes das configurações técnicas.')
+assert.ok(adminPage.includes('gf-technical-details') && adminPage.includes('Baixar planilha'), 'A tela principal deve ser simples, com exportação e detalhes técnicos opcionais.')
+
 assert.ok(adminScript.includes('window.gfContratacaoAdminRequest = adminRequest') && adminScript.includes('gf-contratacao-admin-ready'), 'Central deve reutilizar a autenticação administrativa.')
 assert.ok(centralUi.includes("apiCentral('central_listar')") && centralUi.includes("apiCentral('central_salvar_acompanhamento'") && centralUi.includes("apiCentral('central_registrar_pagamento'"), 'Interface deve carregar registros e salvar follow-up/pagamento via ações autenticadas.')
 assert.ok(centralUi.includes('URL.createObjectURL') && centralUi.includes('csvSafe') && centralUi.includes('visibleRecords()'), 'Central precisa exportar os registros filtrados com proteção CSV.')
