@@ -97,8 +97,7 @@ begin
       'pacote_id',v_stage_only_package,
       'nome','Bailarina Palco',
       'turma','Avançado',
-      'idade',15,
-      'coreografias',jsonb_build_array(jsonb_build_object('nome','Coreografia de Teste','confirmar_depois',false))
+      'idade',15
     )),
     '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
     repeat('5',64),
@@ -372,11 +371,7 @@ begin
       'pacote_id',v_palco,
       'nome','Bailarina Palco',
       'turma','Avançado',
-      'idade',14,
-      'coreografias',jsonb_build_array(jsonb_build_object(
-        'nome','Coreografia de Teste',
-        'confirmar_depois',false
-      ))
+      'idade',14
     )),
     '{"responsavel_legal":true,"aceitou_termos":true,"ciente_privacidade":true,"uso_imagem":false}'::jsonb,
     repeat('e',64),
@@ -386,6 +381,17 @@ begin
 
   if (v_palco_result->>'valor_total_centavos')::integer <> 7900 then
     raise exception 'Preço do pacote de palco não foi validado pelo servidor.';
+  end if;
+  -- Regressão: contratação de palco não exige nem grava nomes de apresentações.
+  if exists (
+    select 1 from public.gf_contratacao_coreografias legacy
+    join public.gf_contratacao_participantes participante
+      on participante.id = legacy.participante_id
+    join public.gf_contratacao_pedidos pedido
+      on pedido.id = participante.pedido_id
+    where pedido.order_nsu = v_palco_result->>'order_nsu'
+  ) then
+    raise exception 'Uma contratação nova não pode depender de registros legados de palco.';
   end if;
 
   -- A RPC não aceita valores que não correspondam ao retorno do payment_check.
