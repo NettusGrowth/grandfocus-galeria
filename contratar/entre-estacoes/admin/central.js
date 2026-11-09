@@ -40,6 +40,7 @@ function notice(text, kind) {
   if(dialogNotice && centralDialog.open){
     dialogNotice.textContent=text
     dialogNotice.dataset.kind=kind||'info'
+    dialogNotice.hidden=false
   }
 }
 function tag(text, tone) {
