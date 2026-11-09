@@ -815,4 +815,14 @@ async function start() {
   await loadCampaign()
 }
 
-start();
+if(CAMPAIGN_SLUG==='natal-fada-acucarada-2026'){
+  import('./fada-natal.js').then(module=>module.mount({preview:ADMIN_PREVIEW}))
+    .catch(error=>{
+      loading.classList.add('hidden')
+      closed.classList.remove('hidden')
+      document.getElementById('closed-message').textContent =
+        error.message||'Não foi possível carregar a experiência de Natal.'
+    })
+}else{
+  start()
+}
