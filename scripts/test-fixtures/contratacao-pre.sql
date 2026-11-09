@@ -3,6 +3,7 @@ create role authenticated;
 create role service_role bypassrls;
 
 create schema auth;
+grant usage on schema auth to service_role;
 create table auth.users (
   id uuid primary key
 );
