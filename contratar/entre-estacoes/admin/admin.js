@@ -106,6 +106,12 @@ async function loadConfig() {
   publicLink.hidden = currentEvent.status !== 'publicado'
   const previewLink = document.getElementById('preview-link')
   previewLink.href = window.location.origin + '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/?preview=1'
+  const selectedMode=currentEvent.modo_agendamento==='horario_marcado'?'horario_marcado':'ordem_chegada'
+  const modeRadio=document.querySelector('input[name="gf-scheduling-mode"][value="'+selectedMode+'"]')
+  if(modeRadio)modeRadio.checked=true
+  window.dispatchEvent(new CustomEvent('gf-contratacao-modo-carregado',{detail:{
+    modo:selectedMode,data_evento:currentEvent.data_evento
+  }}))
   setField('event-date', currentEvent.data_evento)
   setField('event-place', currentEvent.local)
   setField('mini-start', toLocalInput(currentEvent.miniensaio_inicio))
@@ -319,7 +325,10 @@ async function saveConfig() {
       throw new Error('Confira os valores. Cada experiência deve custar pelo menos R$ 1,00.')
     }
     await adminRequest('salvar', config)
-    showNotice(adminMessage, 'Configuração salva. A campanha continua no status atual.')
+    const mode=document.querySelector('input[name="gf-scheduling-mode"]:checked')?.value||'ordem_chegada'
+    await adminRequest('agenda_salvar_modo',{modo_agendamento:mode})
+    window.dispatchEvent(new CustomEvent('gf-contratacao-modo-salvo',{detail:{modo:mode}}))
+    showNotice(adminMessage, 'Configuração e modo de agendamento salvos. A campanha continua no status atual.')
     await loadConfig()
     return true
   } catch (error) {
