@@ -73,7 +73,7 @@ begin
      from public.gf_contratacao_form_respostas r
      where r.horario_id=h.id and r.arquivado_em is null
        and (r.agendamento_status='confirmado' or
-            (r.agendamento_status='solicitado' and r.agendamento_expira_em > now()))
+            (r.agendamento_status='solicitado' and (r.agendamento_expira_em > now() or r.pagamento_situacao in ('parcial','pago_manual'))))
    ) ocup on true
    where h.evento_contratacao_id=v_evento.id and (p_preview or h.ativo)
   ),'[]'::jsonb)
@@ -136,7 +136,7 @@ begin
  if exists(
    select 1 from public.gf_contratacao_form_respostas r where r.horario_id=p_horario and r.arquivado_em is null
     and (r.agendamento_status='confirmado' or
-      (r.agendamento_status='solicitado' and r.agendamento_expira_em>now()))
+      (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))))
  ) then raise exception 'Este horário tem um agendamento ativo. Cancele-o antes de desativar.';end if;
  update public.gf_contratacao_horarios set ativo=false where id=p_horario;
  insert into public.gf_contratacao_auditoria(evento_contratacao_id,usuario_id,acao,detalhes)
@@ -211,7 +211,7 @@ begin
  select count(*) into v_ocupados from public.gf_contratacao_form_respostas r
  where r.horario_id=v_slot.id and r.arquivado_em is null and
   (r.agendamento_status='confirmado' or
-   (r.agendamento_status='solicitado' and r.agendamento_expira_em>now()));
+   (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))));
  if v_ocupados>=v_slot.capacidade then
   raise exception 'Este horário acabou de ser escolhido por outra família. Selecione outro.';end if;
  insert into public.gf_contratacao_form_respostas (
@@ -224,7 +224,7 @@ begin
  ) values (
   v_evento.id,v_key,'formulario_site',nextval('public.gf_natal_registros_seq'),now(),
   btrim(p_nome),v_tel,nullif(btrim(coalesce(p_email,'')),''),
-  array_to_string(v_nomes,', '),nullif(btrim(coalesce(p_familia,'')),''),
+  left(array_to_string(v_nomes,', '),180),nullif(btrim(coalesce(p_familia,'')),''),
   'Especial Fotográfico de Natal · '||v_count||' aluno(s)',
   v_preco,
   case when p_pagamento='ja_paguei' then 'Pagamento anterior declarado: '||coalesce(p_meio,'não informado')
@@ -273,7 +273,7 @@ begin
   select count(*) into v_total from public.gf_contratacao_form_respostas r
    where r.horario_id=v_slot.id and r.id<>v_row.id and r.arquivado_em is null
     and (r.agendamento_status='confirmado' or
-         (r.agendamento_status='solicitado' and r.agendamento_expira_em>now()));
+         (r.agendamento_status='solicitado' and (r.agendamento_expira_em>now() or r.pagamento_situacao in ('parcial','pago_manual'))));
   if v_total>=v_slot.capacidade then raise exception 'Horário já ocupado por outra família.';end if;
  else
   if v_row.valor_recebido_centavos>0 then
