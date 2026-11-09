@@ -11,7 +11,7 @@ assert.ok(redirects.some(r=>r.source==='/contratar/:slug/'&&r.destination==='/co
 const html=read('contratar/fada-natal/index.html')
 const publicJs=read('contratar/fada-natal/fada.js')
 const adminHtml=read('contratar/entre-estacoes/admin/index.html')
-const adminJs=read('contratar/fada-natal/admin.js')
+const adminJs=read('contratar/entre-estacoes/admin/agenda.js')
 const adminApi=read('supabase/functions/contratacao-admin/index.ts')
 const publicApi=read('supabase/functions/contratacao-publica/index.ts')
 const sql=read('supabase/sql/090_fada_natal_agenda_familias.sql')
@@ -21,7 +21,7 @@ assert.ok(publicJs.includes('1:8000,2:14500,3:21500,4:28500')&&
  publicJs.includes('natal_inscrever')&&publicJs.includes('natal_horarios')&&
  !publicJs.includes("action:'contratar'"),'Valor familiar e envio seguro devem ser separados do checkout.')
 assert.ok(adminHtml.includes('id="gf-natal-schedule"')&&adminHtml.includes('id="gf-natal-build"')&&
- adminJs.includes('natal_gerar_horarios')&&adminJs.includes('natal_desativar_horario'),
+ adminJs.includes('agenda_gerar_horarios')&&adminJs.includes('agenda_desativar_horario'),
  'A equipe deve editar intervalos e consultar ocupação sem código.')
 assert.ok(adminApi.includes("case 'natal_agenda'")&&adminApi.includes("case 'natal_gerar_horarios'")&&
  adminApi.includes("case 'natal_atualizar_agendamento'")&&adminApi.includes("const REAL_PAYMENTS_ENABLED = false"),
