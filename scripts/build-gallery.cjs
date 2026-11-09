@@ -146,6 +146,17 @@ function patchIndex(html) {
   html = html.replace(helperMarker, '\n' + helper + helperMarker);
 
 
+  // A galeria possui um HTML legado muito grande. Adicionamos o favicon
+  // durante o build, reutilizando o símbolo oficial já publicado em /assets.
+  const faviconTag = '<link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">';
+  const appleIconTag = '<link rel="apple-touch-icon" href="/assets/logo-icone.png?v=20261109">';
+  if (html.split('</head>').length !== 2) {
+    throw new Error('Cannot set Grand Focus favicon: expected one head element.');
+  }
+  if (!html.includes('href="/assets/logo-icone.png?v=20261109"')) {
+    html = html.replace('</head>', '  ' + faviconTag + '\n  ' + appleIconTag + '\n</head>');
+  }
+
   // A área de contratação fica em uma aba própria. Embutir o editor em um
   // iframe cria duas barras de rolagem e deixa o formulário pequeno.
   // O index.html legado é grande: ajustamos somente sua saída de build,
@@ -278,6 +289,9 @@ function main() {
   if (!deployed.includes('_carregarImgCache(path).then(blobUrl =>')) throw new Error('Non-blocking lightbox cache missing.');
   if (deployed.includes('const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()')) throw new Error('Stale R2 migration autostart must not run on administrator login.');
   if (!deployed.includes('_ativarFallbackImagemVisivel(img, path)')) throw new Error('Visible image error fallback missing.');
+  if (!deployed.includes('<link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">')) {
+    throw new Error('The built gallery must advertise the official Grand Focus favicon.');
+  }
   if (!deployed.includes('id="gf-contract-launch-title"') ||
       !deployed.includes('href="/contratar/admin/" target="_blank"') ||
       deployed.includes('<iframe title="Gerenciador de contratações e experiências"')) {
