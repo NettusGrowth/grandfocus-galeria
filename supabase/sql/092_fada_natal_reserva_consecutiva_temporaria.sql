@@ -238,7 +238,7 @@ begin
   'Alunos: '||array_to_string(v_nomes,', ')||
   case when p_data_pagamento is not null then ' • Pagou em '||to_char(p_data_pagamento,'DD/MM/YYYY') else '' end||
   case when nullif(btrim(coalesce(p_observacao,'')),'') is not null then ' • Observações: '||btrim(p_observacao) else '' end,
-  v_slot.id,'solicitado',now()+(case when p_pagamento='ja_paguei' then interval '48 hours' else interval '24 hours' end),p_alunos,true,true
+  v_slot.id,'solicitado',now()+interval '48 hours',p_alunos,true,true
  ) returning id into v_id;
  update public.gf_natal_holds set status='convertido',resposta_id=v_id
   where token=p_idempotencia and status='ativo';
