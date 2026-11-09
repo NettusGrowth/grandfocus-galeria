@@ -1226,3 +1226,17 @@ body.gf-form-view.gf-large-text { font-size: 20px; }
   .gf-central .gf-central-tabs button { flex:1 1 44%; }
 }
 @media(prefers-reduced-motion:reduce){.gf-central *{transition-duration:0ms !important;}}
+
+/* A área de gestão diária vem antes da configuração. Dados técnicos ficam disponíveis sob demanda. */
+.gf-technical-details {
+  margin-top:16px; border:1px solid #D5BEC5; border-radius:11px;
+  background:rgba(200,175,127,.055); overflow:hidden;
+}
+.gf-technical-details > summary {
+  cursor:pointer; min-height:54px; display:flex; align-items:center;
+  padding:15px 20px; color:#4B0416; font-family:"Jost",sans-serif;
+  font-size:16px; font-weight:650; line-height:1.5;
+}
+.gf-technical-details[open] > summary {border-bottom:1px solid #D5BEC5;}
+.gf-technical-details > .panel {margin:0; border:0; border-radius:0;}
+.gf-technical-details > summary:focus-visible {outline:3px solid #976D7D;outline-offset:-3px;}
