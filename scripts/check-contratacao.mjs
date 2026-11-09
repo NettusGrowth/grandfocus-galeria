@@ -12,8 +12,9 @@ const simplifiedContractMigration = read('supabase/sql/086_contratacao_sem_coreo
 const formBuilderMigration = read('supabase/sql/087_editor_formularios_dinamicos.sql')
 const archiveMigration = read('supabase/sql/088_central_arquivamento_seguro.sql')
 const natalMigration = read('supabase/sql/090_fada_natal_agenda_familias.sql')
-const natalUi = read('contratar/fada-natal/booking.js')
-const natalCss = read('contratar/fada-natal/booking.css')
+const natalUi = read('contratar/fada-natal/fada.js')
+const natalPage = read('contratar/fada-natal/index.html')
+const natalCss = read('contratar/fada-natal/fada.css')
 const natalSqlTests = read('scripts/test-fixtures/fada-natal-tests.sql')
 const natalAdminUi = read('contratar/entre-estacoes/admin/agenda.js')
 const natalAdminCss = read('contratar/entre-estacoes/admin/agenda.css')
@@ -358,27 +359,27 @@ assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') &&
  adminApi.includes('const REAL_PAYMENTS_ENABLED = false'),
  'Redesenho não pode habilitar cobrança de clientes.')
 
-assert.ok(publicScript.includes("CAMPAIGN_SLUG==='natal-fada-acucarada-2026'") &&
- publicPage.includes('id="gf-fada-booking"') && publicPage.includes('/contratar/fada-natal/booking.css'),
- 'O Natal deve abrir formulário próprio e conservar fluxo das outras campanhas.')
-assert.ok(natalUi.includes("value=\"ja_paguei\"") &&
- natalUi.includes("value=\"a_pagar\"") &&
- natalUi.includes("2 alunos · R$ 145,00") &&
- natalUi.includes("3 alunos · R$ 215,00") &&
- natalUi.includes("4 alunos · R$ 285,00") &&
- natalUi.includes("input.name='fada_horario'") &&
- natalUi.includes("'natal_inscrever'") &&
- !natalUi.includes("checkout_url"),
- 'Natal deve diferenciar pagamentos, calcular valores por família e não criar checkout.')
-assert.ok(natalCss.includes('@media(max-width:650px)') &&
- natalCss.includes('.gf-fada-choice') &&
+assert.ok(vercelConfig.includes('/contratar/natal-fada-acucarada-2026/') &&
+ natalPage.includes('/contratar/fada-natal/fada.js') &&
+ natalPage.includes('id="gf-fada-form"'),
+ 'O formulário do Natal deve ter uma página própria, sem modificar os eventos antigos.')
+assert.ok(natalPage.includes('value="ja_paguei"') &&
+ natalPage.includes('value="a_pagar"') &&
+ natalPage.includes('data-count="2"') &&
+ natalPage.includes('id="gf-slots"') &&
+ natalUi.includes('1:8000,2:14500,3:21500,4:28500') &&
+ natalUi.includes('natal_inscrever') &&
+ natalUi.includes('natal_horarios') &&
+ !natalUi.includes("action:'contratar'"),
+ 'O Natal precisa aceitar os dois caminhos, preços por família e seleção de vagas sem checkout.')
+assert.ok(natalCss.includes('@media') &&
  natalAdminCss.includes('.gf-agenda-slot'),
- 'Formulário e agenda devem funcionar no celular com leitura clara.')
+ 'Formulário e painel de Natal devem ser legíveis no celular.')
 assert.ok(adminPage.includes('gf-scheduling-mode') &&
  adminPage.includes('id="gf-natal-build"') &&
- natalAdminUi.includes("agenda_gerar_horarios") &&
+ natalAdminUi.includes('agenda_gerar_horarios') &&
  adminApi.includes("case 'natal_atualizar_agendamento'"),
- 'Administração deve controlar modo de agendamento, horários e confirmações.')
+ 'Administração deve criar horários e confirmar depois de conferir pagamento.')
 assert.ok(natalMigration.includes('for update') &&
  natalMigration.includes("p_pagamento='ja_paguei'") &&
  natalMigration.includes('gf_natal_solicitar_horario') &&
@@ -386,14 +387,14 @@ assert.ok(natalMigration.includes('for update') &&
  natalMigration.includes('enable row level security') &&
  natalMigration.includes('revoke all on function') &&
  natalMigration.includes("'pago_manual'"),
- 'Reserva deve ser atômica, privada e não aceitar declaração como pagamento confirmado.')
-assert.ok(natalSqlTests.includes('rollback;') && natalSqlTests.includes('v_student_count in 1..4') &&
- natalSqlTests.includes('Duas famílias') &&
+ 'Agendamento deve ser seguro, privado e manualmente conciliado.')
+assert.ok(natalSqlTests.includes('rollback;') &&
+ natalSqlTests.includes('v_student_count in 1..4') &&
  workflow.includes('090_fada_natal_agenda_familias.sql') &&
  workflow.includes('fada-natal-tests.sql'),
- 'CI precisa validar preços familiares, bloqueio de vagas e segurança em transação revertida.')
+ 'CI deve validar preços, vagas ocupadas e RLS sem deixar dados de testes.')
 assert.ok(publicApi.includes('const REAL_PAYMENTS_ENABLED = false') &&
  adminApi.includes('const REAL_PAYMENTS_ENABLED = false'),
- 'Mudança não deve habilitar cobranças reais.')
+ 'O Natal não pode ativar checkout real.')
 
 console.log('Contratação Grand Focus: verificações estruturais aprovadas.')
