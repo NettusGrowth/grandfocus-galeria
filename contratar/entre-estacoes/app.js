@@ -75,46 +75,6 @@ function makeInput(type, id, placeholder = '') {
   return input
 }
 
-function addCoreographyRow(container) {
-  if (container.querySelectorAll('.coreo-row').length >= 20) {
-    showMessage('Cada bailarina pode informar até 20 coreografias.', 'warning')
-    return
-  }
-  const row = document.createElement('div')
-  row.className = 'coreo-row'
-
-  const name = makeInput('text', 'coreo-' + Math.random().toString(36).slice(2), 'Nome da coreografia')
-  name.maxLength = 120
-  name.setAttribute('aria-label', 'Nome da coreografia')
-
-  const laterLabel = document.createElement('label')
-  laterLabel.className = 'inline-check'
-  const later = document.createElement('input')
-  later.type = 'checkbox'
-  const laterText = document.createElement('span')
-  laterText.textContent = 'Confirmar depois'
-  laterLabel.append(later, laterText)
-
-  const remove = document.createElement('button')
-  remove.type = 'button'
-  remove.className = 'text-button'
-  remove.textContent = 'Remover'
-  remove.setAttribute('aria-label', 'Remover esta coreografia')
-  remove.addEventListener('click', () => {
-    row.remove()
-    updateSummary()
-  })
-
-  later.addEventListener('change', () => {
-    name.disabled = later.checked
-    if (later.checked) name.value = ''
-  })
-  name.addEventListener('input', updateSummary)
-
-  row.append(name, laterLabel, remove)
-  container.append(row)
-}
-
 function renderPackageOverview() {
   const container = document.getElementById('package-overview-list')
   if (!container) return
@@ -138,12 +98,11 @@ function renderPackageOverview() {
     const summary = document.createElement('p')
     summary.className = 'experience-summary'
     if (pkg.inclui_miniensaio && pkg.inclui_palco) {
-      summary.textContent = 'Reúne os retratos do miniensaio no teatro e as fotografias das coreografias no palco.'
+      summary.textContent = 'Inclui retratos no teatro e cobertura fotográfica das apresentações no palco.'
     } else if (pkg.inclui_miniensaio) {
       summary.textContent = 'Uma sessão de retratos individuais com figurino e fotografias ao lado da família, em um espaço preparado no teatro.'
     } else if (pkg.inclui_palco) {
-      const minimum = Number(pkg.minimo_fotos_por_coreografia || 10)
-      summary.textContent = 'Registros das coreografias durante a apresentação, com no mínimo ' + minimum + ' fotografias digitais por coreografia escolhida. Não inclui miniensaio.'
+      summary.textContent = 'Cobertura fotográfica do espetáculo no palco, com registros coletivos e de pequenos grupos. Não há garantia de foto individual. Não inclui miniensaio.'
     } else {
       summary.textContent = 'Uma experiência fotográfica preparada para registrar a trajetória da bailarina.'
     }
@@ -164,7 +123,7 @@ function renderPackageOverview() {
       notes.push('O miniensaio acontece por ordem de chegada, dentro do período informado, sem horário individual.')
     }
     if (pkg.inclui_palco) {
-      notes.push('As coreografias desejadas serão informadas durante a contratação.')
+      notes.push('A cobertura de palco registra apresentações e grupos, sem promessa de fotografia individual de cada participante.')
     }
     const note = document.createElement('p')
     note.className = 'experience-note'
@@ -178,11 +137,9 @@ function renderPackageOverview() {
 function renderPackageInfo(card) {
   const select = card.querySelector('[data-package]')
   const detail = card.querySelector('[data-package-detail]')
-  const coreoArea = card.querySelector('[data-coreo-area]')
   const pkg = packages.find((item) => item.id === select.value)
 
   detail.replaceChildren()
-  coreoArea.classList.toggle('hidden', !pkg?.inclui_palco)
 
   if (!pkg) {
     detail.classList.add('hidden')
@@ -201,9 +158,6 @@ function renderPackageInfo(card) {
   price.textContent = money(pkg.preco_centavos)
   detail.append(list, price)
 
-  if (pkg.inclui_palco && coreoArea.querySelectorAll('.coreo-row').length === 0) {
-    addCoreographyRow(coreoArea.querySelector('[data-coreo-list]'))
-  }
   updateSummary()
 }
 
@@ -278,28 +232,11 @@ function addParticipant() {
   detail.className = 'package-detail hidden'
   detail.dataset.packageDetail = 'true'
 
-  const coreoArea = document.createElement('div')
-  coreoArea.className = 'coreo-area hidden'
-  coreoArea.dataset.coreoArea = 'true'
-  const coreoHead = document.createElement('div')
-  coreoHead.className = 'coreo-head'
-  const coreoTitle = document.createElement('strong')
-  coreoTitle.textContent = 'Coreografias para as fotos de palco'
-  const addCoreo = document.createElement('button')
-  addCoreo.type = 'button'
-  addCoreo.className = 'text-button'
-  addCoreo.textContent = 'Adicionar coreografia'
-  const coreoList = document.createElement('div')
-  coreoList.dataset.coreoList = 'true'
-  addCoreo.addEventListener('click', () => addCoreographyRow(coreoList))
-  coreoHead.append(coreoTitle, addCoreo)
-  coreoArea.append(coreoHead, coreoList)
-
   packageSelect.addEventListener('change', () => renderPackageInfo(card))
   name.addEventListener('input', updateSummary)
   className.addEventListener('input', updateSummary)
 
-  card.append(head, grid, detail, coreoArea)
+  card.append(head, grid, detail)
   participantsList.append(card)
   renumberParticipants()
   updateSummary()
@@ -328,24 +265,11 @@ function collectParticipants() {
       throw new Error('Informe uma idade inteira entre 1 e 99 anos.')
     }
 
-    const coreografias = []
-    if (pkg.inclui_palco) {
-      const rows = [...card.querySelectorAll('.coreo-row')]
-      if (!rows.length) throw new Error('Adicione ao menos uma coreografia para as fotos de palco.')
-      for (const row of rows) {
-        const confirmarDepois = row.querySelector('input[type="checkbox"]').checked
-        const nome = row.querySelector('input[type="text"]').value.trim()
-        if (!confirmarDepois && !nome) throw new Error('Informe a coreografia ou marque que o nome será confirmado depois.')
-        coreografias.push({ nome, confirmar_depois: confirmarDepois })
-      }
-    }
-
     result.push({
       pacote_id: packageId,
       nome: name,
       turma,
       idade: ageValue ? Number(ageValue) : null,
-      coreografias,
     })
   }
   if (!result.length) throw new Error('Adicione ao menos uma bailarina.')
@@ -495,8 +419,13 @@ async function loadCampaign() {
     renderCampaign(data)
     if (ADMIN_PREVIEW) {
       document.getElementById('admin-preview-banner').classList.remove('hidden')
+      document.getElementById('payment-instructions').textContent =
+        'Pré-visualização: este valor é apenas informativo. Nenhuma cobrança será feita.'
+      document.getElementById('mini-reservation-note').textContent =
+        'Esta prévia não reserva vagas nem cria pedidos.'
+      document.getElementById('preview-admin-link').href =
+        '/contratar/' + encodeURIComponent(CAMPAIGN_SLUG) + '/admin/'
       submitButton.disabled = true
-      submitButton.textContent = 'Prévia sem pagamento'
     }
   } catch (error) {
     loading.classList.add('hidden')
@@ -735,16 +664,6 @@ function firstIncompleteParticipantField() {
     if (age?.value && (!Number.isInteger(Number(age.value)) || Number(age.value) < 1 || Number(age.value) > 99)) {
       return age
     }
-    const selectedId = card.querySelector('[data-package]')?.value
-    const selected = packages.find(item => item.id === selectedId)
-    if (selected?.inclui_palco) {
-      const coreoRows = card.querySelectorAll('.coreo-row')
-      if (!coreoRows.length) return card.querySelector('.coreo-head button')
-      for (const row of coreoRows) {
-        const field = row.querySelector('input[type="text"]')
-        if (field && !field.disabled && !field.value.trim()) return field
-      }
-    }
   }
   return null
 }
@@ -762,7 +681,7 @@ function showStepError(message, field = null) {
   hint.id = 'gf-field-error-' + Math.random().toString(36).slice(2)
   hint.className = 'gf-inline-error'
   hint.textContent = message
-  const group = field.closest('.field, .coreo-row, .consent')
+  const group = field.closest('.field, .consent')
   if (group?.classList.contains('consent')) group.insertAdjacentElement('afterend', hint)
   else if (group) group.append(hint)
   else field.insertAdjacentElement('afterend', hint)
@@ -821,7 +740,8 @@ function setFormStep(step, scroll = true) {
   formStepBack.hidden = currentFormStep === 0
   formStepNext.hidden = isLast
   formStepNext.textContent = currentFormStep === 0 ? 'Começar' : 'Próxima etapa'
-  submitButton.hidden = !isLast
+  submitButton.hidden = !isLast || ADMIN_PREVIEW
+  document.getElementById('preview-final-info').hidden = !isLast || !ADMIN_PREVIEW
   clearInlineErrors()
   hideMessage()
   if (isLast) updateSummary()
