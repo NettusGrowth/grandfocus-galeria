@@ -58,6 +58,7 @@ jobs:
           node --input-type=module --check < contratar/entre-estacoes/admin/fees.js
           node --input-type=module --check < contratar/entre-estacoes/admin/form-builder.js
           node --input-type=module --check < contratar/entre-estacoes/admin/workspace.js
+          node --input-type=module --check < contratar/planilha/planilha.js
           node --input-type=module --check < contratar/entre-estacoes/questions.js
           node --input-type=module --check < contratar/admin/manager.js
           node --check contratar/fada-natal/fada.js
@@ -80,6 +81,8 @@ jobs:
         run: node scripts/e2e-fada-natal.mjs
       - name: Test Gente que Dança family registration and mobile experience
         run: node scripts/e2e-gente-que-danca.mjs
+      - name: Test interactive administrative spreadsheet in Chromium
+        run: node scripts/e2e-planilha-admin.mjs
       - name: Validate contracting migration and reservation logic in temporary PostgreSQL
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -121,6 +124,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-publicacao-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/101_gente_reserva_familia_15min_desconto.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-agenda-familias-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/102_admin_planilha_edicao_segura.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/planilha-editavel-tests.sql
       - name: Test Gente que Dança commissions (paid children only)
         run: node scripts/test-gente-comissao.mjs
       - name: Set up Deno
