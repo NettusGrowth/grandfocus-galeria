@@ -15,7 +15,7 @@ const adminJs=read('contratar/fada-natal/admin.js')
 const adminApi=read('supabase/functions/contratacao-admin/index.ts')
 const publicApi=read('supabase/functions/contratacao-publica/index.ts')
 const sql=read('supabase/sql/090_fada_natal_agenda_familias.sql')
-assert.ok(html.includes('Você já pagou pelas fotos?')&&html.includes('não a turma inteira')&&html.includes('Escolha um horário disponível')&&
+assert.ok(html.includes('Você já pagou pelas fotos?')&&html.includes('não a turma inteira')&&html.includes('Qual dia e horário você prefere?')&&
  html.includes('id="gf-fada-form"')&&html.includes('gf-submit'),'Formulário de Natal precisa das duas jornadas e do agendamento.')
 assert.ok(publicJs.includes('1:8000,2:14500,3:21500,4:28500')&&
  publicJs.includes('natal_inscrever')&&publicJs.includes('natal_horarios')&&
