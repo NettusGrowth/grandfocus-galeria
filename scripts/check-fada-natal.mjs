@@ -15,7 +15,7 @@ const adminJs=read('contratar/fada-natal/admin.js')
 const adminApi=read('supabase/functions/contratacao-admin/index.ts')
 const publicApi=read('supabase/functions/contratacao-publica/index.ts')
 const sql=read('supabase/sql/090_fada_natal_agenda_familias.sql')
-assert.ok(html.includes('Você já pagou pelas fotos?')&&html.includes('não a turma inteira')&&html.includes('Qual dia e horário você prefere?')&&
+assert.ok(html.includes('Você já realizou o pagamento?')&&html.includes('não a turma inteira')&&html.includes('Escolha seu horário')&&html.includes('id="gf-time-block"')&&
  html.includes('id="gf-fada-form"')&&html.includes('gf-submit'),'Formulário de Natal precisa das duas jornadas e do agendamento.')
 assert.ok(publicJs.includes('1:8000,2:14500,3:21500,4:28500')&&
  publicJs.includes('natal_inscrever')&&publicJs.includes('natal_horarios')&&
@@ -88,4 +88,19 @@ assert.ok(termosSource.includes('A escolha do horário no formulário é apenas 
  html.includes('href="/contratar/fada-natal/privacidade.html"')&&
  html.includes('id="gf-consent"'),
  'Formulário deve disponibilizar documentos e colher aceite antes de enviar.')
-console.log('Fada Natal: segurança, preços, horários, páginas jurídicas e aceite específico validados.')
+const genteHtml=read('contratar/gente-que-danca/index.html')
+const genteJs=read('contratar/gente-que-danca/gente.js')
+const genteSql=read('supabase/sql/096_gente_que_danca_inscricoes.sql')
+assert.ok(redirects.some(x=>x.source==='/contratar/gente-que-danca-2026/'&&x.destination==='/contratar/gente-que-danca/index.html'),'Rota pública da Gente que Dança ausente.')
+assert.ok(genteHtml.includes('R$ 150,00')&&genteHtml.includes('15 de dezembro de 2026')&&
+ genteHtml.includes('id="gente-form"')&&genteHtml.includes('Cartão de crédito')&&
+ genteHtml.includes('Pix')&&!genteHtml.includes('5 fotografias'),'Formulário Gente deve seguir somente as condições reais do acordo.')
+assert.ok(genteJs.includes("api('gente_inscrever'")&&genteSql.includes('gf_gente_solicitar_interesse')&&
+ genteSql.includes('c*15000')&&!genteJs.includes('natal_horarios'),
+ 'Gente deve registrar participação sem cobrança ou horário Natal.')
+assert.ok(read('contratar/entre-estacoes/admin/index.html').includes('data-workspace-tab="financeiro"')&&
+ read('contratar/planilha/planilha.js').includes("setInterval")&&
+ read('contratar/admin/manager.js').includes("card.tabIndex = 0"),
+ 'Admin deve separar Financeiro, oferecer planilha e cartões acessíveis.')
+
+console.log('Fada e Gente: formulários, admin e regras da parceria validados.')
