@@ -65,7 +65,8 @@ begin
      where chave_idempotencia='teste:evento:1')<>1 then
    raise exception 'Outbox não protege contra tentativas repetidas.';
  end if;
- if (select count(*) from public.gf_contratacao_form_respostas)<>0 then
+ if (select count(*) from public.gf_contratacao_form_respostas)
+   <>(select respostas from public.gf_integration_test_baseline) then
    raise exception 'Migração de teste afetou inscrições existentes.';
  end if;
 end $tests$;
