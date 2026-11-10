@@ -63,8 +63,17 @@ begin
  raise exception 'Restaure o registro antes de editar.';end if;
  novo_nome:=btrim(coalesce(p_nome,''));
  novo_whatsapp:=regexp_replace(coalesce(p_whatsapp,''),'[^0-9]','','g');
- if char_length(novo_nome) not between 3 and 120 or length(novo_whatsapp) not between 10 and 13 then
- raise exception 'Informe nome completo e WhatsApp com DDD.';end if;
+ -- Cadastros legados com telefone incompleto não impedem salvar uma nota/cor.
+ -- Só exigir os campos que o operador estiver realmente modificando.
+ if novo_nome is distinct from r.responsavel_nome
+   and char_length(novo_nome) not between 3 and 120 then
+  raise exception 'Informe o nome completo quando alterar o responsável.';end if;
+ if novo_whatsapp is distinct from regexp_replace(coalesce(r.responsavel_whatsapp,''),'[^0-9]','','g') then
+  if length(novo_whatsapp) not between 10 and 13 then
+   raise exception 'Informe WhatsApp com DDD ao modificar o telefone.';end if;
+ else
+  novo_whatsapp:=r.responsavel_whatsapp;
+ end if;
  if p_cor not in ('sem','verde','amarelo','rosa','azul','cinza')
  then raise exception 'Selecione uma cor de linha válida.';end if;
  if char_length(coalesce(p_nota,''))>3000 then
@@ -101,8 +110,9 @@ begin
     atualizado_em=now()
    where id=r.id;
  else
-   if char_length(btrim(coalesce(p_bailarina,''))) not between 2 and 180 then
-    raise exception 'Informe o nome da bailarina.';end if;
+   if p_bailarina is distinct from r.bailarina_nome
+   and char_length(btrim(coalesce(p_bailarina,''))) not between 2 and 180 then
+    raise exception 'Informe o nome da bailarina ao alterá-lo.';end if;
    update public.gf_contratacao_form_respostas set
     responsavel_nome=novo_nome,responsavel_whatsapp=novo_whatsapp,
     bailarina_nome=btrim(p_bailarina),
