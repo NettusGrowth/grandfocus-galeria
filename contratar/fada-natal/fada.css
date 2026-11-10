@@ -146,3 +146,34 @@ body.gf-large{font-size:20px}body.gf-large .gf-fields input,body.gf-large .gf-fi
  .gf-choice{padding:10px}
  .gf-choice strong{font-size:14px}
 }
+
+/* Escolha progressiva e acessível: diferença clara de prioridade por etapa. */
+.gf-brief{padding:17px 22px;border-radius:11px}
+.gf-brief h2{font:650 19px/1.25 Jost,system-ui,sans-serif;color:#5d1730;margin:0 0 7px}
+.gf-brief p{font-size:14px;line-height:1.6;margin:5px 0;color:#58444d}
+.gf-brief strong{color:#51132a}
+.gf-hero{border-top:4px solid #6d2042}
+.gf-progress-label{font-size:14px;font-weight:750;color:#4f2137;margin:16px 0 8px}
+.gf-date-tabs button{border:1px solid #d7c7ca;background:#fff;color:#4b1830;transition:background .12s,border-color .12s}
+.gf-date-tabs [data-day]{min-height:68px}
+.gf-date-tabs button[aria-pressed=true]{background:#fff1f5;border:2px solid #933954;color:#4b0416;box-shadow:0 0 0 2px #cba9b544}
+.gf-date-tabs [data-day][aria-pressed=true]::after,.gf-date-tabs [data-period][aria-pressed=true]::after{content:'✓ Escolhido';display:block;color:#7a2144;font-size:12px;margin-top:4px;font-weight:750}
+.gf-slots button[aria-pressed=true]{
+ background:#fce7ed!important;color:#5b1130!important;border:2px solid #9d335a!important;
+ box-shadow:0 0 0 3px #dcaec144;text-decoration:none
+}
+.gf-slots button[aria-pressed=true]::after{content:' ✓';color:#7a1a3b}
+.gf-slots button{min-height:55px}
+.gf-inline-error{font-size:13px;color:#a51c35;margin:8px 0 0;grid-column:1/-1;font-weight:700}
+.gf-fields input[aria-invalid],.gf-student input[aria-invalid]{border:2px solid #bc2445!important;background:#fff6f6}
+.gf-choice:has(input[aria-invalid]),.gf-date-tabs button[aria-invalid]{border-color:#bc2445!important}
+.gf-payment-choice{border-top:1px solid #e9dfe2;margin-top:14px;padding-top:3px}
+.gf-final-notes{margin-top:20px;background:#fff9f5}
+.gf-final-notes p{color:#5c4b52}
+@media(max-width:520px){
+ .gf-brief{padding:15px}
+ .gf-brief h2{font-size:18px}
+ .gf-brief p{font-size:13px}
+ .gf-date-tabs [data-day]{min-height:65px}
+ .gf-slots button{min-height:55px}
+}

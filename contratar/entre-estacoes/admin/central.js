@@ -13,7 +13,7 @@ const centralSearch = document.getElementById('gf-central-search')
 const centralOrigin = document.getElementById('gf-central-origin')
 const centralSort = document.getElementById('gf-central-sort')
 const centralResultCount = document.getElementById('gf-central-results-count')
-const centralState = { data: [], view: 'todos', layout: 'compact', selected: null, loading: false, ready: false, section: null, feeBps:420 }
+const centralState = { data: [], view: 'todos', layout: 'compact', selected: null, loading: false, ready: false, section: null, feeBps:420, previousIds:new Set() }
 const brl = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(value)||0)/100)
 const safeDate = value => {
   if (!value) return 'Não informado'
@@ -114,7 +114,7 @@ function normalizedEntries(payload) {
   const forms=(payload.respostas||[]).map(p=>{
     const entry={
       source:'formulario',id:p.id,
-      label:p.origem==='formulario_site'?'Natal · inscrição '+p.origem_linha:'Google Forms · linha '+p.origem_linha,
+      label:p.origem==='formulario_site'?(payload.campanha?.nome||'Formulário')+' · inscrição '+p.origem_linha:'Google Forms · linha '+p.origem_linha,
       name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:p.email_responsavel||'',
       slotId:p.horario_id||null,scheduleStatus:p.agendamento_status||null,
       declaredPayment:p.pagamento_declarado||null,
@@ -441,6 +441,39 @@ function selectRecord(record) {
   const [crmLabel,crmTone]=crmDisplay(record)
   flags.append(tag(crmLabel,crmTone),tag(statusText,statusTone))
   centralDetail.append(flags)
+  const fast=dom('div','gf-modal-step-actions')
+  const whats=phoneLink(record.whatsapp)
+  if(whats){
+    const a=dom('a','gf-quick-step','WhatsApp ↗')
+    a.href=whats;a.target='_blank';a.rel='noopener noreferrer'
+    fast.append(a)
+  }
+  if(!hasContact(record)&&!record.archived){
+    const contact=actionButton('✓ Registrei contato','gf-quick-step')
+    contact.addEventListener('click',async()=>{
+      contact.disabled=true
+      try{
+        await apiCentral('central_salvar_acompanhamento',{
+          origem:record.source,referencia_id:record.id,
+          situacao:'aguardando_resposta',proximo_contato_em:null,
+          observacoes:record.follow?.observacoes||'',registrar_contato:true
+        })
+        notice('Contato registrado.','success');await loadCentral(false,true)
+      }catch(error){notice(error.message,'error');contact.disabled=false}
+    })
+    fast.append(contact)
+  }
+  if(record.source==='formulario'&&!paid(record)&&!record.archived){
+    const payment=actionButton('R$ Registrar pagamento','gf-quick-step')
+    payment.addEventListener('click',()=>{
+      openDetailSection('pagamento')
+      const editor=centralDetail.querySelector('[data-accordion="pagamento"]')
+      const select=editor?.querySelector('select')
+      if(select){select.value='pago_manual';select.dispatchEvent(new Event('change',{bubbles:true}))}
+    })
+    fast.append(payment)
+  }
+  centralDetail.append(fast)
   const grid=dom('div','gf-detail-grid')
   grid.append(
     detailBox('Bailarina(s)',record.dancer),
@@ -451,11 +484,12 @@ function selectRecord(record) {
     detailBox('Recebido bruto confirmado',brl(confirmedMoney(record))),
     detailBox('Líquido recebido estimado',brl(estimatedNet(confirmedMoney(record),record))),
   )
+  // O resumo completo ficará recolhido, sem exigir leitura para atendimento rápido.
+  // Valores aprofundados pertencem à aba Financeiro; a ficha abre resumida.
+  const financialDetails=dom('details','gf-detail-accordion')
+  financialDetails.append(dom('summary','','Ver valores financeiros detalhados'),grid)
   grid.classList.add('gf-detail-summary')
-  centralDetail.append(grid)
-  const feeHelp=dom('p','gf-detail-fee-note',
-    'Estimativa com taxa de crédito à vista de '+financeRateLabel()+'. Valores efetivos devem ser conferidos no extrato.')
-  centralDetail.append(feeHelp)
+  centralDetail.append(financialDetails)
   const info=dom('details','gf-detail-accordion')
   info.append(dom('summary','','Ver demais informações  ⌄'))
   const extras=dom('div','gf-detail-grid')
@@ -512,14 +546,7 @@ function selectRecord(record) {
     actions.append(copy)
   }else actions.append(dom('span','gf-no-phone','Telefone indisponível'))
   quickActions.append(actions)
-  if(!record.archived){
-    const steps=dom('div','gf-modal-step-actions')
-    const follow=actionButton('Registrar contato','gf-quick-step')
-    follow.addEventListener('click',()=>openDetailSection('contato'))
-    const payment=actionButton('Ver pagamento','gf-quick-step')
-    payment.addEventListener('click',()=>openDetailSection('pagamento'))
-    steps.append(follow,payment);quickActions.append(steps)
-  }
+
   centralDetail.append(quickActions)
   if(!record.archived){
     centralDetail.append(detailAccordion('Acompanhamento e contato',makeFollowEditor(record),'contato'))
@@ -602,9 +629,9 @@ function inputCents(value) {
 }
 function makePaymentEditor(record) {
   const form=dom('form','gf-editor')
-  form.append(dom('h3','','Conferência de pagamento'),
+  form.append(dom('h3','','Pagamento'),
     dom('p','gf-editor-description',
-      'Este registro veio do Google Forms. Confira o comprovante e registre o valor bruto pago pelo cliente. A taxa do cartão é estimada separadamente no painel. A preferência por Pix ou cartão não prova pagamento.'))
+      'Marque como pago apenas depois de conferir o recebimento no Pix, cartão ou extrato.'))
   const grid=dom('div','gf-editor-grid')
   const status=labeledInput('Situação financeira','select')
   for(const [v,text] of [
@@ -615,23 +642,24 @@ function makePaymentEditor(record) {
     ['cancelado','Cancelado / não contratado'],
   ])addChoice(status.input,v,text)
   status.input.value=record.status
-  const value=labeledInput('Valor pago pelo cliente, antes da taxa (R$)','text',((record.paidValue||0)/100).toFixed(2).replace('.',','))
+  const value=labeledInput('Valor recebido (R$)','text',((record.paidValue||record.value||0)/100).toFixed(2).replace('.',','))
   value.input.inputMode='decimal';value.input.placeholder='0,00'
   const method=labeledInput('Meio de pagamento','select')
   for(const [v,text] of [
     ['','Selecione'],['pix','Pix'],['credito','Crédito'],['dinheiro','Dinheiro'],['outro','Outro'],
   ])addChoice(method.input,v,text)
-  method.input.value=record.paymentMethod||''
-  const reference=labeledInput('Comprovante / identificador da transação','text',record.reference||'')
+  method.input.value=record.paymentMethod||(/pix/i.test(record.preferred||'')?'pix':/cart|cr.dito/i.test(record.preferred||'')?'credito':'')
+  const reference=labeledInput('Referência para auditoria','text',record.reference||'Conferência manual em '+new Date().toLocaleString('pt-BR'))
   reference.input.maxLength=180;reference.input.placeholder='Ex.: ID no extrato ou referência do comprovante'
   const notes=labeledInput('Observação da conferência','textarea',record.paymentNote||'')
   notes.wrap.classList.add('gf-full');notes.input.maxLength=1200
+  notes.wrap.hidden=true
   notes.input.placeholder='Ex.: Identifiquei o Pix no extrato de 08/11.'
   const confirm=dom('label','gf-check-row')
   const checked=dom('input');checked.type='checkbox'
   confirm.append(checked,document.createTextNode('Eu conferi o recebimento fora deste formulário e confirmo a informação acima.'))
   confirm.classList.add('gf-full')
-  grid.append(status.wrap,value.wrap,method.wrap,reference.wrap,notes.wrap,confirm)
+  grid.append(status.wrap,value.wrap,method.wrap,reference.wrap,confirm)
   const refreshInputs=()=>{
     const confirming=['parcial','pago_manual'].includes(status.input.value)
     method.wrap.hidden=!confirming
@@ -639,6 +667,7 @@ function makePaymentEditor(record) {
     confirm.hidden=!confirming
     value.wrap.hidden=!confirming
     if(!confirming)value.input.value='0,00'
+    else if(!record.paidValue&&record.value)value.input.value=(record.value/100).toFixed(2).replace('.',',')
   }
   status.input.addEventListener('change',refreshInputs)
   refreshInputs()
@@ -677,14 +706,24 @@ async function loadCentral(initial, preserveNotice = false) {
   refresh.disabled=true
   try {
     const payload=await apiCentral('central_listar')
-    centralState.data=normalizedEntries(payload)
+    const next=normalizedEntries(payload)
+    if(centralState.ready){
+      const fresh=next.filter(r=>!r.archived&&!centralState.previousIds.has(r.source+':'+r.id))
+      if(fresh.length){
+        const badge=document.getElementById('gf-live-count')
+        if(badge)badge.textContent='+'+fresh.length+' novo(s)'
+        notice('● '+fresh.length+' nova(s) resposta(s) chegaram! Confira a lista.','success')
+      }
+    }
+    centralState.data=next
+    centralState.previousIds=new Set(next.map(r=>r.source+':'+r.id))
     const rate=Number(payload.campanha?.taxa_credito_a_vista_bps)
     if(Number.isSafeInteger(rate)&&rate>=0&&rate<=2000)centralState.feeBps=rate
     document.getElementById('gf-fee-rate').value=(centralState.feeBps/100).toFixed(2)
     centralState.ready=true
     updateMetrics()
     renderList()
-    if (!preserveNotice) notice('Atualizado: '+centralState.data.filter(r=>!r.archived).length+' cadastros ativos.','success')
+    if (!preserveNotice && !document.getElementById('gf-live-count')?.textContent) notice('Atualizado: '+centralState.data.filter(r=>!r.archived).length+' cadastros ativos.','success')
     if(payload.resultados_possivelmente_truncados)notice('A consulta atingiu o limite de 1.000 registros por origem. Consulte a exportação completa antes de tomar decisões financeiras.','error')
     if(centralState.selected) {
       const selected=centralState.data.find(r=>r.source+':'+r.id===centralState.selected)
@@ -786,5 +825,10 @@ for(const button of document.querySelectorAll('#gf-central-tabs [data-view]')){
   })
 }
 for(const el of [centralSearch,centralOrigin,centralSort])el.addEventListener(el===centralSearch?'input':'change',renderList)
+setInterval(()=>{
+ if(document.hidden||centralDialog.open||document.getElementById('admin-area')?.classList.contains('hidden')
+   ||centralState.loading||!centralState.ready)return
+ void loadCentral(false,true)
+},15000)
 window.addEventListener('gf-contratacao-admin-ready',()=>loadCentral(true))
 if(!document.getElementById('admin-area')?.classList.contains('hidden') && typeof window.gfContratacaoAdminRequest==='function')loadCentral(true)

@@ -4,7 +4,7 @@ const workspaceTabs=[...document.querySelectorAll('[data-workspace-tab]')]
 const workspaceSections=[...adminWorkspace.querySelectorAll('[data-workspace-page]')]
 const builderPanels=[...document.querySelectorAll('[data-builder-pane]')]
 function openWorkspace(area,changeHash=false){
-  const view=['respostas','perguntas','aparencia','evento'].includes(area)?area:'respostas'
+  const view=['respostas','perguntas','financeiro','aparencia','evento'].includes(area)?area:'perguntas'
   adminWorkspace.dataset.workspaceView=view
   workspaceTabs.forEach(tab=>{
     const active=tab.dataset.workspaceTab===view
@@ -36,3 +36,22 @@ window.addEventListener('hashchange',()=>{
 const initial=location.hash.replace('#','')
 openWorkspace(initial==='gf-central'?'respostas':initial==='gf-builder'?'perguntas':initial,false)
 window.gfOpenAdminWorkspace=openWorkspace
+
+/* Navegação com fechamento externo e Esc, semelhante a apps com menus contextuais. */
+const optionsMenu=document.querySelector('details.gf-workspace-more')
+if(optionsMenu){
+ document.addEventListener('pointerdown',event=>{
+  if(optionsMenu.open&&!optionsMenu.contains(event.target))optionsMenu.open=false
+ })
+ document.addEventListener('keydown',event=>{
+  if(event.key==='Escape'&&optionsMenu.open)optionsMenu.open=false
+ })
+ optionsMenu.querySelectorAll('a,button').forEach(el=>el.addEventListener('click',()=>{
+  optionsMenu.open=false
+ }))
+}
+const sheetLink=document.getElementById('gf-open-sheet')
+if(sheetLink){
+ const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')
+ sheetLink.href='/contratar/planilha/?campanha='+encodeURIComponent(slug)
+}

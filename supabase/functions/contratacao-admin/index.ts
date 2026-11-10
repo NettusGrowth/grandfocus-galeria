@@ -60,7 +60,8 @@ Deno.serve(async (req: Request) => {
 
   try {
     switch (body?.action) {
-      case 'listar_campanhas': return await actionListarCampanhas(req, admin)
+      case 'listar_campanhas': return await actionListarCampanhas(req, admin,body)
+      case 'arquivar_campanha': return await actionArquivarCampanha(req, admin, user.id,body)
       case 'listar_escolas': return await actionListarEscolas(req, admin)
       case 'natal_agenda': return await actionNatalAgenda(req,admin,requestedCampaignSlug(body),body)
       case 'natal_gerar_horarios': return await actionNatalGerarHorarios(req,admin,user.id,body,requestedCampaignSlug(body))
@@ -140,32 +141,59 @@ async function actionNatalStatus(req:Request,admin:any,userId:string,body:any,sl
  return jsonResponse(req,data||{ok:true})
 }
 
-async function actionListarCampanhas(req: Request, admin: any) {
+async function actionArquivarCampanha(req:Request,admin:any,userId:string,body:any){
+ const slug=String(body?.slug||'').toLowerCase()
+ if(!CAMPAIGN_SLUG_PATTERN.test(slug)||slug.length>60)
+  return jsonResponse(req,{error:'Campanha inválida.'},400)
+ const arquivar=body?.arquivar===true
+ const {data:current,error:readError}=await admin.from('gf_contratacao_eventos')
+  .select('id,status,oculto_em').eq('slug',slug).maybeSingle()
+ if(readError||!current)return jsonResponse(req,{error:'Campanha não encontrada.'},404)
+ if(arquivar&&current.status==='publicado'){
+  return jsonResponse(req,{error:'Pause a campanha antes de arquivá-la para interromper novas inscrições.'},409)
+ }
+ const {error}=await admin.from('gf_contratacao_eventos')
+  .update({oculto_em:arquivar?new Date().toISOString():null,
+    oculto_por:arquivar?userId:null}).eq('id',current.id)
+ if(error)return jsonResponse(req,{error:'Não foi possível atualizar a lista.'},409)
+ await admin.from('gf_contratacao_auditoria').insert({
+  evento_contratacao_id:current.id,usuario_id:userId,
+  acao:arquivar?'campanha_arquivada':'campanha_restaurada',
+  detalhes:{original_status:current.status}
+ })
+ return jsonResponse(req,{ok:true,arquivada:arquivar})
+}
+async function actionListarCampanhas(req: Request, admin: any,body:any) {
   const { data: campanhas, error } = await admin.from('gf_contratacao_eventos')
-    .select('id,evento_id,escola_id,slug,nome_publico,status,data_evento,local,criado_em')
+    .select('id,evento_id,escola_id,slug,nome_publico,status,data_evento,local,criado_em,oculto_em')
     .order('criado_em', { ascending: false })
   if (error) throw new Error('Não foi possível listar as contratações.')
-  const rows = campanhas || []
+  const rows = (campanhas || []).filter((c:any)=>body?.incluir_ocultas===true?Boolean(c.oculto_em):!c.oculto_em)
   if (!rows.length) return jsonResponse(req, { campanhas: [] })
   const eventoIds = [...new Set(rows.map((item: any) => item.evento_id))]
   const escolaIds = [...new Set(rows.map((item: any) => item.escola_id))]
   const campanhaIds = rows.map((item: any) => item.id)
-  const [eventosResult, escolasResult, pedidosResult] = await Promise.all([
+  const [eventosResult, escolasResult, pedidosResult, respostasResult] = await Promise.all([
     admin.from('eventos').select('id,nome,data').in('id', eventoIds),
     admin.from('escolas').select('id,nome,cidade').in('id', escolaIds),
     admin.from('gf_contratacao_pedidos').select('evento_contratacao_id').in('evento_contratacao_id', campanhaIds),
+    admin.from('gf_contratacao_form_respostas').select('evento_contratacao_id,arquivado_em').in('evento_contratacao_id', campanhaIds),
   ])
-  if (eventosResult.error || escolasResult.error || pedidosResult.error) throw new Error('Não foi possível completar a lista de contratações.')
+  if (eventosResult.error || escolasResult.error || pedidosResult.error || respostasResult.error) throw new Error('Não foi possível completar a lista de contratações.')
   const eventos = Object.fromEntries((eventosResult.data || []).map((item: any) => [item.id,item]))
   const escolas = Object.fromEntries((escolasResult.data || []).map((item: any) => [item.id,item]))
   const pedidos: Record<string,number> = {}
   for (const item of pedidosResult.data || []) pedidos[item.evento_contratacao_id]=(pedidos[item.evento_contratacao_id]||0)+1
+  const respostas:Record<string,number>={}
+  for(const item of respostasResult.data||[])if(!item.arquivado_em)
+   respostas[item.evento_contratacao_id]=(respostas[item.evento_contratacao_id]||0)+1
   return jsonResponse(req,{campanhas:rows.map((item:any)=>({
     ...item,
     evento_nome:eventos[item.evento_id]?.nome||item.nome_publico,
     escola_nome:escolas[item.escola_id]?.nome||'Escola não encontrada',
     escola_cidade:escolas[item.escola_id]?.cidade||null,
     quantidade_pedidos:pedidos[item.id]||0,
+    quantidade_respostas:respostas[item.id]||0,
     public_url:'https://galeria.grandfocus.com.br/contratar/'+item.slug+'/',
   }))})
 }
@@ -289,6 +317,14 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any,
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string, slug: string) {
+  if(slug==='gente-que-danca-2026'){
+    const {data,error}=await admin.rpc('gf_gente_admin_publicar',{
+      p_slug:slug,p_usuario:userId
+    })
+    if(error)return jsonResponse(req,{error:error.message||'Revise a campanha.'},409)
+    const evento=await getCampaign(admin,slug)
+    return jsonResponse(req,{ok:true,resultado:data,evento})
+  }
   // Natal Fada Açucarada recebe inscrições e confere pagamentos manualmente:
   // jamais acionar checkout, credenciais de cobrança ou webhooks nesta campanha.
   if (slug === 'natal-fada-acucarada-2026') {

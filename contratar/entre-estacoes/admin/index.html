@@ -24,7 +24,7 @@
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="/" target="_top" aria-label="Voltar à galeria Grand Focus"><img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance"></a>
+    <a class="brand" href="/contratar/admin/" target="_top" aria-label="Voltar a todos os formulários"><img class="brand-logo" src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus — Photography of Performance"></a>
     <span class="header-note">Painel de contratação</span>
   </header>
 
@@ -50,7 +50,7 @@
       </form>
     </section>
 
-    <section id="admin-area" class="hidden gf-workspace" data-workspace-view="respostas">
+    <section id="admin-area" class="hidden gf-workspace" data-workspace-view="perguntas">
       <header class="gf-workspace-head">
         <div class="gf-workspace-brand">
           <img src="/assets/logo-icone.png" alt="" width="56" height="56">
@@ -61,6 +61,7 @@
           </div>
         </div>
         <div class="gf-workspace-shortcuts">
+          <a href="/contratar/admin/" class="gf-workspace-link" id="gf-back-all">← Todos os formulários</a>
           <a id="preview-link" class="gf-workspace-link" href="#" target="_blank" rel="noopener noreferrer">Ver formulário <span aria-hidden="true">↗</span></a>
           <a id="public-link" class="gf-workspace-link" href="#" target="_blank" rel="noopener noreferrer">Página pública <span aria-hidden="true">↗</span></a>
           <details class="gf-workspace-more">
@@ -77,11 +78,12 @@
           </details>
         </div>
       </header>
-      <nav class="gf-workspace-nav" aria-label="O que você quer administrar?" role="group">
-        <button type="button" data-workspace-tab="respostas" aria-pressed="true"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span> Respostas</button>
-        <button type="button" data-workspace-tab="perguntas" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.7 3.7a2.1 2.1 0 0 1 3 3L9 17.4 4 19l1.6-5L16.7 3.7Z"/></svg></span> Perguntas</button>
-        <button type="button" data-workspace-tab="aparencia" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="8" cy="8" r="1.4"/><circle cx="15" cy="7.5" r="1.4"/><circle cx="8" cy="15" r="1.4"/><path d="M15 13c3.5 0 4.5 4.5 1.3 6.3"/></svg></span> Aparência</button>
-        <button type="button" data-workspace-tab="evento" aria-pressed="false"><span class="gf-nav-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m19.4 15 1.4 1.1-2 3.5-1.8-.7a8 8 0 0 1-1.7 1l-.3 1.8h-4l-.3-1.8a8 8 0 0 1-1.7-1l-1.8.7-2-3.5L6.6 15a8 8 0 0 1 0-2l-1.4-1.1 2-3.5 1.8.7a8 8 0 0 1 1.7-1l.3-1.8h4l.3 1.8a8 8 0 0 1 1.7 1l1.8-.7 2 3.5L19.4 13a8 8 0 0 1 0 2Z"/></svg></span> Evento e pacotes</button>
+      <nav class="gf-workspace-nav" aria-label="Áreas de administração" role="group">
+        <button type="button" data-workspace-tab="perguntas" aria-pressed="true">✎ Perguntas</button>
+        <button type="button" data-workspace-tab="respostas" aria-pressed="false">☷ Respostas <span class="gf-live-count" id="gf-live-count" aria-live="polite"></span></button>
+        <button type="button" data-workspace-tab="financeiro" aria-pressed="false">$ Financeiro</button>
+        <button type="button" data-workspace-tab="aparencia" aria-pressed="false">◈ Aparência</button>
+        <button type="button" data-workspace-tab="evento" aria-pressed="false">▦ Evento e pacotes</button>
       </nav>
       <p class="admin-message hidden" id="admin-message" role="status"></p>
       <details class="gf-workspace-integration" data-workspace-page="evento">
@@ -89,20 +91,11 @@
         <div class="status-card" id="integration-status" aria-live="polite">Verificando integração…</div>
       </details>
 
-      <section class="panel gf-central" id="gf-central" data-workspace-page="respostas" aria-labelledby="gf-central-title">
-        <header class="gf-central-header">
-          <div>
-            <p class="gf-central-eyebrow">Visão geral</p>
-            <h2 id="gf-central-title">Respostas e pagamentos</h2>
-            <p class="gf-central-subtitle">Encontre uma família, veja o status e organize o próximo contato.</p>
-          </div>
-          <div class="gf-central-actions">
-            <button class="btn btn-secondary" type="button" id="gf-central-refresh">↻ Atualizar</button>
-            <button class="btn btn-secondary" type="button" id="gf-central-export">↓ Exportar</button>
-          </div>
-        </header>
-        <div class="gf-central-notice" id="gf-central-notice" role="status" aria-live="polite">Preparando seus registros…</div>
-        <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
+      <section class="panel gf-financeiro" id="gf-financeiro" data-workspace-page="financeiro" aria-label="Dados financeiros da campanha">
+        <p class="gf-central-eyebrow">FINANCEIRO · GRAND FOCUS</p>
+        <h2>Visão financeira</h2>
+        <p class="gf-central-subtitle">Valores previstos e pagamentos realmente conferidos, sem misturar com os atendimentos.</p>
+                <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
         <button type="button" class="gf-metrics-toggle" id="gf-metrics-toggle" aria-expanded="false">Ver todos os indicadores <span aria-hidden="true">⌄</span></button>
         <details class="gf-fee-settings" id="gf-fee-settings">
           <summary><span class="gf-fee-icon" aria-hidden="true">%</span> Configurar estimativa da taxa do cartão <span class="gf-fee-chevron" aria-hidden="true">⌄</span></summary>
@@ -123,6 +116,24 @@
           </div>
         </details>
         <details class="gf-trust-details"><summary>Como os pagamentos são contabilizados?</summary><p>O valor líquido é uma <strong>projeção</strong> após a taxa de referência do cartão, calculada por cadastro e arredondada em centavos. Para parcelas com juros pagos pelo cliente, projetamos somente a taxa à vista assumida pela Grand Focus. Os dados históricos de preferência por Pix ou cartão não provam pagamento. O valor real recebido deve ser conciliado no extrato da InfinitePay ou banco; pedidos sem meio registrado usam cartão como hipótese.</p></details>
+
+        <p class="gf-finance-reminder">Para registrar um pagamento, abra Respostas ou a planilha e marque o recebimento após conferir no banco/InfinitePay.</p>
+      </section>
+
+      <section class="panel gf-central" id="gf-central" data-workspace-page="respostas" aria-labelledby="gf-central-title">
+        <header class="gf-central-header">
+          <div>
+            <p class="gf-central-eyebrow">Visão geral</p>
+            <h2 id="gf-central-title">Respostas</h2>
+            <p class="gf-central-subtitle">Cadastros recentes, WhatsApp e ações rápidas. O financeiro fica em sua própria aba.</p>
+          </div>
+          <div class="gf-central-actions">
+            <a class="btn btn-primary" id="gf-open-sheet" href="/contratar/planilha/" target="_blank" rel="noopener noreferrer">▦ Ver em planilha</a>
+            <button class="btn btn-secondary" type="button" id="gf-central-refresh">↻ Atualizar</button>
+            <button class="btn btn-secondary" type="button" id="gf-central-export">↓ Exportar</button>
+          </div>
+        </header>
+        <div class="gf-central-notice" id="gf-central-notice" role="status" aria-live="polite">Preparando seus registros…</div>
         <div class="gf-central-tabs" id="gf-central-tabs" role="group" aria-label="Filtrar registros">
           <button type="button" data-view="todos" aria-pressed="true">Todos <span id="gf-count-todos"></span></button>
           <button type="button" data-view="novos" aria-pressed="false">Novos <span id="gf-count-novos"></span></button>
@@ -140,7 +151,7 @@
           <label for="gf-central-origin">Origem
             <select id="gf-central-origin">
               <option value="todas">Todas as origens</option>
-              <option value="formulario">Google Forms (histórico)</option>
+              <option value="formulario">Formulários e Google Forms</option>
               <option value="online">Pedidos da galeria</option>
             </select>
           </label>
@@ -243,7 +254,8 @@
       </section>
 
       <form id="config-form" data-workspace-page="evento">
-        <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Edite os dados deste espetáculo sem misturar com as respostas das famílias.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
+        <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Configure só o necessário. Abra as seções abaixo quando precisar editar.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
+        <details class="gf-event-group" open><summary>1. Dados principais · data e local</summary>
         <section class="panel">
           <h2>Informações do evento</h2>
           <p class="panel-intro">Horários e capacidade só são obrigatórios quando alguma experiência incluir miniensaio.</p>
@@ -294,7 +306,7 @@
             </div>
           </div>
           <p class="hint">Quando houver miniensaio, ele será realizado por ordem de chegada dentro do período configurado, sem horário individual por bailarina.</p>
-        </section>
+        </section></details>
 
         <details class="gf-config-advanced"><summary>Documentos e dados legais <span class="gf-secondary-label">Configuração avançada</span></summary>
         <section class="panel">
@@ -357,11 +369,12 @@
         </section>
 
         </details>
+        <details class="gf-event-group"><summary>2. Experiências e valores</summary>
         <section class="panel">
           <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
           <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
           <div id="package-fields" class="admin-grid"></div>
-        </section>
+        </section></details>
       </form>
 
 
