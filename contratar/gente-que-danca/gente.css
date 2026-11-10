@@ -40,3 +40,39 @@ input[type=radio],input[type=checkbox]{accent-color:#651733;width:19px;height:19
 footer{text-align:center;background:#400617;color:#f8ede3;padding:22px;font-size:13px}footer a{color:inherit}
 .trap{position:absolute;left:-9999px}
 @media(max-width:520px){main{margin:12px auto;padding:0 10px}.head img{height:40px}.head span{font-size:10px}.welcome,.info,.question,.success{padding:17px}.price{font-size:26px}.question>label:not(.agree),legend{font-size:16px}.total strong{font-size:19px}}
+
+/* Gente que Dança · agenda comercial 18h–22h */
+.question input:not([type=radio]):not([type=checkbox]),
+.question input[type=text],.question input[type=tel]{
+ display:block;width:100%;max-width:100%;min-width:0;
+ min-height:51px;border:1px solid #cbbabe;border-radius:9px;
+ padding:13px 14px;background:#fff;color:#311e29;font:inherit;
+ box-sizing:border-box;
+}
+.question input:not([type=radio]):not([type=checkbox]):focus{
+ border-color:#855674;box-shadow:0 0 0 3px #af7b9220;outline:none;
+}
+.gf-discount{
+ padding:9px 13px;border:1px solid #e6d5b9;border-radius:9px;
+ background:#fff9ed;color:#654427;font-weight:750;font-size:14px;
+}
+.question-title{font-size:17px;line-height:1.45;margin:0 0 8px}
+.schedule-times{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}
+.schedule-times .time-option{min-height:54px;background:#fff;border:1.5px solid #dcc3ca;
+ color:#562239;border-radius:10px;cursor:pointer;font-size:15px;font-weight:650}
+.schedule-times .time-option:hover{border-color:#985e71;background:#fff8f9}
+.schedule-times .time-option[aria-pressed=true]{
+ border-color:#823a54;background:#fff1f4;color:#4b0416;
+ box-shadow:0 0 0 2px #943b5420;position:relative;
+}
+.schedule-times .time-option[aria-pressed=true]::after{
+ content:'✓';position:absolute;right:7px;top:3px;font-size:12px;color:#662039;
+}
+.schedule-times .times-more{grid-column:1/-1;min-height:42px;border:1px dashed #a78691;
+ border-radius:9px;background:#fff9fb;color:#5c2035;cursor:pointer;font-weight:650;font-size:14px}
+.total>span{display:grid;gap:2px}.total small{display:block;color:#70616b;font-size:12px}
+@media(max-width:520px){
+ .schedule-times{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+ .schedule-times .time-option{min-height:49px;font-size:14px}
+ .gf-discount{font-size:13px}
+}

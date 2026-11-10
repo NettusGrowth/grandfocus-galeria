@@ -395,7 +395,13 @@ function openDetailSection(name){
 }
 function natalAppointmentControls(record){
   const block=dom('section','gf-modal-actions gf-natal-actions')
-  block.append(dom('strong','gf-modal-section-heading','Horário do Especial de Natal'))
+  const isGente=location.pathname.includes('gente-que-danca-2026')
+  block.append(dom('strong','gf-modal-section-heading',
+    isGente?'Horário reservado · Gente que Dança':'Horário do Especial de Natal'))
+  if(isGente){
+    const match=String(record.sourceNote||'').match(/Reserva 15\/12\/2026\s+(\d{2}:\d{2}–\d{2}:\d{2})/)
+    if(match)block.append(dom('p','gf-detail-fee-note','Ensaio: 15/12, '+match[1]))
+  }
   const status=record.scheduleStatus||'solicitado'
   block.append(dom('p','gf-detail-fee-note',
     status==='confirmado'?'Horário confirmado pela Grand Focus.':
@@ -411,7 +417,7 @@ function natalAppointmentControls(record){
         if(!window.confirm('Você já conferiu o pagamento integral? Confirmar este horário da família?'))return
         confirm.disabled=true
         try{
-          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'confirmado'})
+          await apiCentral(location.pathname.includes('gente-que-danca-2026')?'gente_atualizar_agendamento':'natal_atualizar_agendamento',{resposta_id:record.id,status:'confirmado'})
           notice('Horário confirmado após conferência financeira.','success')
           await loadCentral(false,true)
         }catch(error){notice(error.message||'Não foi possível confirmar.','error');confirm.disabled=false}
@@ -426,7 +432,7 @@ function natalAppointmentControls(record){
         if(!window.confirm('Cancelar a solicitação desta família? A vaga ficará disponível novamente.'))return
         cancel.disabled=true
         try{
-          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'cancelado'})
+          await apiCentral(location.pathname.includes('gente-que-danca-2026')?'gente_atualizar_agendamento':'natal_atualizar_agendamento',{resposta_id:record.id,status:'cancelado'})
           notice('Solicitação cancelada e horário liberado.','success')
           await loadCentral(false,true)
         }catch(error){notice(error.message||'Não foi possível cancelar.','error');cancel.disabled=false}
@@ -528,9 +534,9 @@ function selectRecord(record) {
     const statuses={solicitado:'Aguardando confirmação',confirmado:'Horário confirmado',cancelado:'Solicitação cancelada',expirado:'Prazo expirado'}
     extras.append(detailBox('Situação do horário',statuses[record.scheduleStatus]||'Solicitação pendente'))
     if(record.scheduleExpiry&&record.scheduleStatus==='solicitado')
-      extras.append(detailBox('Prazo para conferência',safeDate(record.scheduleExpiry)))
+      extras.append(detailBox(location.pathname.includes('gente-que-danca-2026')?'Vaga mantida até o evento':'Prazo para conferência',safeDate(record.scheduleExpiry)))
     extras.append(detailBox('Pagamento informado na inscrição',
-      record.declaredPayment==='ja_paguei'?'Família declarou que já pagou · conferir':'Família ainda não pagou'))
+      record.declaredPayment==='ja_paguei'?'Família declarou que já pagou · conferir':record.declaredPayment==='a_pagar'?'Família ainda não pagou':'Preferência informada; pagamento a conferir'))
   }
   if(record.paymentChecked)extras.append(detailBox('Pagamento conferido em',safeDate(record.paymentChecked)))
   if(record.reference)extras.append(detailBox('Referência',record.reference))
