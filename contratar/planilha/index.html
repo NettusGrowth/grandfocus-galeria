@@ -1,0 +1,39 @@
+<!doctype html><html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Planilha de respostas | Grand Focus</title>
+<link rel="icon" type="image/png" href="/assets/logo-icone.png">
+<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=1">
+<script type="module" src="/contratar/planilha/planilha.js?v=1"></script></head>
+<body>
+<header><a id="back" href="/contratar/admin/">← Voltar à campanha</a>
+ <div><h1>Planilha de respostas</h1><p id="campaign-name">Grand Focus · carregando...</p></div>
+ <span id="connection" aria-live="polite">Conectando...</span></header>
+<main>
+ <div class="toolbar">
+  <label>Buscar <input id="query" type="search" placeholder="Nome, aluna ou telefone..." autocomplete="off"></label>
+  <label>Situação <select id="status-filter">
+    <option value="todas">Todas</option><option value="novas">Ainda não contatadas</option>
+    <option value="pendente">Aguardando pagamento</option><option value="pago">Pagas</option>
+  </select></label>
+  <button id="refresh" type="button">↻ Atualizar</button>
+  <button id="export" type="button">↓ Baixar CSV</button>
+ </div>
+ <div class="statusbar"><strong id="count">0 inscrições</strong><span id="new-count">Atualização automática a cada 15 segundos</span><span id="updated"></span></div>
+ <p id="error" class="error" role="alert" hidden></p>
+ <div class="sheet-scroll"><table><thead><tr><th>Data</th><th>Responsável</th><th>WhatsApp</th>
+  <th>Bailarina(s)</th><th>Experiência</th><th>Valor</th><th>Situação</th><th>Preferência</th>
+  <th>Contato</th><th>Ações</th></tr></thead><tbody id="rows"><tr><td colspan="10">Carregando...</td></tr></tbody></table></div>
+ <p class="help">Os registros são atualizados automaticamente enquanto esta página está aberta. Pagamentos são marcados como recebidos somente após sua confirmação.</p>
+</main>
+<dialog id="pay-dialog"><form id="pay-form" method="dialog">
+ <h2>Registrar pagamento confirmado</h2><p id="pay-person"></p>
+ <label>Valor recebido (R$) <input id="pay-amount" inputmode="decimal" type="text" required></label>
+ <label>Como recebeu? <select id="pay-method" required><option value="">Selecione</option>
+  <option value="pix">Pix</option><option value="credito">Crédito</option>
+  <option value="dinheiro">Dinheiro</option><option value="outro">Outro</option></select></label>
+ <label>Referência para auditoria <input id="pay-reference" type="text" maxlength="180" placeholder="Identificação no extrato (quando disponível)"></label>
+ <label class="agree"><input id="pay-verified" type="checkbox" required>Conferi que o dinheiro foi recebido. Não estou apenas confiando no formulário.</label>
+ <div class="actions"><button type="button" id="pay-cancel">Cancelar</button><button type="submit" id="pay-save">Salvar pagamento</button></div>
+ <p id="pay-error" class="error" role="alert" hidden></p>
+</form></dialog>
+</body></html>
