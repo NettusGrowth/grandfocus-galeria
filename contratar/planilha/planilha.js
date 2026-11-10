@@ -168,7 +168,7 @@ function renderRows(){
    if(i===2&&wa(r.whatsapp)){
     const a=el('a',base[i]);a.href=wa(r.whatsapp);a.target='_blank';a.rel='noopener noreferrer';td.append(a)
    }else if(i===6){
-    const state=scheduleStatuses[r.scheduleStatus]||'sem_horario'
+    const state=r.scheduleStatus||'sem_horario'
     td.append(el('span',base[i],'badge schedule-'+state))
    }else if(i===10){
     td.append(el('span',base[i],'badge '+(r.paid?'paid':r.archived?'archive':'')))
