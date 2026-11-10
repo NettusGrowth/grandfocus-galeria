@@ -146,8 +146,11 @@ try{
  await page.locator('#refresh').click()
  await page.waitForFunction(()=>document.querySelector('.action-confirm-schedule:not(:disabled)'))
  await page.locator('.action-confirm-schedule').click()
- await page.waitForFunction(()=>document.querySelector('.schedule-confirmado'))
- assert.equal(r.agendamento_status,'confirmado')
+ await page.waitForTimeout(500)
+ assert.equal(r.agendamento_status,'confirmado',
+  'A API da Gente deve confirmar: '+JSON.stringify({history,error:await page.locator('#error').textContent(),errors,
+   rows:await page.locator('#rows').textContent()}))
+ await page.waitForFunction(()=>document.querySelector('.schedule-confirmado'),{timeout:5000})
  assert.equal(await page.locator('.action-confirm-schedule').count(),0)
  for(const width of [320,390,768,1440]){
   await page.setViewportSize({width,height:844})
