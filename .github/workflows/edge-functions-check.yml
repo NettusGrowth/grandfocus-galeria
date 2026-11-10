@@ -107,6 +107,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-reserva-temporaria-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/094_fada_natal_publicacao_manual.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-publicacao-manual-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/095_fada_natal_envio_atomico_sem_cronometro.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-envio-atomico-tests.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
