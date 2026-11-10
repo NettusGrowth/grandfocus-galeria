@@ -9,8 +9,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/contratar/fada-natal/fada.css?v=20261110-simple">
-  <script type="module" src="/contratar/fada-natal/fada.js?v=20261110-simple"></script>
+  <link rel="stylesheet" href="/contratar/fada-natal/fada.css?v=20261110-premium">
+  <script type="module" src="/contratar/fada-natal/fada.js?v=20261110-premium"></script>
   <link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">
 </head>
 <body>
@@ -18,35 +18,70 @@
   <a href="/" aria-label="Grand Focus, voltar à galeria">
     <img src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus Fotografia">
   </a>
-  <span>FADA AÇUCARADA · NATAL 2026</span>
+  <span>EDIÇÃO ESPECIAL DE NATAL · 2026</span>
 </header>
 <main class="gf-container">
-  <header class="gf-hero">
-    <div>
+  <header class="gf-hero" aria-labelledby="gf-natal-title">
+    <div class="gf-hero-copy">
       <p class="gf-kicker">GRAND FOCUS × FADA AÇUCARADA</p>
-      <h1>Ensaio de Natal 2026</h1>
-      <p>12 e 13 de dezembro · Ibaté/SP</p>
-      <p class="gf-hero-short">10 fotos digitais por aluno, incluindo retratos e fotos em família.</p>
+      <span class="gf-christmas-badge"><span aria-hidden="true">🎄</span> Edição especial de Natal</span>
+      <h1 id="gf-natal-title">Especial de Natal <em>2026</em></h1>
+      <p class="gf-hero-tagline">Um Natal para guardar no coração. ❤️✨</p>
+      <p class="gf-hero-intro">Neste Natal, a Grand Focus e a Fada Açucarada prepararam uma experiência fotográfica especial para os bailarinos e suas famílias.</p>
+      <p class="gf-hero-intro">Em um cenário natalino preparado com carinho, vamos registrar a beleza de cada bailarino(a) e os momentos com as pessoas que acompanham cada passo de sua história.</p>
+      <p class="gf-hero-intro">Lembranças para revisitar por muitos Natais.</p>
+      <div class="gf-hero-facts"><span>12 e 13 de dezembro</span><span>Ibaté · São Paulo</span><span>10 fotos digitais por aluno</span></div>
+    </div>
+    <div class="gf-holiday-illustration" aria-hidden="true">
+      <span class="gf-holiday-top">✧</span><span class="gf-holiday-main">✦</span><span class="gf-holiday-bottom">✧</span>
     </div>
   </header>
   <aside id="gf-preview" class="gf-preview" hidden><strong>Prévia administrativa.</strong> Nenhuma inscrição ou pagamento será realizado.</aside>
   <aside id="gf-closed" class="gf-alert" hidden>Os agendamentos ainda não foram abertos. A Grand Focus avisará quando estiverem disponíveis.</aside>
   <div id="gf-loading" class="gf-loading" role="status">Carregando horários...</div>
-  <section class="gf-card gf-brief" aria-label="Conheça a experiência">
-    <h2>Conheça a experiência ❤️</h2>
-    <p>Um cenário especial de Natal, retratos com figurino e registros em família. <strong>São 10 fotos digitais tratadas por aluno.</strong></p>
-    <p><strong>Investimento:</strong> 1 aluno R$ 80 · 2 alunos R$ 145 · 3 alunos R$ 215 · 4 alunos R$ 285.</p>
-    <p><strong>Quando:</strong> 12 e 13 de dezembro, no Estúdio Fada Açucarada, em Ibaté/SP.</p>
+  <section class="gf-card gf-brief gf-experience" aria-labelledby="gf-experience-heading">
+    <p class="gf-section-kicker">MEMÓRIAS DE NATAL</p>
+    <h2 id="gf-experience-heading">Uma experiência para toda a família</h2>
+    <p>Registros delicados em um cenário natalino especial, com a identidade fotográfica da Grand Focus.</p>
+    <ul class="gf-included">
+      <li><span aria-hidden="true">✦</span> Retratos individuais do(a) bailarino(a) com figurino.</li>
+      <li><span aria-hidden="true">✦</span> Fotografias com familiares no cenário natalino.</li>
+      <li><span aria-hidden="true">✦</span> <strong>10 fotografias digitais tratadas por aluno</strong>, incluindo os registros em família.</li>
+      <li><span aria-hidden="true">✦</span> Entrega digital pela Galeria Grand Focus.</li>
+    </ul>
+    <p class="gf-experience-note">As fotografias em família fazem parte das 10 imagens por aluno, não são 10 fotos adicionais.</p>
+  </section>
+  <section class="gf-card gf-brief gf-pricing" aria-labelledby="gf-pricing-heading">
+    <p class="gf-section-kicker">INVESTIMENTO POR FAMÍLIA</p>
+    <h2 id="gf-pricing-heading">Escolha quantos alunos participarão</h2>
+    <div class="gf-price-cards" aria-label="Valores da sessão de Natal">
+      <div class="gf-price-card"><span>1 aluno</span><strong>R$ 80,00</strong><small>15 minutos</small></div>
+      <div class="gf-price-card gf-price-featured"><span>2 alunos da mesma família</span><strong>R$ 145,00</strong><small>30 minutos consecutivos</small><b>Economia de R$ 15</b></div>
+      <div class="gf-price-card"><span>3 alunos</span><strong>R$ 215,00</strong><small>45 minutos consecutivos</small></div>
+      <div class="gf-price-card"><span>4 alunos</span><strong>R$ 285,00</strong><small>60 minutos consecutivos</small></div>
+    </div>
+    <p class="gf-inline-help">Os familiares que aparecerem nas fotografias não entram na contagem de alunos.</p>
+  </section>
+  <section class="gf-card gf-brief gf-event" aria-labelledby="gf-event-heading">
+    <p class="gf-section-kicker">ANOTE NA AGENDA</p>
+    <h2 id="gf-event-heading">Onde e quando?</h2>
+    <div class="gf-event-facts">
+      <div><small>DATAS</small><strong>Sábado, 12, e domingo, 13 de dezembro</strong></div>
+      <div><small>LOCAL</small><strong>Estúdio Fada Açucarada</strong><span>Rua Santa Iria, 736 · Centro · Ibaté/SP</span></div>
+      <div><small>SÁBADO</small><strong>8h às 12h45 e 13h às 17h45</strong></div>
+      <div><small>DOMINGO</small><strong>9h às 12h45</strong></div>
+    </div>
   </section>
   <section class="gf-card gf-brief" aria-label="Como funciona">
-    <h2>Como funciona?</h2>
-    <p>Preencha os dados dos alunos da sua família, escolha um horário e envie a inscrição. A Grand Focus chamará você no WhatsApp para orientar o pagamento e confirmar o agendamento.</p>
+    <h2>Como garantir sua experiência?</h2>
+    <p>Informe os alunos que participarão do ensaio, escolha o dia e um horário realmente disponível e preencha seu WhatsApp. Nossa equipe entrará em contato para orientar o pagamento e confirmar a reserva.</p>
+    <p class="gf-inline-help">Não há cobrança automática no formulário. Se já tiver pago, você poderá informar isso para não pagar duas vezes.</p>
   </section>
   <form id="gf-fada-form" hidden novalidate>
     <section class="gf-card" aria-labelledby="gf-students-heading">
       <div class="gf-card-index">01 · ALUNOS</div>
-      <h2 id="gf-students-heading">Quantos alunos da sua família você quer fotografar?</h2>
-      <p class="gf-help">Conte somente os alunos da sua família, não a turma inteira.</p>
+      <h2 id="gf-students-heading">Quantos alunos da sua família participarão do ensaio?</h2>
+      <p class="gf-help">Conte somente os alunos da sua família que serão fotografados, não a turma inteira. Os familiares que participarem das fotos não entram nessa contagem.</p>
       <div class="gf-count-choices" role="group" aria-label="Quantidade de alunos da sua família">
         <button type="button" data-count="1" aria-pressed="true">1 aluno</button>
         <button type="button" data-count="2" aria-pressed="false">2 alunos</button>
@@ -54,11 +89,12 @@
         <button type="button" data-count="4" aria-pressed="false">4 alunos</button>
       </div>
       <div id="gf-students" class="gf-students"></div>
-      <div class="gf-total"><span>Valor total da sua família</span><strong id="gf-total">R$ 80,00</strong></div>
+      <div class="gf-total"><span>Valor total da sua família<small id="gf-duration-label">15 minutos de ensaio</small></span><strong id="gf-total">R$ 80,00</strong></div>
     </section>
     <section class="gf-card" aria-labelledby="gf-slots-heading">
       <div class="gf-card-index">02 · HORÁRIO</div>
-      <h2 id="gf-slots-heading">Escolha seu horário</h2>
+      <h2 id="gf-slots-heading">Escolha o horário do ensaio</h2>
+      <p class="gf-help">Cada aluno tem 15 minutos. Com irmãos, o sistema verifica períodos consecutivos disponíveis antes de registrar o pedido.</p>
       <p class="gf-progress-label">1. Escolha o dia</p>
       <div class="gf-date-tabs" role="group" aria-label="Dia do ensaio">
         <button type="button" data-day="2026-12-12" aria-pressed="false"><span>Sábado</span><strong>12 de dezembro</strong></button>
@@ -70,19 +106,20 @@
         <button type="button" data-period="afternoon" aria-pressed="false"><strong>Tarde</strong></button>
       </div></div>
       <div id="gf-time-block" hidden><p class="gf-progress-label">3. Escolha o horário</p>
+        <div class="gf-slot-legend"><span><i class="gf-legend-available" aria-hidden="true"></i> Disponível</span><span><i class="gf-legend-selected" aria-hidden="true"></i> Selecionado</span><span><i class="gf-legend-unavailable" aria-hidden="true"></i> Indisponível</span></div>
         <div id="gf-slots" class="gf-slots" role="group" aria-label="Horários disponíveis" aria-live="polite"></div>
         <p id="gf-slot-hint" class="gf-inline-help" role="status">A vaga é conferida quando você envia a inscrição.</p>
       </div>
     </section>
     <section class="gf-card" aria-labelledby="gf-contact-heading">
       <div class="gf-card-index">03 · CONTATO</div>
-      <h2 id="gf-contact-heading">Quem podemos chamar no WhatsApp?</h2>
+      <h2 id="gf-contact-heading">Dados do responsável</h2>
       <div class="gf-fields">
-        <label>Seu nome completo <span aria-hidden="true">*</span>
+        <label>Nome completo do responsável <span aria-hidden="true">*</span>
           <input id="gf-responsavel" type="text" autocomplete="name" maxlength="120" placeholder="Nome e sobrenome" required>
         </label>
         <label>WhatsApp com DDD <span aria-hidden="true">*</span>
-          <input id="gf-whatsapp" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="(16) 99999-9999" required>
+          <input id="gf-whatsapp" type="tel" autocomplete="tel" inputmode="tel" maxlength="22" placeholder="(16) 99999-9999" required>
         </label>
       </div>
     </section>
@@ -102,26 +139,29 @@
           <label class="gf-choice"><input type="radio" name="preferencia" value="pix"><span><strong>Pix</strong></span></label>
           <label class="gf-choice"><input type="radio" name="preferencia" value="credito"><span><strong>Cartão de crédito</strong></span></label>
         </div>
-        <p class="gf-inline-help">No cartão, taxas de parcelamento serão informadas antes do pagamento.</p>
+        <p class="gf-inline-help">No cartão de crédito à vista, não há acréscimo. Em caso de parcelamento, a operadora poderá aplicar uma taxa, informada antes da confirmação do pagamento.</p>
+        <p class="gf-inline-help">A Grand Focus encaminhará as orientações de pagamento pelo WhatsApp.</p>
       </div>
       <div id="gf-recap" class="gf-recap" aria-live="polite"></div>
       <label class="gf-consent"><input type="checkbox" id="gf-consent" required><span>Sou responsável por esta inscrição, li os <a href="/contratar/fada-natal/termos.html" target="_blank" rel="noopener noreferrer">Termos</a> e a <a href="/contratar/fada-natal/privacidade.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>.</span></label>
       <div class="gf-honey" aria-hidden="true"><label>Não preencher <input id="gf-website" type="text" tabindex="-1" autocomplete="off"></label></div>
       <p id="gf-error" class="gf-error" role="alert" hidden></p>
-      <button id="gf-submit" class="gf-submit" type="submit">Enviar inscrição</button>
+      <button id="gf-submit" class="gf-submit" type="submit">Solicitar horário e continuar</button>
       <p class="gf-inline-help gf-after-submit">O pagamento e a confirmação serão combinados pelo WhatsApp. Nenhuma cobrança é feita aqui.</p>
     </section>
   </form>
   <section id="gf-success" class="gf-success" hidden aria-live="polite">
     <span class="gf-success-icon" aria-hidden="true">✓</span>
-    <h2>Solicitação enviada!</h2>
+    <h2>Recebemos sua inscrição! ❤️</h2>
+    <p class="gf-success-lead">Seu horário foi solicitado com sucesso!</p>
     <p id="gf-success-message"></p>
+    <p class="gf-success-condition">A reserva definitiva depende da conferência do pagamento e da confirmação pela equipe Grand Focus.</p>
     <p>Seu número de referência: <strong id="gf-ref"></strong>.</p>
     <a href="https://wa.me/5534992632922" target="_blank" rel="noopener noreferrer">Falar com a Grand Focus</a>
   </section>
   <section class="gf-card gf-brief gf-final-notes">
     <h2>Informações importantes</h2>
-    <p>O atendimento é no horário escolhido, conforme confirmação da equipe. São 15 minutos por aluno; se houver mais de um aluno na família, os horários são organizados juntos.</p>
+    <p>A participação é opcional. O atendimento acontece no horário solicitado, após confirmação da equipe. São 15 minutos por aluno; para irmãos, os períodos são consecutivos, conforme a disponibilidade real da agenda.</p>
     <p>As fotos digitais serão entregues em até 10 dias corridos após a sessão. O formulário não faz cobrança automática.</p>
   </section>
 </main>
