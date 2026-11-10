@@ -289,6 +289,16 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any,
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string, slug: string) {
+  // Natal Fada Açucarada recebe inscrições e confere pagamentos manualmente:
+  // jamais acionar checkout, credenciais de cobrança ou webhooks nesta campanha.
+  if (slug === 'natal-fada-acucarada-2026') {
+    const {data,error}=await admin.rpc('gf_natal_admin_publicar',{
+      p_slug:slug,p_usuario:userId,
+    })
+    if (error) return jsonResponse(req,{error:error.message||'Revise os dados do Natal.'},409)
+    const evento=await getCampaign(admin,slug)
+    return jsonResponse(req,{ok:true,resultado:data,evento})
+  }
   if (!REAL_PAYMENTS_ENABLED || Deno.env.get('CONTRATACAO_ATIVAR_PAGAMENTOS_REAIS') !== 'true') {
     return jsonResponse(req, { error: 'A ativação de pagamentos reais é necessária antes de publicar a campanha.' }, 403)
   }
