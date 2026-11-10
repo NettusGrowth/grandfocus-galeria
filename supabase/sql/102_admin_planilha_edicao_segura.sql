@@ -74,7 +74,9 @@ begin
  select coalesce(array_agg(item->>'id'),'{}'::text[]) into allowed
  from jsonb_array_elements(e.planilha_colunas) item;
  for campo in select key,value from jsonb_each(p_campos) loop
-   if not (campo.key=any(allowed))
+   -- Preserva textos de colunas ocultadas. Nunca permite inventar
+   -- chaves não autorizadas que não existiam neste cadastro.
+   if not ((campo.key=any(allowed)) or (r.planilha_campos ? campo.key))
      or jsonb_typeof(campo.value)<>'string'
      or char_length(trim(both '"' from campo.value::text))>700 then
        raise exception 'Uma coluna extra não está configurada ou seu texto é longo demais.';end if;
