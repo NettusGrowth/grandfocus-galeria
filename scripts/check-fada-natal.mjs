@@ -55,4 +55,25 @@ assert.ok(!sql92.includes('drop table')&&!sql92.includes('truncate '),
 assert.ok(publicJs.includes('natal_seguranca_horario')&&
  publicJs.includes('gf-hold-time')&&publicJs.includes('natal_liberar_horario'),
  'O cronômetro deve usar a retenção do servidor e permitir liberação.')
-console.log('Fada Natal: verificações de segurança, preços, rotas, reservas consecutivas e retenção de 10 minutos aprovadas.')
+const termosPage=read('contratar/fada-natal/termos.html')
+const privacidadePage=read('contratar/fada-natal/privacidade.html')
+const termosSource=read('contratar/fada-natal/termos.txt')
+const privacidadeSource=read('contratar/fada-natal/privacidade.txt')
+assert.ok(termosPage.includes('69.691.249/0001-97')&&
+ privacidadePage.includes('69.691.249/0001-97')&&
+ termosPage.includes('10 dias corridos')&&
+ termosPage.includes('12 de dezembro')&&
+ termosPage.includes('13 de dezembro')&&
+ termosPage.includes('direito legal de arrependimento'),
+ 'Termos de Natal precisam informar fornecedor, oferta, entrega e direitos do consumidor.')
+assert.ok(privacidadePage.includes('Crianças e adolescentes')&&
+ privacidadePage.includes('Seus direitos')&&
+ privacidadePage.includes('Não vendemos cadastros'),
+ 'Política de privacidade deve proteger dados de menores e explicar o tratamento.')
+assert.ok(termosSource.includes('R$ 285,00')&&
+ privacidadeSource.includes('menores')&&
+ html.includes('href="/contratar/fada-natal/termos.html"')&&
+ html.includes('href="/contratar/fada-natal/privacidade.html"')&&
+ html.includes('id="gf-consent"'),
+ 'Formulário deve disponibilizar documentos e colher aceite antes de enviar.')
+console.log('Fada Natal: segurança, preços, horários, páginas jurídicas e aceite específico validados.')
