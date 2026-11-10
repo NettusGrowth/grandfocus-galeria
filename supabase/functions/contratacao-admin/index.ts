@@ -67,6 +67,7 @@ Deno.serve(async (req: Request) => {
       case 'natal_gerar_horarios': return await actionNatalGerarHorarios(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_desativar_horario': return await actionNatalDesativar(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'gente_atualizar_agendamento': return await actionGenteStatusAdmin(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
       case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -138,6 +139,20 @@ async function actionNatalStatus(req:Request,admin:any,userId:string,body:any,sl
   p_slug:slug,p_resposta:id,p_status:status,p_usuario:userId
  })
  if(error)return jsonResponse(req,{error:error.message||'Não foi possível atualizar o agendamento.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
+
+async function actionGenteStatusAdmin(req:Request,admin:any,userId:string,body:any,slug:string){
+ if(slug!=='gente-que-danca-2026')
+  return jsonResponse(req,{error:'Esta agenda não pertence à campanha.'},404)
+ const id=String(body?.resposta_id||'')
+ const status=String(body?.status||'')
+ if(!/^[0-9a-f-]{36}$/i.test(id)||!['confirmado','cancelado'].includes(status))
+  return jsonResponse(req,{error:'Informe agendamento e situação válidos.'},400)
+ const {data,error}=await admin.rpc('gf_gente_atualizar_agendamento',{
+  p_slug:slug,p_resposta:id,p_status:status,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível alterar o horário.'},409)
  return jsonResponse(req,data||{ok:true})
 }
 
