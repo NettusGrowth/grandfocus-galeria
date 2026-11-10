@@ -6,7 +6,27 @@ const SLUG='gente-que-danca-2026'
 const $=id=>document.getElementById(id)
 let count=1,submitting=false,open=false,loading=false,chosen=null,available=[],requestSeq=0
 let expanded=false
-const price=n=>15000+(n-1)*12000
+// Oferta pública Natal 2026: somente 1 ou 2 bailarinos. Cadastros antigos
+// e função histórica do banco permanecem inalterados.
+const price=n=>n===2?27000:15000
+const scheduleEnd=22*60
+const scheduleStart=18*60
+const formatTime=minutes=>String(Math.floor(minutes/60)).padStart(2,'0')+':'+String(minutes%60).padStart(2,'0')
+function maskWhatsapp(value){
+ let digits=String(value||'').replace(/\D/g,'')
+ if(digits.startsWith('55')&&digits.length>11)digits=digits.slice(2)
+ digits=digits.slice(0,11)
+ if(!digits)return ''
+ if(digits.length<=2)return '('+digits
+ const ddd='('+digits.slice(0,2)+')'
+ const tail=digits.slice(2)
+ if(tail.length<=4)return ddd+' '+tail
+ if(tail.length<=8 && digits.length<=10)
+  return ddd+' '+tail.slice(0,4)+'-'+tail.slice(4)
+ if(tail.length<=5)return ddd+' '+tail
+ if(tail.length<=9)return ddd+' '+tail.slice(0,5)+'-'+tail.slice(5)
+ return ddd+' '+tail.slice(0,5)+'-'+tail.slice(5,9)
+}
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100)
 function alertField(el,message){
  $('form-error').textContent=message;$('form-error').hidden=false
@@ -38,7 +58,10 @@ function draw(){
  for(const b of document.querySelectorAll('[data-count]'))
   b.setAttribute('aria-pressed',String(Number(b.dataset.count)===count))
  $('total').textContent=money(price(count))
- $('discount-caption').textContent=count*15+' minutos de ensaio'+(count>1?' · desconto de '+money((count-1)*3000):'')
+ $('discount-caption').textContent=count*15+' minutos de ensaio'+(count===2?' · R$ 30 de desconto para irmãos':'')
+ $('gente-duration').textContent=count===2
+  ?'2 bailarinos(as) · 30 minutos consecutivos'
+  :'1 bailarino(a) · 15 minutos de atendimento'
 }
 async function api(action,extra={}){
  const res=await fetch(API,{method:'POST',headers:{'Content-Type':'application/json',apikey:KEY},
@@ -50,38 +73,54 @@ async function api(action,extra={}){
 function drawTimes(){
  const root=$('gente-times');root.replaceChildren()
  if(loading){
-  const p=document.createElement('p');p.className='hint';p.textContent='Consultando horários disponíveis...';root.append(p);return
+  const p=document.createElement('p');p.className='hint schedule-loading'
+  p.textContent='Consultando horários disponíveis...';root.append(p);return
  }
  if(!available.length){
-  const p=document.createElement('p');p.className='hint'
-  p.textContent='Não há horários disponíveis para essa quantidade. Fale com a Grand Focus.'
+  const p=document.createElement('p');p.className='schedule-empty'
+  p.textContent='Não há horários disponíveis para este atendimento. Fale com a Grand Focus pelo WhatsApp.'
   root.append(p);return
  }
- const ids=expanded?available.map(x=>x.id):[
-  available[0]?.id,available[Math.floor((available.length-1)/2)]?.id,
-  available[available.length-1]?.id
- ].filter((id,i,a)=>id&&a.indexOf(id)===i)
+ // O servidor é a ÚNICA fonte de disponibilidade. A grade completa é
+ // visualização, nunca uma segunda lógica de ocupação.
+ const ids=expanded?available.map(s=>s.id):[
+  available[0]?.id,available[Math.floor((available.length-1)/2)]?.id,available.at(-1)?.id
+ ].filter((id,i,arr)=>id&&arr.indexOf(id)===i)
  if(chosen&&!ids.includes(chosen))ids.push(chosen)
- for(const slot of available.filter(x=>ids.includes(x.id))){
+ const displayed=expanded
+  ?Array.from({length:(scheduleEnd-scheduleStart)/15},(_,i)=>{
+    const start=formatTime(scheduleStart+i*15)
+    return {start,slot:available.find(s=>s.inicio===start)||null}
+   })
+  :available.filter(slot=>ids.includes(slot.id)).map(slot=>({start:slot.inicio,slot}))
+ for(const entry of displayed){
+  const slot=entry.slot
   const b=document.createElement('button')
-  b.type='button';b.className='time-option'
-  b.disabled=submitting
-  b.dataset.slotId=slot.id
-  b.textContent=slot.inicio+' – '+slot.fim
-  b.setAttribute('aria-pressed',String(slot.id===chosen))
-  b.setAttribute('aria-label','Início às '+slot.inicio+' e término às '+slot.fim)
-  b.addEventListener('click',()=>{
-   if(submitting)return
-   chosen=slot.id;clearError()
-   $('gente-schedule-hint').textContent='Selecionado: '+slot.inicio+' às '+slot.fim+
-    '. Seu horário será reservado ao enviar.'
-   drawTimes()
-  })
+  b.type='button';b.className='time-option';b.dataset.time=entry.start
+  b.disabled=submitting||!slot
+  if(slot){
+   b.dataset.slotId=slot.id
+   b.textContent=slot.inicio+' – '+slot.fim
+   b.setAttribute('aria-pressed',String(slot.id===chosen))
+   b.setAttribute('aria-label','Início às '+slot.inicio+' e término às '+slot.fim)
+   b.addEventListener('click',()=>{
+    if(submitting)return
+    chosen=slot.id;clearError()
+    $('gente-schedule-hint').textContent='Selecionado: '+slot.inicio+' às '+slot.fim+
+     '. Sua solicitação será enviada à Grand Focus ao concluir.'
+    drawTimes()
+   })
+  }else{
+   b.textContent=entry.start+' · indisponível'
+   b.setAttribute('aria-label','Horário '+entry.start+' indisponível para este atendimento')
+   b.setAttribute('aria-pressed','false')
+  }
   root.append(b)
  }
  if(available.length>3){
-  const more=document.createElement('button');more.type='button';more.className='times-more'
-  more.textContent=expanded?'Mostrar menos horários':'Ver todos os horários livres'
+  const more=document.createElement('button');more.type='button'
+  more.className='times-more'
+  more.textContent=expanded?'Mostrar menos horários':'Ver todos os horários, inclusive indisponíveis'
   more.disabled=submitting
   more.addEventListener('click',()=>{expanded=!expanded;drawTimes()})
   root.append(more)
@@ -121,7 +160,7 @@ function validate(){
  const name=$('name'),phone=$('whatsapp')
  if(name.value.trim().length<5){alertField(name,'Informe o nome completo do responsável.');return null}
  const tel=phone.value.replace(/\D/g,'')
- if(tel.length<10||tel.length>13){alertField(phone,'Informe o WhatsApp com DDD.');return null}
+ if(tel.length!==10&&tel.length!==11){alertField(phone,'Informe um WhatsApp válido com DDD.');return null}
  const alunos=[...$('students').querySelectorAll('input')].map(i=>i.value.trim())
  for(let i=0;i<alunos.length;i++)
   if(alunos[i].length<3){alertField($('student-'+i),'Informe o nome completo de cada bailarino(a).');return null}
@@ -150,8 +189,10 @@ async function send(ev){
   sessionStorage.removeItem('gf_gente_submission_id')
   $('gente-form').hidden=true
   $('reference').textContent=result.codigo
-  $('schedule-success-detail').textContent='Horário: '+result.inicio+' às '+result.fim+
-   ' · '+count+' bailarino(a)(s) · Total '+money(result.valor_centavos)
+  const previousSlot=available.find(slot=>slot.id===chosen)
+  const end=result.fim||previousSlot?.fim||'a confirmar pela equipe'
+  $('schedule-success-detail').textContent='Horário solicitado: '+result.inicio+' às '+end+
+   ' · '+count+' bailarino(a)(s) · Valor '+money(result.valor_centavos)
   $('success').hidden=false
   $('success').scrollIntoView({block:'start',behavior:'smooth'})
  }catch(error){
@@ -163,18 +204,25 @@ async function send(ev){
   await loadTimes(true)
  }finally{
   submitting=false;button.disabled=false
-  button.textContent='Reservar horário e enviar inscrição'
+  button.textContent='Solicitar horário e continuar'
   drawTimes()
  }
 }
 document.querySelectorAll('[data-count]').forEach(btn=>btn.addEventListener('click',()=>{
  if(submitting)return
- const n=Number(btn.dataset.count);if(n===count)return
+ const n=Number(btn.dataset.count)
+ if(![1,2].includes(n)||n===count)return
  count=n;chosen=null;expanded=false
- $('gente-schedule-hint').textContent='Selecione o início do horário para '+count+' bailarino(a)(s).'
+ $('gente-schedule-hint').textContent=count===2
+  ?'Escolha um início para os dois bailarinos. O sistema reservará 30 minutos consecutivos.'
+  :'Escolha um início para o ensaio de 15 minutos.'
  draw();clearError();void loadTimes()
 }))
 $('gente-form').addEventListener('submit',send)
+$('whatsapp').addEventListener('input',event=>{
+ const field=event.currentTarget
+ field.value=maskWhatsapp(field.value)
+})
 document.addEventListener('input',e=>{if(e.target.closest('#gente-form'))clearError()})
 draw()
 void loadTimes()
