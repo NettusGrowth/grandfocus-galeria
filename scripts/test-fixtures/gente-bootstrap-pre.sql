@@ -1,4 +1,5 @@
 -- Fixture temporária: garante fornecedor Grand Focus já cadastrado, apenas no CI.
+grant select on public.escolas,public.eventos to service_role;
 set role service_role;
 select public.gf_contratacao_admin_criar_campanha(
  'Natal fornecedor de teste',date '2026-12-12',
