@@ -84,3 +84,65 @@ body.gf-large{font-size:20px}body.gf-large .gf-fields input,body.gf-large .gf-fi
 .gf-hold p{margin:7px 0 0;font-size:.89rem;line-height:1.5;color:#665157}
 .gf-hold[data-urgent="true"]{border-color:#ba675d;background:#fff4ee}
 .gf-hold-time{font-variant-numeric:tabular-nums;font-size:1.1em}
+
+/* 2026-11 · Experiência compacta, semelhante à clareza de um formulário simples. */
+.gf-container{width:min(720px,calc(100% - 28px));margin:16px auto 38px}
+.gf-header{min-height:68px;padding:9px max(14px,calc((100vw - 740px)/2));box-shadow:none}
+.gf-header img{height:49px;width:min(175px,50vw)}
+.gf-header span{font-size:11px;letter-spacing:.05em}
+.gf-hero{padding:22px 28px;box-shadow:none;border-radius:12px;background:#fff8f5}
+.gf-hero h1{font-size:clamp(31px,5vw,41px);margin:4px 0}
+.gf-hero p:not(.gf-kicker){font-size:15px;line-height:1.5}
+.gf-hero .gf-hero-short{font-size:14px;margin-top:9px;color:#69565d}
+.gf-card{padding:22px 25px;border-radius:12px;box-shadow:none;margin:12px 0}
+.gf-card h2{font-family:Jost,system-ui,sans-serif;font-size:clamp(20px,2.8vw,24px);font-weight:650;margin:6px 0 11px;line-height:1.4}
+.gf-card-index{font-size:11px;letter-spacing:.06em}
+.gf-help{font-size:14px;line-height:1.45;margin:0 0 12px}
+.gf-count-choices{margin:12px 0 16px}
+.gf-count-choices button{min-height:47px;font-size:15px}
+.gf-students{gap:8px}
+.gf-student{padding:0;background:transparent;border:0}
+.gf-student label{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:14px}
+.gf-student input{min-height:47px}
+.gf-fields{gap:13px}
+.gf-fields input{min-height:49px}
+.gf-total{margin-top:15px;padding:11px 14px;border-color:#e3cfd1;background:#fbf5f4}
+.gf-total span{font-size:14px;color:#57434c;font-weight:600}
+.gf-total strong{font-size:23px;color:#4b0416}
+.gf-date-tabs{gap:8px;margin:10px 0}
+.gf-date-tabs button{min-height:55px;padding:9px 12px;border-width:1px}
+.gf-date-tabs button span{font-size:12px}
+.gf-date-tabs button strong{font-size:16px}
+#gf-period-tabs button{min-height:45px;text-align:center}
+#gf-period-tabs button strong{font-size:15px}
+.gf-slots{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;min-height:50px;margin-top:12px}
+.gf-slots button{min-height:48px;font-size:16px}
+.gf-slots .gf-more-slots{min-height:39px;padding:8px;font-size:14px}
+.gf-inline-help{font-size:13px;color:#6a5960;line-height:1.5;margin:10px 0 0}
+.gf-choice-group{grid-template-columns:1fr 1fr;gap:10px}
+.gf-choice{min-height:52px;padding:12px;align-items:center;border-width:1px}
+.gf-choice strong{font-size:16px}
+.gf-choice input{width:19px;height:19px;margin:0}
+.gf-recap{display:block;margin:15px 0}
+.gf-recap p{margin:0;padding:11px 13px;background:#fbf7f4;border:1px solid #eadfd9;border-radius:10px;font-weight:650;color:#4b1830;font-size:14px}
+.gf-consent{font-size:13px;padding:9px 0;border:0;background:none}
+.gf-consent a,.gf-footer a{color:inherit;text-decoration:underline}
+.gf-consent input{margin-top:0}
+.gf-submit{font-size:17px;min-height:54px;margin-top:15px;box-shadow:none}
+.gf-after-submit{text-align:center}
+.gf-footer{flex-wrap:wrap;gap:8px;font-size:12px}
+@media(max-width:520px){
+ .gf-container{width:calc(100% - 20px);margin:10px auto 28px}
+ .gf-header{padding:8px 12px}
+ .gf-hero{padding:20px 18px}
+ .gf-hero h1{font-size:35px}
+ .gf-card{padding:19px 15px;margin:10px 0}
+ .gf-count-choices{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+ .gf-count-choices button{font-size:12px;min-height:45px;padding:6px}
+ .gf-date-tabs button{padding:8px}
+ .gf-date-tabs button strong{font-size:14px}
+ .gf-slots{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .gf-choice-group{grid-template-columns:1fr 1fr}
+ .gf-choice{padding:10px}
+ .gf-choice strong{font-size:14px}
+}
