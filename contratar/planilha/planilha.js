@@ -282,7 +282,8 @@ $('edit-form').addEventListener('submit',async event=>{
  const alunos=r.students?.length?
   [...$('edit-students').querySelectorAll('[data-student]')].map((field,i)=>({
     ...r.students[i],nome:field.value.trim()})):null
- const campos={}
+ // As colunas ocultas mantêm seus valores no registro original.
+ const campos={...r.extras}
  for(const input of $('edit-extras').querySelectorAll('[data-extra]'))
   campos[input.dataset.extra]=input.value.trim()
  const payload={
