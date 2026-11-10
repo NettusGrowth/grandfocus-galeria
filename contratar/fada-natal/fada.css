@@ -177,3 +177,131 @@ body.gf-large{font-size:20px}body.gf-large .gf-fields input,body.gf-large .gf-fi
  .gf-date-tabs [data-day]{min-height:65px}
  .gf-slots button{min-height:55px}
 }
+
+/* Fada Açucarada · Especial de Natal 2026
+   Identidade vinho, dourado e champanhe da Grand Focus; decoração leve e estática. */
+:root{--gf-natal-wine:#4b0416;--gf-natal-gold:#b58b45;--gf-natal-cream:#fffaf3}
+html,body{max-width:100%;overflow-x:clip}
+.gf-header{min-height:76px;border-bottom:1px solid #ba9464;background:
+ linear-gradient(110deg,#3b061a 0%,#64213d 55%,#3b061a 100%);padding-top:9px;padding-bottom:9px}
+.gf-header img{height:52px;max-width:210px}
+.gf-header span{color:#f2dcbe;font-size:11px;letter-spacing:.13em}
+.gf-container{max-width:850px}
+.gf-hero{position:relative;isolation:isolate;overflow:hidden;align-items:flex-start;
+ border:1px solid #e6d0ba;border-top:4px solid #843b5a;
+ background:linear-gradient(128deg,#fffbf6 0%,#fff 62%,#fff8ef 100%);
+ padding:clamp(26px,5vw,45px);box-shadow:0 14px 38px #4b041614}
+.gf-hero:before{content:'';position:absolute;right:-95px;top:-105px;width:245px;height:245px;
+ border-radius:50%;border:1px solid #cba97665;box-shadow:0 0 0 29px #cba97614,0 0 0 59px #cba97608;z-index:-1}
+.gf-hero-copy{max-width:690px!important;position:relative;z-index:1}
+.gf-kicker{letter-spacing:.15em;font-size:11px;font-weight:800;color:#956c45}
+.gf-christmas-badge{display:inline-flex;align-items:center;gap:9px;margin:15px 0 0;
+ padding:7px 13px;border:1px solid #e2c9a6;background:#fff8ed;
+ color:#764b2d;border-radius:999px;font-size:12px;font-weight:750}
+.gf-christmas-badge span{font-size:17px}
+.gf-hero h1{margin:14px 0 7px;font-size:clamp(44px,6vw,67px);line-height:1.01;letter-spacing:-.024em}
+.gf-hero h1 em{font-weight:500;color:#976d46}
+.gf-hero p.gf-hero-tagline{font:italic 500 clamp(19px,3vw,26px)/1.35 'Cormorant Garamond',Georgia,serif;
+ color:#71354b;margin:10px 0 20px}
+.gf-hero p.gf-hero-intro{font-size:15px;line-height:1.78;color:#59464e;margin:11px 0;max-width:660px}
+.gf-hero-facts{display:flex;flex-wrap:wrap;gap:8px;margin:22px 0 0}
+.gf-hero-facts span{font-size:12px;line-height:1.4;font-weight:700;color:#7d5542;
+ padding:7px 12px;border:1px solid #e9d4be;border-radius:99px;background:#fffaf4}
+.gf-holiday-illustration{position:absolute;top:18px;right:24px;pointer-events:none;color:#b58b45;opacity:.65}
+.gf-holiday-illustration span{position:absolute}
+.gf-holiday-top{right:40px;top:0;font-size:16px}
+.gf-holiday-main{right:5px;top:24px;font-size:21px}
+.gf-holiday-bottom{right:61px;top:57px;font-size:11px}
+.gf-card{border-color:#eaddd7;background:#fff;box-shadow:0 8px 26px #4b041609;border-radius:15px;padding:26px}
+.gf-brief{padding:25px}
+.gf-brief h2{font:600 clamp(26px,3.8vw,34px)/1.19 'Cormorant Garamond',Georgia,serif;
+ color:#4b0416;margin:5px 0 13px}
+.gf-brief p{font-size:14px;line-height:1.7}
+.gf-section-kicker{font-size:11px!important;font-weight:800;color:#936d4f!important;
+ letter-spacing:.16em;margin:0 0 4px!important}
+.gf-included{list-style:none;padding:0;margin:17px 0 0;display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.gf-included li{display:flex;gap:10px;min-width:0;padding:14px;border:1px solid #eee0d1;
+ background:#fffcf8;border-radius:11px;color:#59454d;font-size:14px;line-height:1.55}
+.gf-included li>span{flex:none;color:#b58b45;font-size:18px;line-height:1.35}
+.gf-included strong{color:#4b0416}
+.gf-experience-note{font-size:13px!important;color:#775c59!important;background:#faf4eb;
+ padding:10px 13px;border-left:3px solid #c49c69;border-radius:0 8px 8px 0;margin-top:14px!important}
+.gf-price-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:17px 0 10px}
+.gf-price-card{min-width:0;display:flex;flex-direction:column;gap:9px;padding:16px 12px;
+ border:1px solid #e8d7d7;border-radius:12px;background:#fff}
+.gf-price-card.gf-price-featured{background:linear-gradient(150deg,#fff9ef,#fff);border:1.5px solid #c6a174}
+.gf-price-card>span{font-size:13px;font-weight:750;color:#6b3b4f;min-height:36px;line-height:1.4}
+.gf-price-card>strong{font-size:clamp(20px,2.7vw,27px);color:#4b0416;white-space:nowrap;
+ letter-spacing:-.045em;line-height:1.1;font-variant-numeric:tabular-nums}
+.gf-price-card small{font-size:11px;color:#78636b;line-height:1.4}
+.gf-price-card b{display:inline-block;align-self:flex-start;font-size:11px;line-height:1.3;
+ border-radius:100px;background:#f4e9d9;border:1px solid #e8d2b6;color:#75522b;
+ padding:4px 8px}
+.gf-event-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:15px}
+.gf-event-facts>div{display:grid;align-content:start;gap:3px;min-width:0;
+ background:#fcf8f4;border:1px solid #ecdfd7;border-radius:10px;padding:14px}
+.gf-event-facts small{font-size:10px;letter-spacing:.12em;font-weight:800;color:#906b74}
+.gf-event-facts strong{font-size:14px;color:#573349;line-height:1.45}
+.gf-event-facts span{font-size:12px;line-height:1.4;color:#75616c}
+.gf-brief:not(.gf-experience):not(.gf-pricing):not(.gf-event){border-left:3px solid #b58b45}
+.gf-card-index{color:#946c4a;font-size:11px;letter-spacing:.13em}
+.gf-card h2{color:#4b0416}
+.gf-count-choices button{border:1.5px solid #dac7cd;background:#fffaf9;color:#583148}
+.gf-count-choices button[aria-pressed="true"]{background:#fbebf0;color:#4b0416;border-color:#87445e;
+ box-shadow:inset 0 0 0 1px #a56b81}
+.gf-count-choices button[aria-pressed="true"]:before{content:'✓ ';font-weight:900}
+.gf-total{background:linear-gradient(110deg,#fcf0f4,#fff9f5);border:1px solid #e5cbd0;padding:15px}
+.gf-total span,.gf-total strong{color:#4b0416}
+.gf-total small{display:block;color:#7d6670;font-size:12px;font-weight:500}
+.gf-date-tabs button{border-radius:10px;min-height:57px}
+.gf-slots button[aria-pressed="true"]{background:#fbe7ee!important;border:2px solid #87425c!important;
+ color:#4b0416!important;font-weight:800;box-shadow:0 0 0 2px #b4799326}
+.gf-slot-legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 3px;
+ font-size:12px;color:#77656c}
+.gf-slot-legend>span{display:inline-flex;align-items:center;gap:5px}
+.gf-slot-legend i{width:12px;height:12px;border-radius:3px;border:1px solid;display:inline-block}
+.gf-legend-available{background:#fff;border-color:#b6a1a9!important}
+.gf-legend-selected{background:#fbe7ee;border-color:#87425c!important}
+.gf-legend-unavailable{background:#f2eff0;border-color:#ccc2c6!important}
+.gf-choice{border-radius:10px}
+.gf-submit{background:linear-gradient(110deg,#4b0416,#74243f);box-shadow:0 9px 23px #4b041625;
+ min-height:59px;font-weight:800}
+.gf-submit:hover{background:#78304a}
+.gf-success{border:1px solid #d2ba9c;background:linear-gradient(135deg,#fff9ee,#fff);
+ box-shadow:0 8px 24px #4b04160d}
+.gf-success h2{color:#4b0416}
+.gf-success-icon{color:#b58b45}
+.gf-success-lead{font-size:18px;font-weight:700;color:#4b0416}
+.gf-success-condition{border-radius:8px;padding:11px 13px;color:#65354a;
+ background:#fbf0f2;font-weight:700}
+.gf-success a{background:#4b0416}
+.gf-final-notes{border-top:3px solid #d9b687}
+@media(max-width:760px){.gf-price-cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .gf-included{grid-template-columns:1fr}.gf-hero{padding:25px}
+ .gf-hero-facts{gap:6px}
+}
+@media(max-width:520px){
+ .gf-container{width:calc(100% - 24px)}
+ .gf-header{min-height:72px;padding:8px 13px}
+ .gf-header img{height:42px}
+ .gf-header span{font-size:9px;max-width:135px;text-align:right}
+ .gf-hero{padding:23px 18px}
+ .gf-hero h1{font-size:42px}
+ .gf-hero p.gf-hero-intro{font-size:14px}
+ .gf-holiday-illustration{right:15px}
+ .gf-card{padding:19px 16px}
+ .gf-brief h2{font-size:27px}
+ .gf-price-cards{gap:8px}
+ .gf-price-card{padding:15px 10px}
+ .gf-price-card>strong{font-size:23px}
+ .gf-event-facts{grid-template-columns:1fr}
+ .gf-hero-facts span{font-size:11px}
+ .gf-slots button{min-height:53px}
+}
+@media(max-width:355px){.gf-price-card>strong{font-size:20px}
+ .gf-hero h1{font-size:36px}
+ .gf-count-choices button{font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}
+ .gf-count-choices button,.gf-date-tabs button,.gf-slots button{transition:none!important}}

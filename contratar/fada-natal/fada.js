@@ -10,6 +10,19 @@ const prices=Object.freeze({1:8000,2:14500,3:21500,4:28500})
 const state={day:null,count:1,period:null,slot:null,slots:[],expanded:false,loading:false,submitting:false,requestSeq:0}
 const $=id=>document.getElementById(id)
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100)
+function maskWhatsapp(value){
+ let digits=String(value||'').replace(/\D/g,'')
+ if(digits.startsWith('55')&&digits.length>11)digits=digits.slice(2)
+ digits=digits.slice(0,11)
+ if(!digits)return ''
+ if(digits.length<=2)return '('+digits
+ const area='('+digits.slice(0,2)+')',local=digits.slice(2)
+ if(local.length<=4)return area+' '+local
+ if(digits.length<=10)return area+' '+local.slice(0,4)+'-'+local.slice(4)
+ if(local.length<=5)return area+' '+local
+ return area+' '+local.slice(0,5)+'-'+local.slice(5)
+}
+
 
 function notify(message,field=null){
  clearError()
@@ -46,6 +59,8 @@ function renderStudents(){
   label.append(input);wrapper.append(label);root.append(wrapper)
  }
  $('gf-total').textContent=money(prices[state.count])
+ $('gf-duration-label').textContent=(state.count*15)+' minutos de ensaio'+
+  (state.count>1?' · períodos consecutivos':'')
  for(const btn of document.querySelectorAll('[data-count]'))
   btn.setAttribute('aria-pressed',String(Number(btn.dataset.count)===state.count))
  renderRecap()
@@ -70,33 +85,40 @@ function renderSlots(){
  $('gf-time-block').hidden=!state.day||!state.period
  const root=$('gf-slots');root.replaceChildren()
  const all=availability()
+ const periodSlots=!state.day||!state.period?[]:state.slots.filter(slot=>
+  slot.dia===state.day&&((slot.inicio<'13:00')===(state.period==='morning')))
  if(state.loading){
   const p=document.createElement('p');p.className='gf-inline-help'
   p.textContent='Consultando horários...';root.append(p)
- }else if(!all.length){
-  const p=document.createElement('p');p.className='gf-slots-empty'
-  p.textContent='Sem horários livres neste período. Experimente outro dia.'
-  root.append(p)
  }else{
-  const ids=[all[0].id,all[Math.floor((all.length-1)/2)].id,all[all.length-1].id]
+  if(!all.length){
+   const p=document.createElement('p');p.className='gf-slots-empty'
+   p.textContent='Sem horários livres neste período. Experimente outro dia.'
+   root.append(p)
+  }
+  const ids=all.length?[
+   all[0].id,all[Math.floor((all.length-1)/2)].id,all[all.length-1].id
+  ]:[]
   const suggestions=[...new Set(ids)].map(id=>all.find(x=>x.id===id))
   const selected=all.find(x=>x.id===state.slot)
-  const visible=state.expanded?all:(
-    selected&&!suggestions.some(x=>x.id===selected.id)
-    ?[...suggestions,selected].sort((a,b)=>a.inicio.localeCompare(b.inicio)):suggestions
+  const visible=state.expanded?periodSlots:(
+   selected&&!suggestions.some(x=>x.id===selected.id)
+   ?[...suggestions,selected].sort((a,b)=>a.inicio.localeCompare(b.inicio)):suggestions
   )
   for(const slot of visible){
-   const button=document.createElement('button');button.type='button';button.textContent=slot.inicio
-   button.setAttribute('aria-pressed',String(slot.id===state.slot))
-   button.setAttribute('aria-label',slot.inicio+', para '+state.count+' aluno(s)')
-   button.disabled=state.submitting
-   button.addEventListener('click',()=>chooseSlot(slot.id))
+   const free=slot.ativo&&slot.disponiveis>0
+   const button=document.createElement('button');button.type='button'
+   button.textContent=slot.inicio+(free?'':' · ocupado')
+   button.setAttribute('aria-pressed',String(free&&slot.id===state.slot))
+   button.setAttribute('aria-label',slot.inicio+(free?', disponível para '+state.count+' aluno(s)':' indisponível'))
+   button.disabled=state.submitting||!free
+   if(free)button.addEventListener('click',()=>chooseSlot(slot.id))
    root.append(button)
   }
-  if(all.length>suggestions.length){
+  if(periodSlots.length>suggestions.length){
    const more=document.createElement('button');more.type='button';more.className='gf-more-slots'
    more.disabled=state.submitting
-   more.textContent=state.expanded?'Mostrar menos horários':'Ver todos os horários'
+   more.textContent=state.expanded?'Mostrar menos horários':'Ver todos os horários (incluindo ocupados)'
    more.addEventListener('click',()=>{state.expanded=!state.expanded;renderSlots()})
    root.append(more)
   }
@@ -116,7 +138,9 @@ function chooseSlot(id){
  if(state.loading||state.submitting)return
  state.slot=id
  clearError()
- $('gf-slot-hint').textContent='Horário escolhido. A vaga será verificada quando você enviar.'
+ const slot=state.slots.find(item=>item.id===id)
+ $('gf-slot-hint').textContent='Horário escolhido: '+(slot?.inicio||'selecionado')+
+  '. A disponibilidade será conferida ao enviar a solicitação.'
  renderSlots()
 }
 async function api(action,values={},admin=false){
@@ -198,7 +222,7 @@ function validate(){
  const nome=$('gf-responsavel').value.trim()
  const whatsapp=$('gf-whatsapp').value.replace(/\D/g,'')
  if(nome.length<5)throw issue('Preencha seu nome e sobrenome.',$('gf-responsavel'))
- if(whatsapp.length<10||whatsapp.length>13)
+ if(whatsapp.length!==10&&whatsapp.length!==11)
   throw issue('Informe um WhatsApp válido com DDD.',$('gf-whatsapp'))
  const pagamento=document.querySelector('input[name="pagamento"]:checked')?.value
  if(!pagamento)throw issue('Informe se já realizou o pagamento.',document.querySelector('input[name="pagamento"]'))
@@ -236,8 +260,8 @@ async function submit(event){
   $('gf-fada-form').hidden=true;$('gf-success').hidden=false
   $('gf-ref').textContent=result.codigo
   $('gf-success-message').textContent=result.ja_pago_declarado
-   ?'Você informou que já pagou. Não pague novamente. Nossa equipe vai conferir e confirmar pelo WhatsApp.'
-   :'Recebemos seu pedido! Nossa equipe enviará as instruções de pagamento e confirmará o horário pelo WhatsApp.'
+   ?'Você informou que já pagou. Não pague novamente. Nossa equipe vai conferir o recebimento e confirmar sua experiência pelo WhatsApp.'
+   :'Nossa equipe entrará em contato pelo WhatsApp com as instruções de pagamento e a confirmação da sua experiência fotográfica.'
   sessionStorage.removeItem('gf_natal_submission_id')
   $('gf-success').scrollIntoView({block:'start'})
  }catch(error){
@@ -250,7 +274,7 @@ async function submit(event){
  }finally{
   state.submitting=false
   if(!$('gf-fada-form').hidden){
-   button.disabled=false;button.textContent='Enviar inscrição';renderSlots()
+   button.disabled=false;button.textContent='Solicitar horário e continuar';renderSlots()
   }
  }
 }
@@ -269,6 +293,9 @@ document.querySelectorAll('input[name="preferencia"]').forEach(input=>
  input.addEventListener('change',clearError))
 $('gf-fada-form').addEventListener('input',clearError)
 $('gf-fada-form').addEventListener('submit',submit)
+$('gf-whatsapp').addEventListener('input',event=>{
+ event.currentTarget.value=maskWhatsapp(event.currentTarget.value)
+})
 renderStudents()
 setInterval(()=>{
  if(!state.loading&&!state.submitting&&!document.hidden&&!$('gf-fada-form').hidden){
