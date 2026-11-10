@@ -2227,8 +2227,8 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div class="navgroup-label">Sistema</div>
         <div class="tab" data-tab="auditoria" data-tip="Auditoria" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg><span>Auditoria</span></div>
         <div class="tab" data-tab="usabilidade" data-tip="Usabilidade" onclick="setAdminTab('usabilidade');iniciarUsabilidadeAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V10M10 19V5M16 19v-7M20 19V9" stroke-linecap="round"/></svg><span>Usabilidade</span></div>
-        <div class="navgroup-label" id="navgroup-financeiro" style="display:none;">Financeiro</div>
-        <div class="tab" data-tab="gold-reserve" id="tab-gold-reserve" style="display:none;" data-tip="Gold Reserve" onclick="setAdminTab('gold-reserve');iniciarGoldReserveAdmin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v10M9 9.5c0-1.4 1.3-2.5 3-2.5s3 1 3 2.3c0 3-6 1.4-6 4.3 0 1.4 1.3 2.4 3 2.4s3-1 3-2.4"/></svg><span>Gold Reserve</span></div>
+        
+        
         <div class="sidebar-social">
           <span class="ss-label">Conecte-se</span>
           <div class="ss-row">
@@ -2654,7 +2654,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
       <!-- Bloco 16: Gold Reserve — hub financeiro, só super_admin (trava
            aplicada em mostrarApp(), igual ao resto do gating por role) -->
-      <div class="admin-tab" id="admintab-gold-reserve" style="display:none;">
+      <div class="admin-tab" id="admintab-gold-reserve" style="display:none;" hidden aria-hidden="true">
         <div class="section-h"><h2>Gold Reserve</h2></div>
         <div class="gr-subnav">
           <button class="gr-subnav-item on" data-gr-sub="visao-geral" onclick="setGrSubTab('visao-geral')">Visão Geral</button>
@@ -4900,8 +4900,8 @@ async function mostrarApp(user) {
   if (tabEquipe) tabEquipe.style.display = ['proprietario', 'diretor'].includes(data.role) ? 'flex' : 'none'
   // Gold Reserve (Bloco 16): dado financeiro sensível, só super_admin —
   // até um 'admin' comum fica de fora, tanto da aba quanto do RLS.
-  document.getElementById('navgroup-financeiro').style.display = data.role === 'super_admin' ? 'block' : 'none'
-  document.getElementById('tab-gold-reserve').style.display = data.role === 'super_admin' ? 'flex' : 'none'
+  
+  
 
   document.getElementById('view-admin').classList.remove('on')
   document.getElementById('view-escola').classList.remove('on')
@@ -6525,56 +6525,12 @@ function _dashRenderProximosEventos() {
 // Visão Geral do Gold Reserve — não inventa outra régua de faturamento
 // só pro Dashboard.
 async function _dashRenderGanhosRecentes() {
-  const cardGanhos = document.getElementById('dash-card-ganhos')
-  const cardComunidade = document.getElementById('dash-card-comunidade')
-  if (!cardGanhos || !cardComunidade) return
-  if (meuPerfil?.role !== 'super_admin') { cardGanhos.style.display = 'none'; cardComunidade.style.display = ''; return }
-  cardComunidade.style.display = 'none'
-  cardGanhos.style.display = ''
-
-  const dados = await _grConsolidar()
-  const chaveMes = iso => iso ? iso.slice(0, 7) : null
-  const hoje = new Date()
-  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-
-  const acumulado = dados.reduce((s, g) => s + g.receitaTotal, 0)
-  // achado real (Luiz reportou: "este mês" sempre R$ 0,00 mesmo com
-  // eventos e cachê de sessão do próprio mês já no "acumulado") — só
-  // somava receitaExtras (fotos extras pagas pela Seleção de Fotos)
-  // por g.liberadoEm, e o cachê da sessão (precoSessao, a maior parte
-  // da receita de um estúdio de dança, contado no "acumulado" desde
-  // sempre) nunca tinha data nenhuma pra entrar em NENHUM mês do
-  // gráfico — não é só "este mês" que ficava sempre 0 pra sessão, é
-  // qualquer mês. Cachê de sessão conta na data do próprio evento
-  // (é quando a sessão aconteceu/foi cobrada); fotos extras continuam
-  // contando na data em que o pagamento foi liberado de verdade.
-  const receitaPorMes = new Map()
-  const somaMes = (iso, valor) => {
-    const m = chaveMes(iso)
-    if (!m || !valor) return
-    receitaPorMes.set(m, (receitaPorMes.get(m) || 0) + valor)
-  }
-  dados.forEach(g => {
-    somaMes(g.eventoData || g.criadoEmGaleria, g.precoSessao)
-    somaMes(g.liberadoEm, g.receitaExtras)
-  })
-  const esteMs = receitaPorMes.get(mesAtual) || 0
-
-  const elMes = document.getElementById('dash-ganhos-mes')
-  if (elMes) elMes.textContent = fmtBRL(esteMs)
-  const elAcum = document.getElementById('dash-ganhos-acumulado')
-  if (elAcum) elAcum.textContent = acumulado > 0 ? `${fmtBRL(acumulado)} acumulado · Gold Reserve →` : 'Drill-down no Gold Reserve →'
-
-  // últimos 5 meses (mais antigo → mais recente), só com o que existir
-  // de dado real — barra mínima visível mesmo em 0, sem inventar altura.
-  const meses = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() - (4 - i), 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  })
-  const valores = meses.map(m => receitaPorMes.get(m) || 0)
-  const maxValor = Math.max(...valores, 1)
-  const elBarras = document.getElementById('dash-ganhos-barras')
-  if (elBarras) elBarras.innerHTML = valores.map(v => `<div class="b" style="height:${Math.max(8, (v / maxValor) * 100)}%;" title="${fmtBRL(v)}"></div>`).join('')
+  // A antiga área de ganhos saiu da Galeria; o controle financeiro
+  // agora fica apenas em /contratar/admin/financeiro/.
+  const cardGanhos = document.getElementById('dash-card-ganhos');
+  const cardComunidade = document.getElementById('dash-card-comunidade');
+  if (cardGanhos) cardGanhos.style.display = 'none';
+  if (cardComunidade) cardComunidade.style.display = '';
 }
 
 // Alertas Críticos — "crítico" é a MESMA classificação que a aba

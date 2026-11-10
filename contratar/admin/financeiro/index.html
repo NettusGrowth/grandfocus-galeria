@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#39091b">
+<title>Financeiro | Grand Focus</title>
+<link rel="icon" href="/assets/logo-icone.png" type="image/png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Jost:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/contratar/admin/financeiro/financeiro.css">
+<script type="module" src="/contratar/admin/financeiro/financeiro.js"></script>
+</head><body>
+<header class="top">
+ <a class="brand" href="/contratar/admin/"><img src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus"></a>
+ <div class="top-actions"><a href="/contratar/admin/" class="back">← Campanhas</a><button type="button" id="refresh" class="outline">↻ Atualizar</button></div>
+</header>
+<main class="shell">
+ <div class="welcome"><div><p class="eyebrow">GRAND FOCUS / GESTÃO FINANCEIRA</p><h1>Financeiro</h1><p>Uma visão clara dos contratos, recebimentos e valores a receber de todas as escolas.</p></div><div class="decoration" aria-hidden="true">GF</div></div>
+ <div id="loading-panel" class="message" role="status">Validando acesso administrativo e carregando lançamentos…</div>
+ <div id="error-panel" class="message error" role="alert" hidden></div>
+ <div id="dashboard" hidden>
+  <div class="overview"><article class="stat closed"><span>VALOR FECHADO</span><strong id="stat-closed">R$ —</strong><small>Soma dos pedidos ativos</small></article>
+   <article class="stat received"><span>VALOR RECEBIDO</span><strong id="stat-received">R$ —</strong><small>Pagamentos confirmados</small></article>
+   <article class="stat due"><span>A RECEBER</span><strong id="stat-due">R$ —</strong><small>Saldo dos pedidos ativos</small></article></div>
+  <div class="note" id="financial-warning" hidden></div>
+  <section class="filters" aria-labelledby="filters-title"><div class="section-heading"><div><p class="eyebrow">EXPLORAR FINANCEIRO</p><h2 id="filters-title">Filtros</h2></div><button type="button" class="text-btn" id="reset">Limpar filtros</button></div>
+    <div class="filter-grid">
+      <label>Escola <select id="school"><option value="">Todas as escolas</option></select></label>
+      <label>Campanha <select id="campaign"><option value="">Todas as campanhas</option></select></label>
+      <label>Tipo de registro <select id="type"><option value="">Todos</option><option value="formulario">Formulários</option><option value="online">Pedidos online</option></select></label>
+      <label>Pacote / experiência <select id="package"><option value="">Todos os pacotes</option></select></label>
+      <label>Forma de pagamento <select id="method"><option value="">Todas</option><option value="pix">Pix</option><option value="credito">Cartão de crédito</option><option value="outro">Outras</option></select></label>
+      <label>Data inicial <input type="date" id="from"></label>
+      <label>Data final <input type="date" id="to"></label>
+      <label class="search-label">Buscar família, bailarina ou pacote <input type="search" id="query" placeholder="Pesquisar..." autocomplete="off"></label>
+    </div>
+  </section>
+  <section class="list-section" aria-labelledby="transactions-title"><div class="section-heading"><div><p class="eyebrow">ACOMPANHAMENTO</p><h2 id="transactions-title">Recebimentos e contratos</h2><p id="result-count" class="subtitle"></p></div><button type="button" id="export" class="export">↓ Exportar CSV</button></div>
+    <nav class="status-tabs" aria-label="Situação financeira">
+      <button data-status="geral" type="button" class="on">Geral</button>
+      <button data-status="confirmado" type="button">Confirmado</button>
+      <button data-status="recebidos" type="button">Com recebimento</button>
+      <button data-status="a-receber" type="button">A receber</button>
+      <button data-status="pendente" type="button">Pendente</button>
+      <button data-status="parcial" type="button">Parcial</button>
+      <button data-status="conferir" type="button">A conferir</button>
+      <button data-status="cancelado" type="button">Cancelado / histórico</button>
+    </nav>
+    <div class="table-scroll"><table><thead><tr>
+      <th>Família / bailarina</th><th>Escola / campanha</th><th>Experiência</th><th>Fechado</th><th>Recebido</th><th>A receber</th><th>Situação</th><th>Agendamento</th><th></th>
+    </tr></thead><tbody id="records"></tbody></table></div>
+  </section>
+  <footer class="foot"><p>Somente pagamentos conferidos ou confirmados pelo provedor são considerados recebidos. Preferências por Pix ou cartão não confirmam pagamento. Pagamentos e agendamentos devem ser editados na planilha, com auditoria.</p><span id="updated">—</span></footer>
+ </div>
+</main></body></html>

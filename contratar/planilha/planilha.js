@@ -4,7 +4,7 @@ const KEY='sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const client=createClient(BASE,KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}})
 const slug=new URLSearchParams(location.search).get('campanha')||'entre-estacoes'
 const $=id=>document.getElementById(id)
-$('finance-link').href='/contratar/'+encodeURIComponent(slug)+'/admin/#financeiro'
+$('finance-link').href='/contratar/admin/financeiro/'
 const financeBroadcast=typeof BroadcastChannel==='function'?
  new BroadcastChannel('gf-contratacao-sync'):null
 function notifyFinance(kind){
