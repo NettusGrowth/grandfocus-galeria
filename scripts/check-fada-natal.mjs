@@ -15,7 +15,7 @@ const adminJs=read('contratar/fada-natal/admin.js')
 const adminApi=read('supabase/functions/contratacao-admin/index.ts')
 const publicApi=read('supabase/functions/contratacao-publica/index.ts')
 const sql=read('supabase/sql/090_fada_natal_agenda_familias.sql')
-assert.ok(html.includes('Você já realizou o pagamento?')&&html.includes('Escolha um horário disponível')&&
+assert.ok(html.includes('Você já pagou pelas fotos?')&&html.includes('não a turma inteira')&&html.includes('Qual dia e horário você prefere?')&&
  html.includes('id="gf-fada-form"')&&html.includes('gf-submit'),'Formulário de Natal precisa das duas jornadas e do agendamento.')
 assert.ok(publicJs.includes('1:8000,2:14500,3:21500,4:28500')&&
  publicJs.includes('natal_inscrever')&&publicJs.includes('natal_horarios')&&
@@ -52,9 +52,19 @@ assert.ok(sql92.includes("v_preco:=case v_count when 1 then 8000 when 2 then 145
  'A nova versão deve preservar preço familiar, escopo e política de permissões.')
 assert.ok(!sql92.includes('drop table')&&!sql92.includes('truncate '),
  'A mudança não pode excluir histórico existente.')
-assert.ok(publicJs.includes('natal_seguranca_horario')&&
- publicJs.includes('gf-hold-time')&&publicJs.includes('natal_liberar_horario'),
- 'O cronômetro deve usar a retenção do servidor e permitir liberação.')
+const sql95=read('supabase/sql/095_fada_natal_envio_atomico_sem_cronometro.sql')
+assert.ok(sql95.includes('gf_natal_solicitar_sem_cronometro')&&
+ sql95.includes('for update')&&
+ sql95.includes('gf_natal_reservar_temporariamente')&&
+ sql95.includes('gf_natal_solicitar_horario'),
+ 'O envio deverá conferir, bloquear e cadastrar numa só transação.')
+assert.ok(publicApi.includes("admin.rpc('gf_natal_solicitar_sem_cronometro'")&&
+ !publicJs.includes('natal_seguranca_horario')&&
+ !publicJs.includes('gf-hold-time')&&
+ !html.includes('id="gf-hold"')&&
+ !html.includes('id="gf-family-options"')&&
+ !html.includes('id="gf-note"'),
+ 'O formulário não deve segurar horário antes do envio nem exibir campos opcionais desnecessários.')
 const termosPage=read('contratar/fada-natal/termos.html')
 const privacidadePage=read('contratar/fada-natal/privacidade.html')
 const termosSource=read('contratar/fada-natal/termos.txt')
@@ -70,7 +80,9 @@ assert.ok(privacidadePage.includes('Crianças e adolescentes')&&
  privacidadePage.includes('Seus direitos')&&
  privacidadePage.includes('Não vendemos cadastros'),
  'Política de privacidade deve proteger dados de menores e explicar o tratamento.')
-assert.ok(termosSource.includes('R$ 285,00')&&
+assert.ok(termosSource.includes('A escolha do horário no formulário é apenas uma preferência')&&
+ !termosSource.includes('o retém por até 10 minutos')&&
+ termosSource.includes('R$ 285,00')&&
  privacidadeSource.includes('menores')&&
  html.includes('href="/contratar/fada-natal/termos.html"')&&
  html.includes('href="/contratar/fada-natal/privacidade.html"')&&
