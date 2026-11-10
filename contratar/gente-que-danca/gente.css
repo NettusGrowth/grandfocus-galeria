@@ -207,7 +207,7 @@ main{max-width:788px;margin:25px auto 56px;padding:0 16px}
  box-shadow:0 2px 12px #4b041614;font-weight:800}
 .schedule-times .time-option[aria-pressed="true"]:after{
  content:'✓';right:6px;top:3px;color:#7c2a49}
-.schedule-times .time-option:disabled{
+.schedule-times .time-option:disabled:not([data-slot-id]){
  background:#f3f0f1;color:#968991;border-color:#e1dce0;
  text-decoration:line-through;cursor:not-allowed;box-shadow:none;opacity:.76}
 .schedule-times .times-more{background:#fffaf7;border:1px dashed #bf9caa;
