@@ -301,9 +301,9 @@ async function confirmSchedule(r,control){
   slug==='natal-fada-acucarada-2026'?'natal_atualizar_agendamento':null
  if(!action){showError('Confirme o agendamento pela administração desta campanha.');return}
  const details=r.scheduleDay!=='—'&&r.scheduleTime!=='—'?
-  '\\nEnsaio: '+r.scheduleDay+' · '+r.scheduleTime:''
+  ' Ensaio: '+r.scheduleDay+' · '+r.scheduleTime:''
  if(!window.confirm('Confirmar definitivamente o horário de '+r.name+'?'+details+
-  '\\nO pagamento integral deve estar conferido.'))return
+  ' O pagamento integral deve estar conferido.'))return
  control.disabled=true;control.textContent='Confirmando...'
  $('error').hidden=true
  try{
