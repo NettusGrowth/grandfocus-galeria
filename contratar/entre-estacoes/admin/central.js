@@ -411,7 +411,7 @@ function natalAppointmentControls(record){
         if(!window.confirm('Você já conferiu o pagamento integral? Confirmar este horário da família?'))return
         confirm.disabled=true
         try{
-          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'confirmado'})
+          await apiCentral(location.pathname.includes('gente-que-danca-2026')?'gente_atualizar_agendamento':'natal_atualizar_agendamento',{resposta_id:record.id,status:'confirmado'})
           notice('Horário confirmado após conferência financeira.','success')
           await loadCentral(false,true)
         }catch(error){notice(error.message||'Não foi possível confirmar.','error');confirm.disabled=false}
@@ -426,7 +426,7 @@ function natalAppointmentControls(record){
         if(!window.confirm('Cancelar a solicitação desta família? A vaga ficará disponível novamente.'))return
         cancel.disabled=true
         try{
-          await apiCentral('natal_atualizar_agendamento',{resposta_id:record.id,status:'cancelado'})
+          await apiCentral(location.pathname.includes('gente-que-danca-2026')?'gente_atualizar_agendamento':'natal_atualizar_agendamento',{resposta_id:record.id,status:'cancelado'})
           notice('Solicitação cancelada e horário liberado.','success')
           await loadCentral(false,true)
         }catch(error){notice(error.message||'Não foi possível cancelar.','error');cancel.disabled=false}
