@@ -58,6 +58,8 @@ Deno.serve(async (req: Request) => {
         return await actionNatalLiberar(req, admin, body, campaignSlug)
       case 'natal_inscrever':
         return await actionNatalInscrever(req, admin, body, campaignSlug)
+      case 'gente_inscrever':
+        return await actionGenteInscrever(req, admin, body, campaignSlug)
       case 'dados':
         return await actionDados(req, admin, campaignSlug)
       case 'contratar':
@@ -122,6 +124,40 @@ async function actionNatalLiberar(req:Request,admin:any,body:any,slug:string){
  if(error)return jsonResponse(req,{error:'Não foi possível liberar agora. A reserva expira automaticamente.'},409)
  return jsonResponse(req,data||{ok:true})
 }
+async function actionGenteInscrever(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='gente-que-danca-2026')
+  return jsonResponse(req,{error:'Inscrição indisponível nesta campanha.'},404)
+ if(String(body?.company_website||'').trim())
+  return jsonResponse(req,{error:'Solicitação não aceita.'},400)
+ const id=String(body?.idempotencia||'')
+ const phone=String(body?.whatsapp||'').replace(/\D/g,'')
+ const students=body?.alunos
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ||!Array.isArray(students)||students.length<1||students.length>4
+    ||!['pix','credito'].includes(body?.preferencia)
+    ||String(body?.nome||'').trim().length<5
+    ||phone.length<10||phone.length>13
+    ||body?.aceite!==true || JSON.stringify(body).length>12000)
+  return jsonResponse(req,{error:'Confira os campos obrigatórios.'},400)
+ const ip=(req.headers.get('cf-connecting-ip')||
+  req.headers.get('x-real-ip')||req.headers.get('x-forwarded-for')?.split(',')[0]||'').trim()
+ for(const limit of [
+   {hash:await sha256Hex('gente:phone:'+phone),max:8,window:3600},
+   ...(ip?[{hash:await sha256Hex('gente:ip:'+ip),max:25,window:900}]:[])
+ ]){
+  const {data,error}=await admin.rpc('gf_contratacao_registrar_tentativa',{
+   p_chave_hash:limit.hash,p_limite:limit.max,p_janela_segundos:limit.window})
+  if(error||!data)return jsonResponse(req,{error:'Não foi possível validar a inscrição.'},503)
+  if(data.permitido!==true)return jsonResponse(req,{error:'Muitas tentativas. Entre em contato com a Grand Focus.'},429)
+ }
+ const {data,error}=await admin.rpc('gf_gente_solicitar_interesse',{
+  p_slug:slug,p_responsavel:String(body.nome||''),p_whatsapp:phone,
+  p_alunos:students,p_preferencia:body.preferencia,p_idempotencia:id,p_aceite:true
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível registrar sua participação.'},409)
+ return jsonResponse(req,data||{ok:false})
+}
+
 async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
  if(slug!=='natal-fada-acucarada-2026')
    return jsonResponse(req,{error:'Inscrição indisponível nesta campanha.'},404)
