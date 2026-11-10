@@ -211,16 +211,18 @@ function updateMetrics() {
   const feeConfirmed=entries.reduce((sum,r)=>sum+estimatedCharge(confirmedMoney(r),r),0)
   const netConfirmed=grossConfirmed-feeConfirmed
   const pendingNet=future.reduce((sum,r)=>sum+estimatedNet(pendingMoney(r),r),0)
+  const pendingGross=future.reduce((sum,r)=>sum+pendingMoney(r),0)
   updateGenteCommission(entries)
   centralMetrics.replaceChildren(
-    metric('Líquido previsto',brl(netFuture),'Estimativa após taxas · não é dinheiro recebido','positive'),
-    metric('Taxas estimadas',brl(feeFuture),'Crédito à vista '+financeRateLabel()+' · por pedido','attention'),
-    metric('Recebido líquido estimado',brl(netConfirmed),'Recebido bruto confirmado menos taxa simulada','positive'),
-    metric('Total bruto informado',brl(grossFuture),'Antes das taxas · inclui cadastros sem conferência'),
-    metric('Bruto recebido confirmado',brl(grossConfirmed),'Comprovantes ou confirmação InfinitePay','positive'),
-    metric('Líquido pendente estimado',brl(pendingNet),'Somente cobranças ainda em aberto','attention'),
-    metric('Cadastros ativos',String(entries.filter(r=>!r.archived).length),'Famílias e pedidos visíveis'),
-    metric('Pagamentos a conferir',String(entries.filter(needsReview).length),'Não são recebimentos confirmados','attention'),
+    metric('Recebido confirmado',brl(grossConfirmed),'Dinheiro conferido pela equipe ou pelo provedor','positive'),
+    metric('Ainda a receber',brl(pendingGross),'Saldo dos pedidos com pagamento pendente','attention'),
+    metric('Total de pedidos ativos',brl(grossFuture),'Soma contratada · inclui valores não recebidos'),
+    metric('Líquido recebido estimado',brl(netConfirmed),'Recebido menos taxas simuladas','positive'),
+    metric('Taxas estimadas sobre pedidos',brl(feeFuture),'Hipótese de cartão à vista '+financeRateLabel(),'attention'),
+    metric('Líquido previsto dos pedidos',brl(netFuture),'Projeção, não saldo bancário'),
+    metric('Líquido ainda pendente',brl(pendingNet),'Projeção após taxas do saldo a receber'),
+    metric('Cadastros ativos',String(entries.filter(r=>!r.archived).length),'Famílias e pedidos ativos'),
+    metric('Pagamentos a conferir',String(entries.filter(needsReview).length),'Ainda não são dinheiro confirmado','attention'),
   )
 }
 function updateViewCounters() {
@@ -494,6 +496,14 @@ function selectRecord(record) {
       }catch(error){notice(error.message,'error');contact.disabled=false}
     })
     fast.append(contact)
+  }
+  if(record.source==='formulario'&&!record.archived){
+    const editLink=dom('a','gf-quick-step','✎ Editar resposta')
+    const campaign=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')
+    editLink.href='/contratar/planilha/?campanha='+encodeURIComponent(campaign)+
+      '&editar='+encodeURIComponent(record.id)
+    editLink.target='_blank';editLink.rel='noopener noreferrer'
+    fast.append(editLink)
   }
   if(record.source==='formulario'&&!paid(record)&&!record.archived){
     const payment=actionButton('R$ Registrar pagamento','gf-quick-step')
@@ -828,7 +838,7 @@ feeForm.addEventListener('submit',async event=>{
 })
 const metricToggle=document.getElementById('gf-metrics-toggle')
 metricToggle.addEventListener('click',()=>{
-  const expanded=centralRoot.classList.toggle('gf-metrics-expanded')
+  const expanded=document.getElementById('gf-financeiro').classList.toggle('gf-metrics-expanded')
   metricToggle.setAttribute('aria-expanded',String(expanded))
   metricToggle.textContent=expanded?'Mostrar menos indicadores  ⌃':'Ver todos os indicadores  ⌄'
 })

@@ -11,14 +11,14 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/form-builder.css">
-  <script type="module" src="/contratar/entre-estacoes/admin/admin.js"></script>
-  <script type="module" src="/contratar/entre-estacoes/admin/central.js"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/admin.js?v=20261110-admin2"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/central.js?v=20261110-admin2"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/form-builder.js"></script>
-  <script type="module" src="/contratar/entre-estacoes/admin/workspace.js"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/workspace.js?v=20261110-admin2"></script>
   <script type="module" src="/contratar/fada-natal/admin.js"></script>
   <link rel="stylesheet" href="/contratar/fada-natal/admin.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/workspace.css">
-  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css?v=20261110-admin2">
   <link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">
   <link rel="apple-touch-icon" href="/assets/logo-icone.png?v=20261109">
 </head>
@@ -95,7 +95,8 @@
         <p class="gf-central-eyebrow">FINANCEIRO · GRAND FOCUS</p>
         <h2>Visão financeira</h2>
         <p class="gf-central-subtitle">Valores previstos e pagamentos realmente conferidos, sem misturar com os atendimentos.</p>
-                <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
+                <div class="gf-finance-toolbar"><a id="gf-finance-sheet" href="/contratar/planilha/">☷ Abrir planilha de pagamentos ↗</a></div>
+        <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
         <button type="button" class="gf-metrics-toggle" id="gf-metrics-toggle" aria-expanded="false">Ver todos os indicadores <span aria-hidden="true">⌄</span></button>
         <details class="gf-fee-settings" id="gf-fee-settings">
           <summary><span class="gf-fee-icon" aria-hidden="true">%</span> Configurar estimativa da taxa do cartão <span class="gf-fee-chevron" aria-hidden="true">⌄</span></summary>
@@ -384,7 +385,7 @@
         <details class="gf-event-group"><summary>2. Experiências e valores</summary>
         <section class="panel">
           <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
-          <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
+          <p class="panel-intro">Veja nome e preço de cada experiência. Clique na linha para editar. As opções de miniensaio, palco e visibilidade ficam em “Opções avançadas”. Em campanhas publicadas, pause antes de salvar mudanças comerciais.</p>
           <div id="package-fields" class="admin-grid"></div>
         </section></details>
       </form>

@@ -50,6 +50,11 @@ if(optionsMenu){
   optionsMenu.open=false
  }))
 }
+const financeSheet=document.getElementById('gf-finance-sheet')
+if(financeSheet){
+ const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')
+ financeSheet.href='/contratar/planilha/?campanha='+encodeURIComponent(slug)
+}
 const sheetLink=document.getElementById('gf-open-sheet')
 if(sheetLink){
  const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')

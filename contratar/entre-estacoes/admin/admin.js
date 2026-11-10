@@ -139,109 +139,99 @@ async function loadConfig() {
   renderPackages()
 }
 
+const packageExpanded=new Set()
+
 function renderPackages() {
-  const root = document.getElementById('package-fields')
-  root.replaceChildren()
-  if (!currentPackages.length) {
-    const empty = document.createElement('p')
-    empty.className = 'hint'
-    empty.textContent = 'Nenhuma experiência cadastrada. Adicione a primeira para começar a configurar a contratação.'
-    root.append(empty)
-    return
+ const root=document.getElementById('package-fields')
+ root.replaceChildren()
+ root.classList.add('gf-packages-list')
+ if(!currentPackages.length){
+  const empty=document.createElement('p')
+  empty.className='hint'
+  empty.textContent='Nenhuma experiência cadastrada. Clique em “Adicionar experiência” para começar.'
+  root.append(empty);return
+ }
+ for(const [index,pkg] of currentPackages.entries()){
+  const card=document.createElement('details')
+  card.className='gf-package-entry'
+  card.dataset.packageCode=pkg.codigo
+  card.open=packageExpanded.has(pkg.codigo)
+  card.addEventListener('toggle',()=>{
+   if(!card.isConnected)return
+   if(card.open)packageExpanded.add(pkg.codigo)
+   else packageExpanded.delete(pkg.codigo)
+  })
+  const summary=document.createElement('summary')
+  const left=document.createElement('span');left.className='gf-package-name'
+  left.textContent=pkg.nome||'Nova experiência'
+  const right=document.createElement('span');right.className='gf-package-value'
+  right.textContent='R$ '+moneyToInput(pkg.preco_centavos)
+  const status=document.createElement('small');status.className='gf-package-status'
+  status.textContent=pkg.ativo===false?'Oculta':'Visível'
+  summary.append(left,right,status)
+  const body=document.createElement('div');body.className='gf-package-body'
+  const essentials=document.createElement('div');essentials.className='gf-package-essential'
+  const label=(text,id,control)=>{
+   const wrapper=document.createElement('label');wrapper.className='gf-package-label'
+   const span=document.createElement('span');span.textContent=text
+   control.id=id;wrapper.append(span,control);return wrapper
   }
-
-  for (const [index, pkg] of currentPackages.entries()) {
-    const card = document.createElement('div')
-    card.className = 'participant-card'
-    card.dataset.packageCode = pkg.codigo
-    card.dataset.inactive = pkg.ativo === false ? 'true' : 'false'
-
-    const heading = document.createElement('div')
-    heading.className = 'participant-head'
-    const title = document.createElement('strong')
-    title.textContent = 'Experiência ' + (index + 1)
-    const remove = document.createElement('button')
-    remove.type = 'button'
-    remove.className = 'text-button'
-    remove.textContent = pkg.ativo === false ? 'Ativar' : 'Desativar'
-    remove.addEventListener('click', () => {
-      pkg.ativo = pkg.ativo === false
-      renderPackages()
-    })
-    heading.append(title, remove)
-
-    const nameField = document.createElement('div')
-    nameField.className = 'field'
-    const nameLabel = document.createElement('label')
-    nameLabel.textContent = 'Nome da experiência'
-    nameLabel.htmlFor = 'name-' + pkg.codigo
-    const name = document.createElement('input')
-    name.id = 'name-' + pkg.codigo
-    name.maxLength = 100
-    name.value = pkg.nome || ''
-    name.required = true
-    nameField.append(nameLabel, name)
-
-    const priceField = document.createElement('div')
-    priceField.className = 'field'
-    const priceLabel = document.createElement('label')
-    priceLabel.textContent = 'Preço em reais'
-    priceLabel.htmlFor = 'price-' + pkg.codigo
-    const price = document.createElement('input')
-    price.id = 'price-' + pkg.codigo
-    price.inputMode = 'decimal'
-    price.placeholder = 'Exemplo 119,00'
-    price.value = moneyToInput(pkg.preco_centavos)
-    priceField.append(priceLabel, price)
-
-    const descriptionField = document.createElement('div')
-    descriptionField.className = 'field full'
-    const descriptionLabel = document.createElement('label')
-    descriptionLabel.textContent = 'O que está incluído, uma informação por linha'
-    descriptionLabel.htmlFor = 'description-' + pkg.codigo
-    const description = document.createElement('textarea')
-    description.id = 'description-' + pkg.codigo
-    description.rows = 4
-    description.maxLength = 6000
-    description.value = Array.isArray(pkg.descricao) ? pkg.descricao.join('\n') : ''
-    descriptionField.append(descriptionLabel, description)
-
-    const flags = document.createElement('div')
-    flags.className = 'field full'
-    const miniLabel = document.createElement('label')
-    miniLabel.className = 'consent'
-    const mini = document.createElement('input')
-    mini.type = 'checkbox'
-    mini.id = 'mini-' + pkg.codigo
-    mini.checked = pkg.inclui_miniensaio === true
-    const miniText = document.createElement('span')
-    miniText.textContent = 'Inclui miniensaio individual e/ou com a família'
-    miniLabel.append(mini, miniText)
-
-    const stageLabel = document.createElement('label')
-    stageLabel.className = 'consent'
-    const stage = document.createElement('input')
-    stage.type = 'checkbox'
-    stage.id = 'stage-' + pkg.codigo
-    stage.checked = pkg.inclui_palco === true
-    const stageText = document.createElement('span')
-    stageText.textContent = 'Inclui cobertura fotográfica das apresentações no palco'
-    stageLabel.append(stage, stageText)
-
-    const activeLabel = document.createElement('label')
-    activeLabel.className = 'consent'
-    const active = document.createElement('input')
-    active.type = 'checkbox'
-    active.id = 'active-' + pkg.codigo
-    active.checked = pkg.ativo !== false
-    const activeText = document.createElement('span')
-    activeText.textContent = 'Disponibilizar esta experiência na página pública'
-    activeLabel.append(active, activeText)
-
-    flags.append(miniLabel, stageLabel, activeLabel)
-    card.append(heading, nameField, priceField, descriptionField, flags)
-    root.append(card)
+  const name=document.createElement('input')
+  name.type='text';name.maxLength=100;name.required=true;name.value=pkg.nome||''
+  name.addEventListener('input',()=>{
+   pkg.nome=name.value;left.textContent=name.value||'Nova experiência'
+  })
+  const price=document.createElement('input')
+  price.type='text';price.inputMode='decimal';price.placeholder='150,00'
+  price.value=moneyToInput(pkg.preco_centavos)
+  price.addEventListener('input',()=>{
+   const cents=parseMoney(price.value)
+   if(Number.isFinite(cents))pkg.preco_centavos=cents
+   right.textContent=Number.isFinite(cents)?'R$ '+moneyToInput(cents):'Confira o preço'
+  })
+  essentials.append(label('Nome da experiência','name-'+pkg.codigo,name),
+   label('Valor em reais','price-'+pkg.codigo,price))
+  const description=document.createElement('textarea')
+  description.id='description-'+pkg.codigo
+  description.rows=3;description.maxLength=6000
+  description.placeholder='Ex.: sessão individual, fotos digitais, acompanhamento...'
+  description.value=Array.isArray(pkg.descricao)?pkg.descricao.join('\n'):''
+  description.addEventListener('input',()=>pkg.descricao=description.value.split('\n').map(x=>x.trim()).filter(Boolean))
+  const advanced=document.createElement('details')
+  advanced.className='gf-package-advanced'
+  const advancedSummary=document.createElement('summary')
+  advancedSummary.textContent='Opções avançadas (miniensaio, palco e visibilidade)'
+  const flags=document.createElement('div');flags.className='gf-package-flags'
+  for(const [id,key,text] of [
+   ['mini-','inclui_miniensaio','Inclui miniensaio individual ou em família'],
+   ['stage-','inclui_palco','Inclui fotografia das apresentações no palco'],
+   ['active-','ativo','Mostrar esta experiência na página pública']
+  ]){
+   const field=document.createElement('label')
+   const input=document.createElement('input')
+   input.id=id+pkg.codigo;input.type='checkbox'
+   input.checked=key==='ativo'?pkg.ativo!==false:pkg[key]===true
+   input.addEventListener('change',()=>{
+    pkg[key]=input.checked
+    if(key==='ativo')status.textContent=input.checked?'Visível':'Oculta'
+   })
+   const span=document.createElement('span');span.textContent=text
+   field.append(input,span);flags.append(field)
   }
+  advanced.append(advancedSummary,flags)
+  const controls=document.createElement('div');controls.className='gf-package-actions'
+  const toggle=document.createElement('button');toggle.type='button'
+  toggle.className='btn btn-secondary btn-sm'
+  toggle.textContent=pkg.ativo===false?'Reativar experiência':'Ocultar experiência'
+  toggle.addEventListener('click',()=>{
+   pkg.ativo=pkg.ativo===false
+   renderPackages()
+  })
+  controls.append(toggle)
+  body.append(essentials,label('O que a experiência inclui (uma informação por linha)',
+   'description-'+pkg.codigo,description),advanced,controls)
+  card.append(summary,body);root.append(card)
+ }
 }
 
 function createPackageCode(name) {
@@ -270,6 +260,7 @@ function addPackage() {
     ativo: true,
     ordem: currentPackages.length,
   })
+  packageExpanded.add(codigo)
   renderPackages()
 }
 function collectConfig() {
