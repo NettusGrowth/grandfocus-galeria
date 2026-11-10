@@ -1,5 +1,11 @@
 -- Apenas PostgreSQL temporário do CI: simula módulos base de 001–079.
 -- Não faz parte da migração de produção. Executar após testar 092.
+-- Fotografia do total de inscrições antes da migração. Não presume base vazia.
+create table public.gf_integration_test_baseline (respostas integer not null);
+insert into public.gf_integration_test_baseline(respostas)
+ select count(*) from public.gf_contratacao_form_respostas;
+grant select on public.gf_integration_test_baseline to service_role;
+
 create table if not exists public.alunos (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
