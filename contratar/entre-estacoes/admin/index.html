@@ -12,13 +12,13 @@
   <link rel="stylesheet" href="/contratar/entre-estacoes/styles.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/form-builder.css">
   <script type="module" src="/contratar/entre-estacoes/admin/admin.js?v=20261110-admin2"></script>
-  <script type="module" src="/contratar/entre-estacoes/admin/central.js?v=20261110-admin2"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/central.js?v=20261110-finance-sync1"></script>
   <script type="module" src="/contratar/entre-estacoes/admin/form-builder.js"></script>
-  <script type="module" src="/contratar/entre-estacoes/admin/workspace.js?v=20261110-admin2"></script>
+  <script type="module" src="/contratar/entre-estacoes/admin/workspace.js?v=20261110-finance-sync1"></script>
   <script type="module" src="/contratar/fada-natal/admin.js"></script>
   <link rel="stylesheet" href="/contratar/fada-natal/admin.css">
   <link rel="stylesheet" href="/contratar/entre-estacoes/admin/workspace.css">
-  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css?v=20261110-admin2">
+  <link rel="stylesheet" href="/contratar/entre-estacoes/admin/premium.css?v=20261110-finance-sync1">
   <link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">
   <link rel="apple-touch-icon" href="/assets/logo-icone.png?v=20261109">
 </head>
@@ -95,9 +95,48 @@
         <p class="gf-central-eyebrow">FINANCEIRO · GRAND FOCUS</p>
         <h2>Visão financeira</h2>
         <p class="gf-central-subtitle">Valores previstos e pagamentos realmente conferidos, sem misturar com os atendimentos.</p>
-                <div class="gf-finance-toolbar"><a id="gf-finance-sheet" href="/contratar/planilha/">☷ Abrir planilha de pagamentos ↗</a></div>
+                <div class="gf-finance-toolbar"><a id="gf-finance-sheet" href="/contratar/planilha/" target="_blank" rel="noopener noreferrer">☷ Abrir planilha de pagamentos ↗</a></div>
         <div class="gf-central-metrics" id="gf-central-metrics" aria-label="Resumo de valores e atendimentos"></div>
         <button type="button" class="gf-metrics-toggle" id="gf-metrics-toggle" aria-expanded="false">Ver todos os indicadores <span aria-hidden="true">⌄</span></button>
+      <section class="gf-finance-sync" aria-labelledby="gf-finance-sync-heading">
+        <div class="gf-finance-sync-head">
+          <div>
+            <p class="gf-central-eyebrow">PLANILHA + FINANCEIRO</p>
+            <h3 id="gf-finance-sync-heading">Recebimentos por família</h3>
+            <p>A mesma fonte de dados da planilha, sem duplicar lançamentos. O pagamento conferido e a confirmação do horário são controles separados.</p>
+          </div>
+          <button type="button" id="gf-finance-sync-refresh" class="btn btn-secondary">↻ Sincronizar agora</button>
+        </div>
+        <div class="gf-finance-sync-controls">
+          <label for="gf-finance-filter">Mostrar
+            <select id="gf-finance-filter">
+              <option value="todos">Todos os registros financeiros</option>
+              <option value="pendentes">Com saldo a receber</option>
+              <option value="recebidos">Com pagamento recebido</option>
+              <option value="conferir">Pagamentos a conferir</option>
+              <option value="horarios">Pagos · horário a confirmar</option>
+            </select>
+          </label>
+          <span id="gf-finance-sync-count" aria-live="polite">Carregando...</span>
+        </div>
+        <div class="gf-finance-sync-scroll" role="region" tabindex="0" aria-label="Movimentações financeiras sincronizadas com a planilha">
+          <table class="gf-finance-sync-table">
+            <thead><tr>
+              <th scope="col">Família e experiência</th>
+              <th scope="col">Ensaio</th>
+              <th scope="col">Previsto</th>
+              <th scope="col">Recebido</th>
+              <th scope="col">A receber</th>
+              <th scope="col">Pagamento</th>
+              <th scope="col">Reserva</th>
+              <th scope="col">Planilha</th>
+            </tr></thead>
+            <tbody id="gf-finance-sync-rows"><tr><td colspan="8">Carregando os registros desta campanha...</td></tr></tbody>
+          </table>
+        </div>
+        <p class="gf-finance-sync-status" id="gf-finance-sync-status" role="status" aria-live="polite">Aguardando sincronização autenticada...</p>
+      </section>
+
         <details class="gf-fee-settings" id="gf-fee-settings">
           <summary><span class="gf-fee-icon" aria-hidden="true">%</span> Configurar estimativa da taxa do cartão <span class="gf-fee-chevron" aria-hidden="true">⌄</span></summary>
           <div class="gf-fee-body">

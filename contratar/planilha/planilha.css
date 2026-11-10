@@ -128,3 +128,9 @@ main{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
 .buttons .action-confirm-schedule:not(:disabled):hover{background:#d4ecd9;border-color:#4c9a6b}
 .buttons .action-confirm-schedule:disabled{background:#f3f0ee;border-color:#ded8d7;
  color:#84777a;cursor:not-allowed;opacity:.8}
+
+/* Retorno ao Financeiro da mesma campanha. */
+.sheet-finance-link{display:inline-flex;align-items:center;justify-content:center;
+ padding:10px 14px;border:1px solid #BFA2AE;border-radius:9px;text-decoration:none;
+ color:#5D1838;background:#FFF7F9;font-size:13px;font-weight:800;min-height:43px}
+.sheet-finance-link:hover{background:#F9E9EF}

@@ -14,7 +14,13 @@ const centralSearch = document.getElementById('gf-central-search')
 const centralOrigin = document.getElementById('gf-central-origin')
 const centralSort = document.getElementById('gf-central-sort')
 const centralResultCount = document.getElementById('gf-central-results-count')
-const centralState = { data: [], view: 'todos', layout: 'compact', selected: null, loading: false, ready: false, section: null, feeBps:420, previousIds:new Set() }
+const centralState = { data: [], view: 'todos', layout: 'compact', selected: null, loading: false, ready: false, section: null, feeBps:420, previousIds:new Set() } 
+const financeScope = () => decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')
+const financeRows = document.getElementById('gf-finance-sync-rows')
+const financeFilter = document.getElementById('gf-finance-filter')
+const financeCount = document.getElementById('gf-finance-sync-count')
+const financeStatus = document.getElementById('gf-finance-sync-status')
+
 const brl = value => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((Number(value)||0)/100)
 const safeDate = value => {
   if (!value) return 'Não informado'
@@ -61,7 +67,7 @@ function pendingMoney(record) {
   if (record.source==='online') {
     return ['aguardando_pagamento','pagamento_pendente'].includes(record.status) ? Math.max(0,record.value-confirmedMoney(record)) : 0
   }
-  return ['pendente','parcial'].includes(record.status) ?
+  return ['nao_conferido','pendente','parcial'].includes(record.status) ?
     Math.max(0,(record.value||0)-confirmedMoney(record)) : 0
 }
 function needsReview(record) { return record.source==='formulario' && record.status==='nao_conferido' || record.source==='online' && record.status==='conciliacao_pendente' }
@@ -92,6 +98,7 @@ function statusDisplay(record) {
   return map[record.status]||[record.status||'Sem classificação','neutral']
 }
 function normalizedEntries(payload) {
+  const slotById = new Map((payload.horarios||[]).map(slot=>[slot.id,slot]))
   const follows = new Map((payload.acompanhamentos||[]).map(f=>[
     (f.pedido_id ? 'online:' + f.pedido_id : 'formulario:' + f.resposta_form_id),f,
   ]))
@@ -113,11 +120,26 @@ function normalizedEntries(payload) {
     return entry
   })
   const forms=(payload.respostas||[]).map(p=>{
+    const slot=slotById.get(p.horario_id)
+    const day=String(slot?.dia||'').slice(0,10)
+    const start=String(slot?.inicio||'').slice(0,5)
+    const participants=Array.isArray(p.alunos_inscritos)&&p.alunos_inscritos.length?
+      p.alunos_inscritos.length:1
+    const duration=Number(slot?.duracao_minutos)||15
+    const startMinutes= /^\d{2}:\d{2}$/.test(start)?
+      Number(start.slice(0,2))*60+Number(start.slice(3,5)):null
+    const endMinutes=startMinutes===null?null:startMinutes+duration*participants
+    const finish=endMinutes!==null&&endMinutes<=1440?
+      String(Math.floor(endMinutes/60)).padStart(2,'0')+':'+
+      String(endMinutes%60).padStart(2,'0'):null
+    const scheduledAt=/^\d{4}-\d{2}-\d{2}$/.test(day)&&finish?
+      day.slice(8)+'/'+day.slice(5,7)+'/'+day.slice(0,4)+' · '+start+'–'+finish:null
     const entry={
       source:'formulario',id:p.id,
       label:p.origem==='formulario_site'?(payload.campanha?.nome||'Formulário')+' · inscrição '+p.origem_linha:'Google Forms · linha '+p.origem_linha,
       name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:p.email_responsavel||'',
       slotId:p.horario_id||null,scheduleStatus:p.agendamento_status||null,
+      scheduledAt,
       declaredPayment:p.pagamento_declarado||null,
       studentsCount:Array.isArray(p.alunos_inscritos)?p.alunos_inscritos.length:0,
       scheduleExpiry:p.agendamento_expira_em||null,
@@ -201,6 +223,92 @@ function updateGenteCommission(records){
   ?'Mais de 35 crianças: o contrato exige novo acordo escrito sobre a comissão. Nenhum repasse foi calculado automaticamente.'
   :'Faixa calculada sobre crianças com pedidos integralmente pagos e conferidos. Reembolsos e pagamentos parciais não são contabilizados automaticamente. Estimativa; nenhum repasse foi realizado.'
 }
+
+function financialSourceRows(){
+  // Um pedido = uma linha. Usa os MESMOS registros de "central_listar"
+  // que alimentam a planilha, sem tabela-espelho nem lançamento duplicado.
+  return centralState.data.filter(r=>!r.archived||confirmedMoney(r)>0)
+}
+function paidAwaitingSchedule(record){
+ return record.source==='formulario'&&!record.archived&&!!record.slotId&&
+  record.scheduleStatus==='solicitado'&&record.value>0&&
+  paid(record)&&confirmedMoney(record)>=record.value
+}
+function syncFinancialRowVisible(record,mode){
+ if(mode==='recebidos')return confirmedMoney(record)>0
+ if(mode==='pendentes')return !record.archived&&pendingMoney(record)>0
+ if(mode==='conferir')return !record.archived&&needsReview(record)
+ if(mode==='horarios')return paidAwaitingSchedule(record)
+ return true
+}
+function renderFinanceLedger(){
+ if(!financeRows)return
+ const entries=financialSourceRows()
+ const mode=financeFilter?.value||'todos'
+ const visible=entries.filter(record=>syncFinancialRowVisible(record,mode))
+ visible.sort((a,b)=>{
+  const at=Date.parse(a.when||'')||0,bt=Date.parse(b.when||'')||0
+  return bt-at
+ })
+ financeRows.replaceChildren()
+ financeCount.textContent=visible.length+' de '+entries.length+' registro(s) · '+
+  entries.filter(paidAwaitingSchedule).length+' horário(s) pago(s) a confirmar'
+ if(!visible.length){
+  const tr=dom('tr'),td=dom('td','gf-finance-sync-empty','Nenhum registro corresponde a este filtro.')
+  td.colSpan=8;tr.append(td);financeRows.append(tr);return
+ }
+ const fragment=document.createDocumentFragment()
+ for(const r of visible){
+  const tr=dom('tr')
+  if(r.archived)tr.classList.add('gf-finance-sync-archived')
+  const person=dom('td')
+  person.append(dom('strong','gf-finance-sync-person',r.name||'Sem responsável'),
+    dom('span','gf-finance-sync-secondary',
+      [r.source==='online'?'Pedido da galeria':'Formulário',r.dancer||r.package||'']
+       .filter(Boolean).join(' · ')))
+  if(r.archived)person.append(dom('span','gf-finance-sync-muted','Histórico arquivado'))
+  const when=dom('td','gf-finance-sync-when',r.scheduledAt||'Sem horário selecionado')
+  const expected=dom('td','gf-finance-sync-money',r.value==null?'A conferir':brl(r.value))
+  const received=dom('td','gf-finance-sync-money',brl(confirmedMoney(r)))
+  const due=dom('td','gf-finance-sync-money',
+    brl(!r.archived&&isForecastEligible(r)?pendingMoney(r):0))
+  const moneyStatus=dom('td')
+  const [paymentText,paymentTone]=statusDisplay(r)
+  const paymentPill=tag(paymentText,paymentTone)
+  paymentPill.classList.add('gf-finance-sync-pill')
+  moneyStatus.append(paymentPill)
+  const schedule=dom('td')
+  const scheduleText=!r.slotId?'Sem reserva':r.scheduleStatus==='confirmado'?'Confirmado':
+    r.scheduleStatus==='solicitado'?'Solicitado':
+    r.scheduleStatus==='cancelado'?'Cancelado':'A conferir'
+  const schedulePill=tag(scheduleText,r.scheduleStatus==='confirmado'?'positive':
+    paidAwaitingSchedule(r)?'attention':'neutral')
+  schedulePill.classList.add('gf-finance-sync-pill')
+  schedule.append(schedulePill)
+  if(paidAwaitingSchedule(r))schedule.append(dom('small','gf-finance-sync-warning',
+    'Pagamento conferido · confirmar horário'))
+  const action=dom('td')
+  if(r.source==='formulario'){
+   const link=dom('a','gf-finance-sync-action','Abrir na planilha ↗')
+   link.href='/contratar/planilha/?campanha='+encodeURIComponent(financeScope())+
+    (r.archived?'&situacao=arquivados':'')+'&editar='+encodeURIComponent(r.id)
+   link.target='_blank';link.rel='noopener noreferrer'
+   action.append(link)
+  }else{
+   const button=dom('button','gf-finance-sync-action','Ver pedido')
+   button.type='button'
+   button.addEventListener('click',()=>{
+    window.gfOpenAdminWorkspace?.('respostas',true)
+    selectRecord(r)
+   })
+   action.append(button)
+  }
+  tr.append(person,when,expected,received,due,moneyStatus,schedule,action)
+  fragment.append(tr)
+ }
+ financeRows.append(fragment)
+}
+
 function updateMetrics() {
   const entries=centralState.data.filter(r=>!r.archived||paid(r))
   const future=entries.filter(isForecastEligible)
@@ -224,6 +332,7 @@ function updateMetrics() {
     metric('Cadastros ativos',String(entries.filter(r=>!r.archived).length),'Famílias e pedidos ativos'),
     metric('Pagamentos a conferir',String(entries.filter(needsReview).length),'Ainda não são dinheiro confirmado','attention'),
   )
+  renderFinanceLedger()
 }
 function updateViewCounters() {
   const active=centralState.data.filter(r=>!r.archived)
@@ -764,6 +873,10 @@ async function loadCentral(initial, preserveNotice = false) {
     document.getElementById('gf-fee-rate').value=(centralState.feeBps/100).toFixed(2)
     centralState.ready=true
     updateMetrics()
+    financeStatus.textContent='Sincronizado com a planilha às '+
+      new Date().toLocaleTimeString('pt-BR',{timeZone:'America/Sao_Paulo'})+
+      ' · mesma base de contratos e pagamentos'
+    financeStatus.dataset.state='success'
     renderList()
     if (!preserveNotice && !document.getElementById('gf-live-count')?.textContent) notice('Atualizado: '+centralState.data.filter(r=>!r.archived).length+' cadastros ativos.','success')
     if(payload.resultados_possivelmente_truncados)notice('A consulta atingiu o limite de 1.000 registros por origem. Consulte a exportação completa antes de tomar decisões financeiras.','error')
@@ -774,6 +887,9 @@ async function loadCentral(initial, preserveNotice = false) {
     }
   }catch(error) {
     notice(error.message||'Não foi possível carregar os registros.','error')
+    financeStatus.textContent='Não foi possível sincronizar o financeiro: '+
+      (error.message||'Erro de conexão')+'. Os valores anteriores podem estar desatualizados.'
+    financeStatus.dataset.state='error'
     if(initial){centralMetrics.replaceChildren();centralList.replaceChildren(dom('p','gf-empty','Verifique sua conexão ou entre novamente como administrador.'))}
   }finally {centralState.loading=false;refresh.disabled=false}
 }
@@ -857,6 +973,8 @@ centralDialog.addEventListener('click',event=>{
   if(event.target===centralDialog)closeRecord()
 })
 document.getElementById('gf-central-refresh').addEventListener('click',()=>loadCentral(false))
+document.getElementById('gf-finance-sync-refresh').addEventListener('click',()=>loadCentral(false,true))
+financeFilter.addEventListener('change',renderFinanceLedger)
 document.getElementById('gf-central-export').addEventListener('click',exportCsv)
 for(const button of document.querySelectorAll('#gf-central-tabs [data-view]')){
   button.addEventListener('click',()=>{
@@ -867,6 +985,29 @@ for(const button of document.querySelectorAll('#gf-central-tabs [data-view]')){
   })
 }
 for(const el of [centralSearch,centralOrigin,centralSort])el.addEventListener(el===centralSearch?'input':'change',renderList)
+function refreshFinanceOnReturn(){
+ if(document.hidden||centralState.loading||!centralState.ready||
+  document.getElementById('admin-area')?.classList.contains('hidden'))return
+ void loadCentral(false,true)
+}
+// Além da atualização periódica, sincroniza imediatamente ao abrir o financeiro,
+// voltar de outra aba ou receber notificação da planilha do mesmo evento.
+window.addEventListener('gf-workspace-page',event=>{
+ if(event.detail?.page==='financeiro')refreshFinanceOnReturn()
+})
+window.addEventListener('focus',()=>{
+ if(document.getElementById('gf-financeiro')?.hidden===false)refreshFinanceOnReturn()
+})
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden&&document.getElementById('gf-financeiro')?.hidden===false)
+  refreshFinanceOnReturn()
+})
+if(typeof BroadcastChannel==='function'){
+ const financeChannel=new BroadcastChannel('gf-contratacao-sync')
+ financeChannel.addEventListener('message',event=>{
+  if(event.data?.slug===financeScope())refreshFinanceOnReturn()
+ })
+}
 setInterval(()=>{
  if(document.hidden||centralDialog.open||document.getElementById('admin-area')?.classList.contains('hidden')
    ||centralState.loading||!centralState.ready)return
