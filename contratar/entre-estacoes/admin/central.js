@@ -497,6 +497,14 @@ function selectRecord(record) {
     })
     fast.append(contact)
   }
+  if(record.source==='formulario'&&!record.archived){
+    const editLink=dom('a','gf-quick-step','✎ Editar resposta')
+    const campaign=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'entre-estacoes')
+    editLink.href='/contratar/planilha/?campanha='+encodeURIComponent(campaign)+
+      '&editar='+encodeURIComponent(record.id)
+    editLink.target='_blank';editLink.rel='noopener noreferrer'
+    fast.append(editLink)
+  }
   if(record.source==='formulario'&&!paid(record)&&!record.archived){
     const payment=actionButton('R$ Registrar pagamento','gf-quick-step')
     payment.addEventListener('click',()=>{
