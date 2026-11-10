@@ -136,6 +136,76 @@ try{
   assert.ok(dimensions.scroll<=dimensions.client+1,
    'A planilha não deve transbordar a página: '+JSON.stringify({width,...dimensions}))
  }
+
+ // A mesma planilha deve mostrar dia, horário efetivo e situação da agenda.
+ // Dois alunos usam trinta minutos consecutivos; o backend não altera reservas.
+ const fadaPage=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true})
+ const fadaErrors=[]
+ fadaPage.on('pageerror',error=>fadaErrors.push(error.message))
+ await fadaPage.route('https://esm.sh/**',route=>route.fulfill({
+  status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*'},
+  body:"export function createClient(){return {auth:{getSession:async()=>({data:{session:{access_token:'fake-admin-token'}}})}}}"
+ }))
+ const saturdayId='22222222-2222-4222-8222-222222222222'
+ const sundayId='33333333-3333-4333-8333-333333333333'
+ const fadaRows=[
+  {...r,id:'44444444-4444-4444-8444-444444444444',
+   responsavel_nome:'Família Sábado',horario_id:saturdayId,
+   agendamento_status:'solicitado',
+   alunos_inscritos:[{nome:'Irmã Um'},{nome:'Irmã Dois'}],
+   bailarina_nome:'Irmã Um, Irmã Dois'},
+  {...r,id:'55555555-5555-4555-8555-555555555555',
+   responsavel_nome:'Família Domingo',horario_id:sundayId,
+   agendamento_status:'confirmado',
+   alunos_inscritos:[{nome:'Bailarina Domingo'}],
+   bailarina_nome:'Bailarina Domingo',respondido_em:'2026-11-10T15:00:00Z'}
+ ]
+ const fadaSlots=[
+  {id:saturdayId,dia:'2026-12-12',inicio:'10:00:00',duracao_minutos:15},
+  {id:sundayId,dia:'2026-12-13',inicio:'09:30:00',duracao_minutos:15}
+ ]
+ await fadaPage.route('**/functions/v1/contratacao-admin',async route=>{
+  const body=JSON.parse(route.request().postData()||'{}')
+  assert.equal(body.slug,'natal-fada-acucarada-2026')
+  assert.equal(body.action,'central_listar')
+  await route.fulfill({status:200,contentType:'application/json',
+   body:JSON.stringify({campanha:{nome:'Fada Açucarada',planilha_colunas:[]},
+    respostas:fadaRows,horarios:fadaSlots,pedidos:[],acompanhamentos:[]})})
+ })
+ await fadaPage.goto(origin+'/contratar/planilha/?campanha=natal-fada-acucarada-2026',
+  {waitUntil:'networkidle'})
+ await fadaPage.waitForFunction(()=>document.querySelector('#count')?.textContent==='2 registro(s)')
+ assert.match(await fadaPage.locator('#sheet-head').textContent(),/Dia do ensaio/)
+ assert.match(await fadaPage.locator('#sheet-head').textContent(),/Horário do ensaio/)
+ assert.match(await fadaPage.locator('#sheet-head').textContent(),/Situação da reserva/)
+ assert.match(await fadaPage.locator('#rows').textContent(),/10:00 – 10:30/)
+ assert.match(await fadaPage.locator('#rows').textContent(),/09:30 – 09:45/)
+ assert.match(await fadaPage.locator('#rows').textContent(),/Solicitado/)
+ assert.match(await fadaPage.locator('#rows').textContent(),/Confirmado/)
+ assert.equal(await fadaPage.locator('#schedule-date-field').isVisible(),true)
+ await fadaPage.locator('#sort-order').selectOption('schedule')
+ assert.match(await fadaPage.locator('#rows tr').first().textContent(),/Família Sábado/)
+ await fadaPage.locator('#schedule-date-filter').selectOption('2026-12-13')
+ assert.equal(await fadaPage.locator('#count').textContent(),'1 registro(s)')
+ assert.match(await fadaPage.locator('#rows').textContent(),/Família Domingo/)
+ await fadaPage.locator('#schedule-date-filter').selectOption('')
+ const [download]=await Promise.all([
+  fadaPage.waitForEvent('download'),
+  fadaPage.locator('#export').click()
+ ])
+ const csv=fs.readFileSync(await download.path(),'utf8')
+ assert.match(csv,/Dia do ensaio;Horário do ensaio;Situação da reserva/)
+ assert.match(csv,/12\\/12\\/2026;10:00 – 10:30;Solicitado/)
+ assert.match(csv,/13\\/12\\/2026;09:30 – 09:45;Confirmado/)
+ for(const width of [320,390,768]){
+  await fadaPage.setViewportSize({width,height:844})
+  const d=await fadaPage.evaluate(()=>({
+   w:document.documentElement.clientWidth,scroll:document.documentElement.scrollWidth
+  }))
+  assert.ok(d.scroll<=d.w+1,'Sem overflow na agenda: '+JSON.stringify(d))
+ }
+ assert.deepEqual(fadaErrors,[],'Sem exceções JS na campanha Fada')
+ await fadaPage.close()
  assert.deepEqual(errors,[],'Sem exceções JS')
  for(const action of ['central_listar','planilha_configurar_colunas','planilha_editar_resposta','central_registrar_pagamento','central_arquivar'])
   assert.ok(history.includes(action),'Ação não testada: '+action)
