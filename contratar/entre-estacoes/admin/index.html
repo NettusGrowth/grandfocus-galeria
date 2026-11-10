@@ -81,7 +81,7 @@
       <nav class="gf-workspace-nav" aria-label="Áreas de administração" role="group">
         <button type="button" data-workspace-tab="perguntas" aria-pressed="true">✎ Perguntas</button>
         <button type="button" data-workspace-tab="respostas" aria-pressed="false">☷ Respostas <span class="gf-live-count" id="gf-live-count" aria-live="polite"></span></button>
-        <button type="button" data-workspace-tab="financeiro" aria-pressed="false">$ Financeiro</button>
+        <a class="gf-finance-central-link" href="/contratar/admin/financeiro/" title="Abrir financeiro geral de todas as escolas">◈ Financeiro geral ↗</a>
         <button type="button" data-workspace-tab="aparencia" aria-pressed="false">◈ Aparência</button>
         <button type="button" data-workspace-tab="evento" aria-pressed="false">▦ Evento e pacotes</button>
       </nav>
@@ -91,7 +91,7 @@
         <div class="status-card" id="integration-status" aria-live="polite">Verificando integração…</div>
       </details>
 
-      <section class="panel gf-financeiro" id="gf-financeiro" data-workspace-page="financeiro" aria-label="Dados financeiros da campanha">
+      <section class="panel gf-financeiro" id="gf-financeiro" data-workspace-page="financeiro-legado" hidden aria-label="Dados financeiros da campanha">
         <p class="gf-central-eyebrow">FINANCEIRO · GRAND FOCUS</p>
         <h2>Visão financeira</h2>
         <p class="gf-central-subtitle">Valores previstos e pagamentos realmente conferidos, sem misturar com os atendimentos.</p>
@@ -177,7 +177,7 @@
           <div>
             <p class="gf-central-eyebrow">Visão geral</p>
             <h2 id="gf-central-title">Respostas</h2>
-            <p class="gf-central-subtitle">Cadastros recentes, WhatsApp e ações rápidas. O financeiro fica em sua própria aba.</p>
+            <p class="gf-central-subtitle">Cadastros recentes, WhatsApp e ações rápidas. O financeiro geral fica no painel de contratações.</p>
           </div>
           <div class="gf-central-actions">
             <a class="btn btn-primary" id="gf-open-sheet" href="/contratar/planilha/" target="_blank" rel="noopener noreferrer">▦ Ver em planilha</a>
