@@ -249,7 +249,7 @@ try{
  assert.equal(await fadaConfirm.count(),1)
  assert.equal(await fadaConfirm.isDisabled(),true)
  assert.match(await fadaConfirm.getAttribute('title'),/pagamento integral/)
- await fadaPage.getByRole('button',{name:/R\\$ Conferir/}).first().click()
+ await fadaPage.getByRole('button',{name:'R$ Conferir'}).first().click()
  await fadaPage.locator('#pay-status').selectOption('pago_manual')
  await fadaPage.locator('#pay-amount').fill('270,00')
  await fadaPage.locator('#pay-method').selectOption('pix')
