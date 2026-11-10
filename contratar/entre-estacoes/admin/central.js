@@ -118,6 +118,7 @@ function normalizedEntries(payload) {
       name:p.responsavel_nome,whatsapp:p.responsavel_whatsapp,email:p.email_responsavel||'',
       slotId:p.horario_id||null,scheduleStatus:p.agendamento_status||null,
       declaredPayment:p.pagamento_declarado||null,
+      studentsCount:Array.isArray(p.alunos_inscritos)?p.alunos_inscritos.length:0,
       scheduleExpiry:p.agendamento_expira_em||null,
       people:[{nome:p.bailarina_nome,turma:p.modalidade_original,pacote:p.experiencia_original}],
       dancer:p.bailarina_nome,package:p.experiencia_original,
@@ -176,6 +177,36 @@ function metric(label,value,caption,tone) {
   card.append(dom('span','gf-metric-label',label),dom('strong','gf-metric-value',value),dom('p','gf-metric-caption',caption))
   return card
 }
+// A comissão da Gente que Dança só considera crianças de pedidos integralmente
+// pagos e conferidos. Não conta Pix declarado, interesse, pagamento parcial,
+// nem transação cancelada ou reembolsada. >35 exige acordo escrito.
+function updateGenteCommission(records){
+ const root=document.getElementById('gf-gente-comissao')
+ if(!root)return
+ const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'')
+ root.hidden=slug!=='gente-que-danca-2026'
+ if(root.hidden)return
+ const eligible=records.filter(r=>r.source==='formulario' &&
+  r.status==='pago_manual' && Number.isInteger(r.studentsCount) &&
+  r.studentsCount>=1 && r.studentsCount<=4 &&
+  r.value===r.studentsCount*15000 && r.paidValue>=r.value)
+ const confirmed=eligible.reduce((sum,r)=>sum+r.studentsCount,0)
+ const gross=confirmed*15000
+ const tier=confirmed<10?0:confirmed<=24?10:confirmed<=29?15:confirmed<=35?20:null
+ const payout=tier===null?null:Math.round(gross*tier/100)
+ const children=root.querySelector('[data-gente-children]')
+ const revenue=root.querySelector('[data-gente-revenue]')
+ const percent=root.querySelector('[data-gente-rate]')
+ const commission=root.querySelector('[data-gente-payout]')
+ const caveat=root.querySelector('[data-gente-caveat]')
+ if(children)children.textContent=String(confirmed)
+ if(revenue)revenue.textContent=brl(gross)
+ if(percent)percent.textContent=tier===null?'A definir':tier+'%'
+ if(commission)commission.textContent=payout===null?'Conforme acordo escrito':brl(payout)
+ if(caveat)caveat.textContent=confirmed>35
+  ?'Mais de 35 crianças: o contrato exige novo acordo escrito sobre a comissão. Nenhum repasse foi calculado automaticamente.'
+  :'Faixa calculada sobre crianças com pedidos integralmente pagos e conferidos. Reembolsos e pagamentos parciais não são contabilizados automaticamente. Estimativa; nenhum repasse foi realizado.'
+}
 function updateMetrics() {
   const entries=centralState.data.filter(r=>!r.archived||paid(r))
   const future=entries.filter(isForecastEligible)
@@ -186,6 +217,7 @@ function updateMetrics() {
   const feeConfirmed=entries.reduce((sum,r)=>sum+estimatedCharge(confirmedMoney(r),r),0)
   const netConfirmed=grossConfirmed-feeConfirmed
   const pendingNet=future.reduce((sum,r)=>sum+estimatedNet(pendingMoney(r),r),0)
+  updateGenteCommission(entries)
   centralMetrics.replaceChildren(
     metric('Líquido previsto',brl(netFuture),'Estimativa após taxas · não é dinheiro recebido','positive'),
     metric('Taxas estimadas',brl(feeFuture),'Crédito à vista '+financeRateLabel()+' · por pedido','attention'),
