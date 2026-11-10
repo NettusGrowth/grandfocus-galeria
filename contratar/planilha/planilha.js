@@ -211,6 +211,20 @@ function renderRows(){
   }
   if(r.source==='formulario'&&!r.archived){
    controls.append(button(r.paidAmount>0?'R$ Corrigir':'R$ Conferir',()=>openPay(r),'action-payment'))
+   if(r.slot&&r.scheduleStatus==='solicitado'&&
+     ['gente-que-danca-2026','natal-fada-acucarada-2026'].includes(slug)){
+    const paidInFull=r.paid&&r.value>0&&r.paidAmount>=r.value
+    const confirmButton=button('✓ Confirmar horário',()=>confirmSchedule(r,confirmButton),
+     'action-confirm-schedule')
+    confirmButton.disabled=!paidInFull
+    if(!paidInFull){
+     confirmButton.title='É necessário conferir e registrar o pagamento integral antes de confirmar.'
+     confirmButton.setAttribute('aria-label','Confirmar horário indisponível: pagamento integral ainda não conferido')
+    }else{
+     confirmButton.title='Confirmar agendamento desta família após conferir o pagamento integral'
+    }
+    controls.append(confirmButton)
+   }
   }
   if(r.archived){
    controls.append(button('↶ Restaurar',()=>archive(r,false),'action-secondary'))
@@ -275,6 +289,31 @@ async function archive(r,remove){
   toast(remove?'Resposta removida da lista. Pode ser restaurada.':'Resposta restaurada.')
   await refresh()
  }catch(e){showError(e.message)}
+}
+async function confirmSchedule(r,control){
+ // Reutiliza a mesma API e a mesma RPC segura da administração da campanha.
+ // A planilha nunca atualiza o status localmente antes do retorno do servidor.
+ if(r.source!=='formulario'||r.archived||!r.slot||r.scheduleStatus!=='solicitado')return
+ if(!r.paid||r.value<=0||r.paidAmount<r.value){
+  showError('Confira e registre o pagamento integral antes de confirmar o horário.');return
+ }
+ const action=slug==='gente-que-danca-2026'?'gente_atualizar_agendamento':
+  slug==='natal-fada-acucarada-2026'?'natal_atualizar_agendamento':null
+ if(!action){showError('Confirme o agendamento pela administração desta campanha.');return}
+ const details=r.scheduleDay!=='—'&&r.scheduleTime!=='—'?
+  '\\nEnsaio: '+r.scheduleDay+' · '+r.scheduleTime:''
+ if(!window.confirm('Confirmar definitivamente o horário de '+r.name+'?'+details+
+  '\\nO pagamento integral deve estar conferido.'))return
+ control.disabled=true;control.textContent='Confirmando...'
+ $('error').hidden=true
+ try{
+  await request(action,{resposta_id:r.id,status:'confirmado'})
+  toast('Horário confirmado e registrado no histórico administrativo.')
+  await refresh()
+ }catch(e){
+  showError(e.message||'Não foi possível confirmar o horário. Atualize a planilha.')
+  control.disabled=false;control.textContent='✓ Confirmar horário'
+ }
 }
 async function cancelSchedule(r){
  if(r.paidAmount>0){showError('Esta reserva possui dinheiro registrado. Revise a conferência financeira antes de cancelar.');return}
