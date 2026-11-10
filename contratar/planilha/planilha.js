@@ -11,6 +11,23 @@ const wa=tel=>{let n=String(tel||'').replace(/\D/g,'');if(n.length===10||n.lengt
 const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,columns:[],draft:[],editIntentHandled:false}
 const palette=['vinho','dourado','azul','verde','rosa','cinza']
 const rowColors=['sem','verde','amarelo','rosa','azul','cinza']
+const scheduleStatuses={solicitado:'Solicitado',confirmado:'Confirmado',cancelado:'Cancelado'}
+const ptDay=value=>/^\d{4}-\d{2}-\d{2}$/.test(String(value||''))?
+ value.slice(8,10)+'/'+value.slice(5,7)+'/'+value.slice(0,4):'—'
+function scheduleFor(form,byId){
+ const slot=byId.get(form.horario_id)
+ if(!slot)return {day:'—',dayISO:'',start:'',time:form.horario_id?'Horário não localizado':'—'}
+ const dayISO=String(slot.dia||'').slice(0,10)
+ const start=String(slot.inicio||'').slice(0,5)
+ const duration=Number(slot.duracao_minutos)||15
+ const count=Array.isArray(form.alunos_inscritos)&&form.alunos_inscritos.length?
+  form.alunos_inscritos.length:1
+ if(!/^\d{2}:\d{2}$/.test(start))return {day:ptDay(dayISO),dayISO,start:'',time:'Horário não localizado'}
+ const mins=Number(start.slice(0,2))*60+Number(start.slice(3,5))+duration*count
+ const finish=mins<=1440?String(Math.floor(mins/60)).padStart(2,'0')+':'+
+  String(mins%60).padStart(2,'0'):'—'
+ return {day:ptDay(dayISO),dayISO,start,time:start+' – '+finish}
+}
 $('back').href='/contratar/'+encodeURIComponent(slug)+'/admin/#respostas'
 
 async function request(action,body={}){
@@ -44,10 +61,12 @@ function setDialogError(prefix,msg){$(prefix+'-error').textContent=msg;$(prefix+
 function closeDialog(id){$(id).close()}
 
 function normalize(payload){
+ const bySlot=new Map((payload.horarios||[]).map(slot=>[slot.id,slot]))
  const follow=new Map((payload.acompanhamentos||[]).map(f=>[
   (f.pedido_id?'online:':'formulario:')+(f.pedido_id||f.resposta_form_id),f]))
  const forms=(payload.respostas||[]).map(r=>{
   const fu=follow.get('formulario:'+r.id)
+  const schedule=scheduleFor(r,bySlot)
   return {
    id:r.id,source:'formulario',name:r.responsavel_nome||'',
    whatsapp:r.responsavel_whatsapp||'',dancer:r.bailarina_nome||'',
@@ -62,7 +81,9 @@ function normalize(payload){
    contacted:!!fu?.ultimo_contato_em||['aguardando_resposta','concluido','nao_precisa'].includes(fu?.situacao||''),
    extras:r.planilha_campos&&typeof r.planilha_campos==='object'&&!Array.isArray(r.planilha_campos)?r.planilha_campos:{},
    color:rowColors.includes(r.planilha_cor)?r.planilha_cor:'sem',
-   note:r.planilha_nota||'',slot:r.horario_id||null,scheduleStatus:r.agendamento_status||null
+   note:r.planilha_nota||'',slot:r.horario_id||null,scheduleStatus:r.agendamento_status||null,
+   scheduleDay:schedule.day,scheduleDayISO:schedule.dayISO,
+   scheduleStart:schedule.start,scheduleTime:schedule.time
   }
  })
  const online=(payload.pedidos||[]).map(r=>{
@@ -75,7 +96,8 @@ function normalize(payload){
    cancelled:['cancelado','reembolsado'].includes(r.status),preferred:r.metodo_pagamento||'',
    archived:!!r.arquivado_em,contacted:!!fu?.ultimo_contato_em||
     ['aguardando_resposta','concluido','nao_precisa'].includes(fu?.situacao||''),
-   extras:{},note:'',color:'sem',students:null,slot:null
+   extras:{},note:'',color:'sem',students:null,slot:null,
+   scheduleDay:'—',scheduleDayISO:'',scheduleStart:'',scheduleTime:'—',scheduleStatus:null
   }
  })
  return [...forms,...online]
@@ -86,24 +108,35 @@ function displayedStatus(r){
 }
 function current(){
  const q=clean($('query').value),status=$('status-filter').value
+ const day=$('schedule-date-filter').value
  data.visible=data.all.filter(r=>{
   if(status==='arquivados'?!r.archived:r.archived)return false
+  if(day&&r.scheduleDayISO!==day)return false
   if(q&&!clean([r.name,r.dancer,r.whatsapp,r.package,r.note,
+   r.scheduleDay,r.scheduleTime,scheduleStatuses[r.scheduleStatus]||'',
    ...Object.values(r.extras||{})].join(' ')).includes(q))return false
   if(status==='novas'&&r.contacted)return false
   if(status==='pago'&&!r.paid)return false
   if(status==='pendente'&&(r.paid||r.cancelled))return false
   return true
  })
- data.visible.sort((a,b)=>Date.parse(b.when||0)-Date.parse(a.when||0))
+ if($('sort-order').value==='schedule'){
+  data.visible.sort((a,b)=>{
+   const keyA=a.scheduleDayISO?a.scheduleDayISO+'T'+a.scheduleStart:'9999'
+   const keyB=b.scheduleDayISO?b.scheduleDayISO+'T'+b.scheduleStart:'9999'
+   return keyA.localeCompare(keyB)||Date.parse(b.when||0)-Date.parse(a.when||0)
+  })
+ }else data.visible.sort((a,b)=>Date.parse(b.when||0)-Date.parse(a.when||0))
  $('count').textContent=data.visible.length+' registro(s)'
  renderHead()
  renderRows()
 }
 function renderHead(){
  const head=$('sheet-head');head.replaceChildren()
- const names=['Data','Responsável','WhatsApp','Bailarina(s)','Experiência','Valor previsto',
-  'Recebido','Situação','Preferência','Contato','Anotações']
+ const names=['Data da inscrição','Responsável','WhatsApp','Bailarina(s)',
+  'Dia do ensaio','Horário do ensaio','Situação da reserva',
+  'Experiência','Valor previsto','Recebido','Situação do pagamento',
+  'Preferência','Contato','Anotações']
  for(const name of names)head.append(el('th',name))
  for(const col of data.columns){
   const th=el('th',col.titulo,'column-'+col.cor)
@@ -116,7 +149,7 @@ function renderRows(){
  const root=$('rows');root.replaceChildren()
  if(!data.visible.length){
   const row=el('tr');const td=el('td','Nenhum registro corresponde aos filtros. Confira a aba “Removidos”.')
-  td.colSpan=12+data.columns.length;row.append(td);root.append(row);return
+  td.colSpan=15+data.columns.length;row.append(td);root.append(row);return
  }
  const fragment=document.createDocumentFragment()
  for(const r of data.visible){
@@ -125,20 +158,26 @@ function renderRows(){
   if(r.color!=='sem')row.classList.add('row-'+r.color)
   if(r.archived)row.classList.add('archived')
   const base=[
-    date(r.when),r.name,r.whatsapp,r.dancer,r.package,money(r.value),
-    money(r.paidAmount),displayedStatus(r),r.preferred,r.contacted?'Contatado':'Ainda não',null
+    date(r.when),r.name,r.whatsapp,r.dancer,r.scheduleDay,r.scheduleTime,
+    scheduleStatuses[r.scheduleStatus]||(r.slot?'A conferir':'—'),
+    r.package,money(r.value),money(r.paidAmount),displayedStatus(r),
+    r.preferred,r.contacted?'Contatado':'Ainda não',null
   ]
   for(let i=0;i<base.length;i++){
    const td=el('td')
    if(i===2&&wa(r.whatsapp)){
     const a=el('a',base[i]);a.href=wa(r.whatsapp);a.target='_blank';a.rel='noopener noreferrer';td.append(a)
-   }else if(i===7){
-    td.append(el('span',base[i],'badge '+(r.paid?'paid':r.archived?'archive':'')))
+   }else if(i===6){
+    const state=scheduleStatuses[r.scheduleStatus]||'sem_horario'
+    td.append(el('span',base[i],'badge schedule-'+state))
    }else if(i===10){
+    td.append(el('span',base[i],'badge '+(r.paid?'paid':r.archived?'archive':'')))
+   }else if(i===13){
     const b=button(r.note||'＋ Anotação',()=>r.source==='formulario'?openEdit(r):toast('Pedido online: ajuste dados pelo pedido original.'),'cell-edit')
     b.title='Editar anotações';td.append(b)
    }else{
     td.textContent=base[i]
+    if(i===4||i===5)td.classList.add('sheet-schedule-value')
     if(i===1&&r.source==='formulario'&&!r.archived){
      td.classList.add('editable-cell')
      td.title='Duplo clique para editar'
@@ -193,6 +232,16 @@ async function refresh(){
   data.columns=Array.isArray(payload.campanha?.planilha_colunas)?
    payload.campanha.planilha_colunas.filter(c=>c&&/^col_[a-f0-9]{8,32}$/.test(c.id)&&palette.includes(c.cor)): []
   const rows=normalize(payload)
+  const scheduleDays=[...new Set((payload.horarios||[]).map(slot=>String(slot.dia||'').slice(0,10))
+   .filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(value)))].sort()
+  const dateFilter=$('schedule-date-filter')
+  const chosenDay=dateFilter.value
+  dateFilter.replaceChildren(new Option('Todos os dias',''))
+  for(const day of scheduleDays)dateFilter.add(new Option(ptDay(day),day))
+  dateFilter.value=scheduleDays.includes(chosenDay)?chosenDay:''
+  const hasSchedule=scheduleDays.length>0||rows.some(r=>r.slot)
+  $('schedule-date-field').hidden=!hasSchedule
+  $('sort-order-field').hidden=!hasSchedule
   let recent=0
   for(const r of rows){
    r.isNew=data.initial&&!data.ids.has(r.source+':'+r.id)
@@ -418,12 +467,15 @@ function escCSV(x){
  return '"'+t.replace(/"/g,'""')+'"'
 }
 $('export').onclick=()=>{
- const headers=['Data','Responsável','WhatsApp','Bailarinas','Experiência','Valor (R$)',
-  'Recebido (R$)','Situação','Preferência','Contatado','Anotações',
-  ...data.columns.map(c=>c.titulo)]
+ const headers=['Data da inscrição','Responsável','WhatsApp','Bailarinas',
+  'Dia do ensaio','Horário do ensaio','Situação da reserva',
+  'Experiência','Valor (R$)','Recebido (R$)','Situação do pagamento',
+  'Preferência','Contatado','Anotações',...data.columns.map(c=>c.titulo)]
  const rows=[headers]
  for(const r of data.visible)rows.push([
-  date(r.when),r.name,r.whatsapp,r.dancer,r.package,(r.value/100).toFixed(2).replace('.',','),
+  date(r.when),r.name,r.whatsapp,r.dancer,r.scheduleDay,r.scheduleTime,
+  scheduleStatuses[r.scheduleStatus]||(r.slot?'A conferir':'—'),
+  r.package,(r.value/100).toFixed(2).replace('.',','),
   (r.paidAmount/100).toFixed(2).replace('.',','),displayedStatus(r),
   r.preferred,r.contacted?'Sim':'Não',r.note,...data.columns.map(c=>r.extras?.[c.id]||'')
  ])
@@ -435,6 +487,8 @@ $('export').onclick=()=>{
 }
 $('refresh').onclick=refresh
 $('query').oninput=current;$('status-filter').onchange=current
+$('schedule-date-filter').onchange=current
+$('sort-order').onchange=current
 document.addEventListener('keydown',ev=>{
  if((ev.ctrlKey||ev.metaKey)&&ev.key.toLowerCase()==='k'){
   ev.preventDefault();$('query').focus()
