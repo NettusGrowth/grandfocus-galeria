@@ -4,6 +4,14 @@ const KEY='sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const client=createClient(BASE,KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}})
 const slug=new URLSearchParams(location.search).get('campanha')||'entre-estacoes'
 const $=id=>document.getElementById(id)
+$('finance-link').href='/contratar/'+encodeURIComponent(slug)+'/admin/#financeiro'
+const financeBroadcast=typeof BroadcastChannel==='function'?
+ new BroadcastChannel('gf-contratacao-sync'):null
+function notifyFinance(kind){
+ // Nenhum dado pessoal é compartilhado pelo navegador; a central sempre
+ // relê a base autenticada após esta notificação.
+ try{financeBroadcast?.postMessage({slug,kind})}catch{}
+}
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format((Number(n)||0)/100)
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'
 const clean=str=>String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
@@ -309,6 +317,7 @@ async function confirmSchedule(r,control){
  try{
   await request(action,{resposta_id:r.id,status:'confirmado'})
   toast('Horário confirmado e registrado no histórico administrativo.')
+  notifyFinance('agendamento')
   await refresh()
  }catch(e){
   showError(e.message||'Não foi possível confirmar o horário. Atualize a planilha.')
@@ -324,6 +333,7 @@ async function cancelSchedule(r){
   if(!action)throw Error('Esta campanha exige cancelamento de horário na administração.')
   await request(action,{resposta_id:r.id,status:'cancelado'})
   toast('Horário liberado. A resposta agora pode ser removida se necessário.')
+  notifyFinance('agendamento')
   await refresh()
  }catch(e){showError(e.message)}
 }
@@ -496,6 +506,7 @@ $('pay-form').addEventListener('submit',async ev=>{
   })
   $('pay-dialog').close()
   toast('Situação financeira atualizada com registro de auditoria.')
+  notifyFinance('pagamento')
   await refresh()
  }catch(e){setDialogError('pay',e.message)}
  finally{b.disabled=false}

@@ -23,6 +23,8 @@ function openWorkspace(area,changeHash=false){
     ?'Personalize cores, título e mensagem de boas-vindas. Salve antes de abrir a prévia.'
     :'Edite os campos que cada família deve preencher. Clique em uma pergunta para alterar as opções.'
   if(changeHash)history.replaceState(null,'','#'+view)
+  if(view==='financeiro')
+    window.dispatchEvent(new CustomEvent('gf-workspace-page',{detail:{page:view}}))
   if(changeHash){
     window.scrollTo({top:0,behavior:'instant'})
     document.querySelector('[data-workspace-tab="'+view+'"]')?.focus({preventScroll:true})
