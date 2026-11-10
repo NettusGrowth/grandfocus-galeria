@@ -85,33 +85,40 @@ function renderSlots(){
  $('gf-time-block').hidden=!state.day||!state.period
  const root=$('gf-slots');root.replaceChildren()
  const all=availability()
+ const periodSlots=!state.day||!state.period?[]:state.slots.filter(slot=>
+  slot.dia===state.day&&((slot.inicio<'13:00')===(state.period==='morning')))
  if(state.loading){
   const p=document.createElement('p');p.className='gf-inline-help'
   p.textContent='Consultando horários...';root.append(p)
- }else if(!all.length){
-  const p=document.createElement('p');p.className='gf-slots-empty'
-  p.textContent='Sem horários livres neste período. Experimente outro dia.'
-  root.append(p)
  }else{
-  const ids=[all[0].id,all[Math.floor((all.length-1)/2)].id,all[all.length-1].id]
+  if(!all.length){
+   const p=document.createElement('p');p.className='gf-slots-empty'
+   p.textContent='Sem horários livres neste período. Experimente outro dia.'
+   root.append(p)
+  }
+  const ids=all.length?[
+   all[0].id,all[Math.floor((all.length-1)/2)].id,all[all.length-1].id
+  ]:[]
   const suggestions=[...new Set(ids)].map(id=>all.find(x=>x.id===id))
   const selected=all.find(x=>x.id===state.slot)
-  const visible=state.expanded?all:(
-    selected&&!suggestions.some(x=>x.id===selected.id)
-    ?[...suggestions,selected].sort((a,b)=>a.inicio.localeCompare(b.inicio)):suggestions
+  const visible=state.expanded?periodSlots:(
+   selected&&!suggestions.some(x=>x.id===selected.id)
+   ?[...suggestions,selected].sort((a,b)=>a.inicio.localeCompare(b.inicio)):suggestions
   )
   for(const slot of visible){
-   const button=document.createElement('button');button.type='button';button.textContent=slot.inicio
-   button.setAttribute('aria-pressed',String(slot.id===state.slot))
-   button.setAttribute('aria-label',slot.inicio+', para '+state.count+' aluno(s)')
-   button.disabled=state.submitting
-   button.addEventListener('click',()=>chooseSlot(slot.id))
+   const free=slot.ativo&&slot.disponiveis>0
+   const button=document.createElement('button');button.type='button'
+   button.textContent=slot.inicio+(free?'':' · ocupado')
+   button.setAttribute('aria-pressed',String(free&&slot.id===state.slot))
+   button.setAttribute('aria-label',slot.inicio+(free?', disponível para '+state.count+' aluno(s)':' indisponível'))
+   button.disabled=state.submitting||!free
+   if(free)button.addEventListener('click',()=>chooseSlot(slot.id))
    root.append(button)
   }
-  if(all.length>suggestions.length){
+  if(periodSlots.length>suggestions.length){
    const more=document.createElement('button');more.type='button';more.className='gf-more-slots'
    more.disabled=state.submitting
-   more.textContent=state.expanded?'Mostrar menos horários':'Ver todos os horários'
+   more.textContent=state.expanded?'Mostrar menos horários':'Ver todos os horários (incluindo ocupados)'
    more.addEventListener('click',()=>{state.expanded=!state.expanded;renderSlots()})
    root.append(more)
   }
