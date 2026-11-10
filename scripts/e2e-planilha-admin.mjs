@@ -194,9 +194,11 @@ try{
   fadaPage.locator('#export').click()
  ])
  const csv=fs.readFileSync(await download.path(),'utf8')
- assert.match(csv,/Dia do ensaio;Horário do ensaio;Situação da reserva/)
- assert.ok(csv.includes('12/12/2026;10:00 – 10:30;Solicitado'),'CSV com horário da família de sábado')
- assert.ok(csv.includes('12/12/2026;10:00 – 10:30;Solicitado'),'CSV com horário da família de sábado')
+ // O exportador protege as células com aspas no CSV.
+ const csvValues=csv.replaceAll('"','')
+ assert.match(csvValues,/Dia do ensaio;Horário do ensaio;Situação da reserva/)
+ assert.ok(csvValues.includes('12/12/2026;10:00 – 10:30;Solicitado'),'CSV com horário da família de sábado')
+ assert.ok(csvValues.includes('13/12/2026;09:30 – 09:45;Confirmado'),'CSV com horário confirmado de domingo')
  for(const width of [320,390,768]){
   await fadaPage.setViewportSize({width,height:844})
   const d=await fadaPage.evaluate(()=>({
