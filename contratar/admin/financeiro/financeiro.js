@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id);
 const state={all:[],campaigns:[],view:[],status:'geral',loading:false,partial:[],lastLoaded:null};
 const element=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=String(text);if(cls)e.className=cls;return e;};
 const values=()=>({school:$('school').value,campaign:$('campaign').value,type:$('type').value,
- method:$('method').value,query:$('query').value,from:$('from').value,to:$('to').value,status:state.status});
+ method:$('method').value,package:$('package').value,query:$('query').value,from:$('from').value,to:$('to').value,status:state.status});
 function opt(select,value,label){const o=new Option(label,value);select.add(o);}
 async function request(action,fields={},token){
  const response=await fetch(BASE+'/functions/v1/contratacao-admin',{
@@ -67,6 +67,11 @@ function apply(){
  summary();buildRows();
 }
 function updateSelects(){
+ const currentPackage=$('package').value;
+ $('package').length=1;
+ const packages=[...new Set(state.all.map(r=>r.package).filter(p=>p && p!=='Não informado'))].sort((a,b)=>a.localeCompare(b,'pt-BR'));
+ for(const p of packages)opt($('package'),p,p);
+ if([...$('package').options].some(o=>o.value===currentPackage))$('package').value=currentPackage;
  const existingSchool=$('school').value,existingCampaign=$('campaign').value;
  $('school').length=1;$('campaign').length=1;
  const schoolMap=new Map(state.campaigns.map(c=>[c.escola_id,c.escola_nome]));
@@ -123,7 +128,7 @@ async function load(){
   $('error-panel').hidden=false;
  }finally{state.loading=false;$('refresh').disabled=false;$('loading-panel').hidden=true;}
 }
-for(const id of ['campaign','type','method','from','to'])$(id).addEventListener('change',apply);
+for(const id of ['campaign','type','method','package','from','to'])$(id).addEventListener('change',apply);
 $('school').addEventListener('change',updateCampaignSelect);
 $('query').addEventListener('input',apply);
 document.querySelectorAll('[data-status]').forEach(button=>button.addEventListener('click',()=>{
@@ -132,7 +137,7 @@ document.querySelectorAll('[data-status]').forEach(button=>button.addEventListen
  apply();
 }));
 $('reset').addEventListener('click',()=>{
- for(const id of ['school','campaign','type','method','from','to','query'])$(id).value='';
+ for(const id of ['school','campaign','type','method','package','from','to','query'])$(id).value='';
  state.status='geral';document.querySelectorAll('[data-status]').forEach(b=>b.classList.toggle('on',b.dataset.status==='geral'));
  updateCampaignSelect();
 });
