@@ -173,3 +173,45 @@ revoke all on function public.gf_gente_solicitar_agendamento(text,uuid,text,text
 grant execute on function public.gf_gente_intervalo_livre(uuid,uuid,integer,uuid) to service_role;
 grant execute on function public.gf_gente_listar_inicios(integer) to service_role;
 grant execute on function public.gf_gente_solicitar_agendamento(text,uuid,text,text,jsonb,text,uuid,boolean) to service_role;
+
+-- A equipe pode confirmar após recebimento e cancelar uma solicitação
+-- não paga, liberando todos os blocos ocupados. Nunca cancela automaticamente
+-- uma compra que já tenha recebimento registrado.
+create or replace function public.gf_gente_atualizar_agendamento(
+ p_slug text,p_resposta uuid,p_status text,p_usuario uuid
+) returns jsonb language plpgsql security invoker set search_path=''
+as $$
+declare e public.gf_contratacao_eventos%rowtype;r public.gf_contratacao_form_respostas%rowtype;
+begin
+ if p_slug<>'gente-que-danca-2026' or p_status not in ('confirmado','cancelado')
+ or p_usuario is null or not exists(select 1 from public.perfis where user_id=p_usuario
+  and role in ('admin','super_admin')) then
+  raise exception 'Ação de agendamento não autorizada.';end if;
+ select * into e from public.gf_contratacao_eventos where slug=p_slug for update;
+ if not found then raise exception 'Campanha não encontrada.';end if;
+ select * into r from public.gf_contratacao_form_respostas
+  where id=p_resposta and evento_contratacao_id=e.id and horario_id is not null
+  for update;
+ if not found then raise exception 'Esta inscrição não tem horário reservado. Contate a família.';end if;
+ if r.agendamento_status=p_status then return jsonb_build_object('ok',true,'status',p_status);end if;
+ if r.agendamento_status<>'solicitado' then
+  raise exception 'O agendamento já foi concluído ou cancelado.';end if;
+ if p_status='confirmado' then
+  if r.pagamento_situacao<>'pago_manual'
+    or r.valor_recebido_centavos<r.valor_informado_centavos then
+    raise exception 'Confirme o pagamento integral antes de confirmar o horário.';end if;
+ else
+  if r.valor_recebido_centavos>0 or r.pagamento_situacao in ('pago_manual','parcial')
+  then raise exception 'Há dinheiro recebido. Resolva o reembolso antes de cancelar.';end if;
+ end if;
+ update public.gf_contratacao_form_respostas
+  set agendamento_status=p_status,atualizado_em=now()
+  where id=r.id;
+ insert into public.gf_contratacao_auditoria(evento_contratacao_id,usuario_id,acao,detalhes)
+ values(e.id,p_usuario,'gente_horario_'||p_status,
+ jsonb_build_object('resposta_id',r.id,'horario_id',r.horario_id));
+ return jsonb_build_object('ok',true,'status',p_status);
+end;$$;
+revoke all on function public.gf_gente_atualizar_agendamento(text,uuid,text,uuid)
+ from public,anon,authenticated;
+grant execute on function public.gf_gente_atualizar_agendamento(text,uuid,text,uuid) to service_role;
