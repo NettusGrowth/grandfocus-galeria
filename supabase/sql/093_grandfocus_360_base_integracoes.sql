@@ -233,5 +233,10 @@ create policy gf_financeiro_fontes_superadmin on public.gf_financeiro_fontes for
  using ((select role from public.meu_perfil()) = 'super_admin')
  with check ((select role from public.meu_perfil()) = 'super_admin');
 
+-- Edge Functions de integração usam service_role; Auth admin usa RLS.
+grant select,insert,update,delete on public.gf_contatos,public.gf_contato_alunos,
+ public.gf_form_contatos,public.gf_form_alunos,public.gf_identidade_pendencias,
+ public.gf_form_agenda_vinculos,public.gf_financeiro_fontes to service_role;
+
 -- O outbox nunca está diretamente disponível a navegadores.
 grant select,insert,update,delete on public.gf_integracao_outbox to service_role;
