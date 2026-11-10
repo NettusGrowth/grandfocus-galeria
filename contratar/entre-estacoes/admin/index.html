@@ -254,7 +254,8 @@
       </section>
 
       <form id="config-form" data-workspace-page="evento">
-        <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Edite os dados deste espetáculo sem misturar com as respostas das famílias.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
+        <div class="gf-config-actions"><div><h2>Evento e pacotes</h2><p>Configure só o necessário. Abra as seções abaixo quando precisar editar.</p></div><button class="btn btn-primary" type="button" id="save-button">Salvar configurações</button></div>
+        <details class="gf-event-group" open><summary>1. Dados principais · data e local</summary>
         <section class="panel">
           <h2>Informações do evento</h2>
           <p class="panel-intro">Horários e capacidade só são obrigatórios quando alguma experiência incluir miniensaio.</p>
@@ -305,7 +306,7 @@
             </div>
           </div>
           <p class="hint">Quando houver miniensaio, ele será realizado por ordem de chegada dentro do período configurado, sem horário individual por bailarina.</p>
-        </section>
+        </section></details>
 
         <details class="gf-config-advanced"><summary>Documentos e dados legais <span class="gf-secondary-label">Configuração avançada</span></summary>
         <section class="panel">
@@ -368,11 +369,12 @@
         </section>
 
         </details>
+        <details class="gf-event-group"><summary>2. Experiências e valores</summary>
         <section class="panel">
           <div class="section-h"><h2>Experiências e valores</h2><button class="btn btn-secondary btn-sm" type="button" id="add-package-button">+ Adicionar experiência</button></div>
           <p class="panel-intro">Crie quantas experiências forem necessárias. Cada uma pode ter descrição, valor e itens incluídos próprios.</p>
           <div id="package-fields" class="admin-grid"></div>
-        </section>
+        </section></details>
       </form>
 
 
