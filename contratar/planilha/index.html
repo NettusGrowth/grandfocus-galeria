@@ -2,8 +2,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Planilha de respostas | Grand Focus</title>
 <link rel="icon" type="image/png" href="/assets/logo-icone.png">
-<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=1">
-<script type="module" src="/contratar/planilha/planilha.js?v=1"></script></head>
+<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=20261110-admin2">
+<script type="module" src="/contratar/planilha/planilha.js?v=20261110-admin2"></script></head>
 <body>
 <header><a id="back" href="/contratar/admin/">← Voltar à campanha</a>
  <div><h1>Planilha de respostas</h1><p id="campaign-name">Grand Focus · carregando...</p></div>
@@ -12,28 +12,67 @@
  <div class="toolbar">
   <label>Buscar <input id="query" type="search" placeholder="Nome, aluna ou telefone..." autocomplete="off"></label>
   <label>Situação <select id="status-filter">
-    <option value="todas">Todas</option><option value="novas">Ainda não contatadas</option>
+    <option value="todas">Todas as ativas</option><option value="novas">Ainda não contatadas</option>
     <option value="pendente">Aguardando pagamento</option><option value="pago">Pagas</option>
+    <option value="arquivados">Removidos (recuperáveis)</option>
   </select></label>
   <button id="refresh" type="button">↻ Atualizar</button>
+  <button id="columns" type="button">＋ Colunas e cores</button>
   <button id="export" type="button">↓ Baixar CSV</button>
  </div>
  <div class="statusbar"><strong id="count">0 inscrições</strong><span id="new-count">Atualização automática a cada 15 segundos</span><span id="updated"></span></div>
  <p id="error" class="error" role="alert" hidden></p>
- <div class="sheet-scroll"><table><thead><tr><th>Data</th><th>Responsável</th><th>WhatsApp</th>
-  <th>Bailarina(s)</th><th>Experiência</th><th>Valor</th><th>Situação</th><th>Preferência</th>
-  <th>Contato</th><th>Ações</th></tr></thead><tbody id="rows"><tr><td colspan="10">Carregando...</td></tr></tbody></table></div>
- <p class="help">Os registros são atualizados automaticamente enquanto esta página está aberta. Pagamentos são marcados como recebidos somente após sua confirmação.</p>
+ <div class="sheet-scroll"><table aria-label="Respostas editáveis da campanha"><thead><tr id="sheet-head"></tr></thead>
+ <tbody id="rows"><tr><td colspan="13">Carregando...</td></tr></tbody></table></div>
+ <p class="help">Clique em <strong>Editar</strong> para corrigir nomes, contatos, anotações e cores. <strong>Remover</strong> arquiva respostas sem pagamento, sem excluí-las definitivamente. Para corrigir um pagamento, use <strong>Conferir / corrigir</strong>; essa mudança fica registrada no histórico. Os dados são atualizados enquanto a página estiver aberta.</p>
 </main>
-<dialog id="pay-dialog"><form id="pay-form" method="dialog">
- <h2>Registrar pagamento confirmado</h2><p id="pay-person"></p>
+<dialog id="pay-dialog" class="sheet-dialog"><form id="pay-form">
+ <h2>Conferência de pagamento</h2><p id="pay-person" class="muted"></p>
+ <label>Situação
+  <select id="pay-status">
+   <option value="pago_manual">Pago integralmente</option>
+   <option value="parcial">Pagamento parcial</option>
+   <option value="pendente">Aguardando pagamento (R$ 0)</option>
+   <option value="nao_conferido">Não conferido (R$ 0)</option>
+   <option value="cancelado">Pagamento cancelado (R$ 0)</option>
+  </select></label>
  <label>Valor recebido (R$) <input id="pay-amount" inputmode="decimal" type="text" required></label>
- <label>Como recebeu? <select id="pay-method" required><option value="">Selecione</option>
+ <label>Como recebeu? <select id="pay-method"><option value="">Selecione</option>
   <option value="pix">Pix</option><option value="credito">Crédito</option>
   <option value="dinheiro">Dinheiro</option><option value="outro">Outro</option></select></label>
- <label>Referência para auditoria <input id="pay-reference" type="text" maxlength="180" placeholder="Identificação no extrato (quando disponível)"></label>
- <label class="agree"><input id="pay-verified" type="checkbox" required>Conferi que o dinheiro foi recebido. Não estou apenas confiando no formulário.</label>
- <div class="actions"><button type="button" id="pay-cancel">Cancelar</button><button type="submit" id="pay-save">Salvar pagamento</button></div>
+ <label>Referência para auditoria <input id="pay-reference" type="text" maxlength="180" placeholder="Identificador do extrato ou comprovante"></label>
+ <label>Observação <textarea id="pay-note" rows="2" maxlength="1200" placeholder="Explique a correção, quando necessária."></textarea></label>
+ <label class="agree"><input id="pay-verified" type="checkbox">Conferi o recebimento no extrato ou na InfinitePay.</label>
+ <div class="actions"><button type="button" id="pay-cancel">Cancelar</button><button type="submit" id="pay-save">Salvar conferência</button></div>
  <p id="pay-error" class="error" role="alert" hidden></p>
 </form></dialog>
+
+<dialog id="edit-dialog" class="sheet-dialog"><form id="edit-form">
+ <h2>Editar cadastro</h2><p id="edit-caption" class="muted"></p>
+ <div class="edit-grid">
+  <label>Responsável <input id="edit-name" required maxlength="120" autocomplete="off"></label>
+  <label>WhatsApp com DDD <input id="edit-phone" required maxlength="25" inputmode="tel"></label>
+ </div>
+ <div id="edit-students"></div>
+ <label>Cor da linha <select id="edit-color">
+  <option value="sem">Padrão</option><option value="verde">Verde</option>
+  <option value="amarelo">Amarelo</option><option value="rosa">Rosa</option>
+  <option value="azul">Azul</option><option value="cinza">Cinza</option>
+ </select></label>
+ <label>Anotações internas <textarea id="edit-note" rows="3" maxlength="3000" placeholder="Ex.: figurino, próximo passo, informações da sessão..."></textarea></label>
+ <div id="edit-extras"></div>
+ <p class="muted">Você pode salvar só a nota ou a cor. O financeiro e os horários ficam protegidos.</p>
+ <div class="actions"><button type="button" id="edit-cancel">Cancelar</button><button type="submit" id="edit-save">Salvar alterações</button></div>
+ <p id="edit-error" class="error" role="alert" hidden></p>
+</form></dialog>
+
+<dialog id="columns-dialog" class="sheet-dialog"><form id="columns-form">
+ <h2>Colunas personalizadas</h2>
+ <p class="muted">Crie até 12 colunas de texto, altere nomes e escolha uma cor. As mudanças serão compartilhadas entre administradores desta campanha.</p>
+ <div id="columns-list"></div>
+ <button type="button" id="add-column">＋ Criar coluna</button>
+ <div class="actions"><button type="button" id="columns-cancel">Cancelar</button><button type="submit" id="columns-save">Salvar colunas</button></div>
+ <p id="columns-error" class="error" role="alert" hidden></p>
+</form></dialog>
+<p id="toast" class="sheet-toast" role="status" hidden></p>
 </body></html>
