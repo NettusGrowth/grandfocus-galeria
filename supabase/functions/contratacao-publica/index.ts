@@ -132,8 +132,10 @@ async function actionGenteHorarios(req:Request,admin:any,body:any,slug:string){
  if(slug!=='gente-que-danca-2026')
   return jsonResponse(req,{error:'Campanha não encontrada.'},404)
  const quantidade=Number(body?.quantidade)
- if(!Number.isInteger(quantidade)||quantidade<1||quantidade>4)
-  return jsonResponse(req,{error:'Selecione de 1 a 4 bailarinos(as).'},400)
+ // Nova oferta natalina limita inscrições públicas a um ou dois.
+ // Registros históricos com 3/4 não são alterados, nem as operações de admin.
+ if(!Number.isInteger(quantidade)||quantidade<1||quantidade>2)
+  return jsonResponse(req,{error:'Nesta edição, selecione um ou dois bailarinos(as) da mesma família.'},400)
  const {data,error}=await admin.rpc('gf_gente_listar_inicios',{p_quantidade:quantidade})
  if(error)return jsonResponse(req,{error:'Não foi possível consultar os horários.'},503)
  return jsonResponse(req,data||{disponivel:false,horarios:[]})
@@ -158,7 +160,7 @@ async function actionGenteInscrever(req:Request,admin:any,body:any,slug:string){
  const students=body?.alunos
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
     ||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(horario)
-    ||!Array.isArray(students)||students.length<1||students.length>4
+    ||!Array.isArray(students)||students.length<1||students.length>2
     ||!['pix','credito'].includes(body?.preferencia)
     ||String(body?.nome||'').trim().length<5
     ||phone.length<10||phone.length>13

@@ -48,7 +48,7 @@ async function pageFor(open=true){
   assert.equal(body.campaign_slug,'gente-que-danca-2026')
   if(body.action==='gente_horarios'){
    const quantity=body.quantidade
-   assert.ok(Number.isInteger(quantity)&&quantity>=1&&quantity<=4)
+   assert.ok(Number.isInteger(quantity)&&quantity>=1&&quantity<=2)
    await route.fulfill({status:200,contentType:'application/json',
     body:JSON.stringify({disponivel:open,horarios:open?mockSlots(quantity):[]})})
    return
@@ -78,7 +78,12 @@ try{
  const page=first.page
  assert.equal(await page.locator('#gente-form').isVisible(),true)
  assert.match(await page.locator('#count-label').textContent(),/bailarinos/)
- assert.match(await page.locator('.gf-discount').textContent(),/30/)
+ assert.match(await page.locator('.discount-mark').textContent(),/30/)
+ assert.equal(await page.locator('[data-count="3"]').count(),0)
+ assert.equal(await page.locator('[data-count="4"]').count(),0)
+ assert.match(await page.locator('h1').textContent(),/Especial de Natal 2026/)
+ assert.match(await page.locator('.hero-tagline').textContent(),/Um Natal para guardar no coração/)
+ assert.match(await page.locator('.included-grid').textContent(),/Galeria Grand Focus/)
  assert.match(await page.locator('.facts').textContent(),/22h/)
  for(const width of [320,360,390,430,768,1440]){
   await page.setViewportSize({width,height:850})
@@ -118,7 +123,7 @@ try{
  await page.close()
  const second=await pageFor()
  const p2=second.page
- for(const [n,amount] of [[2,270],[3,390],[4,510]]){
+ for(const [n,amount] of [[2,270],[1,150],[2,270]]){
   await p2.locator('[data-count="'+n+'"]').click()
   await p2.waitForFunction(n=>document.querySelector('#students')?.querySelectorAll('input').length===n,n)
   const displayed=(await p2.locator('#total').textContent()).replace(/\s/g,'')
@@ -126,19 +131,21 @@ try{
  }
  await p2.locator('#name').fill('Responsável Segunda')
  await p2.locator('#whatsapp').fill('(16) 98888-7777')
- for(let i=0;i<4;i++)await p2.locator('#student-'+i).fill('Bailarina '+(i+1))
+ for(let i=0;i<2;i++)await p2.locator('#student-'+i).fill('Bailarina '+(i+1))
  await p2.locator('.times-more').click()
- await p2.locator('#gente-times .time-option').last().click()
- assert.match(await p2.locator('#gente-schedule-hint').textContent(),/21:00 às 22:00/)
+ assert.ok(await p2.locator('#gente-times .time-option:disabled').count()>0,'A grade expandida deve distinguir indisponíveis')
+ await p2.locator('#gente-times .time-option:not(:disabled)').last().click()
+ assert.match(await p2.locator('#gente-schedule-hint').textContent(),/21:30 às 22:00/)
  await p2.locator('input[name="preferencia"][value="credito"]').check()
  await p2.locator('#responsibility').check()
  await p2.locator('#accept').check()
  await p2.locator('#submit').click()
  await p2.waitForSelector('#success:not([hidden])')
  assert.equal(saved.length,2)
- assert.equal(saved[1].alunos.length,4)
+ assert.equal(saved[1].alunos.length,2)
+ assert.equal(saved[1].horario_id,mockSlots(2).at(-1).id)
  assert.equal(saved[1].preferencia,'credito')
- assert.equal(saved[1].horario_id,mockSlots(4).at(-1).id)
+ assert.equal(saved[1].horario_id,mockSlots(2).at(-1).id)
  assert.deepEqual(second.errors,[])
  await p2.close()
  const closed=await pageFor(false)
@@ -160,7 +167,7 @@ try{
  assert.equal(await third.page.locator('#name').inputValue(),'Responsável Conflito')
  assert.deepEqual(third.errors,[])
  await third.page.close()
- console.log('Gente: preços 150/270/390/510, foco em erros, horários, 21–22, 409, responsivo aprovados.')
+ console.log('Gente Natal: preços 150/270, sem opções 3/4, cenário visual, máscaras, horários, 21h30–22h, 409, mobile aprovados.')
 }finally{
  await browser.close()
  await new Promise(resolve=>server.close(resolve))

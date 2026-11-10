@@ -97,14 +97,21 @@ assert.ok(genteHtml.includes('R$ 150,00')&&genteHtml.includes('15 de dezembro de
  genteHtml.includes('Pix')&&!genteHtml.includes('5 fotografias'),'Formulário Gente deve seguir somente as condições reais do acordo.')
 const genteAgendaSql=read('supabase/sql/101_gente_reserva_familia_15min_desconto.sql')
 assert.ok(genteJs.includes("api('gente_inscrever'")&&genteJs.includes("api('gente_horarios'")&&
- genteJs.includes("price=n=>15000+(n-1)*12000")&&
+ genteJs.includes("price=n=>n===2?27000:15000")&&
  genteAgendaSql.includes('gf_gente_solicitar_agendamento')&&
  genteAgendaSql.includes('gf_gente_intervalo_livre')&&
  genteAgendaSql.includes('15:00')===false &&
  genteHtml.includes('18h às 22h')&&
  genteHtml.includes('id="gente-times"')&&
  genteHtml.includes('R$ 30 de desconto')&&
- !genteJs.includes('natal_horarios'),
+ genteHtml.includes('Especial de Natal')&&
+ genteHtml.includes('Galeria Grand Focus')&&
+ genteHtml.includes('Solicitar horário e continuar')&&
+ genteHtml.includes('data-count="1"')&&genteHtml.includes('data-count="2"')&&
+ !genteHtml.includes('data-count="3"')&&!genteHtml.includes('data-count="4"')&&
+ !genteJs.includes('natal_horarios')&&
+ publicApi.includes("students.length>2")&&
+ publicApi.includes("quantidade>2"),
  'Gente precisa de horários reais, desconto familiar e cadastro atômico.')
 assert.ok(read('contratar/entre-estacoes/admin/index.html').includes('data-workspace-tab="financeiro"')&&
  read('contratar/planilha/planilha.js').includes("setInterval")&&
