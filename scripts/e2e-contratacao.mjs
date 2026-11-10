@@ -498,6 +498,16 @@ try {
   assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$75,68/)
   assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$3,32/)
   assert.match(await adminPage.locator('#gf-central-metrics').textContent(), /Líquido previsto/)
+  // O financeiro usa o MESMO cadastro da planilha e não duplica receita.
+  await adminPage.waitForFunction(()=>document.querySelectorAll('#gf-finance-sync-rows tr').length===1)
+  assert.equal(await adminPage.locator('#gf-finance-sync-rows tr').count(),1)
+  assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/Mãe de Teste/)
+  assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/Pagamento não conferido/)
+  assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/R\\$\\s*79,00/)
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).trim(),'R$ 0,00',
+    'Declaração não é dinheiro recebido')
+  assert.match(await adminPage.locator('#gf-finance-sync-rows a').first().getAttribute('href'),
+    /campanha=entre-estacoes&editar=88888888-8888-4888-8888-888888888888/)
   assert.equal(await adminPage.locator('#gf-central-list').getAttribute('data-layout'),'compact')
   assert.equal(await adminPage.locator('#gf-central-list .gf-result-card').first().getAttribute('data-crm'),'novo')
   await adminPage.locator('#gf-layout-cards').click()
@@ -507,6 +517,18 @@ try {
   assert.match(await adminPage.locator('#gf-central-list').textContent(), /Mãe de Teste/)
   assert.ok(adminCalls.filter(call => call.action==='central_listar').length>=1)
   await adminPage.locator('[data-workspace-tab="financeiro"]').click()
+  assert.equal(await adminPage.locator('#gf-finance-sync-scroll').count(),0,
+    'O ledger usa classe de região rolável, não um ID ausente')
+  assert.equal(await adminPage.locator('.gf-finance-sync-scroll').isVisible(),true)
+  await adminPage.locator('#gf-finance-filter').selectOption('conferir')
+  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
+  await adminPage.locator('#gf-finance-filter').selectOption('recebidos')
+  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/0 de 1/)
+  await adminPage.locator('#gf-finance-filter').selectOption('pendentes')
+  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
+  await adminPage.locator('#gf-finance-filter').selectOption('todos')
+  await adminPage.locator('#gf-finance-sync-refresh').click()
+  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-status')?.dataset.state==='success')
   await adminPage.locator('#gf-fee-settings summary').click()
   await adminPage.locator('#gf-fee-rate').fill('3.15')
   await adminPage.locator('#gf-fee-save').click()
@@ -552,6 +574,11 @@ try {
   await paymentEditor.locator('button[type="submit"]').click()
   await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Conferência registrada'))
   assert.ok(adminCalls.some(call=>call.action==='central_registrar_pagamento'),'A central não salvou conferência do pagamento.')
+  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-rows')?.textContent.includes('Pago · conferido manualmente'))
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).trim(),'R$ 79,00',
+    'O pagamento lançado na Central deve aparecer no Financeiro sem lançamento duplicado.')
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(4).textContent()).trim(),'R$ 0,00')
+  assert.equal(await adminPage.locator('#gf-finance-sync-rows tr').count(),1)
   await adminPage.waitForFunction(() => !document.querySelector('.gf-archive-bar button'),
     {timeout:5000})
   assert.equal(await adminPage.locator('.gf-archive-bar button').count(),0,
@@ -569,6 +596,24 @@ try {
   assert.ok(adminCalls.some(call=>call.action==='central_salvar_acompanhamento'),'A central não salvou o follow-up.')
   await adminPage.locator('#gf-central-detail .gf-detail-toolbar button').click()
 
+  // Um pagamento conferido com horário solicitado exige acompanhamento separado.
+  centralExternal.horario_id='22222222-2222-4222-8222-222222222222'
+  centralExternal.agendamento_status='solicitado'
+  await adminPage.locator('[data-workspace-tab="financeiro"]').click()
+  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-rows')?.textContent.includes('Pagamento conferido · confirmar horário'))
+  await adminPage.locator('#gf-finance-filter').selectOption('horarios')
+  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
+  const callsBeforeBroadcast=adminCalls.filter(c=>c.action==='central_listar').length
+  await adminPage.evaluate(()=>{
+   const signal=new BroadcastChannel('gf-contratacao-sync')
+   signal.postMessage({slug:'entre-estacoes',kind:'agendamento'})
+   signal.close()
+  })
+  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-status')?.dataset.state==='success')
+  await adminPage.waitForTimeout(350)
+  assert.ok(adminCalls.filter(c=>c.action==='central_listar').length>callsBeforeBroadcast,
+    'Aviso da planilha deve solicitar sincronização do Financeiro.')
+  await adminPage.locator('#gf-finance-filter').selectOption('todos')
   await adminPage.locator('[data-workspace-tab="perguntas"]').click()
   assert.equal(await adminPage.locator('#gf-central').isVisible(),false)
   assert.equal(await adminPage.locator('#gf-builder').isVisible(),true)
