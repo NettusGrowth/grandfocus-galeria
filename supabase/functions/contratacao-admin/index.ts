@@ -69,6 +69,8 @@ Deno.serve(async (req: Request) => {
       case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'gente_atualizar_agendamento': return await actionGenteStatusAdmin(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
+      case 'planilha_editar_resposta': return await actionPlanilhaEditarResposta(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'planilha_configurar_colunas': return await actionPlanilhaConfigurarColunas(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_registrar_pagamento': return await actionCentralRegistrarPagamento(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -558,7 +560,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
       .eq('evento_contratacao_id',evento.id)
       .order('criado_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_form_respostas')
-      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_declarado,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em,horario_id,agendamento_status,agendamento_expira_em,alunos_inscritos')
+      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_declarado,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em,horario_id,agendamento_status,agendamento_expira_em,alunos_inscritos,planilha_campos,planilha_cor,planilha_nota')
       .eq('evento_contratacao_id',evento.id)
       .order('respondido_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_acompanhamentos')
@@ -596,7 +598,8 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   const rows=pedidos.map((p:any)=>({...p,participantes:grouped[p.id]||[]}))
   return jsonResponse(req, {
     campanha:{id:evento.id,nome:evento.nome_publico,status:evento.status,
-      taxa_credito_a_vista_bps:evento.taxa_credito_a_vista_bps},
+      taxa_credito_a_vista_bps:evento.taxa_credito_a_vista_bps,
+      planilha_colunas:evento.planilha_colunas||[]},
     pedidos:rows,
     respostas:formsResult.data||[],
     acompanhamentos:followResult.data||[],
@@ -606,6 +609,42 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   })
 }
 
+
+async function actionPlanilhaConfigurarColunas(req:Request,admin:any,userId:string,body:any,slug:string){
+ const evento=await getCampaign(admin,slug)
+ const colunas=body?.colunas
+ if(!Array.isArray(colunas)||JSON.stringify(colunas).length>7500)
+  return jsonResponse(req,{error:'Revise a configuração das colunas.'},400)
+ const {data,error}=await admin.rpc('gf_contratacao_admin_configurar_planilha',{
+  p_campanha_id:evento.id,p_usuario_id:userId,p_colunas:colunas
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível salvar as colunas.'},400)
+ return jsonResponse(req,data||{ok:true})
+}
+
+async function actionPlanilhaEditarResposta(req:Request,admin:any,userId:string,body:any,slug:string){
+ const evento=await getCampaign(admin,slug)
+ const id=String(body?.resposta_id||'')
+ const nome=String(body?.nome||'').trim()
+ const whatsapp=String(body?.whatsapp||'')
+ const bailarina=String(body?.bailarina||'')
+ const nota=String(body?.nota||'')
+ const cor=String(body?.cor||'sem')
+ const alunos=body?.alunos==null?null:body.alunos
+ const campos=body?.campos||{}
+ if(!/^[a-f0-9-]{36}$/i.test(id)||nome.length>120||whatsapp.length>30||
+   nota.length>3000||bailarina.length>180||!['sem','verde','amarelo','rosa','azul','cinza'].includes(cor)||
+   !campos||typeof campos!=='object'||Array.isArray(campos)||
+   (alunos!==null&&!Array.isArray(alunos))||JSON.stringify(body).length>18000)
+  return jsonResponse(req,{error:'Revise os campos da resposta antes de salvar.'},400)
+ const {data,error}=await admin.rpc('gf_contratacao_admin_editar_resposta',{
+  p_campanha_id:evento.id,p_resposta_id:id,p_usuario_id:userId,
+  p_nome:nome,p_whatsapp:whatsapp,p_bailarina:bailarina,
+  p_alunos:alunos,p_campos:campos,p_cor:cor,p_nota:nota
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível editar a resposta.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
 
 async function actionCentralSalvarTaxa(req:Request,admin:any,userId:string,body:any,slug:string){
   const bps=Number(body?.taxa_credito_a_vista_bps)
