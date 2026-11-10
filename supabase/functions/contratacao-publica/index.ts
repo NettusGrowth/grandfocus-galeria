@@ -155,7 +155,7 @@ async function actionNatalInscrever(req:Request,admin:any,body:any,slug:string){
     error:'Muitas tentativas. Aguarde alguns minutos para continuar.'
   },429)
  }
- const {data,error}=await admin.rpc('gf_natal_solicitar_horario',{
+ const {data,error}=await admin.rpc('gf_natal_solicitar_sem_cronometro',{
   p_slug:slug,p_horario:payload.horario_id,
   p_nome:String(payload.nome||''),p_whatsapp:String(payload.whatsapp||''),
   p_email:String(payload.email||''),p_alunos:payload.alunos,
