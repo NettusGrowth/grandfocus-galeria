@@ -60,6 +60,8 @@ Deno.serve(async (req: Request) => {
         return await actionNatalInscrever(req, admin, body, campaignSlug)
       case 'gente_status':
         return await actionGenteStatus(req, admin, campaignSlug)
+      case 'gente_horarios':
+        return await actionGenteHorarios(req, admin, body, campaignSlug)
       case 'gente_inscrever':
         return await actionGenteInscrever(req, admin, body, campaignSlug)
       case 'dados':
@@ -126,6 +128,16 @@ async function actionNatalLiberar(req:Request,admin:any,body:any,slug:string){
  if(error)return jsonResponse(req,{error:'Não foi possível liberar agora. A reserva expira automaticamente.'},409)
  return jsonResponse(req,data||{ok:true})
 }
+async function actionGenteHorarios(req:Request,admin:any,body:any,slug:string){
+ if(slug!=='gente-que-danca-2026')
+  return jsonResponse(req,{error:'Campanha não encontrada.'},404)
+ const quantidade=Number(body?.quantidade)
+ if(!Number.isInteger(quantidade)||quantidade<1||quantidade>4)
+  return jsonResponse(req,{error:'Selecione de 1 a 4 bailarinos(as).'},400)
+ const {data,error}=await admin.rpc('gf_gente_listar_inicios',{p_quantidade:quantidade})
+ if(error)return jsonResponse(req,{error:'Não foi possível consultar os horários.'},503)
+ return jsonResponse(req,data||{disponivel:false,horarios:[]})
+}
 async function actionGenteStatus(req:Request,admin:any,slug:string){
  if(slug!=='gente-que-danca-2026')
   return jsonResponse(req,{error:'Campanha não encontrada.'},404)
@@ -141,9 +153,11 @@ async function actionGenteInscrever(req:Request,admin:any,body:any,slug:string){
  if(String(body?.company_website||'').trim())
   return jsonResponse(req,{error:'Solicitação não aceita.'},400)
  const id=String(body?.idempotencia||'')
+ const horario=String(body?.horario_id||'')
  const phone=String(body?.whatsapp||'').replace(/\D/g,'')
  const students=body?.alunos
  if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
+    ||!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(horario)
     ||!Array.isArray(students)||students.length<1||students.length>4
     ||!['pix','credito'].includes(body?.preferencia)
     ||String(body?.nome||'').trim().length<5
@@ -161,8 +175,8 @@ async function actionGenteInscrever(req:Request,admin:any,body:any,slug:string){
   if(error||!data)return jsonResponse(req,{error:'Não foi possível validar a inscrição.'},503)
   if(data.permitido!==true)return jsonResponse(req,{error:'Muitas tentativas. Entre em contato com a Grand Focus.'},429)
  }
- const {data,error}=await admin.rpc('gf_gente_solicitar_interesse',{
-  p_slug:slug,p_responsavel:String(body.nome||''),p_whatsapp:phone,
+ const {data,error}=await admin.rpc('gf_gente_solicitar_agendamento',{
+  p_slug:slug,p_horario:horario,p_responsavel:String(body.nome||''),p_whatsapp:phone,
   p_alunos:students,p_preferencia:body.preferencia,p_idempotencia:id,p_aceite:true
  })
  if(error)return jsonResponse(req,{error:error.message||'Não foi possível registrar sua participação.'},409)
