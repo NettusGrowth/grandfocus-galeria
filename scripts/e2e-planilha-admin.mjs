@@ -51,7 +51,9 @@ try{
   if(body.action==='central_listar')return route.fulfill({
    status:200,contentType:'application/json',
    body:JSON.stringify({campanha:{nome:'Gente que Dança',planilha_colunas:columns},
-    respostas:[r],pedidos:[],acompanhamentos:[]})
+    respostas:[r],
+    horarios:r.horario_id?[{id:r.horario_id,dia:'2026-12-15',inicio:'18:00:00',duracao_minutos:15}]:[],
+    pedidos:[],acompanhamentos:[]})
   })
   if(body.action==='planilha_configurar_colunas'){
    columns=body.colunas
@@ -82,6 +84,15 @@ try{
    assert.equal(r.valor_recebido_centavos,0,'Apenas respostas sem recebimento são removíveis')
    r.arquivado_em=body.arquivar?'2026-11-10T17:15:00Z':null
    return route.fulfill({status:200,contentType:'application/json',body:'{"ok":true}'})
+  }
+  if(body.action==='gente_atualizar_agendamento'){
+   assert.equal(body.resposta_id,r.id)
+   assert.equal(body.status,'confirmado')
+   assert.equal(r.pagamento_situacao,'pago_manual')
+   assert.ok(r.valor_recebido_centavos>=r.valor_informado_centavos)
+   r.agendamento_status='confirmado'
+   return route.fulfill({status:200,contentType:'application/json',
+    body:JSON.stringify({ok:true,status:'confirmado'})})
   }
   throw Error('Ação inesperada: '+body.action)
  })
@@ -128,6 +139,19 @@ try{
  await page.waitForFunction(()=>document.querySelector('#count')?.textContent?.includes('0 registro'))
  await page.locator('#status-filter').selectOption('todas')
  await page.waitForFunction(()=>document.querySelector('#rows')?.textContent?.includes('Responsável Corrigido'))
+ // Gente: um horário somente pode ser confirmado após pagamento integral.
+ Object.assign(r,{horario_id:'66666666-6666-4666-8666-666666666666',
+  agendamento_status:'solicitado',pagamento_situacao:'pago_manual',
+  valor_recebido_centavos:27000})
+ await page.locator('#refresh').click()
+ await page.waitForFunction(()=>document.querySelector('.action-confirm-schedule:not(:disabled)'))
+ await page.locator('.action-confirm-schedule').click()
+ await page.waitForTimeout(500)
+ assert.equal(r.agendamento_status,'confirmado',
+  'A API da Gente deve confirmar: '+JSON.stringify({history,error:await page.locator('#error').textContent(),errors,
+   rows:await page.locator('#rows').textContent()}))
+ await page.waitForFunction(()=>document.querySelector('.schedule-confirmado'),null,{timeout:5000})
+ assert.equal(await page.locator('.action-confirm-schedule').count(),0)
  for(const width of [320,390,768,1440]){
   await page.setViewportSize({width,height:844})
   const dimensions=await page.evaluate(()=>({
@@ -142,6 +166,7 @@ try{
  const fadaPage=await browser.newPage({viewport:{width:390,height:844},acceptDownloads:true})
  const fadaErrors=[]
  fadaPage.on('pageerror',error=>fadaErrors.push(error.message))
+ fadaPage.on('dialog',dialog=>dialog.accept())
  await fadaPage.route('https://esm.sh/**',route=>route.fulfill({
   status:200,contentType:'text/javascript',headers:{'Access-Control-Allow-Origin':'*'},
   body:"export function createClient(){return {auth:{getSession:async()=>({data:{session:{access_token:'fake-admin-token'}}})}}}"
@@ -151,11 +176,13 @@ try{
  const fadaRows=[
   {...r,id:'44444444-4444-4444-8444-444444444444',
    responsavel_nome:'Família Sábado',horario_id:saturdayId,
+   valor_informado_centavos:27000,valor_recebido_centavos:0,pagamento_situacao:'pendente',
    agendamento_status:'solicitado',
    alunos_inscritos:[{nome:'Irmã Um'},{nome:'Irmã Dois'}],
    bailarina_nome:'Irmã Um, Irmã Dois'},
   {...r,id:'55555555-5555-4555-8555-555555555555',
    responsavel_nome:'Família Domingo',horario_id:sundayId,
+   pagamento_situacao:'pago_manual',valor_informado_centavos:15000,valor_recebido_centavos:15000,
    agendamento_status:'confirmado',
    alunos_inscritos:[{nome:'Bailarina Domingo'}],
    bailarina_nome:'Bailarina Domingo',respondido_em:'2026-11-10T15:00:00Z'}
@@ -164,13 +191,34 @@ try{
   {id:saturdayId,dia:'2026-12-12',inicio:'10:00:00',duracao_minutos:15},
   {id:sundayId,dia:'2026-12-13',inicio:'09:30:00',duracao_minutos:15}
  ]
+ let fadaConfirmAttempts=0
  await fadaPage.route('**/functions/v1/contratacao-admin',async route=>{
   const body=JSON.parse(route.request().postData()||'{}')
   assert.equal(body.slug,'natal-fada-acucarada-2026')
-  assert.equal(body.action,'central_listar')
-  await route.fulfill({status:200,contentType:'application/json',
+  if(body.action==='central_listar')return route.fulfill({status:200,contentType:'application/json',
    body:JSON.stringify({campanha:{nome:'Fada Açucarada',planilha_colunas:[]},
     respostas:fadaRows,horarios:fadaSlots,pedidos:[],acompanhamentos:[]})})
+  if(body.action==='central_registrar_pagamento'){
+   assert.equal(body.situacao,'pago_manual')
+   assert.equal(body.valor_recebido_centavos,27000)
+   assert.equal(body.conferencia_confirmada,true)
+   fadaRows[0].pagamento_situacao='pago_manual'
+   fadaRows[0].valor_recebido_centavos=27000
+   return route.fulfill({status:200,contentType:'application/json',body:'{"ok":true}'})
+  }
+  if(body.action==='natal_atualizar_agendamento'){
+   assert.equal(body.resposta_id,fadaRows[0].id)
+   assert.equal(body.status,'confirmado')
+   assert.equal(fadaRows[0].pagamento_situacao,'pago_manual')
+   fadaConfirmAttempts++
+   // Testar uma resposta 409: o botão não pode fingir que confirmou.
+   if(fadaConfirmAttempts===1)return route.fulfill({status:409,contentType:'application/json',
+    body:JSON.stringify({error:'Conflito de horário. Atualize a agenda.'})})
+   fadaRows[0].agendamento_status='confirmado'
+   return route.fulfill({status:200,contentType:'application/json',
+    body:JSON.stringify({ok:true,status:'confirmado'})})
+  }
+  throw Error('Ação inesperada na Fada: '+body.action)
  })
  await fadaPage.goto(origin+'/contratar/planilha/?campanha=natal-fada-acucarada-2026',
   {waitUntil:'networkidle'})
@@ -199,6 +247,29 @@ try{
  assert.match(csvValues,/Dia do ensaio;Horário do ensaio;Situação da reserva/)
  assert.ok(csvValues.includes('12/12/2026;10:00 – 10:30;Solicitado'),'CSV com horário da família de sábado')
  assert.ok(csvValues.includes('13/12/2026;09:30 – 09:45;Confirmado'),'CSV com horário confirmado de domingo')
+ // Pagamento pendente não pode liberar a confirmação.
+ const fadaConfirm=fadaPage.locator('.action-confirm-schedule')
+ assert.equal(await fadaConfirm.count(),1)
+ assert.equal(await fadaConfirm.isDisabled(),true)
+ assert.match(await fadaConfirm.getAttribute('title'),/pagamento integral/)
+ await fadaPage.getByRole('button',{name:'R$ Conferir'}).first().click()
+ await fadaPage.locator('#pay-status').selectOption('pago_manual')
+ await fadaPage.locator('#pay-amount').fill('270,00')
+ await fadaPage.locator('#pay-method').selectOption('pix')
+ await fadaPage.locator('#pay-verified').check()
+ await fadaPage.locator('#pay-save').click()
+ await fadaPage.waitForFunction(()=>document.querySelector('.action-confirm-schedule:not(:disabled)'))
+ assert.equal(fadaRows[0].agendamento_status,'solicitado','Pagamento não confirma horário automaticamente')
+ await fadaPage.locator('.action-confirm-schedule').click()
+ await fadaPage.waitForFunction(()=>document.querySelector('#error')?.hidden===false)
+ assert.match(await fadaPage.locator('#error').textContent(),/Conflito de horário/)
+ assert.equal(fadaRows[0].agendamento_status,'solicitado')
+ assert.equal(await fadaPage.locator('.action-confirm-schedule').isEnabled(),true)
+ await fadaPage.locator('.action-confirm-schedule').click()
+ await fadaPage.waitForFunction(()=>document.querySelectorAll('.schedule-confirmado').length===2)
+ assert.equal(fadaRows[0].agendamento_status,'confirmado')
+ assert.equal(await fadaPage.locator('.action-confirm-schedule').count(),0)
+ assert.equal(fadaRows[0].valor_recebido_centavos,27000,'Confirmação não altera pagamento')
  for(const width of [320,390,768]){
   await fadaPage.setViewportSize({width,height:844})
   const d=await fadaPage.evaluate(()=>({
@@ -209,7 +280,7 @@ try{
  assert.deepEqual(fadaErrors,[],'Sem exceções JS na campanha Fada')
  await fadaPage.close()
  assert.deepEqual(errors,[],'Sem exceções JS')
- for(const action of ['central_listar','planilha_configurar_colunas','planilha_editar_resposta','central_registrar_pagamento','central_arquivar'])
+ for(const action of ['central_listar','planilha_configurar_colunas','planilha_editar_resposta','central_registrar_pagamento','central_arquivar','gente_atualizar_agendamento'])
   assert.ok(history.includes(action),'Ação não testada: '+action)
  console.log('Planilha: editar, cores, colunas, pagamento/reversão, remoção, restauração, 320–1440px aprovados.')
 }finally{
