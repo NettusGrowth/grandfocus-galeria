@@ -1,4 +1,5 @@
 import { processingFeeCents, projectedNetCents } from './fees.js'
+import {calculateGenteCommission} from './gente-commission.js'
 
 /* Central de Gestão Grand Focus — exclusiva da área administrativa autenticada.
  * Sem edição do status pago dos pedidos InfinitePay; pagamentos históricos exigem conferência.
@@ -186,14 +187,7 @@ function updateGenteCommission(records){
  const slug=decodeURIComponent(location.pathname.split('/').filter(Boolean)[1]||'')
  root.hidden=slug!=='gente-que-danca-2026'
  if(root.hidden)return
- const eligible=records.filter(r=>r.source==='formulario' &&
-  r.status==='pago_manual' && Number.isInteger(r.studentsCount) &&
-  r.studentsCount>=1 && r.studentsCount<=4 &&
-  r.value===r.studentsCount*15000 && r.paidValue>=r.value)
- const confirmed=eligible.reduce((sum,r)=>sum+r.studentsCount,0)
- const gross=confirmed*15000
- const tier=confirmed<10?0:confirmed<=24?10:confirmed<=29?15:confirmed<=35?20:null
- const payout=tier===null?null:Math.round(gross*tier/100)
+ const {children:confirmed,gross,percent:tier,payout}=calculateGenteCommission(records)
  const children=root.querySelector('[data-gente-children]')
  const revenue=root.querySelector('[data-gente-revenue]')
  const percent=root.querySelector('[data-gente-rate]')
