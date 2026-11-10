@@ -125,9 +125,9 @@ async function api(action,values={},admin=false){
  }
  return data
 }
-async function loadSlots(){
+async function loadSlots(silent=false){
  const sequence=++state.requestSeq
- state.loading=true;renderSlots()
+ if(!silent){state.loading=true;renderSlots()}
  try{
   const data=preview?await api('natal_agenda',{quantidade:state.count},true):
    await api('natal_horarios',{quantidade:state.count})
@@ -239,11 +239,11 @@ $('gf-fada-form').addEventListener('submit',submit)
 renderStudents()
 setInterval(()=>{
  if(!state.loading&&!state.submitting&&!document.hidden&&!$('gf-fada-form').hidden){
-  void loadSlots().catch(()=>{})
+  void loadSlots(true).catch(()=>{})
  }
 },30000)
 document.addEventListener('visibilitychange',()=>{
- if(!document.hidden&&!state.submitting)void loadSlots().catch(()=>{})
+ if(!document.hidden&&!state.submitting)void loadSlots(true).catch(()=>{})
 })
 loadSlots().catch(error=>{
  $('gf-loading').hidden=true;$('gf-closed').hidden=false
