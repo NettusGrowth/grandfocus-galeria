@@ -1,0 +1,68 @@
+<!doctype html><html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#3a0719"><meta name="description" content="Experiência fotográfica na Gente que Dança em parceria com a Grand Focus. 15 de dezembro de 2026, a partir das 18h.">
+<title>Gente que Dança · Experiência Fotográfica | Grand Focus</title>
+<link rel="icon" href="/assets/logo-icone.png" type="image/png">
+<link rel="stylesheet" href="/contratar/gente-que-danca/gente.css?v=1">
+<script type="module" src="/contratar/gente-que-danca/gente.js?v=1"></script>
+</head><body>
+<header class="head"><img src="/assets/grand-focus-assinatura-ouro.png" alt="Grand Focus Fotografia"><span>GENTE QUE DANÇA · 2026</span></header>
+<main>
+  <section class="welcome">
+   <div class="eyebrow">GRAND FOCUS × GENTE QUE DANÇA</div>
+   <h1>Uma experiência especial para guardar.</h1>
+   <p>Preparamos uma experiência fotográfica para registrar essa fase tão bonita da trajetória de cada bailarina. A participação é opcional e a Grand Focus cuida de toda a contratação e do atendimento às famílias.</p>
+  </section>
+  <section class="info" aria-labelledby="package-title">
+   <h2 id="package-title">Conheça a experiência</h2>
+   <p class="price">R$ 150,00 <small>por criança</small></p>
+   <div class="facts"><span>📅 Terça, 15 de dezembro de 2026</span><span>🕕 A partir das 18h</span><span>📍 Escola Gente que Dança</span></div>
+   <p>Uma sessão fotográfica especial realizada na própria escola. A equipe orientará as famílias sobre a organização, as fotografias e a entrega antes da confirmação.</p>
+  </section>
+  <section class="info" aria-labelledby="how-title">
+   <h2 id="how-title">Como participar?</h2>
+   <p>É simples: preencha os dados abaixo e escolha como prefere pagar. Nossa equipe entrará em contato pelo WhatsApp para orientar o pagamento e confirmar sua contratação.</p>
+   <p class="muted">Não há cobrança automática neste formulário, nem necessidade de pagar agora.</p>
+  </section>
+  <aside id="closed" class="notice" hidden role="status">O formulário ainda não está recebendo inscrições.</aside>
+  <form id="gente-form" novalidate>
+   <section class="question" data-step="responsavel">
+    <label for="name">1. Nome completo do responsável <span class="required">*</span></label>
+    <input id="name" name="responsavel" autocomplete="name" required maxlength="120" placeholder="Nome e sobrenome">
+   </section>
+   <section class="question" data-step="whatsapp">
+    <label for="whatsapp">2. Telefone/WhatsApp com DDD <span class="required">*</span></label>
+    <input id="whatsapp" type="tel" autocomplete="tel" inputmode="tel" required maxlength="20" placeholder="(16) 99999-9999">
+   </section>
+   <section class="question">
+    <label id="count-label">3. Quantas crianças da sua família vão participar? <span class="required">*</span></label>
+    <p class="hint">Conte apenas as crianças da sua família, não toda a turma.</p>
+    <div class="choices" id="counts" role="group" aria-labelledby="count-label">
+     <button type="button" data-count="1" aria-pressed="true">1</button><button type="button" data-count="2" aria-pressed="false">2</button><button type="button" data-count="3" aria-pressed="false">3</button><button type="button" data-count="4" aria-pressed="false">4</button>
+    </div>
+    <div id="students" class="students"></div>
+    <div class="total">Total para sua família <strong id="total">R$ 150,00</strong></div>
+   </section>
+   <fieldset class="question" data-step="pagamento">
+    <legend>4. Como prefere realizar o pagamento? <span class="required">*</span></legend>
+    <div class="radio"><label><input type="radio" name="preferencia" value="pix" required><span>Pix</span></label>
+     <label><input type="radio" name="preferencia" value="credito" required><span>Cartão de crédito</span></label></div>
+    <p class="hint">No cartão, eventuais taxas de parcelamento serão informadas antes do pagamento. A equipe enviará as instruções por WhatsApp.</p>
+   </fieldset>
+   <section class="question" data-step="autorizacao">
+    <label class="agree"><input type="checkbox" id="responsibility" required><span>Sou responsável legal pela(s) criança(s) ou tenho autorização para solicitar esta contratação.</span></label>
+    <label class="agree"><input type="checkbox" id="accept" required><span>Li e aceito os <a href="/contratar/gente-que-danca/termos.html" target="_blank" rel="noopener">Termos</a> e a <a href="/contratar/gente-que-danca/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
+   </section>
+   <div class="trap" aria-hidden="true"><label>Não preencher<input type="text" id="website" tabindex="-1" autocomplete="off"></label></div>
+   <p id="form-error" class="error" role="alert" hidden></p>
+   <button type="submit" id="submit" class="submit">Enviar minha inscrição</button>
+  </form>
+  <section id="success" class="success" hidden role="status">
+    <h2>Recebemos sua inscrição! ❤️</h2><p>A Grand Focus entrará em contato pelo WhatsApp para orientar o pagamento e confirmar a experiência.</p><p>Referência: <strong id="reference"></strong></p><a href="https://wa.me/5534992632922" target="_blank" rel="noopener">Falar com a Grand Focus</a>
+  </section>
+  <section class="info final-info"><h2>Informações importantes</h2>
+   <p>A participação é opcional. O atendimento acontece a partir das 18h, na escola, seguindo as orientações da equipe. Os detalhes da sessão e da entrega serão explicados antes da confirmação. A escola não recebe pagamentos pelas famílias.</p>
+   <p class="muted">A inscrição não representa pagamento confirmado. Em caso de dúvida, fale diretamente com a Grand Focus.</p>
+  </section>
+</main><footer>Grand Focus Fotografia · <a href="/contratar/gente-que-danca/termos.html">Termos</a> · <a href="/contratar/gente-que-danca/privacidade.html">Privacidade</a></footer>
+</body></html>
