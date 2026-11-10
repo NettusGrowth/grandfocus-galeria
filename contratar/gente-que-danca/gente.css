@@ -267,3 +267,15 @@ footer{border-top:1px solid #a37e52}
  html{scroll-behavior:auto}
  .submit,.choices button,.schedule-times button,.radio label{transition:none!important}
 }
+
+/* Detalhe natalino leve: selo champanhe com árvore discreta, preservando a marca. */
+.christmas-badge{
+ display:inline-flex;align-items:center;gap:8px;margin:12px 0 1px;
+ padding:7px 13px;border:1px solid #e3ccac;border-radius:999px;
+ background:linear-gradient(110deg,#fff8ec,#fffdfa);
+ color:#77502e;font-size:12px;line-height:1.45;font-weight:750;
+ letter-spacing:.015em;box-shadow:0 3px 13px #99622b0c;
+}
+.christmas-badge span{font-size:16px;line-height:1}
+.hero-tagline span[aria-hidden="true"]{margin-left:3px;font-style:normal}
+@media(max-width:355px){.christmas-badge{font-size:11px;padding:6px 11px}}
