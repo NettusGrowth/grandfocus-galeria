@@ -466,8 +466,8 @@ function selectRecord(record) {
   if(record.source==='formulario'&&!paid(record)&&!record.archived){
     const payment=actionButton('R$ Registrar pagamento','gf-quick-step')
     payment.addEventListener('click',()=>{
-      openDetailSection('payment')
-      const editor=centralDetail.querySelector('[data-accordion="payment"]')
+      openDetailSection('pagamento')
+      const editor=centralDetail.querySelector('[data-accordion="pagamento"]')
       const select=editor?.querySelector('select')
       if(select){select.value='pago_manual';select.dispatchEvent(new Event('change',{bubbles:true}))}
     })
@@ -546,14 +546,7 @@ function selectRecord(record) {
     actions.append(copy)
   }else actions.append(dom('span','gf-no-phone','Telefone indisponível'))
   quickActions.append(actions)
-  if(!record.archived){
-    const steps=dom('div','gf-modal-step-actions')
-    const follow=actionButton('Registrar contato','gf-quick-step')
-    follow.addEventListener('click',()=>openDetailSection('contato'))
-    const payment=actionButton('Ver pagamento','gf-quick-step')
-    payment.addEventListener('click',()=>openDetailSection('pagamento'))
-    steps.append(follow,payment);quickActions.append(steps)
-  }
+
   centralDetail.append(quickActions)
   if(!record.archived){
     centralDetail.append(detailAccordion('Acompanhamento e contato',makeFollowEditor(record),'contato'))
