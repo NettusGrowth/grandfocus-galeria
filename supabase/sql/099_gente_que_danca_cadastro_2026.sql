@@ -7,7 +7,7 @@ begin
  perform pg_advisory_xact_lock(hashtext('gf_gente_que_danca_cadastro_2026'));
  select id into school_id from public.escolas
  where lower(btrim(nome))=lower('Gente que Dança')
- order by criado_em asc limit 1;
+ order by id asc limit 1;
  if school_id is null then
   insert into public.escolas(nome,descricao)
   values('Gente que Dança','Escola parceira da experiência fotográfica de 15/12/2026; participação opcional, contratação e atendimento pela Grand Focus.')
