@@ -105,6 +105,8 @@ jobs:
           # Testa a migração incremental após a suíte antiga, sem alterar expectativas de 090/091.
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/092_fada_natal_reserva_consecutiva_temporaria.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-reserva-temporaria-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/094_fada_natal_publicacao_manual.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-publicacao-manual-tests.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
