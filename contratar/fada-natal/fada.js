@@ -261,7 +261,7 @@ async function submit(event){
   $('gf-ref').textContent=result.codigo
   $('gf-success-message').textContent=result.ja_pago_declarado
    ?'Você informou que já pagou. Não pague novamente. Nossa equipe vai conferir o recebimento e confirmar sua experiência pelo WhatsApp.'
-   :'Nossa equipe entrará em contato pelo WhatsApp com as orientações para realizar o pagamento e confirmar sua experiência fotográfica.'
+   :'Nossa equipe entrará em contato pelo WhatsApp com as instruções de pagamento e a confirmação da sua experiência fotográfica.'
   sessionStorage.removeItem('gf_natal_submission_id')
   $('gf-success').scrollIntoView({block:'start'})
  }catch(error){
