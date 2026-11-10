@@ -13,7 +13,13 @@
   <style>
     .manager-shell { width: min(100% - 30px, 1440px); box-sizing: border-box; margin: 0 auto; padding: 30px 20px 70px; }
     .campaign-list { display: grid; gap: 14px; }
-    .campaign-card { border: 1px solid rgba(75,4,22,.16); border-radius: 14px; padding: 18px; background: #fffdfa; }
+    .campaign-card { border: 1px solid rgba(75,4,22,.16); border-radius: 14px; padding: 18px; background: #fffdfa; cursor:pointer; transition:border-color .14s,transform .14s,box-shadow .14s; }
+    .campaign-card:hover,.campaign-card:focus-visible{border-color:#93536a;box-shadow:0 6px 22px #4b041618;transform:translateY(-1px)}
+    .campaign-card:focus-visible{outline:3px solid #bf9060;outline-offset:2px}
+    .campaign-card .campaign-actions{position:relative}
+    .campaign-card .campaign-manage{font-weight:750}
+    .campaign-archive{background:transparent;border:1px solid #d9c7c9;border-radius:9px;padding:8px 12px;color:#65223b;cursor:pointer}
+    .manager-secondary-action{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
     .campaign-card h3 { margin: 0 0 5px; font-family: 'Cormorant Garamond',serif; font-size: 1.65rem; font-weight: 600; color: #4B0416; }
     .campaign-sub { margin: 0; color: #6d5960; font-size: .92rem; }
     .campaign-meta { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 13px 0; color: #5e4b51; font-size: .88rem; }
@@ -76,6 +82,8 @@
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5"/><path d="M5.8 9.2A7.5 7.5 0 0 1 19.5 12M18.2 14.8A7.5 7.5 0 0 1 4.5 12"/></svg>
               Atualizar
             </button>
+            <button class="manager-secondary-action" type="button" id="toggle-archived">Ver arquivados</button>
+            <a class="manager-secondary-action" href="/contratar/planilha/?campanha=gente-que-danca-2026">▦ Planilha Gente que Dança</a>
           </div>
           <p class="admin-message hidden" id="manager-message" role="status" aria-live="polite"></p>
         </div>
@@ -102,7 +110,7 @@
         </div>
         <div class="manager-overview-card">
           <span class="manager-stat-icon manager-stat-icon-orders" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span>
-          <div><span class="manager-stat-label">Pedidos registrados</span><strong id="manager-stat-orders" class="manager-stat-number">—</strong><span class="manager-stat-description">Pedidos online das campanhas</span></div>
+          <div><span class="manager-stat-label">Inscrições e pedidos</span><strong id="manager-stat-orders" class="manager-stat-number">—</strong><span class="manager-stat-description">Registros de todas as campanhas</span></div>
         </div>
       </section>
 
