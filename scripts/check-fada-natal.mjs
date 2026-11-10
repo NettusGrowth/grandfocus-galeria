@@ -113,9 +113,11 @@ assert.ok(genteJs.includes("api('gente_inscrever'")&&genteJs.includes("api('gent
  publicApi.includes("students.length>2")&&
  publicApi.includes("quantidade>2"),
  'Gente precisa de horários reais, desconto familiar e cadastro atômico.')
-assert.ok(read('contratar/entre-estacoes/admin/index.html').includes('data-workspace-tab="financeiro"')&&
+assert.ok(read('contratar/entre-estacoes/admin/index.html').includes('gf-finance-central-link')&&
+ read('contratar/admin/index.html').includes('href="/contratar/admin/financeiro/"')&&
+ read('contratar/admin/financeiro/index.html').includes('id="stat-closed"')&&
  read('contratar/planilha/planilha.js').includes("setInterval")&&
  read('contratar/admin/manager.js').includes("card.tabIndex = 0"),
- 'Admin deve separar Financeiro, oferecer planilha e cartões acessíveis.')
+ 'Financeiro deve abrir na administração geral com planilha e cartões acessíveis.')
 
 console.log('Fada e Gente: formulários, admin e regras da parceria validados.')
