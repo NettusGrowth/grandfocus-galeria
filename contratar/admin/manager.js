@@ -27,6 +27,8 @@ const managerMessage = document.getElementById('manager-message')
 const campaignList = document.getElementById('campaign-list')
 let schools = []
 let slugWasEdited = false
+let showArchived = false
+let previousCounts = new Map()
 
 function notice(element, message) {
   element.textContent = message
@@ -120,7 +122,7 @@ function setCampaignOverview(campaigns) {
   const total=campaigns.length
   const published=campaigns.filter(item=>item.status==='publicado').length
   const orders=campaigns.reduce((sum,item)=>{
-    const n=Number(item.quantidade_pedidos)
+    const n=Number(item.quantidade_pedidos)+Number(item.quantidade_respostas||0)
     return sum+(Number.isSafeInteger(n)&&n>0?n:0)
   },0)
   document.getElementById('manager-stat-total').textContent=String(total)
@@ -143,6 +145,19 @@ function renderCampaigns(campaigns) {
     const card = document.createElement('article')
     card.className = 'campaign-card'
     card.dataset.status = campaign.status || 'rascunho'
+    const editorUrl = '/contratar/' + encodeURIComponent(campaign.slug) + '/admin/'
+    card.tabIndex = 0
+    card.setAttribute('role','link')
+    card.setAttribute('aria-label','Gerenciar '+(campaign.nome_publico||'campanha'))
+    card.addEventListener('click',event=>{
+      if(event.target.closest('a,button,input,select,textarea'))return
+      location.href=editorUrl
+    })
+    card.addEventListener('keydown',event=>{
+      if((event.key==='Enter'||event.key===' ')&&event.target===card){
+        event.preventDefault();location.href=editorUrl
+      }
+    })
 
     const heading = document.createElement('div')
     heading.className = 'campaign-card-header'
@@ -170,12 +185,11 @@ function renderCampaigns(campaigns) {
     const date = document.createElement('span')
     date.append(makeIcon('calendar'),document.createTextNode(formatDate(campaign.data_evento)))
     const orders = document.createElement('span')
-    orders.append(makeIcon('orders'),document.createTextNode(String(campaign.quantidade_pedidos || 0) + ' pedido(s) online'))
+    orders.append(makeIcon('orders'),document.createTextNode(String((campaign.quantidade_pedidos || 0)+(campaign.quantidade_respostas || 0)) + ' inscrição(ões)'))
     meta.append(date, orders)
 
     const actions = document.createElement('div')
     actions.className = 'campaign-actions'
-    const editorUrl = '/contratar/' + encodeURIComponent(campaign.slug) + '/admin/'
     const manage = makeLink('Gerenciar campanha', editorUrl)
     manage.className = 'campaign-manage'
     manage.prepend(makeIcon('manage'))
@@ -202,6 +216,28 @@ function renderCampaigns(campaigns) {
       actions.append(copy)
     }
 
+    const archive = document.createElement('button')
+    archive.type = 'button';archive.className = 'campaign-archive'
+    archive.textContent = campaign.oculto_em ? 'Restaurar formulário' : 'Arquivar formulário'
+    archive.addEventListener('click',async event=>{
+      event.stopPropagation()
+      const archiving=!campaign.oculto_em
+      if(archiving&&campaign.status==='publicado'){
+        notice(managerMessage,'Pause a campanha antes de arquivá-la para interromper inscrições.')
+        return
+      }
+      if(!confirm(archiving
+        ?'Arquivar este formulário? Ele sairá da lista, mas as respostas e os pagamentos serão preservados.'
+        :'Restaurar este formulário à lista principal?'))return
+      archive.disabled=true
+      try{
+        await adminRequest('arquivar_campanha',{slug:campaign.slug,arquivar:archiving})
+        notice(managerMessage,archiving?'Formulário arquivado sem apagar registros.':'Formulário restaurado.')
+        await loadCampaigns()
+      }catch(error){notice(managerMessage,error.message)}
+      finally{archive.disabled=false}
+    })
+    actions.append(archive)
     card.append(heading, meta, actions)
     campaignList.append(card)
   }
@@ -213,8 +249,15 @@ async function loadCampaigns() {
   loading.className = 'manager-empty'
   loading.textContent = 'Carregando contratações…'
   campaignList.append(loading)
-  const data = await adminRequest('listar_campanhas')
-  renderCampaigns(data.campanhas || [])
+  const data = await adminRequest('listar_campanhas',{incluir_ocultas:showArchived})
+  const rows=data.campanhas||[]
+  if(!showArchived&&previousCounts.size){
+    const novel=rows.filter(item=>(item.quantidade_respostas||0)>(previousCounts.get(item.id)||0))
+    if(novel.length)notice(managerMessage,
+      'Nova(s) inscrição(ões): '+novel.map(item=>item.nome_publico).join(', '))
+  }
+  if(!showArchived)previousCounts=new Map(rows.map(item=>[item.id,Number(item.quantidade_respostas)||0]))
+  renderCampaigns(rows)
 }
 
 async function enterManager() {
@@ -275,6 +318,15 @@ document.getElementById('refresh-campaigns').addEventListener('click', async () 
   }
 })
 
+document.getElementById('toggle-archived').addEventListener('click',async()=>{
+ showArchived=!showArchived
+ document.getElementById('toggle-archived').textContent=showArchived?'Ver campanhas ativas':'Ver arquivados'
+ try{await loadCampaigns()}catch(error){notice(managerMessage,error.message)}
+})
+setInterval(()=>{
+ if(!document.hidden&&!managerArea.classList.contains('hidden')
+   &&document.getElementById('new-campaign-form').classList.contains('hidden'))void loadCampaigns().catch(()=>{})
+},20000)
 document.getElementById('event-name').addEventListener('input', () => {
   if (!slugWasEdited) document.getElementById('campaign-slug').value = slugify(document.getElementById('event-name').value)
 })
