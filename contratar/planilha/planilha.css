@@ -105,3 +105,19 @@ main{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
  .statusbar>*{max-width:100%;overflow-wrap:anywhere}
  #updated{margin-left:0}
 }
+
+/* Acompanhamento automático de reservas, sem interferir na agenda nem no financeiro */
+.toolbar #schedule-date-field,.toolbar #sort-order-field{min-width:175px}
+.schedule-guide{margin:0 0 12px;font-size:12px;color:#6a5360;
+ background:#fffaf5;border-left:3px solid #b58b45;padding:10px 13px;border-radius:0 8px 8px 0}
+.schedule-guide strong{color:#5d253d}
+.sheet-schedule-value{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:700;color:#5b2842}
+.badge.schedule-solicitado{background:#fff1d7;color:#795126;border:1px solid #ecd4ad}
+.badge.schedule-confirmado{background:#e3f5e8;color:#1d6238;border:1px solid #b9ddc5}
+.badge.schedule-cancelado{background:#f0edef;color:#75636a;border:1px solid #ddd3d7}
+.badge.schedule-sem_horario{background:#f6f4f4;color:#6f646a}
+@media(max-width:540px){
+ .toolbar #schedule-date-field,.toolbar #sort-order-field{min-width:calc(50% - 12px)}
+ .schedule-guide{line-height:1.65}
+ .sheet-schedule-value{font-size:12px}
+}

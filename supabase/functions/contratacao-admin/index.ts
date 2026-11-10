@@ -569,6 +569,15 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   ])
   if(nativeResult.error || formsResult.error || followResult.error)
     throw new Error('Não foi possível consultar os registros da central de gestão.')
+  // Agenda vinculada à campanha: dados reais do horário inicial. Apenas a rota
+  // administrativa autenticada pode consultar este mapeamento. Não modifica reservas.
+  const {data:horarios,error:horariosError}=await admin.from('gf_contratacao_horarios')
+    .select('id,dia,inicio,duracao_minutos')
+    .eq('evento_contratacao_id',evento.id)
+    .order('dia',{ascending:true})
+    .order('inicio',{ascending:true})
+    .limit(2000)
+  if(horariosError)throw new Error('Não foi possível consultar a agenda da planilha.')
   const pedidos = nativeResult.data || []
   const participantes: any[] = []
   const ids = pedidos.map((item:any)=>item.id)
@@ -602,6 +611,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
       planilha_colunas:evento.planilha_colunas||[]},
     pedidos:rows,
     respostas:formsResult.data||[],
+    horarios:horarios||[],
     acompanhamentos:followResult.data||[],
     limite_por_origem:1000,
     resultados_possivelmente_truncados:
