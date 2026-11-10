@@ -35,6 +35,14 @@
       "destination": "/contratar/entre-estacoes/index.html"
     },
     {
+      "source": "/contratar/gente-que-danca-2026",
+      "destination": "/contratar/gente-que-danca/index.html"
+    },
+    {
+      "source": "/contratar/gente-que-danca-2026/",
+      "destination": "/contratar/gente-que-danca/index.html"
+    },
+    {
       "source": "/contratar/:slug/",
       "destination": "/contratar/entre-estacoes/index.html"
     }
