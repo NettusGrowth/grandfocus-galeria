@@ -106,6 +106,7 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/092_fada_natal_reserva_consecutiva_temporaria.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-reserva-temporaria-tests.sql
           # Grand Focus 360: só base aditiva. Transações de teste sempre com rollback.
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/grandfocus-360-pre.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/093_grandfocus_360_base_integracoes.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/grandfocus-360-base-tests.sql
       - name: Set up Deno
