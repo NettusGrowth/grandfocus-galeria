@@ -28,4 +28,15 @@ const families=[
  {...one,studentsCount:1,value:15000,paidValue:15000},
 ]
 assert.deepEqual(calculateGenteCommission(families),{children:10,gross:150000,percent:10,payout:15000})
+
+const promo=(n)=>({...one,studentsCount:n,value:15000+(n-1)*12000,paidValue:15000+(n-1)*12000})
+assert.deepEqual(calculateGenteCommission([promo(4),promo(4),promo(2)]),{
+ children:10,gross:51000+51000+27000,percent:10,payout:12900
+})
+assert.deepEqual(calculateGenteCommission([{...promo(2),paidValue:0,status:'pendente'}]),{
+ children:0,gross:0,percent:0,payout:0
+})
+assert.deepEqual(calculateGenteCommission([promo(2),{...one,studentsCount:2,value:30000,paidValue:30000}]),{
+ children:4,gross:57000,percent:0,payout:0
+})
 console.log('Gente: limites 0/9/10/24/25/29/30/35/36, famílias e exclusões confirmados.')
