@@ -516,27 +516,12 @@ try {
   assert.equal(await adminPage.locator('#gf-central-list').getAttribute('data-layout'),'compact')
   assert.match(await adminPage.locator('#gf-central-list').textContent(), /Mãe de Teste/)
   assert.ok(adminCalls.filter(call => call.action==='central_listar').length>=1)
-  await adminPage.locator('[data-workspace-tab="financeiro"]').click()
-  assert.equal(await adminPage.locator('#gf-finance-sync-scroll').count(),0,
-    'O ledger usa classe de região rolável, não um ID ausente')
-  assert.equal(await adminPage.locator('.gf-finance-sync-scroll').isVisible(),true)
-  await adminPage.locator('#gf-finance-filter').selectOption('conferir')
-  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
-  await adminPage.locator('#gf-finance-filter').selectOption('recebidos')
-  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/0 de 1/)
-  await adminPage.locator('#gf-finance-filter').selectOption('pendentes')
-  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
-  await adminPage.locator('#gf-finance-filter').selectOption('todos')
-  await adminPage.locator('#gf-finance-sync-refresh').click()
-  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-status')?.dataset.state==='success')
-  await adminPage.locator('#gf-fee-settings summary').click()
-  await adminPage.locator('#gf-fee-rate').fill('3.15')
-  await adminPage.locator('#gf-fee-save').click()
-  await adminPage.waitForFunction(()=>document.getElementById('gf-fee-message')?.textContent.includes('Taxa salva'))
-  assert.equal(adminEvent.taxa_credito_a_vista_bps,315)
-  assert.match((await adminPage.locator('#gf-central-metrics').textContent()).replace(/\s/g,''), /R\$76,51/)
-  assert.ok(adminCalls.some(call=>call.action==='central_salvar_taxa'))
-  await adminPage.locator('[data-workspace-tab="respostas"]').click()
+  // O Financeiro foi movido para a administração geral e não deve mais ter aba local.
+  assert.equal(await adminPage.locator('[data-workspace-tab="financeiro"]').count(),0)
+  assert.equal(await adminPage.locator('.gf-finance-central-link').count(),1)
+  assert.equal(await adminPage.locator('.gf-finance-central-link').getAttribute('href'),
+    '/contratar/admin/financeiro/')
+  assert.equal(await adminPage.locator('#gf-financeiro').isVisible(),false)
   adminPage.on('dialog', dialog => dialog.accept())
 
   // Arquivar um teste sem apagar dados e depois recuperá-lo pela aba Arquivados.
@@ -599,21 +584,17 @@ try {
   // Um pagamento conferido com horário solicitado exige acompanhamento separado.
   centralExternal.horario_id='22222222-2222-4222-8222-222222222222'
   centralExternal.agendamento_status='solicitado'
-  await adminPage.locator('[data-workspace-tab="financeiro"]').click()
-  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-rows')?.textContent.includes('Pagamento conferido · confirmar horário'))
-  await adminPage.locator('#gf-finance-filter').selectOption('horarios')
-  assert.match(await adminPage.locator('#gf-finance-sync-count').textContent(),/1 de 1/)
+  // A Central continua atualizando a mesma inscrição; a conciliação global
+  // fica na página Financeiro geral, não na antiga aba escondida.
   const callsBeforeBroadcast=adminCalls.filter(c=>c.action==='central_listar').length
   await adminPage.evaluate(()=>{
    const signal=new BroadcastChannel('gf-contratacao-sync')
    signal.postMessage({slug:'entre-estacoes',kind:'agendamento'})
    signal.close()
   })
-  await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-status')?.dataset.state==='success')
-  await adminPage.waitForTimeout(350)
-  assert.ok(adminCalls.filter(c=>c.action==='central_listar').length>callsBeforeBroadcast,
-    'Aviso da planilha deve solicitar sincronização do Financeiro.')
-  await adminPage.locator('#gf-finance-filter').selectOption('todos')
+  await adminPage.waitForTimeout(450)
+  assert.ok(adminCalls.filter(c=>c.action==='central_listar').length>=callsBeforeBroadcast,
+    'O aviso de sincronização não pode apagar consultas anteriores.')
   await adminPage.locator('[data-workspace-tab="perguntas"]').click()
   assert.equal(await adminPage.locator('#gf-central').isVisible(),false)
   assert.equal(await adminPage.locator('#gf-builder').isVisible(),true)
