@@ -8,7 +8,7 @@ const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'
 const clean=str=>String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const wa=tel=>{let n=String(tel||'').replace(/\D/g,'');if(n.length===10||n.length===11)n='55'+n;return /^55\d{10,11}$/.test(n)?'https://wa.me/'+n:null}
-const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,columns:[],draft:[]}
+const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,columns:[],draft:[],editIntentHandled:false}
 const palette=['vinho','dourado','azul','verde','rosa','cinza']
 const rowColors=['sem','verde','amarelo','rosa','azul','cinza']
 $('back').href='/contratar/'+encodeURIComponent(slug)+'/admin/#respostas'
@@ -206,6 +206,12 @@ async function refresh(){
   data.initial=true
   if(payload.resultados_possivelmente_truncados)showError('Esta campanha pode ter mais de 1.000 registros. Consulte o histórico antes de conciliar.')
   current()
+  if(!data.editIntentHandled){
+   data.editIntentHandled=true
+   const editId=new URLSearchParams(location.search).get('editar')
+   const target=data.all.find(r=>r.source==='formulario'&&r.id===editId&&!r.archived)
+   if(target)openEdit(target)
+  }
   $('updated').textContent='Atualizado às '+new Date().toLocaleTimeString('pt-BR')
   $('connection').textContent='● Conectado'
  }catch(e){$('connection').textContent='● Sem atualização';showError(e.message)}
