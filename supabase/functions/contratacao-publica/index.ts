@@ -58,6 +58,8 @@ Deno.serve(async (req: Request) => {
         return await actionNatalLiberar(req, admin, body, campaignSlug)
       case 'natal_inscrever':
         return await actionNatalInscrever(req, admin, body, campaignSlug)
+      case 'gente_status':
+        return await actionGenteStatus(req, admin, campaignSlug)
       case 'gente_inscrever':
         return await actionGenteInscrever(req, admin, body, campaignSlug)
       case 'dados':
@@ -123,6 +125,15 @@ async function actionNatalLiberar(req:Request,admin:any,body:any,slug:string){
  const {data,error}=await admin.rpc('gf_natal_liberar_reserva',{p_slug:slug,p_token:token})
  if(error)return jsonResponse(req,{error:'Não foi possível liberar agora. A reserva expira automaticamente.'},409)
  return jsonResponse(req,data||{ok:true})
+}
+async function actionGenteStatus(req:Request,admin:any,slug:string){
+ if(slug!=='gente-que-danca-2026')
+  return jsonResponse(req,{error:'Campanha não encontrada.'},404)
+ const {data,error}=await admin.from('gf_contratacao_eventos')
+  .select('status,vendas_encerram_em').eq('slug',slug).maybeSingle()
+ if(error)return jsonResponse(req,{error:'Não foi possível consultar disponibilidade.'},503)
+ return jsonResponse(req,{disponivel:!!data&&data.status==='publicado'&&
+  !!data.vendas_encerram_em&&new Date(data.vendas_encerram_em).getTime()>Date.now()})
 }
 async function actionGenteInscrever(req:Request,admin:any,body:any,slug:string){
  if(slug!=='gente-que-danca-2026')
