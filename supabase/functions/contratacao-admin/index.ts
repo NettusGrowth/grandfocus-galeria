@@ -543,7 +543,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
       .eq('evento_contratacao_id',evento.id)
       .order('criado_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_form_respostas')
-      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_declarado,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em,horario_id,agendamento_status,agendamento_expira_em')
+      .select('id,origem,origem_chave,origem_linha,respondido_em,responsavel_nome,responsavel_whatsapp,email_responsavel,bailarina_nome,modalidade_original,experiencia_original,valor_informado_centavos,pagamento_preferido,pagamento_declarado,pagamento_situacao,valor_recebido_centavos,pagamento_metodo,pagamento_referencia,pagamento_observacao,pagamento_conferido_em,observacao_origem,criado_em,arquivado_em,horario_id,agendamento_status,agendamento_expira_em,alunos_inscritos')
       .eq('evento_contratacao_id',evento.id)
       .order('respondido_em',{ascending:false}).limit(1000),
     admin.from('gf_contratacao_acompanhamentos')
