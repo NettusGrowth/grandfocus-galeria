@@ -7,15 +7,30 @@ const SUPABASE_URL='https://selnsjtumkxjrtnqofqx.supabase.co'
 const PUBLIC_KEY='sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0'
 const preview=new URLSearchParams(location.search).get('preview')==='1'
 const prices=Object.freeze({1:8000,2:14500,3:21500,4:28500})
-const state={day:'2026-12-12',count:1,period:'morning',slot:null,slots:[],expanded:false,loading:false,submitting:false,requestSeq:0}
+const state={day:null,count:1,period:null,slot:null,slots:[],expanded:false,loading:false,submitting:false,requestSeq:0}
 const $=id=>document.getElementById(id)
 const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).format(n/100)
 
-function notify(message){
- const target=$('gf-error');target.textContent=message;target.hidden=false
- target.scrollIntoView({block:'center',behavior:'auto'})
+function notify(message,field=null){
+ clearError()
+ if(field){
+  field.setAttribute('aria-invalid','true')
+  const parent=field.closest('label')||field.closest('.gf-date-tabs')||field.parentElement
+  const e=document.createElement('p');e.className='gf-inline-error';e.textContent=message
+  e.setAttribute('role','alert');parent?.append(e)
+  field.scrollIntoView({block:'center',behavior:'smooth'})
+  field.focus({preventScroll:true})
+ }else{
+  const target=$('gf-error');target.textContent=message;target.hidden=false
+  target.scrollIntoView({block:'center',behavior:'smooth'})
+ }
 }
-function clearError(){$('gf-error').hidden=true}
+function clearError(){
+ $('gf-error').hidden=true
+ document.querySelectorAll('.gf-inline-error').forEach(e=>e.remove())
+ document.querySelectorAll('[aria-invalid]').forEach(e=>e.removeAttribute('aria-invalid'))
+}
+function issue(message,field){const error=new Error(message);error.field=field;return error}
 function renderStudents(){
  const root=$('gf-students')
  const existing=[...root.querySelectorAll('[data-student-name]')].map(input=>input.value)
@@ -36,6 +51,7 @@ function renderStudents(){
  renderRecap()
 }
 function availability(){
+ if(!state.day||!state.period)return []
  return state.slots.filter(slot=>slot.dia===state.day&&slot.ativo&&slot.disponiveis>0&&
    ((slot.inicio<'13:00')===(state.period==='morning')))
 }
@@ -50,6 +66,8 @@ function renderRecap(){
  root.append(p)
 }
 function renderSlots(){
+ $('gf-period-block').hidden=!state.day
+ $('gf-time-block').hidden=!state.day||!state.period
  const root=$('gf-slots');root.replaceChildren()
  const all=availability()
  if(state.loading){
@@ -153,8 +171,10 @@ async function loadSlots(silent=false){
 }
 async function changeAgenda(nextCount,nextDay,nextPeriod=state.period){
  if(state.submitting)return
+ const dateChanged=state.day!==nextDay
  state.count=nextCount;state.day=nextDay
- state.period=nextDay==='2026-12-13'?'morning':nextPeriod
+ state.period=dateChanged?null:nextPeriod
+ if(nextDay==='2026-12-13'&&state.period==='afternoon')state.period=null
  state.slot=null;state.expanded=false
  $('gf-slot-hint').textContent='O horário será solicitado quando você enviar o formulário.'
  renderStudents();clearError()
@@ -167,19 +187,26 @@ function studentsData(){
 }
 function validate(){
  const alunos=studentsData()
- if(alunos.length!==state.count||alunos.some(x=>x.nome.length<3||x.nome.length>120))
-  throw new Error('Preencha o nome completo de cada aluno da sua família.')
+ for(let i=0;i<alunos.length;i++){
+  if(alunos[i].nome.length<3||alunos[i].nome.length>120)
+   throw issue('Preencha o nome completo do aluno.', $('gf-aluno-'+i))
+ }
+ if(!state.day)throw issue('Escolha primeiro o dia do ensaio.',document.querySelector('[data-day]'))
+ if(!state.period)throw issue('Escolha manhã ou tarde.',document.querySelector('[data-period]:not([hidden])'))
  if(!state.slot||!state.slots.some(x=>x.id===state.slot&&x.disponiveis>0))
-  throw new Error('Escolha um horário disponível para sua família.')
+  throw issue('Escolha um horário disponível.', $('gf-time-block'))
  const nome=$('gf-responsavel').value.trim()
  const whatsapp=$('gf-whatsapp').value.replace(/\D/g,'')
- if(nome.length<5)throw new Error('Preencha seu nome e sobrenome.')
+ if(nome.length<5)throw issue('Preencha seu nome e sobrenome.',$('gf-responsavel'))
  if(whatsapp.length<10||whatsapp.length>13)
-  throw new Error('Informe um WhatsApp válido com DDD.')
+  throw issue('Informe um WhatsApp válido com DDD.',$('gf-whatsapp'))
  const pagamento=document.querySelector('input[name="pagamento"]:checked')?.value
- if(!pagamento)throw new Error('Informe se já pagou pelas fotos.')
- if(!$('gf-consent').checked)throw new Error('Aceite os termos e a política de privacidade.')
- return {alunos,nome,whatsapp,pagamento}
+ if(!pagamento)throw issue('Informe se já realizou o pagamento.',document.querySelector('input[name="pagamento"]'))
+ const preferencia=document.querySelector('input[name="preferencia"]:checked')?.value||''
+ if(pagamento==='a_pagar'&&!['pix','credito'].includes(preferencia))
+  throw issue('Escolha Pix ou cartão de crédito.',document.querySelector('input[name="preferencia"]'))
+ if(!$('gf-consent').checked)throw issue('Aceite os termos e a política de privacidade.',$('gf-consent'))
+ return {alunos,nome,whatsapp,pagamento,preferencia}
 }
 function submissionToken(){
  let token=sessionStorage.getItem('gf_natal_submission_id')
@@ -196,11 +223,11 @@ async function submit(event){
   if($('gf-website').value.trim())throw new Error('Solicitação não aceita.')
   payload={
    horario_id:state.slot,nome:input.nome,whatsapp:input.whatsapp,email:'',
-   alunos:input.alunos,pagamento:input.pagamento,meio_pagamento:'',
+   alunos:input.alunos,pagamento:input.pagamento,meio_pagamento:input.preferencia,
    data_pagamento:null,familia:'',observacao:'',
    idempotencia:submissionToken(),aceite:true,company_website:''
   }
- }catch(error){notify(error.message);return}
+ }catch(error){notify(error.message,error.field);return}
  const button=$('gf-submit')
  state.submitting=true;button.disabled=true;button.textContent='Enviando solicitação...'
  renderSlots()
@@ -223,7 +250,7 @@ async function submit(event){
  }finally{
   state.submitting=false
   if(!$('gf-fada-form').hidden){
-   button.disabled=false;button.textContent='Solicitar meu horário';renderSlots()
+   button.disabled=false;button.textContent='Enviar inscrição';renderSlots()
   }
  }
 }
@@ -234,7 +261,13 @@ document.querySelectorAll('[data-day]').forEach(btn=>btn.addEventListener('click
 document.querySelectorAll('[data-period]').forEach(btn=>btn.addEventListener('click',
  ()=>void changeAgenda(state.count,state.day,btn.dataset.period)))
 document.querySelectorAll('input[name="pagamento"]').forEach(input=>
+ input.addEventListener('change',()=>{
+  $('gf-payment-preference').hidden=document.querySelector('input[name="pagamento"]:checked')?.value!=='a_pagar'
+  clearError()
+ }))
+document.querySelectorAll('input[name="preferencia"]').forEach(input=>
  input.addEventListener('change',clearError))
+$('gf-fada-form').addEventListener('input',clearError)
 $('gf-fada-form').addEventListener('submit',submit)
 renderStudents()
 setInterval(()=>{
