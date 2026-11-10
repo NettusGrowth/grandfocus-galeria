@@ -9,8 +9,8 @@ begin
  where lower(btrim(nome))=lower('Gente que Dança')
  order by id asc limit 1;
  if school_id is null then
-  insert into public.escolas(nome,descricao)
-  values('Gente que Dança','Escola parceira da experiência fotográfica de 15/12/2026; participação opcional, contratação e atendimento pela Grand Focus.')
+  insert into public.escolas(id,nome)
+  values(gen_random_uuid(),'Gente que Dança')
   returning id into school_id;
  end if;
  select id into event_id from public.eventos
@@ -18,8 +18,8 @@ begin
  and nome='Experiência Fotográfica · Gente que Dança'
  limit 1;
  if event_id is null then
-  insert into public.eventos(nome,data,escola_id,tipo)
-  values('Experiência Fotográfica · Gente que Dança','2026-12-15',school_id,'evento')
+  insert into public.eventos(nome,data,escola_id)
+  values('Experiência Fotográfica · Gente que Dança','2026-12-15',school_id)
   returning id into event_id;
  end if;
  select * into provider from public.gf_contratacao_eventos where slug='natal-fada-acucarada-2026';
