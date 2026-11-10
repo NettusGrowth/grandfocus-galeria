@@ -121,3 +121,10 @@ main{box-sizing:border-box;width:100%;max-width:100%;min-width:0}
  .schedule-guide{line-height:1.65}
  .sheet-schedule-value{font-size:12px}
 }
+
+/* Ação administrativa de confirmação — destaque restrito ao botão habilitado. */
+.buttons .action-confirm-schedule{background:#e5f3e9;border-color:#8bbca0;color:#1d633b;
+ font-weight:800;min-height:36px}
+.buttons .action-confirm-schedule:not(:disabled):hover{background:#d4ecd9;border-color:#4c9a6b}
+.buttons .action-confirm-schedule:disabled{background:#f3f0ee;border-color:#ded8d7;
+ color:#84777a;cursor:not-allowed;opacity:.8}
