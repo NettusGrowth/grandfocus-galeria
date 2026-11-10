@@ -28,6 +28,7 @@ function summary(){
  $('result-count').textContent=state.view.length+' registro(s) · '+totals.activeCount+' contrato(s) ativo(s) · '+totals.reviewCount+' aguardando conferência';
  const warnings=[];
  if(totals.missingValue)warnings.push(totals.missingValue+' registro(s) ativo(s) sem valor definido; não entram na soma do valor fechado.');
+ if(totals.received>totals.closed)warnings.push('O recebido excede o valor fechado neste filtro: confira os lançamentos e os valores informados.');
  if(state.partial.length)warnings.push('Atenção: consulta incompleta em '+state.partial.length+' campanha(s): '+state.partial.join(', ')+'. Os totais podem estar subestimados.');
  $('financial-warning').hidden=!warnings.length;
  $('financial-warning').textContent=warnings.join(' ');
@@ -74,6 +75,7 @@ function updateSelects(){
    .sort((a,b)=>a.nome_publico.localeCompare(b.nome_publico,'pt-BR')))opt($('campaign'),c.slug,c.nome_publico+' · '+c.escola_nome);
  if([...$('school').options].some(o=>o.value===existingSchool))$('school').value=existingSchool;
  if([...$('campaign').options].some(o=>o.value===existingCampaign))$('campaign').value=existingCampaign;
+ updateCampaignSelect();
 }
 function updateCampaignSelect(){
  const old=$('campaign').value;$('campaign').length=1;
