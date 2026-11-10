@@ -503,8 +503,8 @@ try {
   assert.equal(await adminPage.locator('#gf-finance-sync-rows tr').count(),1)
   assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/Mãe de Teste/)
   assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/Pagamento não conferido/)
-  assert.match(await adminPage.locator('#gf-finance-sync-rows').textContent(),/R\\$\\s*79,00/)
-  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).trim(),'R$ 0,00',
+  assert.ok((await adminPage.locator('#gf-finance-sync-rows').textContent()).replace(/\s/g,'').includes('R$79,00'))
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).replace(/\s/g,''),'R$0,00',
     'Declaração não é dinheiro recebido')
   assert.match(await adminPage.locator('#gf-finance-sync-rows a').first().getAttribute('href'),
     /campanha=entre-estacoes&editar=88888888-8888-4888-8888-888888888888/)
@@ -575,9 +575,9 @@ try {
   await adminPage.waitForFunction(() => document.getElementById('gf-central-notice')?.textContent.includes('Conferência registrada'))
   assert.ok(adminCalls.some(call=>call.action==='central_registrar_pagamento'),'A central não salvou conferência do pagamento.')
   await adminPage.waitForFunction(()=>document.querySelector('#gf-finance-sync-rows')?.textContent.includes('Pago · conferido manualmente'))
-  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).trim(),'R$ 79,00',
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(3).textContent()).replace(/\s/g,''),'R$79,00',
     'O pagamento lançado na Central deve aparecer no Financeiro sem lançamento duplicado.')
-  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(4).textContent()).trim(),'R$ 0,00')
+  assert.equal((await adminPage.locator('#gf-finance-sync-rows td').nth(4).textContent()).replace(/\s/g,''),'R$0,00')
   assert.equal(await adminPage.locator('#gf-finance-sync-rows tr').count(),1)
   await adminPage.waitForFunction(() => !document.querySelector('.gf-archive-bar button'),
     {timeout:5000})
