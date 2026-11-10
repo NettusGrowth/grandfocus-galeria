@@ -5,9 +5,9 @@ do $natal_sem_contador$
 declare
  admin_id uuid:='11111111-1111-4111-8111-111111111111'::uuid;
  campanha uuid; horario uuid; invadido uuid; horario_domingo uuid;
- token uuid:='11111111-1111-4111-8111-111111111119'::uuid;
- token2 uuid:='22222222-2222-4222-8222-222222222229'::uuid;
- token3 uuid:='33333333-3333-4333-8333-333333333339'::uuid;
+ v_token uuid:='11111111-1111-4111-8111-111111111119'::uuid;
+ v_token2 uuid:='22222222-2222-4222-8222-222222222229'::uuid;
+ v_token3 uuid:='33333333-3333-4333-8333-333333333339'::uuid;
  resultado jsonb;
 begin
  if has_function_privilege('anon',
@@ -41,11 +41,11 @@ begin
   'natal-fada-acucarada-2026',horario,
   'Responsavel Teste','16999998888','',
   '[{"nome":"Bailarina Primeira","turma":""},{"nome":"Bailarina Segunda","turma":""}]'::jsonb,
-  'a_pagar','',null,'','',token,true);
+  'a_pagar','',null,'','',v_token,true);
  if (resultado->>'valor_centavos')::integer<>14500 then
   raise exception 'Preço da família com duas alunas incorreto.';end if;
  if (select count(*) from public.gf_natal_holds
-  where token=token and status='convertido')<>1 then
+  where token=v_token and status='convertido')<>1 then
   raise exception 'O envio deve converter o hold na mesma transação.';end if;
  if public.gf_natal_intervalo_livre(campanha,invadido,1,null,null) then
   raise exception 'Horário seguinte não foi bloqueado pela primeira família.';end if;
@@ -54,7 +54,7 @@ begin
    'natal-fada-acucarada-2026',invadido,
    'Outra Familia','16999997777','',
    '[{"nome":"Aluna Terceira","turma":""}]'::jsonb,
-   'a_pagar','',null,'','',token2,true);
+   'a_pagar','',null,'','',v_token2,true);
   raise exception 'Segunda família invadiu o horário já solicitado.';
  exception when others then
   if sqlerrm not like '%não comporta%' then raise;end if;
@@ -63,14 +63,14 @@ begin
   'natal-fada-acucarada-2026',horario,
   'Responsavel Teste','16999998888','',
   '[{"nome":"Bailarina Primeira","turma":""},{"nome":"Bailarina Segunda","turma":""}]'::jsonb,
-  'a_pagar','',null,'','',token,true);
+  'a_pagar','',null,'','',v_token,true);
  if resultado->>'reutilizado'<>'true' then
   raise exception 'Retry de envio deve devolver o mesmo registro.';end if;
  resultado:=public.gf_natal_solicitar_sem_cronometro(
   'natal-fada-acucarada-2026',horario_domingo,
   'Responsavel Quatro','16999996666','',
   '[{"nome":"Aluno Um","turma":""},{"nome":"Aluno Dois","turma":""},{"nome":"Aluno Tres","turma":""},{"nome":"Aluno Quatro","turma":""}]'::jsonb,
-  'ja_paguei','',null,'','',token3,true);
+  'ja_paguei','',null,'','',v_token3,true);
  if (resultado->>'valor_centavos')::integer<>28500 then
   raise exception 'Preço de quatro alunos incorreto.';end if;
  if (select count(*) from public.gf_natal_holds
