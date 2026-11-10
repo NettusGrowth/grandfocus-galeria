@@ -317,6 +317,14 @@ async function actionSalvar(req: Request, admin: any, userId: string, body: any,
 }
 
 async function actionPublicar(req: Request, admin: any, userId: string, slug: string) {
+  if(slug==='gente-que-danca-2026'){
+    const {data,error}=await admin.rpc('gf_gente_admin_publicar',{
+      p_slug:slug,p_usuario:userId
+    })
+    if(error)return jsonResponse(req,{error:error.message||'Revise a campanha.'},409)
+    const evento=await getCampaign(admin,slug)
+    return jsonResponse(req,{ok:true,resultado:data,evento})
+  }
   // Natal Fada Açucarada recebe inscrições e confere pagamentos manualmente:
   // jamais acionar checkout, credenciais de cobrança ou webhooks nesta campanha.
   if (slug === 'natal-fada-acucarada-2026') {
