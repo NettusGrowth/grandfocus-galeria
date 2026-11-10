@@ -206,3 +206,22 @@ html{scroll-behavior:auto;}
  .gf-workspace .gf-central .gf-central-list[data-layout="compact"] .gf-record-bottom{grid-column:2;grid-row:3;}
 }
 @media(prefers-reduced-motion:reduce){.gf-workspace *{transition:none!important;}}
+
+/* Admin mais objetivo: perguntas primeiro, respostas/financeiro separados. */
+.gf-workspace-nav{display:flex;gap:5px;overflow-x:auto;scrollbar-width:thin}
+.gf-workspace-nav button{flex:none;min-height:42px;white-space:nowrap;font-weight:650}
+.gf-workspace .gf-financeiro{margin-top:12px}
+.gf-workspace .gf-financeiro .gf-central-metrics{margin:18px 0}
+.gf-workspace .gf-finance-reminder{font-size:13px;color:#66515b;border-top:1px solid #e8dada;padding-top:12px}
+.gf-workspace .gf-live-count{color:#a2204b;font-size:11px;font-weight:750}
+.gf-workspace .gf-central-actions{display:flex;flex-wrap:wrap;gap:8px}
+.gf-workspace .gf-central-actions a{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.gf-workspace .gf-event-group{background:#fff;border:1px solid #e3d4d6;border-radius:12px;margin:14px 0;overflow:hidden}
+.gf-workspace .gf-event-group>summary{cursor:pointer;padding:16px 20px;background:#f8f1f3;color:#59172d;font-weight:750;font-size:16px;list-style-position:inside}
+.gf-workspace .gf-event-group>.panel{box-shadow:none;border:0;margin:0;border-top:1px solid #ebdfe2}
+.gf-workspace .gf-event-group:not([open])>summary:hover{background:#ffeff5}
+.gf-workspace #gf-central .gf-detail-summary{margin-top:8px}
+.gf-workspace .gf-modal-step-actions{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+.gf-workspace .gf-modal-step-actions a.gf-quick-step{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.gf-workspace .gf-central-actions #gf-open-sheet{white-space:nowrap}
+@media(max-width:660px){.gf-workspace-nav{padding:5px 0}.gf-workspace .gf-event-group>summary{padding:14px}.gf-workspace .gf-central-actions a{width:100%}}
