@@ -6525,56 +6525,12 @@ function _dashRenderProximosEventos() {
 // Visão Geral do Gold Reserve — não inventa outra régua de faturamento
 // só pro Dashboard.
 async function _dashRenderGanhosRecentes() {
-  const cardGanhos = document.getElementById('dash-card-ganhos')
-  const cardComunidade = document.getElementById('dash-card-comunidade')
-  if (!cardGanhos || !cardComunidade) return
-  if (meuPerfil?.role !== 'super_admin') { cardGanhos.style.display = 'none'; cardComunidade.style.display = ''; return }
-  cardComunidade.style.display = 'none'
-  cardGanhos.style.display = ''
-
-  const dados = await _grConsolidar()
-  const chaveMes = iso => iso ? iso.slice(0, 7) : null
-  const hoje = new Date()
-  const mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
-
-  const acumulado = dados.reduce((s, g) => s + g.receitaTotal, 0)
-  // achado real (Luiz reportou: "este mês" sempre R$ 0,00 mesmo com
-  // eventos e cachê de sessão do próprio mês já no "acumulado") — só
-  // somava receitaExtras (fotos extras pagas pela Seleção de Fotos)
-  // por g.liberadoEm, e o cachê da sessão (precoSessao, a maior parte
-  // da receita de um estúdio de dança, contado no "acumulado" desde
-  // sempre) nunca tinha data nenhuma pra entrar em NENHUM mês do
-  // gráfico — não é só "este mês" que ficava sempre 0 pra sessão, é
-  // qualquer mês. Cachê de sessão conta na data do próprio evento
-  // (é quando a sessão aconteceu/foi cobrada); fotos extras continuam
-  // contando na data em que o pagamento foi liberado de verdade.
-  const receitaPorMes = new Map()
-  const somaMes = (iso, valor) => {
-    const m = chaveMes(iso)
-    if (!m || !valor) return
-    receitaPorMes.set(m, (receitaPorMes.get(m) || 0) + valor)
-  }
-  dados.forEach(g => {
-    somaMes(g.eventoData || g.criadoEmGaleria, g.precoSessao)
-    somaMes(g.liberadoEm, g.receitaExtras)
-  })
-  const esteMs = receitaPorMes.get(mesAtual) || 0
-
-  const elMes = document.getElementById('dash-ganhos-mes')
-  if (elMes) elMes.textContent = fmtBRL(esteMs)
-  const elAcum = document.getElementById('dash-ganhos-acumulado')
-  if (elAcum) elAcum.textContent = acumulado > 0 ? `${fmtBRL(acumulado)} acumulado · Gold Reserve →` : 'Drill-down no Gold Reserve →'
-
-  // últimos 5 meses (mais antigo → mais recente), só com o que existir
-  // de dado real — barra mínima visível mesmo em 0, sem inventar altura.
-  const meses = Array.from({ length: 5 }, (_, i) => {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() - (4 - i), 1)
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-  })
-  const valores = meses.map(m => receitaPorMes.get(m) || 0)
-  const maxValor = Math.max(...valores, 1)
-  const elBarras = document.getElementById('dash-ganhos-barras')
-  if (elBarras) elBarras.innerHTML = valores.map(v => `<div class="b" style="height:${Math.max(8, (v / maxValor) * 100)}%;" title="${fmtBRL(v)}"></div>`).join('')
+  // A antiga área de ganhos saiu da Galeria; o controle financeiro
+  // agora fica apenas em /contratar/admin/financeiro/.
+  const cardGanhos = document.getElementById('dash-card-ganhos');
+  const cardComunidade = document.getElementById('dash-card-comunidade');
+  if (cardGanhos) cardGanhos.style.display = 'none';
+  if (cardComunidade) cardComunidade.style.display = '';
 }
 
 // Alertas Críticos — "crítico" é a MESMA classificação que a aba
