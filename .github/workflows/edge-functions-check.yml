@@ -109,6 +109,14 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-publicacao-manual-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/095_fada_natal_envio_atomico_sem_cronometro.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/fada-envio-atomico-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/096_gente_que_danca_inscricoes.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-que-danca-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/097_contratacoes_arquivamento_reversivel.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/098_natal_preferencia_de_pagamento.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-bootstrap-pre.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/099_gente_que_danca_cadastro_2026.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/100_gente_publicacao_sem_checkout.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-publicacao-tests.sql
       - name: Set up Deno
         uses: denoland/setup-deno@v2
         with:
