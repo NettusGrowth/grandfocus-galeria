@@ -43,6 +43,14 @@
       "destination": "/contratar/gente-que-danca/index.html"
     },
     {
+      "source": "/contratar/planilha",
+      "destination": "/contratar/planilha/index.html"
+    },
+    {
+      "source": "/contratar/planilha/",
+      "destination": "/contratar/planilha/index.html"
+    },
+    {
       "source": "/contratar/:slug/",
       "destination": "/contratar/entre-estacoes/index.html"
     }
