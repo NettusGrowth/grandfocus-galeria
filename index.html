@@ -4795,38 +4795,66 @@ function _onRealtimeReacao(payload) {
 // sozinho não pega isso, já que quem esconde a aba é o container pai.
 function _visivel(id) { return !!document.getElementById(id)?.offsetParent }
 
-const _onRealtimeFotos = _debounce(async () => {
-  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) iniciarSinoNotificacoes()
-  if (_eventoAtual) await _recarregarFotosEvento(_eventoAtual.id)
-  if (_ensaioAtual) await _recarregarFotosEnsaio(_ensaioAtual.id)
-  if (_eventoEscolaAtual) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
+// Upload de 100 fotos produzia centenas de eventos (fotos +
+// vínculos). Cada notificação reconstruía até 2.425 registros da
+// Galeria, fotos e DOM, às vezes ainda em tela escondida.
+// Coalesce eventos por 12s e atualiza somente a tela visível.
+let _gfRealtimeFotosTimer = null
+let _gfRealtimeFotosUltimo = 0
+let _gfRealtimeFotosPendente = false
+let _gfRealtimeFotosEmExecucao = false
+function _gfRealtimeFotosTemTelaAtiva() {
+  return _visivel('evento-detalhe-wrap') ||
+    _visivel('ensaio-detalhe-wrap') ||
+    _visivel('escola-evento-detalhe') ||
+    _visivel('eventos-lista-wrap') ||
+    _visivel('ensaios-lista-wrap') ||
+    _visivel('galeria-admin-wrap') ||
+    _visivel('galeria-escola-wrap') ||
+    (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos'))
+}
+async function _gfRealtimeFotosExecutar() {
+  if (!currentUser || document.hidden) return
+  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) {
+    void Promise.resolve(iniciarSinoNotificacoes()).catch(() => {})
+  }
+  if (_eventoAtual && _visivel('evento-detalhe-wrap')) await _recarregarFotosEvento(_eventoAtual.id)
+  if (_ensaioAtual && _visivel('ensaio-detalhe-wrap')) await _recarregarFotosEnsaio(_ensaioAtual.id)
+  if (_eventoEscolaAtual && _visivel('escola-evento-detalhe')) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
   if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel()
-  // o contador "N foto(s)" das listas vem do embed fotos(count) em
-  // store.eventos, que não muda sozinho quando a tabela fotos muda —
-  // sem isso o card ficava com número desatualizado até um evento
-  // mudar de verdade (o que dispara _onRealtimeEventos).
-  if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
-    await carregarEventos()
-    if (_visivel('eventos-lista-wrap')) renderEventos()
-    if (_visivel('ensaios-lista-wrap')) renderEnsaios()
-  }
-  // mesma lógica pras telas novas da árvore de Galeria — sem isso, o
-  // "0 fotos" intermitente que já foi corrigido nas listas de admin
-  // continuaria acontecendo aqui. _galAtualizarDados() só recarrega o
-  // dado (não reseta _galEscolaId/_galAno/_galAlbumId), senão cada
-  // evento de tempo real chutaria quem estava navegando de volta pra
-  // raiz da árvore.
-  if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
-}, 600)
-
-const _onRealtimeEventos = _debounce(async () => {
   if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
     await carregarEventos()
     if (_visivel('eventos-lista-wrap')) renderEventos()
     if (_visivel('ensaios-lista-wrap')) renderEnsaios()
   }
   if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
-}, 600)
+}
+function _gfRealtimeFotosAgendar() {
+  if (!currentUser) return
+  if (document.hidden) { _gfRealtimeFotosPendente = true; return }
+  if (!_gfRealtimeFotosTemTelaAtiva()) return
+  _gfRealtimeFotosPendente = true
+  if (_gfRealtimeFotosTimer || _gfRealtimeFotosEmExecucao) return
+  const atraso = Math.max(700, 12000 - (Date.now() - _gfRealtimeFotosUltimo))
+  _gfRealtimeFotosTimer = setTimeout(async () => {
+    _gfRealtimeFotosTimer = null
+    if (document.hidden || !_gfRealtimeFotosTemTelaAtiva()) return
+    _gfRealtimeFotosPendente = false
+    _gfRealtimeFotosEmExecucao = true
+    _gfRealtimeFotosUltimo = Date.now()
+    try { await _gfRealtimeFotosExecutar() }
+    catch (e) { console.warn('Falha na sincronização de fotos em tempo real', e) }
+    finally {
+      _gfRealtimeFotosEmExecucao = false
+      if (_gfRealtimeFotosPendente) _gfRealtimeFotosAgendar()
+    }
+  }, atraso)
+}
+const _onRealtimeFotos = _debounce(_gfRealtimeFotosAgendar, 700)
+const _onRealtimeEventos = _debounce(_gfRealtimeFotosAgendar, 700)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _gfRealtimeFotosPendente) _gfRealtimeFotosAgendar()
+})
 
 // recarrega só os dados que a árvore de Galeria consome, sem tocar no
 // estado de navegação (_galEscolaId/_galAno/_galAlbumId/...) — chamado
