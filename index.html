@@ -4787,6 +4787,25 @@ async function _galBuscarTodasAsLinhas(criarConsulta, tamanhoPagina = 500) {
   throw new Error('A carga da Galeria excedeu o limite de segurança de paginação.')
 }
 
+
+// Busca fotos específicas em blocos seguros, preservando a RLS e sem
+// perder as fotos além da 1.000ª nem gerar URLs .in() enormes.
+async function _galBuscarFotosPorIds(ids) {
+  const unicos = [...new Set(ids)]
+  const lotes = []
+  for (let i = 0; i < unicos.length; i += 100) lotes.push(unicos.slice(i, i + 100))
+  const resultados = Array(lotes.length)
+  let prox = 0
+  await Promise.all(Array.from({ length: Math.min(4, lotes.length) }, async () => {
+    while (prox < lotes.length) {
+      const i = prox++
+      resultados[i] = await _galBuscarTodasAsLinhas(() =>
+        db.from('fotos').select('*').in('id', lotes[i]).order('id', { ascending: true }))
+    }
+  }))
+  return resultados.flat()
+}
+
 async function _galAtualizarDados() {
   // chamado em background pelo tempo real (debounced) — uma falha de
   // rede aqui não é culpa de nenhuma ação do usuário, então só loga
@@ -11032,13 +11051,12 @@ const _promessaImagemBlob = new Map() // path -> Promise em andamento (evita bai
 // gravado em disco pelo navegador e sobrevive a reload/nova sessão —
 // aí a foto pinta na hora mesmo na primeira renderização depois de
 // entrar de novo, sem precisar baixar de novo do Supabase.
-const _imgCacheStorage = ('caches' in window) ? caches.open('grandfocus-img-v1') : null
+const _imgCacheStorage = ('caches' in window)
+  ? caches.open('grandfocus-aux-v2').catch(() => null) : Promise.resolve(null)
+// Imagens antigas da grade podiam ocupar centenas de MB no CacheStorage.
+// A grade não guarda mais bytes; preserva apenas avatares/capas pequenas.
+if ('caches' in window) void caches.delete('grandfocus-img-v1').catch(() => {})
 function _imgCacheStorageKey(path) { return '/_imgcache/' + encodeURIComponent(path) }
-
-// versão síncrona — dá pra usar direto dentro de um template literal,
-// sem esperar nada (só enxerga o que já foi buscado NESTA aba; o
-// cache em disco só se resolve de forma assíncrona, ver
-// _carregarImgCache). null quando ainda não foi buscada.
 function _imgCache(path) { return path ? (_cacheImagemBlob.get(path) || null) : null }
 
 async function _carregarImgCache(path) {
@@ -11049,23 +11067,34 @@ async function _carregarImgCache(path) {
   if (emAndamento) return emAndamento
   const promessa = (async () => {
     try {
-      if (_imgCacheStorage) {
-        const cache = await _imgCacheStorage
-        const respDisco = await cache.match(_imgCacheStorageKey(path))
-        if (respDisco) {
-          const objUrl = URL.createObjectURL(await respDisco.blob())
-          _cacheImagemBlob.set(path, objUrl)
-          return objUrl
-        }
+      const cache = await _imgCacheStorage
+      // CacheStorage é opcional: quota cheia/navegação privativa não
+      // pode impedir que a capa seja buscada normalmente pela rede.
+      if (cache) {
+        try {
+          const respDisco = await cache.match(_imgCacheStorageKey(path))
+          if (respDisco) {
+            const objUrl = URL.createObjectURL(await respDisco.blob())
+            _cacheImagemBlob.set(path, objUrl)
+            return objUrl
+          }
+        } catch (e) { console.warn('Cache local indisponível; usando rede', e) }
       }
       const url = await _urlAssinada(path)
       if (!url) return null
       const resp = await fetch(url)
       if (!resp.ok) return null
-      if (_imgCacheStorage) { const cache = await _imgCacheStorage; await cache.put(_imgCacheStorageKey(path), resp.clone()) }
       const blob = await resp.blob()
       const objUrl = URL.createObjectURL(blob)
       _cacheImagemBlob.set(path, objUrl)
+      // Nunca bloquear a exibição aguardando gravação em disco. Só
+      // persiste imagens pequenas; o cache antigo sem limite enchia o
+      // armazenamento local e podia impedir NOVAS fotos de carregar.
+      if (cache && blob.size <= 512 * 1024) {
+        void cache.put(_imgCacheStorageKey(path), new Response(blob, {
+          headers: { 'Content-Type': blob.type || 'image/jpeg' }
+        })).catch(() => {})
+      }
       return objUrl
     } catch (e) {
       console.error('_carregarImgCache falhou', path, e)
@@ -11138,48 +11167,38 @@ function _imgTagCache(path, attrs = '') {
 // _urlAssinada de propósito pra não gastar rede à toa — por isso o
 // pedido aqui é sempre feito, não só quando falta o blob).
 function _hidratarPathImg(img, path) {
-  // BUG REAL encontrado em produção (relatado pelo usuário: agora pisca
-  // pra QUALQUER usuário, miniatura E capa de pasta): estas duas promises
-  // rodam em paralelo e escrevem no mesmo img.src sem ordem garantida.
-  // O cuidado de pré-carregar a URL real antes de trocar (abaixo) não
-  // adianta nada se o cache local resolver DEPOIS e sobrescrever de volta
-  // pro blob — troca "ao vivo" sem pré-carga, exatamente o pisco que
-  // esse pré-carregamento existe pra evitar. A flag trava a ordem: uma
-  // vez que a URL real já foi aplicada, o blob nunca mais escreve por
-  // cima (o cache local só serve de "primeira pintura" enquanto a URL
-  // real ainda não chegou).
-  let realAplicada = false
-  // guarda extra pedida no protocolo de teste: nunca reatribuir src se
-  // já for exatamente o mesmo valor (idempotente, zero custo extra;
-  // não é a causa raiz do pisco — essa já era a flag realAplicada
-  // acima — mas evita qualquer reflow/decode redundante à toa).
-  _carregarImgCache(path).then(url => { if (url && !realAplicada && img.src !== url) img.src = url })
-  // mesmo motivo do lightbox (ver renderLightboxAtual): pré-carrega a
-  // URL real fora da tela antes de trocar o src visível, pra não
-  // piscar toda miniatura da grade na troca blob→URL de rede real
-  // (achado real: usuário reportou "toda foto pisca" — miniatura
-  // inclusa, não só o lightbox ampliado). O <img> visível ainda
-  // termina na URL real, preservando o toque-e-segure do iOS.
-  _urlAssinada(path).then(urlReal => {
-    if (!urlReal || urlReal === img.src) return
-    // achado novo (relatado pelo Luiz): logo após subir a foto tudo
-    // resolve de cache "quente" (sem pisco), mas minutos depois — com
-    // a URL assinada em memória expirada, exigindo round-trip de rede
-    // de novo — volta a piscar mesmo com a pré-carga. `onload` só
-    // garante que os bytes chegaram, não que a imagem já foi
-    // DECODIFICADA; com um gap de rede real antes da troca, o
-    // navegador ainda decodifica na hora de pintar o novo src, e é
-    // esse decode tardio que aparece como o pisco. decode() só resolve
-    // quando a imagem já está pronta pra pintar sem trabalho nenhum a
-    // mais — troca garantidamente instantânea. Sem suporte (raríssimo),
-    // cai de volta no onload de antes.
-    const pre = new Image()
-    pre.src = urlReal
-    const aplicar = () => { realAplicada = true; img.src = urlReal }
-    if (pre.decode) pre.decode().then(aplicar).catch(() => {})
-    else { pre.onload = aplicar; pre.onerror = () => {} }
-  })
+  if (!img || !path) return
+  // Uma foto pode ser requisitada de novo após trocar de aba. Uma
+  // resposta antiga não pode sobrescrever a imagem da nova tela.
+  const sequencia = (img._gfCargaSeq || 0) + 1
+  img._gfCargaSeq = sequencia
+  if (typeof _ativarFallbackImagemVisivel === 'function') {
+    _ativarFallbackImagemVisivel(img, path)
+  }
+  const carregar = typeof _urlAssinadaComLimite === 'function'
+    ? _urlAssinadaComLimite(path, 15000)
+    : _urlAssinada(path)
+  Promise.resolve(carregar).then(url => {
+    if (!img.isConnected || img._gfCargaSeq !== sequencia || img._gfFallbackIntentado) return
+    if (!url) {
+      // Falha em assinar a miniatura: tenta o arquivo original somente
+      // quando o nome segue o padrão *_thumb.ext (sem disparar ambos).
+      const fallback = typeof _originalPathDaMiniatura === 'function'
+        ? _originalPathDaMiniatura(path) : null
+      if (fallback && fallback !== path) {
+        _urlAssinada(fallback).then(reserva => {
+          if (reserva && img.isConnected && img._gfCargaSeq === sequencia) img.src = reserva
+        }).catch(() => {})
+      }
+      return
+    }
+    // O próprio navegador baixa e decodifica a URL assinada uma vez.
+    // Remover blob + pré-carregamento evita downloads duplicados,
+    // decodificação concorrente e CacheStorage saturado em álbuns grandes.
+    if (img.src !== url) img.src = url
+  }).catch(error => console.warn('Imagem não carregada', error))
 }
+
 function _hidratarImgCache(escopo) {
   const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
   if (!imgs.length) return
@@ -15841,20 +15860,23 @@ async function iniciarViewEscola() {
   if (!store.turmas.length) { const { data } = await db.from('turmas').select('*'); store.turmas = data || [] }
   let resultadoEsc
   try {
+    // Paginação obrigatória: o limite PostgREST de 1.000 registros
+    // truncava o acesso de proprietários/diretores a galerias grandes.
+    // A RLS continua aplicada a cada página no servidor.
     resultadoEsc = await Promise.all([
-      db.from('fotos').select('*'),
-      db.from('foto_aluno').select('*'),
-      db.from('foto_pessoa').select('*'),
+      _galBuscarTodasAsLinhas(() => db.from('fotos').select('*').order('id', { ascending: true })),
+      _galBuscarTodasAsLinhas(() => db.from('foto_aluno').select('*').order('foto_id', { ascending: true }).order('aluno_id', { ascending: true })),
+      _galBuscarTodasAsLinhas(() => db.from('foto_pessoa').select('*').order('foto_id', { ascending: true }).order('user_id', { ascending: true })),
     ])
   } catch (e) {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
   if (minhaSeq !== _galCargaSeq) return
-  const [{ data: fotos }, { data: fa }, { data: fp }] = resultadoEsc
-  store.fotos = fotos || []
-  store.fotoAluno = fa || []
-  store.fotoPessoa = fp || []
+  const [fotos, fa, fp] = resultadoEsc
+  store.fotos = fotos
+  store.fotoAluno = fa
+  store.fotoPessoa = fp
   _galRole = meuPerfil.role
   _galRaiz = 'escolas'; _galEscolaId = meuPerfil.escola_id; _galAno = null; _galAlbumId = null
   _galAvulsoId = null; _galAlunoId = null; _galSubpasta = null; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
@@ -16180,22 +16202,24 @@ async function iniciarViewResponsavel() {
   let resultadoResp
   try {
     resultadoResp = await Promise.all([
-      alunoIds.length ? db.from('foto_aluno').select('*').in('aluno_id', alunoIds) : Promise.resolve({ data: [] }),
-      db.from('foto_pessoa').select('*').eq('user_id', currentUser.id),
+      alunoIds.length ? _galBuscarTodasAsLinhas(() => db.from('foto_aluno').select('*')
+        .in('aluno_id', alunoIds).order('foto_id', { ascending: true }).order('aluno_id', { ascending: true })) : Promise.resolve([]),
+      _galBuscarTodasAsLinhas(() => db.from('foto_pessoa').select('*')
+        .eq('user_id', currentUser.id).order('foto_id', { ascending: true }).order('user_id', { ascending: true })),
     ])
   } catch (e) {
     toast('Erro ao carregar fotos: ' + e.message)
     return
   }
   if (minhaSeq !== _galCargaSeq) return
-  const [{ data: fa }, { data: fp }] = resultadoResp
-  store.fotoAluno = fa || []
-  store.fotoPessoa = fp || []
+  const [fa, fp] = resultadoResp
+  store.fotoAluno = fa
+  store.fotoPessoa = fp
   const fotoIds = [...new Set([...(fa || []).map(x => x.foto_id), ...(fp || []).map(x => x.foto_id)])]
   let fotos, eventos
   try {
-    ;({ data: fotos } = fotoIds.length ? await db.from('fotos').select('*').in('id', fotoIds) : { data: [] })
-    store.fotos = fotos || []
+    fotos = fotoIds.length ? await _galBuscarFotosPorIds(fotoIds) : []
+    store.fotos = fotos
     const eventoIds = [...new Set(store.fotos.map(f => f.evento_id))]
     ;({ data: eventos } = eventoIds.length
       ? await db.from('eventos').select('*').in('id', eventoIds).order('data', { ascending: false })
