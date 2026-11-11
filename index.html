@@ -11127,83 +11127,66 @@ function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path); _invalidarIm
 // Guardando o blob local (uma vez só por sessão, por caminho), a
 // segunda visita em diante pinta a foto na hora — é o que o Facebook
 // faz: a foto já está ali, não recarrega, não pisca.
-const _cacheImagemBlob = new Map() // path -> object URL (só dura a aba aberta)
-const _promessaImagemBlob = new Map() // path -> Promise em andamento (evita baixar 2x em paralelo)
-
-// o Map acima já mata o pisca-pisca ao trocar de MENU, mas não
-// sobrevive a um F5 nem a trocar de conta (logout/login = página nova
-// = memória zerada) — e é assim que a maior parte dos testes reais
-// acontece. Cache Storage (a mesma API de Service Worker, mas dá pra
-// usar direto de um script normal, sem registrar nenhum worker) fica
-// gravado em disco pelo navegador e sobrevive a reload/nova sessão —
-// aí a foto pinta na hora mesmo na primeira renderização depois de
-// entrar de novo, sem precisar baixar de novo do Supabase.
-const _imgCacheStorage = ('caches' in window)
-  ? caches.open('grandfocus-aux-v2').catch(() => null) : Promise.resolve(null)
-// Imagens antigas da grade podiam ocupar centenas de MB no CacheStorage.
-// A grade não guarda mais bytes; preserva apenas avatares/capas pequenas.
-if ('caches' in window) void caches.delete('grandfocus-img-v1').catch(() => {})
-function _imgCacheStorageKey(path) { return '/_imgcache/' + encodeURIComponent(path) }
-function _imgCache(path) { return path ? (_cacheImagemBlob.get(path) || null) : null }
-
+// Antes todas as capas/avatares eram buscadas com fetch + .blob(),
+// copiadas ao CacheStorage e guardadas indefinidamente como blob:URL.
+// Isso DUPLICAVA downloads, objetos e decodificações (e podia prender
+// dezenas/centenas de MB na memória em uma sessão administrativa).
+// Agora o navegador gerencia HTTP cache e a memória naturalmente.
+// Guardamos apenas até 64 URLs assinadas temporárias, sem bytes.
+const _cacheImagemBlob = new Map() // path -> { url, expira }
+const _promessaImagemBlob = new Map() // consultas simultâneas deduplicadas
+const _GF_MAX_URLS_AUX = 64
+function _imgCache(path) {
+  if (!path) return null
+  const entry = _cacheImagemBlob.get(path)
+  if (!entry) return null
+  if (entry.expira <= Date.now()) { _cacheImagemBlob.delete(path); return null }
+  return entry.url
+}
 async function _carregarImgCache(path) {
   if (!path) return null
-  const pronta = _cacheImagemBlob.get(path)
-  if (pronta) return pronta
-  const emAndamento = _promessaImagemBlob.get(path)
-  if (emAndamento) return emAndamento
-  const promessa = (async () => {
+  const cached = _imgCache(path)
+  if (cached) return cached
+  const pending = _promessaImagemBlob.get(path)
+  if (pending) return pending
+  const promise = (async () => {
     try {
-      const cache = await _imgCacheStorage
-      // CacheStorage é opcional: quota cheia/navegação privativa não
-      // pode impedir que a capa seja buscada normalmente pela rede.
-      if (cache) {
-        try {
-          const respDisco = await cache.match(_imgCacheStorageKey(path))
-          if (respDisco) {
-            const objUrl = URL.createObjectURL(await respDisco.blob())
-            _cacheImagemBlob.set(path, objUrl)
-            return objUrl
-          }
-        } catch (e) { console.warn('Cache local indisponível; usando rede', e) }
-      }
       const url = await _urlAssinada(path)
       if (!url) return null
-      const resp = await fetch(url)
-      if (!resp.ok) return null
-      const blob = await resp.blob()
-      const objUrl = URL.createObjectURL(blob)
-      _cacheImagemBlob.set(path, objUrl)
-      // Nunca bloquear a exibição aguardando gravação em disco. Só
-      // persiste imagens pequenas; o cache antigo sem limite enchia o
-      // armazenamento local e podia impedir NOVAS fotos de carregar.
-      if (cache && blob.size <= 512 * 1024) {
-        void cache.put(_imgCacheStorageKey(path), new Response(blob, {
-          headers: { 'Content-Type': blob.type || 'image/jpeg' }
-        })).catch(() => {})
+      _cacheImagemBlob.delete(path)
+      _cacheImagemBlob.set(path, { url, expira: Date.now() + 240000 })
+      if (_cacheImagemBlob.size > _GF_MAX_URLS_AUX) {
+        const oldest = _cacheImagemBlob.keys().next().value
+        _cacheImagemBlob.delete(oldest)
       }
-      return objUrl
+      return url
     } catch (e) {
-      console.error('_carregarImgCache falhou', path, e)
+      console.warn('Não foi possível assinar a imagem auxiliar', e)
       return null
     } finally {
       _promessaImagemBlob.delete(path)
     }
   })()
-  _promessaImagemBlob.set(path, promessa)
-  return promessa
+  _promessaImagemBlob.set(path, promise)
+  return promise
 }
-
-// upload novo por cima do mesmo caminho (upsert) precisa soltar o
-// object URL antigo (senão vaza memória), tirar do cache em memória E
-// do cache em disco — senão a versão velha continua sendo servida do
-// disco pra sempre, mesmo depois de trocar a foto.
+// A imagem que já estiver em uma tag <img> permanece no cache HTTP
+// do próprio navegador; limpar esta referência nunca revoga URLs em uso.
 function _invalidarImgCache(path) {
-  const antigo = _cacheImagemBlob.get(path)
-  if (antigo) URL.revokeObjectURL(antigo)
   _cacheImagemBlob.delete(path)
   _promessaImagemBlob.delete(path)
-  _imgCacheStorage.then(cache => cache ? cache.delete(_imgCacheStorageKey(path)) : false).catch(() => {})
+}
+// Apaga CacheStorage legado apenas quando o navegador estiver ocioso,
+// sem impor leitura/deleção de centenas de MB durante login/scroll.
+if ('caches' in window) {
+  const limparLegado = () => {
+    void Promise.all([
+      caches.delete('grandfocus-img-v1'),
+      caches.delete('grandfocus-aux-v2'),
+    ]).catch(() => {})
+  }
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(limparLegado, { timeout: 30000 })
+  else setTimeout(limparLegado, 20000)
 }
 
 // gera o <img> já pronto: se a foto já estiver no cache local, nasce
