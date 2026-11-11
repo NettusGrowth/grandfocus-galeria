@@ -14597,16 +14597,16 @@ function renderGaleriaFotosDoAlbum(wrap) {
   ))
   // filtro por pessoa (aluno OU professor/diretor marcado nessas fotos) —
   // sempre escopado ao álbum aberto: nunca junta fotos de outro álbum.
+  const idsDoAlbum = new Set(todasFotos.map(f => f.id))
   const pessoasNoAlbum = [
-    ...new Set(store.fotoAluno.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.aluno_id)),
+    ...new Set(store.fotoAluno.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.aluno_id)),
   ].map(id => ({ tipo: 'aluno', id, nome: store.alunos.find(a => a.id === id)?.nome || '?' }))
-    .concat([...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id))]
+    .concat([...new Set(store.fotoPessoa.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.user_id))]
       .map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) })))
-  const fotos = _galFiltroPessoaAlbum
-    ? todasFotos.filter(f => (_galFiltroPessoaAlbum.tipo === 'aluno'
-      ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === _galFiltroPessoaAlbum.id)
-      : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id)))
-    : todasFotos
+  const marcadas = !_galFiltroPessoaAlbum ? null : _galFiltroPessoaAlbum.tipo === 'aluno'
+    ? new Set(store.fotoAluno.filter(x => x.aluno_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+    : new Set(store.fotoPessoa.filter(x => x.user_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+  const fotos = marcadas ? todasFotos.filter(f => marcadas.has(f.id)) : todasFotos
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -14822,12 +14822,14 @@ function renderGaleriaAlbunsDoAno(wrap) {
 function renderGaleriaFotosDoAlbumDoAluno(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
   const todasFotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId)
+  const idsDoAlbum = new Set(todasFotos.map(f => f.id))
   const pessoasNoAlbum = [
-    ...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id)),
+    ...new Set(store.fotoPessoa.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.user_id)),
   ].map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) }))
-  const fotos = _galFiltroPessoaAlbum
-    ? todasFotos.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
-    : todasFotos
+  const marcadas = _galFiltroPessoaAlbum
+    ? new Set(store.fotoPessoa.filter(x => x.user_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+    : null
+  const fotos = marcadas ? todasFotos.filter(f => marcadas.has(f.id)) : todasFotos
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
