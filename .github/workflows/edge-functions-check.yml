@@ -140,6 +140,8 @@ jobs:
         run: deno test supabase/functions/_shared/infinitepay_checkout_test.ts
       - name: Test Supabase admin key resolution
         run: deno test supabase/functions/_shared/contratacao_admin_key_test.ts
+      - name: Check R2 access control for galleries over 1,000 photos
+        run: node scripts/test-r2-visibility.mjs
       - name: Check R2 adapter and migrated functions
         env:
           # Dummy credentials are used only to calculate presigned URLs locally.
