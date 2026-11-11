@@ -4069,21 +4069,84 @@ function _ehChaveR2Migrada(path) {
     new RegExp('^eventos-capa/' + uuid + '/capa\\.(?:jpg|jpeg|png|webp)$', 'i').test(path) ||
     new RegExp('^posts/' + uuid + '/midia-[0-9]+\\.[a-z0-9]+$', 'i').test(path)
 }
+// Sessões revogadas ainda podem ter um JWT assinado válido: o PostgREST
+// deixa listar pastas, mas o Auth REST da Edge R2 responde 401
+// (session_not_found), e TODAS as fotos ficam vazias.
+// Só renova uma vez por falha e, se necessário, volta ao login com
+// explicação. Não abre o R2 anonimamente, não altera ACL/RLS.
+let _r2RenovacaoPendente = null
+let _r2SessaoEncerrada = false
+
+async function _r2RecuperarSessao(tokenRejeitado) {
+  if (_r2RenovacaoPendente) return _r2RenovacaoPendente
+  _r2RenovacaoPendente = (async () => {
+    // Outra solicitação pode já ter renovado a sessão.
+    const { data: { session: atual } } = await db.auth.getSession()
+    if (atual?.access_token && atual.access_token !== tokenRejeitado) return atual
+    const { data, error } = await db.auth.refreshSession()
+    if (error || !data?.session?.access_token) return null
+    return data.session
+  })().catch(error => {
+    console.warn('Não foi possível renovar a sessão das fotos', error)
+    return null
+  }).finally(() => { _r2RenovacaoPendente = null })
+  return _r2RenovacaoPendente
+}
+
+async function _r2SolicitarNovoLogin() {
+  if (_r2SessaoEncerrada) return
+  _r2SessaoEncerrada = true
+  // Somente a sessão desta aba/dispositivo; NUNCA revogar outros
+  // dispositivos de proprietários, professores ou responsáveis.
+  try { await db.auth.signOut({ scope: 'local' }) }
+  catch (error) { console.warn('Não foi possível limpar a sessão local', error) }
+  mostrarLogin()
+  const aviso = document.getElementById('login-error')
+  if (aviso) {
+    aviso.textContent = 'Sua sessão expirou ou foi encerrada. Entre novamente para visualizar as fotos.'
+    aviso.style.display = 'block'
+  }
+}
+
 async function _r2Api(action, payload = {}) {
+  if (_r2SessaoEncerrada) throw new Error('Sua sessão expirou. Entre novamente.')
   const { data: { session }, error: sessionError } = await db.auth.getSession()
-  if (sessionError || !session?.access_token) throw new Error('Sua sessão expirou. Entre novamente.')
-  const resp = await fetch(`${SUPABASE_URL}/functions/v1/r2-storage`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session.access_token}`,
-    },
-    body: JSON.stringify({ action, ...payload }),
-  })
-  const data = await resp.json().catch(() => ({}))
-  if (!resp.ok || data.error) throw new Error(data.error || `Erro no armazenamento (HTTP ${resp.status})`)
-  return data
+  if (sessionError || !session?.access_token) {
+    await _r2SolicitarNovoLogin()
+    throw new Error('Sua sessão expirou. Entre novamente.')
+  }
+
+  async function solicitar(token) {
+    const resp = await fetch(`${SUPABASE_URL}/functions/v1/r2-storage`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ action, ...payload }),
+    })
+    const data = await resp.json().catch(() => ({}))
+    return { resp, data }
+  }
+
+  let resultado = await solicitar(session.access_token)
+  if (resultado.resp.status === 401) {
+    // O mesmo JWT antigo pode estar sendo usado por dezenas de capas
+    // simultaneamente. Compartilhar a renovação evita refresh storms.
+    const renovada = await _r2RecuperarSessao(session.access_token)
+    if (renovada?.access_token) {
+      resultado = await solicitar(renovada.access_token)
+    }
+    if (!renovada?.access_token || resultado.resp.status === 401) {
+      await _r2SolicitarNovoLogin()
+      throw new Error('Sua sessão expirou. Entre novamente.')
+    }
+  }
+  if (!resultado.resp.ok || resultado.data.error) {
+    throw new Error(resultado.data.error || `Erro no armazenamento (HTTP ${resultado.resp.status})`)
+  }
+  return resultado.data
 }
 
 async function _r2SignedUrl(path, expiresIn = 300, downloadName = null) {
@@ -4862,6 +4925,7 @@ let _criandoConta = false
 function iniciarAuth() {
   db.auth.onAuthStateChange((_event, session) => {
     if (_criandoConta) return
+    if (_event === 'SIGNED_IN') _r2SessaoEncerrada = false
     if (session?.user) mostrarApp(session.user)
     else mostrarLogin()
   })
