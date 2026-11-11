@@ -69,8 +69,11 @@ vm.runInContext("_hidratarPathImg(img,'evento/foto_thumb.jpg')",ctx)
 await new Promise(resolve=>setTimeout(resolve,0))
 assert.equal(img.src,'https://cdn.test/evento/foto_thumb.jpg')
 assert.equal(blobDownloads,0,'A grade não deve baixar o blob e a URL assinada da mesma foto.')
-assert.match(source,/caches\.open\('grandfocus-aux-v2'\)/)
-assert.match(source,/blob\.size <= 512 \* 1024/)
+assert.doesNotMatch(source,/caches\.open\('grandfocus-aux-v2'\)/,
+  'A Galeria não deve voltar a abrir um CacheStorage pesado durante o login.')
+assert.doesNotMatch(source,/blob\.size <= 512 \* 1024/,
+  'O cache de imagens deve guardar apenas URLs, não bytes.')
+assert.match(source,/const _GF_MAX_URLS_AUX = 64/)
 assert.match(source,/function _renderGridFotosPaginado\(gridEl, fotos/)
 assert.match(source,/const fotos = await _galBuscarTodasAsLinhas\(\(\) => db\.from\('fotos'\)\.select\('\*'\)/)
 console.log('✓ Galeria: 2.425 fotos, proprietário, responsável, miniaturas e cache sem duplicidade.')

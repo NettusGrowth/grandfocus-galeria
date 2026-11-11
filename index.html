@@ -4795,38 +4795,66 @@ function _onRealtimeReacao(payload) {
 // sozinho não pega isso, já que quem esconde a aba é o container pai.
 function _visivel(id) { return !!document.getElementById(id)?.offsetParent }
 
-const _onRealtimeFotos = _debounce(async () => {
-  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) iniciarSinoNotificacoes()
-  if (_eventoAtual) await _recarregarFotosEvento(_eventoAtual.id)
-  if (_ensaioAtual) await _recarregarFotosEnsaio(_ensaioAtual.id)
-  if (_eventoEscolaAtual) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
+// Upload de 100 fotos produzia centenas de eventos (fotos +
+// vínculos). Cada notificação reconstruía até 2.425 registros da
+// Galeria, fotos e DOM, às vezes ainda em tela escondida.
+// Coalesce eventos por 12s e atualiza somente a tela visível.
+let _gfRealtimeFotosTimer = null
+let _gfRealtimeFotosUltimo = 0
+let _gfRealtimeFotosPendente = false
+let _gfRealtimeFotosEmExecucao = false
+function _gfRealtimeFotosTemTelaAtiva() {
+  return _visivel('evento-detalhe-wrap') ||
+    _visivel('ensaio-detalhe-wrap') ||
+    _visivel('escola-evento-detalhe') ||
+    _visivel('eventos-lista-wrap') ||
+    _visivel('ensaios-lista-wrap') ||
+    _visivel('galeria-admin-wrap') ||
+    _visivel('galeria-escola-wrap') ||
+    (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos'))
+}
+async function _gfRealtimeFotosExecutar() {
+  if (!currentUser || document.hidden) return
+  if (!['admin', 'super_admin'].includes(meuPerfil?.role)) {
+    void Promise.resolve(iniciarSinoNotificacoes()).catch(() => {})
+  }
+  if (_eventoAtual && _visivel('evento-detalhe-wrap')) await _recarregarFotosEvento(_eventoAtual.id)
+  if (_ensaioAtual && _visivel('ensaio-detalhe-wrap')) await _recarregarFotosEnsaio(_ensaioAtual.id)
+  if (_eventoEscolaAtual && _visivel('escola-evento-detalhe')) await _recarregarFotosEventoEscola(_eventoEscolaAtual.id)
   if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel()
-  // o contador "N foto(s)" das listas vem do embed fotos(count) em
-  // store.eventos, que não muda sozinho quando a tabela fotos muda —
-  // sem isso o card ficava com número desatualizado até um evento
-  // mudar de verdade (o que dispara _onRealtimeEventos).
-  if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
-    await carregarEventos()
-    if (_visivel('eventos-lista-wrap')) renderEventos()
-    if (_visivel('ensaios-lista-wrap')) renderEnsaios()
-  }
-  // mesma lógica pras telas novas da árvore de Galeria — sem isso, o
-  // "0 fotos" intermitente que já foi corrigido nas listas de admin
-  // continuaria acontecendo aqui. _galAtualizarDados() só recarrega o
-  // dado (não reseta _galEscolaId/_galAno/_galAlbumId), senão cada
-  // evento de tempo real chutaria quem estava navegando de volta pra
-  // raiz da árvore.
-  if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
-}, 600)
-
-const _onRealtimeEventos = _debounce(async () => {
   if (_visivel('eventos-lista-wrap') || _visivel('ensaios-lista-wrap')) {
     await carregarEventos()
     if (_visivel('eventos-lista-wrap')) renderEventos()
     if (_visivel('ensaios-lista-wrap')) renderEnsaios()
   }
   if (_visivel('galeria-admin-wrap') || _visivel('galeria-escola-wrap')) await _galAtualizarDados()
-}, 600)
+}
+function _gfRealtimeFotosAgendar() {
+  if (!currentUser) return
+  if (document.hidden) { _gfRealtimeFotosPendente = true; return }
+  if (!_gfRealtimeFotosTemTelaAtiva()) return
+  _gfRealtimeFotosPendente = true
+  if (_gfRealtimeFotosTimer || _gfRealtimeFotosEmExecucao) return
+  const atraso = Math.max(700, 12000 - (Date.now() - _gfRealtimeFotosUltimo))
+  _gfRealtimeFotosTimer = setTimeout(async () => {
+    _gfRealtimeFotosTimer = null
+    if (document.hidden || !_gfRealtimeFotosTemTelaAtiva()) return
+    _gfRealtimeFotosPendente = false
+    _gfRealtimeFotosEmExecucao = true
+    _gfRealtimeFotosUltimo = Date.now()
+    try { await _gfRealtimeFotosExecutar() }
+    catch (e) { console.warn('Falha na sincronização de fotos em tempo real', e) }
+    finally {
+      _gfRealtimeFotosEmExecucao = false
+      if (_gfRealtimeFotosPendente) _gfRealtimeFotosAgendar()
+    }
+  }, atraso)
+}
+const _onRealtimeFotos = _debounce(_gfRealtimeFotosAgendar, 700)
+const _onRealtimeEventos = _debounce(_gfRealtimeFotosAgendar, 700)
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _gfRealtimeFotosPendente) _gfRealtimeFotosAgendar()
+})
 
 // recarrega só os dados que a árvore de Galeria consome, sem tocar no
 // estado de navegação (_galEscolaId/_galAno/_galAlbumId/...) — chamado
@@ -5815,11 +5843,33 @@ async function salvarPerfil() {
 // ══════════════════════════════════════════════════════════════
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
+// O administrador tem diversas telas de cadastro; montá-las TODAS
+// durante o login inicial carregava capas, avatares e fotos de abas
+// escondidas, além de um grande número de nós DOM desnecessários.
+let _adminDadosProntos = false
+function _adminRenderAba(tab) {
+  if (!_adminDadosProntos) return
+  const render = {
+    escolas: renderEscolas,
+    alunos: renderAlunos,
+    eventos: renderEventos,
+    ensaios: renderEnsaios,
+    professores: renderProfessores,
+    pais: renderPais,
+    turmas: renderTurmas,
+  }[tab]
+  if (render) render()
+}
 async function iniciarViewAdmin() {
+  _adminDadosProntos = false
+  // Mantém os dados e a semântica de permissões do painel, mas só
+  // cria DOM / busca imagens da aba que a pessoa de fato abriu.
   await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis(), carregarProfessorEscolas(), carregarClientesAvulsos(), carregarTurmas()])
-  renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais(); renderTurmas()
+  _adminDadosProntos = true
   atualizarAcessoAlvo()
   popularVinculoSelects()
+  const abaVisivel = document.querySelector('#view-admin .tabs .tab.on')?.dataset.tab || 'dashboard'
+  _adminRenderAba(abaVisivel)
   iniciarDashboardAdmin()
 }
 
@@ -6736,6 +6786,7 @@ function setAdminTab(tab) {
   document.getElementById('admintab-' + tab).style.display = 'block'
   document.querySelector('main').scrollTop = 0
   _bnSyncActive()
+  _adminRenderAba(tab)
   // "Fotos mais populares" só era buscado 1x (no login) e nunca mais —
   // download/visualização acontecem em segundo plano (outra pessoa
   // navegando a galeria), então reabrir a aba Dashboard é a deixa
@@ -11047,14 +11098,39 @@ let _loteUrlAssinada = null
 async function _urlAssinada(path) {
   const cache = _cacheUrlAssinada.get(path)
   if (cache && cache.expira > Date.now()) return cache.url
-  if (!_loteUrlAssinada) { _loteUrlAssinada = new Map(); queueMicrotask(_disparaLoteUrlAssinada) }
+  if (!_loteUrlAssinada) {
+    _loteUrlAssinada = new Map()
+    // Agrupa dezenas de pedidos de capa/avatar disparados por callbacks
+    // assíncronos da mesma tela; queueMicrotask enviava 1 POST por foto.
+    setTimeout(_disparaLoteUrlAssinada, 35)
+  }
   if (!_loteUrlAssinada.has(path)) _loteUrlAssinada.set(path, [])
   return new Promise(resolve => _loteUrlAssinada.get(path).push(resolve))
 }
 function _disparaLoteUrlAssinada() {
   const lote = _loteUrlAssinada
   _loteUrlAssinada = null
+  if (!lote || !lote.size) return
   _processarLoteUrlAssinada([...lote.keys()], lote)
+}
+// Limita a concorrência de RPC de assinatura. Cada chamada verifica
+// permissões no servidor; centenas em paralelo consumiam CPU, largura
+// de banda e congestionavam o Auth. Mantém as mesmas regras de acesso.
+let _r2AssinaturasAtivas = 0
+const _r2FilaAssinaturas = []
+async function _r2AssinarComLimite(payload) {
+  await new Promise(resolve => {
+    if (_r2AssinaturasAtivas < 2) {
+      _r2AssinaturasAtivas++
+      resolve()
+    } else _r2FilaAssinaturas.push(resolve)
+  })
+  try { return await _r2Api('sign', payload) }
+  finally {
+    const next = _r2FilaAssinaturas.shift()
+    if (next) next() // transfere slot sem ultrapassar o limite
+    else _r2AssinaturasAtivas--
+  }
 }
 // sem retry aqui, uma falha de rede passageira (comum depois de um
 // tempo com a aba em segundo plano/idle) deixava TODAS as fotos
@@ -11069,7 +11145,7 @@ async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
   try {
     for (let i = 0; i < chavesR2.length; i += 80) {
       const loteR2 = chavesR2.slice(i, i + 80)
-      const resposta = await _r2Api('sign', { keys: loteR2, expires_in: 300 })
+      const resposta = await _r2AssinarComLimite({ keys: loteR2, expires_in: 300 })
       ;(resposta.urls || []).forEach(item => urls.set(item.key, item.url || null))
     }
     if (chavesSupabase.length) {
@@ -11085,7 +11161,13 @@ async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
   }
   paths.forEach(path => {
     const url = urls.get(path) || null
-    if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+    if (url) {
+      _cacheUrlAssinada.delete(path)
+      _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+      if (_cacheUrlAssinada.size > 900) {
+        _cacheUrlAssinada.delete(_cacheUrlAssinada.keys().next().value)
+      }
+    }
     ;(lote.get(path) || []).forEach(resolve => resolve(url))
   })
 }
@@ -11104,83 +11186,66 @@ function _invalidarUrlCache(path) { _cacheUrlAssinada.delete(path); _invalidarIm
 // Guardando o blob local (uma vez só por sessão, por caminho), a
 // segunda visita em diante pinta a foto na hora — é o que o Facebook
 // faz: a foto já está ali, não recarrega, não pisca.
-const _cacheImagemBlob = new Map() // path -> object URL (só dura a aba aberta)
-const _promessaImagemBlob = new Map() // path -> Promise em andamento (evita baixar 2x em paralelo)
-
-// o Map acima já mata o pisca-pisca ao trocar de MENU, mas não
-// sobrevive a um F5 nem a trocar de conta (logout/login = página nova
-// = memória zerada) — e é assim que a maior parte dos testes reais
-// acontece. Cache Storage (a mesma API de Service Worker, mas dá pra
-// usar direto de um script normal, sem registrar nenhum worker) fica
-// gravado em disco pelo navegador e sobrevive a reload/nova sessão —
-// aí a foto pinta na hora mesmo na primeira renderização depois de
-// entrar de novo, sem precisar baixar de novo do Supabase.
-const _imgCacheStorage = ('caches' in window)
-  ? caches.open('grandfocus-aux-v2').catch(() => null) : Promise.resolve(null)
-// Imagens antigas da grade podiam ocupar centenas de MB no CacheStorage.
-// A grade não guarda mais bytes; preserva apenas avatares/capas pequenas.
-if ('caches' in window) void caches.delete('grandfocus-img-v1').catch(() => {})
-function _imgCacheStorageKey(path) { return '/_imgcache/' + encodeURIComponent(path) }
-function _imgCache(path) { return path ? (_cacheImagemBlob.get(path) || null) : null }
-
+// Antes todas as capas/avatares eram buscadas com fetch + .blob(),
+// copiadas ao CacheStorage e guardadas indefinidamente como blob:URL.
+// Isso DUPLICAVA downloads, objetos e decodificações (e podia prender
+// dezenas/centenas de MB na memória em uma sessão administrativa).
+// Agora o navegador gerencia HTTP cache e a memória naturalmente.
+// Guardamos apenas até 64 URLs assinadas temporárias, sem bytes.
+const _cacheImagemBlob = new Map() // path -> { url, expira }
+const _promessaImagemBlob = new Map() // consultas simultâneas deduplicadas
+const _GF_MAX_URLS_AUX = 64
+function _imgCache(path) {
+  if (!path) return null
+  const entry = _cacheImagemBlob.get(path)
+  if (!entry) return null
+  if (entry.expira <= Date.now()) { _cacheImagemBlob.delete(path); return null }
+  return entry.url
+}
 async function _carregarImgCache(path) {
   if (!path) return null
-  const pronta = _cacheImagemBlob.get(path)
-  if (pronta) return pronta
-  const emAndamento = _promessaImagemBlob.get(path)
-  if (emAndamento) return emAndamento
-  const promessa = (async () => {
+  const cached = _imgCache(path)
+  if (cached) return cached
+  const pending = _promessaImagemBlob.get(path)
+  if (pending) return pending
+  const promise = (async () => {
     try {
-      const cache = await _imgCacheStorage
-      // CacheStorage é opcional: quota cheia/navegação privativa não
-      // pode impedir que a capa seja buscada normalmente pela rede.
-      if (cache) {
-        try {
-          const respDisco = await cache.match(_imgCacheStorageKey(path))
-          if (respDisco) {
-            const objUrl = URL.createObjectURL(await respDisco.blob())
-            _cacheImagemBlob.set(path, objUrl)
-            return objUrl
-          }
-        } catch (e) { console.warn('Cache local indisponível; usando rede', e) }
-      }
       const url = await _urlAssinada(path)
       if (!url) return null
-      const resp = await fetch(url)
-      if (!resp.ok) return null
-      const blob = await resp.blob()
-      const objUrl = URL.createObjectURL(blob)
-      _cacheImagemBlob.set(path, objUrl)
-      // Nunca bloquear a exibição aguardando gravação em disco. Só
-      // persiste imagens pequenas; o cache antigo sem limite enchia o
-      // armazenamento local e podia impedir NOVAS fotos de carregar.
-      if (cache && blob.size <= 512 * 1024) {
-        void cache.put(_imgCacheStorageKey(path), new Response(blob, {
-          headers: { 'Content-Type': blob.type || 'image/jpeg' }
-        })).catch(() => {})
+      _cacheImagemBlob.delete(path)
+      _cacheImagemBlob.set(path, { url, expira: Date.now() + 240000 })
+      if (_cacheImagemBlob.size > _GF_MAX_URLS_AUX) {
+        const oldest = _cacheImagemBlob.keys().next().value
+        _cacheImagemBlob.delete(oldest)
       }
-      return objUrl
+      return url
     } catch (e) {
-      console.error('_carregarImgCache falhou', path, e)
+      console.warn('Não foi possível assinar a imagem auxiliar', e)
       return null
     } finally {
       _promessaImagemBlob.delete(path)
     }
   })()
-  _promessaImagemBlob.set(path, promessa)
-  return promessa
+  _promessaImagemBlob.set(path, promise)
+  return promise
 }
-
-// upload novo por cima do mesmo caminho (upsert) precisa soltar o
-// object URL antigo (senão vaza memória), tirar do cache em memória E
-// do cache em disco — senão a versão velha continua sendo servida do
-// disco pra sempre, mesmo depois de trocar a foto.
+// A imagem que já estiver em uma tag <img> permanece no cache HTTP
+// do próprio navegador; limpar esta referência nunca revoga URLs em uso.
 function _invalidarImgCache(path) {
-  const antigo = _cacheImagemBlob.get(path)
-  if (antigo) URL.revokeObjectURL(antigo)
   _cacheImagemBlob.delete(path)
   _promessaImagemBlob.delete(path)
-  _imgCacheStorage.then(cache => cache ? cache.delete(_imgCacheStorageKey(path)) : false).catch(() => {})
+}
+// Apaga CacheStorage legado apenas quando o navegador estiver ocioso,
+// sem impor leitura/deleção de centenas de MB durante login/scroll.
+if ('caches' in window) {
+  const limparLegado = () => {
+    void Promise.all([
+      caches.delete('grandfocus-img-v1'),
+      caches.delete('grandfocus-aux-v2'),
+    ]).catch(() => {})
+  }
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(limparLegado, { timeout: 30000 })
+  else setTimeout(limparLegado, 20000)
 }
 
 // gera o <img> já pronto: se a foto já estiver no cache local, nasce
@@ -11296,7 +11361,7 @@ function _hidratarImgCache(escopo) {
         img.removeAttribute('data-path')
         if (img.isConnected && path) _hidratarPathImg(img, path)
       }
-    }, { rootMargin: '850px 0px' })
+    }, { rootMargin: '350px 0px' })
     _observadoresHidratacaoImg.set(raiz, observer)
   }
   imgs.forEach(img => {
@@ -11315,26 +11380,43 @@ function _hidratarImgCache(escopo) {
 // que cabe na tela + uma folga, e um sentinel no fim vai acrescentando
 // mais conforme o usuário rola (mesmo padrão de infinite scroll usado
 // em qualquer app de fotos grande).
-const GAL_LOTE_FOTOS = 60
+const GAL_LOTE_FOTOS = 16
 // itemHtmlFn: como renderizar cada foto — cada grade tem seu próprio HTML
 // por item (Galeria é simples, Eventos/Ensaios têm botões extra de marcar
 // pessoas/apagar/mover) — default cobre o caso da Galeria, quem chama com
 // item mais complexo passa a própria função.
+// Se a mesma grade é reconstruída (filtro, novo álbum ou realtime),
+// desligar o observador anterior. Sem isso, os sentinelas antigos
+// mantêm listas de centenas de fotos e callbacks na memória.
+const _galFotoGridsAtivos = new WeakMap()
+function _cancelarGridFotosPaginado(raiz) {
+  if (!raiz) return
+  const grades = raiz.matches?.('[data-gf-grid-paginada]')
+    ? [raiz] : [...raiz.querySelectorAll('[data-gf-grid-paginada]')]
+  for (const el of grades) _galFotoGridsAtivos.get(el)?.cancel()
+}
 function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) {
   if (!gridEl) return
+  _galFotoGridsAtivos.get(gridEl)?.cancel()
+  let ativo = true
   let renderizados = 0
   let sentinel = null
   let observer = null
   let esperandoFrame = false
+  _galFotoGridsAtivos.set(gridEl, { cancel() {
+    ativo = false
+    observer?.disconnect()
+  } })
+  gridEl.setAttribute('data-gf-grid-paginada', '')
   const temObserver = 'IntersectionObserver' in window
   function carregarLote() {
-    if (esperandoFrame || renderizados >= fotos.length) return
+    if (!ativo || esperandoFrame || renderizados >= fotos.length) return
     esperandoFrame = true
     const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
     renderizados += lote.length
     requestAnimationFrame(() => {
       esperandoFrame = false
-      if (!gridEl.isConnected) { observer?.disconnect(); return }
+      if (!ativo || !gridEl.isConnected) { observer?.disconnect(); return }
       const html = lote.map(itemHtmlFn).join('')
       if (sentinel?.isConnected) sentinel.insertAdjacentHTML('beforebegin', html)
       else gridEl.insertAdjacentHTML('beforeend', html)
@@ -11359,7 +11441,7 @@ function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) 
     gridEl.appendChild(sentinel)
     observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) carregarLote()
-    }, { rootMargin: '1600px 0px' })
+    }, { rootMargin: '550px 0px' })
     observer.observe(sentinel)
   }
 }
@@ -14132,6 +14214,7 @@ function renderGaleriaAdmin() {
   const heroHTML = _galEhRaizDoPapel() ? _galHeroMobileHTML() : ''
   const crumb = `${heroHTML}<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
   _cancelarHidratacaoImgCache(wrap)
+  _cancelarGridFotosPaginado(wrap)
   wrap.innerHTML = crumb
   if (heroHTML) atualizarAvatarTopbar()
 
@@ -14514,16 +14597,16 @@ function renderGaleriaFotosDoAlbum(wrap) {
   ))
   // filtro por pessoa (aluno OU professor/diretor marcado nessas fotos) —
   // sempre escopado ao álbum aberto: nunca junta fotos de outro álbum.
+  const idsDoAlbum = new Set(todasFotos.map(f => f.id))
   const pessoasNoAlbum = [
-    ...new Set(store.fotoAluno.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.aluno_id)),
+    ...new Set(store.fotoAluno.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.aluno_id)),
   ].map(id => ({ tipo: 'aluno', id, nome: store.alunos.find(a => a.id === id)?.nome || '?' }))
-    .concat([...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id))]
+    .concat([...new Set(store.fotoPessoa.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.user_id))]
       .map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) })))
-  const fotos = _galFiltroPessoaAlbum
-    ? todasFotos.filter(f => (_galFiltroPessoaAlbum.tipo === 'aluno'
-      ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === _galFiltroPessoaAlbum.id)
-      : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id)))
-    : todasFotos
+  const marcadas = !_galFiltroPessoaAlbum ? null : _galFiltroPessoaAlbum.tipo === 'aluno'
+    ? new Set(store.fotoAluno.filter(x => x.aluno_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+    : new Set(store.fotoPessoa.filter(x => x.user_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+  const fotos = marcadas ? todasFotos.filter(f => marcadas.has(f.id)) : todasFotos
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -14739,12 +14822,14 @@ function renderGaleriaAlbunsDoAno(wrap) {
 function renderGaleriaFotosDoAlbumDoAluno(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
   const todasFotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId)
+  const idsDoAlbum = new Set(todasFotos.map(f => f.id))
   const pessoasNoAlbum = [
-    ...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id)),
+    ...new Set(store.fotoPessoa.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.user_id)),
   ].map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) }))
-  const fotos = _galFiltroPessoaAlbum
-    ? todasFotos.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
-    : todasFotos
+  const marcadas = _galFiltroPessoaAlbum
+    ? new Set(store.fotoPessoa.filter(x => x.user_id === _galFiltroPessoaAlbum.id).map(x => x.foto_id))
+    : null
+  const fotos = marcadas ? todasFotos.filter(f => marcadas.has(f.id)) : todasFotos
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -16245,6 +16330,7 @@ function renderFotosGrid(gridElId) {
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
   _lightboxFotos = fotos
   _cancelarHidratacaoImgCache(grid)
+  _cancelarGridFotosPaginado(grid)
   grid.replaceChildren()
   _renderGridFotosPaginado(grid, fotos, _fotoItemHTML)
   atualizarBotaoBaixar()
