@@ -11199,31 +11199,47 @@ function _hidratarPathImg(img, path) {
   }).catch(error => console.warn('Imagem não carregada', error))
 }
 
+const _observadoresHidratacaoImg = new WeakMap()
+function _cancelarHidratacaoImgCache(escopo) {
+  if (!escopo) return
+  for (const img of escopo.querySelectorAll('img[data-gf-observada]')) {
+    img._gfObserver?.unobserve(img)
+    delete img._gfObserver
+  }
+}
 function _hidratarImgCache(escopo) {
-  const imgs = [...(escopo || document).querySelectorAll('img[data-path]')]
+  const raiz = escopo || document
+  const imgs = [...raiz.querySelectorAll('img[data-path]:not([data-gf-observada])')]
   if (!imgs.length) return
   if (!('IntersectionObserver' in window)) {
-    imgs.forEach(img => { _hidratarPathImg(img, img.dataset.path); img.removeAttribute('data-path') })
-    return
-  }
-  let restantes = imgs.length
-  const obs = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
-      if (!entry.isIntersecting) return
-      const img = entry.target
-      obs.unobserve(img)
-      restantes--
+    imgs.forEach(img => {
       const path = img.dataset.path
-      // tira o data-path assim que processa — sem isso, uma segunda
-      // chamada de _hidratarImgCache no MESMO container (grade que vai
-      // crescendo aos poucos, ver _renderGridFotosPaginado) reobservaria
-      // as imagens já tratadas de novo, uma pra cada lote novo.
       img.removeAttribute('data-path')
       if (path) _hidratarPathImg(img, path)
-      if (restantes <= 0) obs.disconnect()
     })
-  }, { rootMargin: '600px 0px' })
-  imgs.forEach(img => obs.observe(img))
+    return
+  }
+  let observer = _observadoresHidratacaoImg.get(raiz)
+  if (!observer) {
+    observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue
+        const img = entry.target
+        observer.unobserve(img)
+        delete img._gfObserver
+        img.removeAttribute('data-gf-observada')
+        const path = img.dataset.path
+        img.removeAttribute('data-path')
+        if (img.isConnected && path) _hidratarPathImg(img, path)
+      }
+    }, { rootMargin: '850px 0px' })
+    _observadoresHidratacaoImg.set(raiz, observer)
+  }
+  imgs.forEach(img => {
+    img.setAttribute('data-gf-observada','')
+    img._gfObserver = observer
+    observer.observe(img)
+  })
 }
 
 // pagina a grade de fotos em lotes — sem isso, um álbum com centenas/
@@ -11244,44 +11260,43 @@ function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) 
   if (!gridEl) return
   let renderizados = 0
   let sentinel = null
-  let obs = null
-  // acrescentar ~60 nós de uma vez é uma mutação de DOM pesada — disparada
-  // bem na hora que o sentinel entra na tela (ou seja, exatamente
-  // enquanto o dedo ainda está arrastando perto do fim do carregado),
-  // isso é o padrão clássico que faz o touch "travar" no iOS até soltar e
-  // tocar de novo (o gesto de scroll ativo se perde no meio da mutação).
-  // requestAnimationFrame tira a inserção do meio do callback do
-  // IntersectionObserver (que roda em cima do scroll), alinhando com o
-  // próximo quadro de pintura em vez de no meio do gesto.
+  let observer = null
+  let esperandoFrame = false
+  const temObserver = 'IntersectionObserver' in window
   function carregarLote() {
+    if (esperandoFrame || renderizados >= fotos.length) return
+    esperandoFrame = true
     const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
-    if (!lote.length) return
+    renderizados += lote.length
     requestAnimationFrame(() => {
-      const html = lote.map(f => itemHtmlFn(f)).join('')
-      if (sentinel) sentinel.insertAdjacentHTML('beforebegin', html)
+      esperandoFrame = false
+      if (!gridEl.isConnected) { observer?.disconnect(); return }
+      const html = lote.map(itemHtmlFn).join('')
+      if (sentinel?.isConnected) sentinel.insertAdjacentHTML('beforebegin', html)
       else gridEl.insertAdjacentHTML('beforeend', html)
       _hidratarImgCache(gridEl)
+      if (renderizados >= fotos.length) {
+        observer?.disconnect()
+        sentinel?.remove()
+        sentinel = null
+      } else if (observer && sentinel) {
+        // Reseta o gatilho para continuar preenchendo quando o
+        // sentinel permanece dentro da área pré-carregada da tela.
+        observer.unobserve(sentinel)
+        observer.observe(sentinel)
+      } else if (!temObserver) requestAnimationFrame(carregarLote)
     })
-    renderizados += lote.length
-    if (renderizados >= fotos.length && obs) { obs.disconnect(); sentinel?.remove(); sentinel = null }
-  }
-  if (!('IntersectionObserver' in window)) {
-    while (renderizados < fotos.length) carregarLote()
-    return
   }
   carregarLote()
-  if (renderizados < fotos.length) {
+  if (temObserver && renderizados < fotos.length) {
     sentinel = document.createElement('div')
     sentinel.setAttribute('aria-hidden', 'true')
     sentinel.style.cssText = 'grid-column:1/-1;height:1px;'
     gridEl.appendChild(sentinel)
-    // rootMargin bem mais folgado (era 1000px): dispara o próximo lote
-    // bem antes do sentinel chegar perto da área visível de verdade,
-    // então a inserção acontece com folga, nunca "na cara" do usuário
-    // enquanto ele ainda está arrastando o dedo pelo fim do que já
-    // carregou — reduz a chance de pegar o gesto de touch no meio.
-    obs = new IntersectionObserver(entries => { if (entries[0].isIntersecting) carregarLote() }, { rootMargin: '2500px 0px' })
-    obs.observe(sentinel)
+    observer = new IntersectionObserver(entries => {
+      if (entries.some(entry => entry.isIntersecting)) carregarLote()
+    }, { rootMargin: '1600px 0px' })
+    observer.observe(sentinel)
   }
 }
 
@@ -14052,6 +14067,7 @@ function renderGaleriaAdmin() {
   const breadcrumbHTML = _galBreadcrumb()
   const heroHTML = _galEhRaizDoPapel() ? _galHeroMobileHTML() : ''
   const crumb = `${heroHTML}<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
+  _cancelarHidratacaoImgCache(wrap)
   wrap.innerHTML = crumb
   if (heroHTML) atualizarAvatarTopbar()
 
@@ -16078,14 +16094,21 @@ async function abrirEventoEscola(eventoId) {
   document.getElementById('escola-eventos-wrap').style.display = 'none'
   const wrap = document.getElementById('escola-evento-detalhe')
   wrap.style.display = 'block'
-  const { data: fotos, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
-  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
-  const fotoIds = (fotos || []).map(f => f.id)
-  const { data: fa } = fotoIds.length
-    ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds)
-    : { data: [] }
-  store.fotos = (fotos || [])
-  store.fotoAluno = (fa || [])
+  try {
+    // Também existe espetáculo com mais de 1.000 fotos: não truncar
+    // esta visualização antiga usada pelo dashboard do professor.
+    const fotos = await _galBuscarTodasAsLinhas(() => db.from('fotos').select('*')
+      .eq('evento_id', eventoId).order('id', { ascending: true }))
+    const fotoIds = fotos.map(f => f.id)
+    const fa = fotoIds.length
+      ? await _galBuscarVinculosFotosAlbum('foto_aluno', fotoIds, 'aluno_id') : []
+    if (_eventoEscolaAtual?.id !== eventoId) return
+    store.fotos = fotos
+    store.fotoAluno = fa
+  } catch (error) {
+    toast('Erro ao carregar fotos: ' + error.message)
+    return
+  }
   wrap.innerHTML = `
     <button class="evento-back" onclick="fecharEventoEscola()">← Voltar aos eventos</button>
     <div class="section-h"><h2>${esc(_eventoEscolaAtual.nome)}</h2></div>
@@ -16112,13 +16135,17 @@ function fecharEventoEscola() {
 
 // mesma ideia de _recarregarFotosEvento, pra tela de fotos da escola/professor.
 async function _recarregarFotosEventoEscola(eventoId) {
-  const { data: fotos, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
-  if (error) return
-  const fotoIds = (fotos || []).map(f => f.id)
-  const { data: fa } = fotoIds.length ? await db.from('foto_aluno').select('*').in('foto_id', fotoIds) : { data: [] }
-  store.fotos = (fotos || [])
-  store.fotoAluno = (fa || [])
-  renderFotosGrid('escola-fotos-grid')
+  try {
+    const fotos = await _galBuscarTodasAsLinhas(() => db.from('fotos').select('*')
+      .eq('evento_id', eventoId).order('id', { ascending: true }))
+    const fotoIds = fotos.map(f => f.id)
+    const fa = fotoIds.length
+      ? await _galBuscarVinculosFotosAlbum('foto_aluno', fotoIds, 'aluno_id') : []
+    if (_eventoEscolaAtual?.id !== eventoId) return
+    store.fotos = fotos
+    store.fotoAluno = fa
+    renderFotosGrid('escola-fotos-grid')
+  } catch (error) { console.error('Falha ao atualizar fotos do evento escolar', error) }
 }
 
 function filtrarFotosAluno(alunoId, chipEl) {
@@ -16153,8 +16180,9 @@ function renderFotosGrid(gridElId) {
   }
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
   _lightboxFotos = fotos
-  grid.innerHTML = fotos.map(f => _fotoItemHTML(f)).join('')
-  _hidratarImgCache(grid)
+  _cancelarHidratacaoImgCache(grid)
+  grid.replaceChildren()
+  _renderGridFotosPaginado(grid, fotos, _fotoItemHTML)
   atualizarBotaoBaixar()
 }
 
