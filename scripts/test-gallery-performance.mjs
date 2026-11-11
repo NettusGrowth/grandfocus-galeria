@@ -48,7 +48,7 @@ assert.ok(auxUrls.every(u=>u.startsWith('https://r2.example/')))
 assert.equal(metrics.binaryFetches,0,'Não existe fetch+blob da imagem auxiliar')
 assert.equal(vm.runInContext('_cacheImagemBlob.size',ctx)<=64,true,
   'Cache de avatares deve ter limite de 64 URLs, nunca guardar bytes indefinidamente.')
-assert.equal(vm.runInContext('_imgCacheStorage',ctx),undefined)
+assert.equal(vm.runInContext('typeof _imgCacheStorage',ctx),'undefined')
 // Não reintroduzir 60 thumbnails de 2,5 megapixels decodificadas de uma vez.
 assert.match(html,/const GAL_LOTE_FOTOS = 16/)
 assert.match(html,/rootMargin: '350px 0px'/)
