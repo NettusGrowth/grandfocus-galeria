@@ -31,23 +31,14 @@ function patchIndex(html) {
     '  // A migração/limpeza do R2 é manutenção pontual, não faz parte do login.',
     '  // Não reexecutar a cópia auxiliar em cada abertura do painel administrativo.'
   ].join('\n'))
-  const gridStart = html.indexOf('function _hidratarPathImg(img, path) {');
-  const gridCall = html.indexOf('  _urlAssinada(path).then(urlReal => {', gridStart);
-  const gridEndStart = html.indexOf('\n  })', gridCall);
-  if (gridStart < 0 || gridCall < 0 || gridEndStart < 0) {
-    throw new Error('Could not find the expected grid image-loading code; refusing to patch.');
+  // A hidratação da grade agora é uma única requisição à URL assinada,
+  // com fallback somente se a miniatura falhar. Não reintroduzir o
+  // pré-carregamento/decode de cada thumbnail durante o build: isso
+  // duplicava o tráfego e deixava galerias grandes sem resposta.
+  if (!html.includes('function _hidratarPathImg(img, path) {') ||
+      !html.includes('_urlAssinadaComLimite ===')) {
+    throw new Error('A versão otimizada de hidratação de imagens está ausente.');
   }
-  const gridEnd = gridEndStart + '\n  })'.length;
-  const newGridCall = [
-    '  _ativarFallbackImagemVisivel(img, path)',
-    '  _urlPreviewValidada(path).then(urlReal => {',
-    '    if (!urlReal || img._gfFallbackIntentado) return',
-    '    realAplicada = true',
-    '    if (!img.isConnected || urlReal === img.src) return',
-    '    img.src = urlReal',
-    '  }).catch(() => {})'
-  ].join('\n');
-  html = html.slice(0, gridCall) + newGridCall + html.slice(gridEnd);
 
   const helperMarker = '\nfunction _hidratarImgCache(escopo) {';
   if (html.split(helperMarker).length !== 2) {
