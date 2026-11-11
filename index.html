@@ -11070,14 +11070,39 @@ let _loteUrlAssinada = null
 async function _urlAssinada(path) {
   const cache = _cacheUrlAssinada.get(path)
   if (cache && cache.expira > Date.now()) return cache.url
-  if (!_loteUrlAssinada) { _loteUrlAssinada = new Map(); queueMicrotask(_disparaLoteUrlAssinada) }
+  if (!_loteUrlAssinada) {
+    _loteUrlAssinada = new Map()
+    // Agrupa dezenas de pedidos de capa/avatar disparados por callbacks
+    // assíncronos da mesma tela; queueMicrotask enviava 1 POST por foto.
+    setTimeout(_disparaLoteUrlAssinada, 35)
+  }
   if (!_loteUrlAssinada.has(path)) _loteUrlAssinada.set(path, [])
   return new Promise(resolve => _loteUrlAssinada.get(path).push(resolve))
 }
 function _disparaLoteUrlAssinada() {
   const lote = _loteUrlAssinada
   _loteUrlAssinada = null
+  if (!lote || !lote.size) return
   _processarLoteUrlAssinada([...lote.keys()], lote)
+}
+// Limita a concorrência de RPC de assinatura. Cada chamada verifica
+// permissões no servidor; centenas em paralelo consumiam CPU, largura
+// de banda e congestionavam o Auth. Mantém as mesmas regras de acesso.
+let _r2AssinaturasAtivas = 0
+const _r2FilaAssinaturas = []
+async function _r2AssinarComLimite(payload) {
+  await new Promise(resolve => {
+    if (_r2AssinaturasAtivas < 2) {
+      _r2AssinaturasAtivas++
+      resolve()
+    } else _r2FilaAssinaturas.push(resolve)
+  })
+  try { return await _r2Api('sign', payload) }
+  finally {
+    const next = _r2FilaAssinaturas.shift()
+    if (next) next() // transfere slot sem ultrapassar o limite
+    else _r2AssinaturasAtivas--
+  }
 }
 // sem retry aqui, uma falha de rede passageira (comum depois de um
 // tempo com a aba em segundo plano/idle) deixava TODAS as fotos
@@ -11092,7 +11117,7 @@ async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
   try {
     for (let i = 0; i < chavesR2.length; i += 80) {
       const loteR2 = chavesR2.slice(i, i + 80)
-      const resposta = await _r2Api('sign', { keys: loteR2, expires_in: 300 })
+      const resposta = await _r2AssinarComLimite({ keys: loteR2, expires_in: 300 })
       ;(resposta.urls || []).forEach(item => urls.set(item.key, item.url || null))
     }
     if (chavesSupabase.length) {
@@ -11108,7 +11133,13 @@ async function _processarLoteUrlAssinada(paths, lote, tentativa = 1) {
   }
   paths.forEach(path => {
     const url = urls.get(path) || null
-    if (url) _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+    if (url) {
+      _cacheUrlAssinada.delete(path)
+      _cacheUrlAssinada.set(path, { url, expira: Date.now() + 270000 })
+      if (_cacheUrlAssinada.size > 900) {
+        _cacheUrlAssinada.delete(_cacheUrlAssinada.keys().next().value)
+      }
+    }
     ;(lote.get(path) || []).forEach(resolve => resolve(url))
   })
 }
