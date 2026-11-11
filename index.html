@@ -4949,7 +4949,7 @@ async function mostrarApp(user) {
   const { data, error } = await db.from('perfis').select('*').eq('user_id', user.id).maybeSingle()
   if (error || !data) {
     toast('Essa conta ainda não tem um perfil de acesso na galeria — fale com a Grand Focus.')
-    await db.auth.signOut()
+    await db.auth.signOut({ scope: 'local' })
     return
   }
   meuPerfil = data
@@ -5009,7 +5009,7 @@ async function mostrarApp(user) {
   else if (data.role === 'avulso') { document.getElementById('view-avulso').classList.add('on'); viewPromise = Promise.resolve() }
   else {
     toast('Esse tipo de acesso ainda não está disponível nessa versão — fale com a Grand Focus.')
-    await db.auth.signOut()
+    await db.auth.signOut({ scope: 'local' })
     return
   }
   await Promise.all([mostrarBoasVindas(data.nome || user.email), viewPromise])
@@ -5285,7 +5285,7 @@ async function fazerLogin() {
   if (error) { errEl.textContent = 'Usuário ou senha incorretos.'; errEl.style.display = 'block' }
 }
 
-async function fazerLogout() { await db.auth.signOut() }
+async function fazerLogout() { await db.auth.signOut({ scope: 'local' }) }
 
 function _toggleSenhaLogin() {
   const inp = document.getElementById('login-pass')
