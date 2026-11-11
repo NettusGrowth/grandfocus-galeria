@@ -10928,7 +10928,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, nome_original: file.name, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     // marca automaticamente todo mundo que participa do evento — dá
@@ -13292,12 +13292,33 @@ async function _marcarPessoaToggle(tipo, id) {
 // upload (criado_em), no fim da lista. Usado tanto pra renderizar
 // quanto por _fotoDropReordenar pra saber a posição atual antes de
 // recolocar as fotos arrastadas.
+// O UUID do registro e o nome aleatório do objeto R2 não expressam
+// a ordem da câmera. "IMG_9" deve aparecer antes de "IMG_10".
+const _galCollatorNumerico = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' })
 function _ordenarGrupoFotos(lista) {
   return [...lista].sort((a, b) => {
-    if (a.ordem != null && b.ordem != null) return a.ordem - b.ordem
+    // Arraste manual anterior à migração continua com prioridade.
+    if (a.ordem != null && b.ordem != null) {
+      return a.ordem - b.ordem ||
+        (a.criado_em || '').localeCompare(b.criado_em || '') ||
+        String(a.id || '').localeCompare(String(b.id || ''))
+    }
     if (a.ordem != null) return -1
     if (b.ordem != null) return 1
-    return (a.criado_em || '').localeCompare(b.criado_em || '')
+
+    const nomeA = (a.nome_original || '').trim()
+    const nomeB = (b.nome_original || '').trim()
+    // Os nomes antigos não foram salvos. Mantê-los em sequência
+    // cronológica de UPLOAD, depois ordenar naturalmente os novos.
+    // Comparador transitivo: não mescla nome/número com timestamp.
+    if (Boolean(nomeA) !== Boolean(nomeB)) return nomeA ? 1 : -1
+    if (nomeA && nomeB) {
+      const porNome = _galCollatorNumerico.compare(nomeA, nomeB)
+      if (porNome) return porNome
+    }
+    return (a.criado_em || '').localeCompare(b.criado_em || '') ||
+      String(a.storage_path || '').localeCompare(String(b.storage_path || '')) ||
+      String(a.id || '').localeCompare(String(b.id || ''))
   })
 }
 // arrastar 1 foto (ou várias, se a arrastada já estava selecionada —
@@ -14358,11 +14379,11 @@ async function _galAbrirAlbumAtualizado(eventoId) {
 function _galCapaEvento(eventoId) {
   const capaDefinida = store.eventos.find(e => e.id === eventoId)?.capa_url
   if (capaDefinida) return capaDefinida
-  const f = store.fotos.find(x => x.evento_id === eventoId)
+  const f = _ordenarGrupoFotos(store.fotos.filter(x => x.evento_id === eventoId))[0]
   return f ? _fotoPreviewPath(f) : null
 }
 function _galCapaSubpasta(eventoId, subpasta) {
-  const f = store.fotos.find(x => x.evento_id === eventoId && x.subpasta === subpasta)
+  const f = _ordenarGrupoFotos(store.fotos.filter(x => x.evento_id === eventoId && x.subpasta === subpasta))[0]
   return f ? _fotoPreviewPath(f) : null
 }
 function _galPastaCardHTML(nome, count, capaPath, subtitulo) {
@@ -14382,7 +14403,7 @@ function _galPastaCardHTML(nome, count, capaPath, subtitulo) {
 // quase sempre seriam do mesmo álbum e o mosaico ficava repetitivo).
 function _galAmostraFotos(fotos, n) {
   const porEvento = new Map()
-  fotos.forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
+  _ordenarGrupoFotos(fotos).forEach(f => { if (!porEvento.has(f.evento_id)) porEvento.set(f.evento_id, []); porEvento.get(f.evento_id).push(f) })
   const grupos = [...porEvento.values()]
   const amostra = []
   let i = 0
@@ -14455,11 +14476,12 @@ function renderGaleriaFotosDoAlbum(wrap) {
   ].map(id => ({ tipo: 'aluno', id, nome: store.alunos.find(a => a.id === id)?.nome || '?' }))
     .concat([...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id))]
       .map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) })))
-  const fotos = _galFiltroPessoaAlbum
+  const fotosSemOrdem = _galFiltroPessoaAlbum
     ? todasFotos.filter(f => (_galFiltroPessoaAlbum.tipo === 'aluno'
       ? store.fotoAluno.some(x => x.foto_id === f.id && x.aluno_id === _galFiltroPessoaAlbum.id)
       : store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id)))
     : todasFotos
+  const fotos = _ordenarGrupoFotos(fotosSemOrdem)
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -14545,9 +14567,9 @@ function renderGaleriaListaAvulsos(wrap) {
 function renderGaleriaFotosAvulso(wrap) {
   const ev = store.eventos.find(e => e.id === _galAvulsoId)
   const subpastaAtiva = _galSubpasta && _galSubpasta !== '__soltas__' ? _galSubpasta : null
-  const fotos = store.fotos.filter(f => f.evento_id === _galAvulsoId && (
+  const fotos = _ordenarGrupoFotos(store.fotos.filter(f => f.evento_id === _galAvulsoId && (
     _galSubpasta === '__soltas__' ? !f.subpasta : subpastaAtiva ? f.subpasta === subpastaAtiva : true
-  ))
+  )))
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -14678,9 +14700,10 @@ function renderGaleriaFotosDoAlbumDoAluno(wrap) {
   const pessoasNoAlbum = [
     ...new Set(store.fotoPessoa.filter(x => todasFotos.some(f => f.id === x.foto_id)).map(x => x.user_id)),
   ].map(id => ({ tipo: 'pessoa', id, nome: _nomePessoaMarcada(id) }))
-  const fotos = _galFiltroPessoaAlbum
+  const fotosSemOrdem = _galFiltroPessoaAlbum
     ? todasFotos.filter(f => store.fotoPessoa.some(x => x.foto_id === f.id && x.user_id === _galFiltroPessoaAlbum.id))
     : todasFotos
+  const fotos = _ordenarGrupoFotos(fotosSemOrdem)
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
@@ -15360,7 +15383,7 @@ async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
       if (thumbErr) thumbPath = null
       else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
     } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
+    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, nome_original: file.name, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
     if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
     store.fotos.push(fotoRow)
     const rosterAlunos = marcarEssaFoto ? alunosRoster : []
@@ -16178,6 +16201,7 @@ function renderFotosGrid(gridElId) {
     const idsComAluno = new Set(store.fotoAluno.filter(x => x.aluno_id === _fotoFiltroAluno).map(x => x.foto_id))
     fotos = fotos.filter(f => idsComAluno.has(f.id))
   }
+  fotos = _ordenarGrupoFotos(fotos)
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
   _lightboxFotos = fotos
   _cancelarHidratacaoImgCache(grid)
@@ -16308,7 +16332,7 @@ function renderGaleriaListaFilhos(wrap) {
 // espalhadas por eventos diferentes; agrupar só pra isso não paga o
 // esforço). Mesma toolbar/grid dos outros caminhos.
 function renderGaleriaFotosPessoaisResp(wrap) {
-  const fotos = _fotosPessoaisResp()
+  const fotos = _ordenarGrupoFotos(_fotosPessoaisResp())
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
