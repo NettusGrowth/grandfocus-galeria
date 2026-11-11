@@ -11302,7 +11302,7 @@ function _hidratarImgCache(escopo) {
         img.removeAttribute('data-path')
         if (img.isConnected && path) _hidratarPathImg(img, path)
       }
-    }, { rootMargin: '850px 0px' })
+    }, { rootMargin: '350px 0px' })
     _observadoresHidratacaoImg.set(raiz, observer)
   }
   imgs.forEach(img => {
@@ -11321,26 +11321,43 @@ function _hidratarImgCache(escopo) {
 // que cabe na tela + uma folga, e um sentinel no fim vai acrescentando
 // mais conforme o usuário rola (mesmo padrão de infinite scroll usado
 // em qualquer app de fotos grande).
-const GAL_LOTE_FOTOS = 60
+const GAL_LOTE_FOTOS = 16
 // itemHtmlFn: como renderizar cada foto — cada grade tem seu próprio HTML
 // por item (Galeria é simples, Eventos/Ensaios têm botões extra de marcar
 // pessoas/apagar/mover) — default cobre o caso da Galeria, quem chama com
 // item mais complexo passa a própria função.
+// Se a mesma grade é reconstruída (filtro, novo álbum ou realtime),
+// desligar o observador anterior. Sem isso, os sentinelas antigos
+// mantêm listas de centenas de fotos e callbacks na memória.
+const _galFotoGridsAtivos = new WeakMap()
+function _cancelarGridFotosPaginado(raiz) {
+  if (!raiz) return
+  const grades = raiz.matches?.('[data-gf-grid-paginada]')
+    ? [raiz] : [...raiz.querySelectorAll('[data-gf-grid-paginada]')]
+  for (const el of grades) _galFotoGridsAtivos.get(el)?.cancel()
+}
 function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) {
   if (!gridEl) return
+  _galFotoGridsAtivos.get(gridEl)?.cancel()
+  let ativo = true
   let renderizados = 0
   let sentinel = null
   let observer = null
   let esperandoFrame = false
+  _galFotoGridsAtivos.set(gridEl, { cancel() {
+    ativo = false
+    observer?.disconnect()
+  } })
+  gridEl.setAttribute('data-gf-grid-paginada', '')
   const temObserver = 'IntersectionObserver' in window
   function carregarLote() {
-    if (esperandoFrame || renderizados >= fotos.length) return
+    if (!ativo || esperandoFrame || renderizados >= fotos.length) return
     esperandoFrame = true
     const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)
     renderizados += lote.length
     requestAnimationFrame(() => {
       esperandoFrame = false
-      if (!gridEl.isConnected) { observer?.disconnect(); return }
+      if (!ativo || !gridEl.isConnected) { observer?.disconnect(); return }
       const html = lote.map(itemHtmlFn).join('')
       if (sentinel?.isConnected) sentinel.insertAdjacentHTML('beforebegin', html)
       else gridEl.insertAdjacentHTML('beforeend', html)
@@ -11365,7 +11382,7 @@ function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) 
     gridEl.appendChild(sentinel)
     observer = new IntersectionObserver(entries => {
       if (entries.some(entry => entry.isIntersecting)) carregarLote()
-    }, { rootMargin: '1600px 0px' })
+    }, { rootMargin: '550px 0px' })
     observer.observe(sentinel)
   }
 }
@@ -14138,6 +14155,7 @@ function renderGaleriaAdmin() {
   const heroHTML = _galEhRaizDoPapel() ? _galHeroMobileHTML() : ''
   const crumb = `${heroHTML}<div class="meta gal-breadcrumb-full" style="margin-bottom:16px;font-size:13px;">${breadcrumbHTML}</div>${_galVoltarHTML()}`
   _cancelarHidratacaoImgCache(wrap)
+  _cancelarGridFotosPaginado(wrap)
   wrap.innerHTML = crumb
   if (heroHTML) atualizarAvatarTopbar()
 
@@ -16251,6 +16269,7 @@ function renderFotosGrid(gridElId) {
   if (!fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto aqui ainda.</div>'; atualizarBotaoBaixar(); return }
   _lightboxFotos = fotos
   _cancelarHidratacaoImgCache(grid)
+  _cancelarGridFotosPaginado(grid)
   grid.replaceChildren()
   _renderGridFotosPaginado(grid, fotos, _fotoItemHTML)
   atualizarBotaoBaixar()
