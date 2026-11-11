@@ -48,7 +48,7 @@ for(const marker of [
   'fotos = _ordenarGrupoFotos(fotos)',
   'const f = _ordenarGrupoFotos(store.fotos.filter(x => x.evento_id === eventoId && x.subpasta === subpasta))[0]',
 ])assert.ok(html.includes(marker), 'Falta ordenar um caminho: '+marker)
-assert.equal((html.match(/nome_original: file\.name/g)||[]).length,2,
+assert.equal((html.match(/db\.from\('fotos'\)\.insert\(\{ evento_id: (?:eventoId|ensaioId), storage_path: path, thumb_path: thumbPath, nome_original: file\.name,/g)||[]).length,2,
  'Evento e ensaio precisam guardar o nome original.')
 const sql=fs.readFileSync('supabase/sql/103_fotos_nome_original.sql','utf8')
 assert.match(sql,/add column if not exists nome_original text/i)
