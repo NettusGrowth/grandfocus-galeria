@@ -86,4 +86,7 @@ function environment({responseStatuses=[200],refreshOK=true}={}) {
 }
 assert.match(html, /if \(_event === 'SIGNED_IN'\) _r2SessaoEncerrada = false/)
 assert.match(html,/scope: 'local'/)
+assert.match(html,/async function fazerLogout\(\) \{ await db\.auth\.signOut\(\{ scope: 'local' \}\) \}/)
+assert.doesNotMatch(html,/db\.auth\.signOut\(\)/,
+  'Nenhuma tela deve revogar todas as sessões de uma conta compartilhada.')
 console.log('✓ R2 401: renovação automática, 10 chamadas simultâneas, login seguro e permissões intactas.')
