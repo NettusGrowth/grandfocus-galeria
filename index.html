@@ -11116,7 +11116,7 @@ function _invalidarImgCache(path) {
   if (antigo) URL.revokeObjectURL(antigo)
   _cacheImagemBlob.delete(path)
   _promessaImagemBlob.delete(path)
-  if (_imgCacheStorage) _imgCacheStorage.then(cache => cache.delete(_imgCacheStorageKey(path)))
+  _imgCacheStorage.then(cache => cache ? cache.delete(_imgCacheStorageKey(path)) : false).catch(() => {})
 }
 
 // gera o <img> já pronto: se a foto já estiver no cache local, nasce
