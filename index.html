@@ -5815,11 +5815,33 @@ async function salvarPerfil() {
 // ══════════════════════════════════════════════════════════════
 // VIEW ADMIN
 // ══════════════════════════════════════════════════════════════
+// O administrador tem diversas telas de cadastro; montá-las TODAS
+// durante o login inicial carregava capas, avatares e fotos de abas
+// escondidas, além de um grande número de nós DOM desnecessários.
+let _adminDadosProntos = false
+function _adminRenderAba(tab) {
+  if (!_adminDadosProntos) return
+  const render = {
+    escolas: renderEscolas,
+    alunos: renderAlunos,
+    eventos: renderEventos,
+    ensaios: renderEnsaios,
+    professores: renderProfessores,
+    pais: renderPais,
+    turmas: renderTurmas,
+  }[tab]
+  if (render) render()
+}
 async function iniciarViewAdmin() {
+  _adminDadosProntos = false
+  // Mantém os dados e a semântica de permissões do painel, mas só
+  // cria DOM / busca imagens da aba que a pessoa de fato abriu.
   await Promise.all([carregarEscolas(), carregarAlunos(), carregarEventos(), carregarResponsaveis(), carregarProfessores(), carregarVinculosResponsaveis(), carregarProfessorEscolas(), carregarClientesAvulsos(), carregarTurmas()])
-  renderEscolas(); renderAlunos(); renderEventos(); renderEnsaios(); renderProfessores(); renderPais(); renderTurmas()
+  _adminDadosProntos = true
   atualizarAcessoAlvo()
   popularVinculoSelects()
+  const abaVisivel = document.querySelector('#view-admin .tabs .tab.on')?.dataset.tab || 'dashboard'
+  _adminRenderAba(abaVisivel)
   iniciarDashboardAdmin()
 }
 
@@ -6736,6 +6758,7 @@ function setAdminTab(tab) {
   document.getElementById('admintab-' + tab).style.display = 'block'
   document.querySelector('main').scrollTop = 0
   _bnSyncActive()
+  _adminRenderAba(tab)
   // "Fotos mais populares" só era buscado 1x (no login) e nunca mais —
   // download/visualização acontecem em segundo plano (outra pessoa
   // navegando a galeria), então reabrir a aba Dashboard é a deixa
