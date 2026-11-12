@@ -6429,6 +6429,111 @@ async function _portfolioAtualizarPreviewHome() {
     el.innerHTML = '<div class="mkpi-vazio">Prévia indisponível</div>'
   }
 }
+
+const PORTFOLIO_EDITOR_LOTE = 48
+const PORTFOLIO_EDITOR_MAX_FOTOS = 250
+let _portfolioEditorTodasFotos = []
+let _portfolioEditorFotos = new Set()
+let _portfolioEditorCapa = ''
+let _portfolioEditorQuantidadeVisivel = PORTFOLIO_EDITOR_LOTE
+let _portfolioEditorFotosProntas = false
+let _portfolioEditorSeq = 0
+
+function _portfolioEditorFiltroRascunho() {
+  const modo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value || 'todos'
+  const cfg = {modo,escolas:[],eventos:[],pastas:[]}
+  if (modo === 'selecionados') {
+    for (const item of document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked')) {
+      const tipo = item.dataset.fonteTipo, id = item.dataset.fonteId, evento = item.dataset.fonteEvento
+      if (tipo === 'escola') cfg.escolas.push(id)
+      else if (tipo === 'evento') cfg.eventos.push(id)
+      else if (tipo === 'pasta') cfg.pastas.push({evento_id:evento,nome:id})
+    }
+  }
+  return cfg
+}
+function _portfolioEditorFotosPermitidas(cfg = _portfolioEditorFiltroRascunho()) {
+  if (!_portfolioEditorFotosProntas) return []
+  const busca = (document.getElementById('portfolio-fotos-busca')?.value || '').trim().toLocaleLowerCase('pt-BR')
+  const marcadas = document.getElementById('portfolio-fotos-so-marcadas')?.checked
+  const eventos = new Map(store.eventos.map(e=>[e.id,e]))
+  const escolas = new Map(store.escolas.map(e=>[e.id,e]))
+  return _portfolioEditorTodasFotos.filter(f => {
+    if (!_portfolioFotoPermitida(f,cfg)) return false
+    if (marcadas && !_portfolioEditorFotos.has(f.id) && f.id !== _portfolioEditorCapa) return false
+    if (!busca) return true
+    const ev=eventos.get(f.evento_id)
+    const nome=[ev?.nome,escolas.get(ev?.escola_id)?.nome,f.subpasta,f.id].join(' ').toLocaleLowerCase('pt-BR')
+    return nome.includes(busca)
+  })
+}
+function _portfolioEditorRedesenharFotos(reiniciar=false) {
+  const grade=document.getElementById('portfolio-fotos-grade')
+  if (!grade) return
+  if (reiniciar) _portfolioEditorQuantidadeVisivel=PORTFOLIO_EDITOR_LOTE
+  const status=document.getElementById('portfolio-fotos-status')
+  const mais=document.getElementById('portfolio-fotos-mais')
+  if (!_portfolioEditorFotosProntas) {
+    grade.innerHTML='<div class="empty">Consultando o acervo…</div>'
+    status.textContent='Buscando as fotografias…'
+    mais.style.display='none'
+    return
+  }
+  const fonte=_portfolioEditorFiltroRascunho()
+  const todasPermitidas=_portfolioEditorTodasFotos.filter(f=>_portfolioFotoPermitida(f,fonte))
+  const mostradas=_portfolioEditorFotosPermitidas(fonte)
+  const fotos=mostradas.slice(0,_portfolioEditorQuantidadeVisivel)
+  const escolhidas=todasPermitidas.filter(f=>_portfolioEditorFotos.has(f.id)).length
+  const capa=todasPermitidas.find(f=>f.id===_portfolioEditorCapa)
+  const ocultas=_portfolioEditorFotos.size-escolhidas
+  status.textContent=escolhidas+' foto(s) escolhida(s) · '+todasPermitidas.length+' na(s) fonte(s) · '+
+    mostradas.length+' após pesquisa'+(capa?' · capa escolhida':' · capa automática')+
+    (ocultas>0?' · '+ocultas+' escolha(s) fora das fontes atuais':'')
+  grade.innerHTML=fotos.map(f=>{
+    const ev=store.eventos.find(e=>e.id===f.evento_id)
+    const nome=ev?.nome||'Evento'
+    const marcada=_portfolioEditorFotos.has(f.id)
+    const isCapa=f.id===_portfolioEditorCapa
+    return '<article class="portfolio-curadoria-foto'+(marcada?' marcada':'')+(isCapa?' capa':'')+'">'+
+      '<button class="portfolio-curadoria-marcar" type="button" onclick="_portfolioEditorAlternarFoto(\''+f.id+'\')"'+
+      ' aria-pressed="'+marcada+'" title="Selecionar ou remover fotografia">'+
+      _imgTagCache(f.thumb_path||f.storage_path,'alt="Fotografia do portfólio" loading="lazy"')+
+      (marcada?'<span class="portfolio-curadoria-selo">✓ Escolhida</span>':'')+
+      '</button><span class="portfolio-curadoria-foto-info" title="'+esc(nome+' · '+(f.subpasta||''))+'">'+
+      esc(f.subpasta||nome)+'</span>'+
+      '<button class="portfolio-curadoria-capa" type="button" onclick="_portfolioEditorDefinirCapa(\''+f.id+'\')" '+
+      'aria-pressed="'+isCapa+'">'+(isCapa?'★ Capa escolhida':'☆ Definir capa')+'</button></article>'
+  }).join('') || '<div class="empty">Nenhuma fotografia corresponde a esta seleção. Ajuste as fontes ou a busca.</div>'
+  mais.style.display=mostradas.length>fotos.length?'block':'none'
+  _hidratarImgCache(grade)
+}
+function _portfolioEditorMaisFotos() {
+  _portfolioEditorQuantidadeVisivel+=PORTFOLIO_EDITOR_LOTE
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorAlternarFoto(id) {
+  if (!_portfolioEditorFotosProntas || !_portfolioEditorTodasFotos.some(f=>f.id===id)) return
+  if (_portfolioEditorFotos.has(id)) _portfolioEditorFotos.delete(id)
+  else {
+    if (_portfolioEditorFotos.size >= PORTFOLIO_EDITOR_MAX_FOTOS) {
+      toast('Limite de 250 fotografias selecionadas neste portfólio.')
+      return
+    }
+    _portfolioEditorFotos.add(id)
+  }
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorDefinirCapa(id) {
+  if (!_portfolioEditorFotosProntas || !_portfolioEditorTodasFotos.some(f=>f.id===id)) return
+  _portfolioEditorCapa=_portfolioEditorCapa===id?'':id
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorLimparFotos() {
+  _portfolioEditorFotos.clear()
+  document.getElementById('portfolio-fotos-so-marcadas').checked=false
+  _portfolioEditorRedesenharFotos(true)
+  toast('Escolha de fotos removida. A capa, se escolhida, continua fixa.')
+}
 function _portfolioEditorMostrarModo() {
   const radio = document.querySelector('input[name="portfolio-fontes-modo"]:checked')
   const ativo = radio?.value === 'selecionados'
@@ -6441,6 +6546,7 @@ function _portfolioEditorAtualizarResumo() {
   const ativo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value === 'selecionados'
   el.textContent = ativo ? marcado + ' fonte(s) selecionada(s) · escolas, eventos e pastas se somam.'
     : 'Todas as fotografias elegíveis continuam na seleção automática.'
+  _portfolioEditorRedesenharFotos(true)
 }
 async function _portfolioAbrirConfiguracao() {
   if (meuPerfil?.role !== 'super_admin') return
