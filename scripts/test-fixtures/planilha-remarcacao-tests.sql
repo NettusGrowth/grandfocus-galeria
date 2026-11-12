@@ -101,11 +101,13 @@ begin
   'a_pagar','',null,'','',token_n,true);
  select id into strict r_n from public.gf_contratacao_form_respostas
  where evento_contratacao_id=natal and responsavel_nome='Responsavel Natal Teste';
- -- A confirmação de pagamento é simulada apenas dentro do ROLLBACK.
- update public.gf_contratacao_form_respostas
-  set pagamento_situacao='pago_manual',valor_recebido_centavos=valor_informado_centavos,
-      agendamento_status='confirmado',agendamento_expira_em=null
- where id=r_n;
+ -- Usar as mesmas RPCs da equipe. A conferência exige referência,
+ -- método e auditoria, mesmo num teste que será revertido por ROLLBACK.
+ perform public.gf_contratacao_admin_registrar_pagamento_externo(
+  natal,r_n,'pago_manual',14500,'pix','PIX_REMARCACAO_TESTE',
+  'Pagamento conferido na fixture transacional',true,admin_id);
+ perform public.gf_natal_atualizar_agendamento(
+  'natal-fada-acucarada-2026',r_n,'confirmado',admin_id);
  lista:=public.gf_planilha_horarios_remarcacao('natal-fada-acucarada-2026',r_n,admin_id);
  if not exists(select 1 from jsonb_array_elements(lista->'horarios') x
   where x->>'id'=domingo::text and x->>'disponivel'='true') then
