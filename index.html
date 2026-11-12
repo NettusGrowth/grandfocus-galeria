@@ -14050,6 +14050,10 @@ async function iniciarGaleriaAdmin() {
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
   _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
   _galFiltroEscolaAlunos = ''; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  // A navegação deve responder imediatamente: a consulta da base de fotos
+  // continua em paralelo, sem bloquear a abertura das pastas de escolas.
+  // O retorno posterior atualiza a tela atualmente aberta, preservando o drill-down.
+  renderGaleriaAdmin()
   // eventos (com o embed fotos(count)) SEMPRE recarrega ao entrar na
   // aba — diferente de fotos/foto_aluno/foto_pessoa abaixo, esse dado
   // fica velho rápido: criar um álbum e subir fotos nele acontece fora
@@ -14427,28 +14431,33 @@ function _galSubpastasDisponiveis(eventoId) {
 }
 
 async function _galBuscarVinculosFotosAlbum(tabela, ids, campoOrdem) {
-  const linhas = []
-  // Mantém as consultas pequenas para eventos com centenas ou milhares de fotos.
-  for (let i = 0; i < ids.length; i += 80) {
-    const loteIds = ids.slice(i, i + 80)
-    const lote = await _galBuscarTodasAsLinhas(() => db.from(tabela)
-      .select('*')
-      .in('foto_id', loteIds)
-      .order('foto_id', { ascending: true })
-      .order(campoOrdem, { ascending: true }))
-    linhas.push(...lote)
-  }
-  return linhas
+  // 80 IDs por requisição mantém a URL pequena. Quatro workers reduzem
+  // a latência sem gerar uma tempestade de requests por álbum.
+  const lotes = []
+  for (let i = 0; i < ids.length; i += 80) lotes.push(ids.slice(i, i + 80))
+  const resultados = Array(lotes.length)
+  let proximo = 0
+  await Promise.all(Array.from({ length: Math.min(4, lotes.length) }, async () => {
+    while (proximo < lotes.length) {
+      const idx = proximo++
+      resultados[idx] = await _galBuscarTodasAsLinhas(() => db.from(tabela)
+        .select('*')
+        .in('foto_id', lotes[idx])
+        .order('foto_id', { ascending: true })
+        .order(campoOrdem, { ascending: true }))
+    }
+  }))
+  return resultados.flat()
 }
 
 function _galAbrirAlbum(eventoId) {
   _galAlbumId = eventoId
   _galSubpasta = null
   _galFiltroPessoaAlbum = null
-  if (_galRole !== 'admin') {
-    renderGaleriaAdmin()
-    return
-  }
+  // Os dados já disponíveis aparecem no mesmo clique; o refresh do álbum
+  // roda em segundo plano para captar novas fotos/exclusões recentes.
+  renderGaleriaAdmin()
+  if (_galRole !== 'admin') return
   return _galAbrirAlbumAtualizado(eventoId)
 }
 
