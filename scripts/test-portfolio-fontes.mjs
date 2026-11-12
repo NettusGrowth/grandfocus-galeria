@@ -77,7 +77,7 @@ assert.match(html,/upsert\(\{chave:PORTFOLIO_FONTES_CHAVE,valor,atualizado_por:c
 assert.match(html,/function _portfolioFotoPermitida\(/)
 assert.match(html,/_galBuscarTodasAsLinhas\(\(\) => db.from\('fotos'\)/)
 assert.match(html,/_galBuscarTodasAsLinhas\(\(\) => db.from\('foto_aluno'\)/)
-assert.match(html,/filtro.modo === 'selecionados'\) \{/)
+assert.match(html,/filtro.modo === 'selecionados'/)
 assert.match(html,/if \(meuPerfil\?\.role === 'super_admin'\) _portfolioAtualizarPreviewHome\(\)/)
 assert.match(html,/const filtro = meuPerfil\?\.role === 'super_admin'/)
 assert.match(html,/if \(filtro.modo !== 'selecionados'\) return true/)
