@@ -86,7 +86,8 @@ begin
   'natal-fada-acucarada-2026','2026-12-12','08:00','09:00',15,admin_id);
  perform public.gf_natal_gerar_horarios(
   'natal-fada-acucarada-2026','2026-12-13','09:00','10:00',15,admin_id);
- update public.gf_contratacao_eventos set status='publicado' where id=natal;
+ update public.gf_contratacao_eventos set status='publicado',
+  vendas_encerram_em=now()+interval '7 days' where id=natal;
  select id into strict sabado from public.gf_contratacao_horarios
  where evento_contratacao_id=natal and dia='2026-12-12' and inicio='08:00';
  select id into strict domingo from public.gf_contratacao_horarios
