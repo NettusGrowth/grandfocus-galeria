@@ -2651,7 +2651,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
 
       <div class="admin-tab" id="admintab-pais" style="display:none;">
-        <div class="section-h"><h2>Pais e responsáveis</h2><div style="display:flex;gap:8px;"><button class="btn btn-sm" onclick="abrirModal('modal-vincular-filho')">🔗 Vincular filho existente</button><button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button></div></div>
+        <div class="section-h"><h2>Pais e responsáveis</h2><div style="display:flex;gap:8px;flex-wrap:wrap;"><button class="btn btn-sm" onclick="window.open('/admin-importar-acessos.html','_blank','noopener')">⬆ Importar acessos (Excel)</button><button class="btn btn-sm" onclick="abrirModal('modal-vincular-filho')">🔗 Vincular filho existente</button><button class="btn btn-primary btn-sm" onclick="abrirModalPai()">+ Novo Pai / Responsável</button></div></div>
         <div class="filtro-row">
           <input type="text" id="pai-busca" placeholder="Buscar por nome, e-mail, telefone ou filho…" oninput="renderPais()" style="max-width:360px;">
         </div>

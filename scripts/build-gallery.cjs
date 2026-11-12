@@ -260,6 +260,11 @@ function main() {
   const migrationPage = path.join(root, 'r2-migration.html');
   if (fs.existsSync(migrationPage)) fs.copyFileSync(migrationPage, path.join(dist, 'r2-migration.html'));
 
+  // Importação administrativa independente: a página precisa existir no dist.
+  const accessImporter = path.join(root, 'admin-importar-acessos.html');
+  if (!fs.existsSync(accessImporter)) throw new Error('Secure access importer page missing.');
+  fs.copyFileSync(accessImporter, path.join(dist, 'admin-importar-acessos.html'));
+
   // Módulo de contratação independente da galeria principal.
   const contractingPages = path.join(root, 'contratar');
   if (fs.existsSync(contractingPages)) copyTree(contractingPages, path.join(dist, 'contratar'));
@@ -280,6 +285,9 @@ function main() {
   if (!deployed.includes('_carregarImgCache(path).then(blobUrl =>')) throw new Error('Non-blocking lightbox cache missing.');
   if (deployed.includes('const auxiliaryReady = await _r2MigrarAuxiliaresPendentes()')) throw new Error('Stale R2 migration autostart must not run on administrator login.');
   if (!deployed.includes('_ativarFallbackImagemVisivel(img, path)')) throw new Error('Visible image error fallback missing.');
+  const accessImporterBuilt = fs.readFileSync(path.join(dist, 'admin-importar-acessos.html'), 'utf8');
+  if (!accessImporterBuilt.includes('CADASTROS_NOVOS') || !accessImporterBuilt.includes("['admin','super_admin']")) throw new Error('Access importer lost admin guard or Excel parser.');
+  if (!deployed.includes('/admin-importar-acessos.html')) throw new Error('Admin import launcher is missing.');
   if (!deployed.includes('<link rel="icon" type="image/png" href="/assets/logo-icone.png?v=20261109">')) {
     throw new Error('The built gallery must advertise the official Grand Focus favicon.');
   }

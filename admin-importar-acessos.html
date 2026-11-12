@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Grand Focus — Importar acessos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#110910;--panel:#23131d;--gold:#e1be83;--text:#f6eee8;--sub:#c2b0bb;--line:#463341;--ok:#a8e7c4;--bad:#ffc8c8;}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--text);font:15px/1.6 system-ui,-apple-system,sans-serif;margin:0}
+main{max-width:1140px;margin:0 auto;padding:32px 20px 70px}h1{font:normal 38px/1.2 Georgia,serif;margin:10px 0 12px;color:var(--gold)}
+h2{font-size:19px;margin:4px 0 12px}.top{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+a{color:var(--gold)}.lead{color:var(--sub);max-width:920px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:22px;margin-top:20px}
+label{font-weight:650;display:block;margin-bottom:8px}input[type=file]{display:block;color:var(--sub);width:100%;max-width:600px}
+button,.button{border:1px solid var(--gold);border-radius:10px;background:var(--gold);color:#23121b;padding:11px 18px;font-weight:750;cursor:pointer}
+button.alt{background:transparent;color:var(--gold)}button:disabled{cursor:not-allowed;opacity:.4}
+.muted{color:var(--sub)}.small{font-size:13px}.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:18px}
+.status{padding:12px 15px;border:1px solid var(--line);border-radius:10px;margin:14px 0;background:#170e15}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin:15px 0}
+.metric{border:1px solid var(--line);border-radius:10px;padding:13px}.metric strong{font-size:25px;display:block;color:var(--gold)}
+.scroll{overflow-x:auto;max-height:475px;border:1px solid var(--line);border-radius:10px}
+table{width:100%;border-collapse:collapse;min-width:820px}th,td{padding:10px 13px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;font-size:13px}
+th{position:sticky;top:0;background:#34212c;color:var(--gold)}tbody tr:nth-child(even){background:#261722}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:#f8df9d}
+code{font-size:12px;white-space:nowrap}.pill{font-size:12px;border:1px solid currentColor;border-radius:30px;padding:3px 8px;display:inline-block}
+.note{border-left:3px solid var(--gold);padding-left:12px;margin-top:14px}
+@media(max-width:600px){main{padding:16px 12px 40px}h1{font-size:30px}.panel{padding:15px}button{width:100%}.top a{order:-1}}
+</style>
+</head>
+<body>
+<main>
+<div class="top">
+ <div><div class="muted small">GRAND FOCUS · ADMINISTRAÇÃO</div><h1>Importação de acessos</h1></div>
+ <a href="/" aria-label="Voltar à galeria">Voltar à galeria</a>
+</div>
+<p class="lead">Importe a aba <strong>CADASTROS_NOVOS</strong> da planilha da Entre Pliés. O sistema confere duplicidades, encontra as bailarinas por nome completo e vincula cada responsável à mesma escola. Nenhuma conta existente terá a senha modificada.</p>
+<div class="status" role="status" id="seguranca">Verificando sua sessão administrativa…</div>
+<section class="panel" id="area" hidden>
+<h2>1. Selecione o arquivo Excel</h2>
+<label for="planilha">Planilha de cadastros da Entre Pliés (.xlsx)</label>
+<input type="file" id="planilha" accept=".xlsx,.xls" onchange="lerArquivo(this.files[0])">
+<div class="note small muted">Somente os cadastros marcados como <strong>PRONTO</strong> serão criados. As senhas vêm da sua planilha; não são enviadas para auditoria nem armazenadas em texto simples no banco. Não compartilhe a planilha integral com as famílias.</div>
+<div id="resumo" class="grid"></div>
+<div id="tabela-box" hidden>
+<h2>2. Confira as pessoas e os vínculos</h2>
+<div class="scroll"><table><thead><tr><th>Responsável</th><th>Bailarina(s)</th><th>Login</th><th>Resultado</th></tr></thead><tbody id="linhas"></tbody></table></div>
+<div class="controls">
+<button id="executar" onclick="executar()" disabled>Criar acessos conferidos</button>
+<button class="alt" id="baixar" onclick="baixarCredenciais()" disabled>Baixar credenciais confirmadas (.xlsx)</button>
+<button class="alt" id="revalidar" onclick="revalidar()" disabled>Conferir novamente</button>
+</div>
+<p class="muted small">Os resultados são mantidos apenas nesta página. <strong>Baixe o arquivo de credenciais antes de fechar</strong> depois da criação. Uma falha parcial interrompe a importação para evitar repetição de contas.</p>
+</div>
+<div id="resultado" class="status" role="status" aria-live="polite">Selecione a planilha para iniciar.</div>
+</section>
+</main>
+<script>
+'use strict';
+const SUPABASE_URL='https://selnsjtumkxjrtnqofqx.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_a_yXSwHeOJNSw39UZsh4GQ_7SepV9i0';
+const ENTREPLIES_ID='7896da46-5dd8-4d4e-ac50-36fda4966566';
+const {createClient}=window.supabase;
+const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const criador=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
+  auth:{storageKey:'gf-importar-acessos-contas',persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
+});
+let user=null,alunos=[],perfis=[],linhas=[],importando=false;
+const el=id=>document.getElementById(id);
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function mensagem(t,erro){el('resultado').textContent=t;el('resultado').className='status'+(erro?' bad':'');}
+function coluna(reg,nome){const chave=Object.keys(reg).find(k=>norm(k).startsWith(norm(nome)));return chave===undefined?'':String(reg[chave]??'').trim();}
+async function iniciar(){
+  try{
+    const {data:{session},error:sessionErr}=await db.auth.getSession();
+    if(sessionErr||!session)throw Error('Você não está logado. Entre na galeria e abra esta página pelo menu Pais e responsáveis.');
+    const {data:{user:usuario},error:userErr}=await db.auth.getUser();
+    if(userErr||!usuario)throw Error('Sua sessão expirou. Entre novamente na galeria.');
+    const {data:perfil,error:perfilErr}=await db.from('perfis').select('role,nome').eq('user_id',usuario.id).single();
+    if(perfilErr||!['admin','super_admin'].includes(perfil?.role))
+      throw Error('A importação é exclusiva para administradores da Grand Focus.');
+    user={...usuario,nome:perfil.nome};
+    await atualizarBase();
+    el('seguranca').textContent='Administração autorizada · '+(perfil.nome||'Grand Focus')+' · Studio Entrepliés';
+    el('seguranca').className='status ok';
+    el('area').hidden=false;
+  }catch(e){el('seguranca').textContent=e.message||'Falha na autorização.';el('seguranca').className='status bad';}
+}
+async function atualizarBase(){
+ const [ra,rp]=await Promise.all([
+   db.from('alunos').select('id,nome,escola_id').eq('escola_id',ENTREPLIES_ID),
+   db.from('perfis').select('user_id,nome,username')
+ ]);
+ if(ra.error||rp.error)throw Error('Não foi possível conferir os cadastros atuais. Reabra a galeria.');
+ alunos=ra.data||[];perfis=rp.data||[];
+}
+function jaExiste(r){
+ return perfis.find(p=>p.username===r.username||norm(p.nome)===norm(r.nome));
+}
+function idsDasAlunas(r){
+ const nomes=r.filhos.split(/[;|\n]+/).map(s=>s.trim()).filter(Boolean);
+ if(!nomes.length)return {erro:'Sem bailarina indicada',ids:[]};
+ const ids=[],erro=[];
+ for(const nome of nomes){
+   const matches=alunos.filter(a=>norm(a.nome)===norm(nome));
+   if(matches.length!==1)erro.push(nome+' ('+(matches.length?'ambíguo':'não encontrado')+')');
+   else if(!ids.includes(matches[0].id))ids.push(matches[0].id);
+ }
+ return {ids,erro:erro.length?'Verificar: '+erro.join('; '):''};
+}
+function validarLinhas(){
+ const usados=new Set();
+ linhas.forEach(r=>{
+   if(r.status==='CRIADO'||r.status==='PARCIAL'||r.status==='AGUARDA CONFIRMAÇÃO')return;
+   r.status='PRONTO';r.erro='';
+   const existente=jaExiste(r);
+   const filhos=idsDasAlunas(r);r.aluno_ids=filhos.ids;
+   if(existente){r.status='EXISTENTE';r.erro='Cadastro anterior: '+(existente.username||existente.nome);}
+   else if(!/^[a-z0-9._-]{3,32}$/.test(r.username)||r.nome.length<4||r.senha.length<12)
+     {r.status='REVISAR';r.erro='Nome, usuário ou senha insuficiente';}
+   else if(filhos.erro){r.status='REVISAR';r.erro=filhos.erro;}
+   else if(usados.has(r.username)||usados.has('nome:'+norm(r.nome)))
+     {r.status='REVISAR';r.erro='Repetido dentro da planilha';}
+   usados.add(r.username);usados.add('nome:'+norm(r.nome));
+ });
+ render();
+}
+async function lerArquivo(arquivo){
+ if(importando)return;
+ if(!arquivo)return;
+ try{
+   if(!/\.xlsx?$/i.test(arquivo.name))throw Error('Selecione um arquivo Excel .xlsx ou .xls.');
+   if(!user)throw Error('Sessão de administrador não autorizada.');
+   const wb=XLSX.read(await arquivo.arrayBuffer(),{type:'array'});
+   const ws=wb.Sheets.CADASTROS_NOVOS;
+   if(!ws)throw Error('A planilha precisa conter a aba CADASTROS_NOVOS.');
+   const registros=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
+   if(!registros.length||registros.length>100)throw Error('O arquivo deve conter entre 1 e 100 linhas.');
+   await atualizarBase();
+   linhas=registros.map((reg,i)=>({
+     linha:i+2,
+     nome:coluna(reg,'responsavel'),
+     filhos:coluna(reg,'bailarina'),
+     telefone:coluna(reg,'whatsapp').replace(/\D/g,'').slice(0,20),
+     username:coluna(reg,'usuario proposto').toLowerCase(),
+     senha:coluna(reg,'senha proposta'),
+     status:'PENDENTE',erro:'',aluno_ids:[],
+   }));
+   el('tabela-box').hidden=false;
+   validarLinhas();
+   mensagem('Arquivo conferido. Revise a prévia antes de criar os acessos.');
+ }catch(e){linhas=[];render();mensagem(e.message||'Falha ao ler a planilha.',true);}
+}
+function render(){
+ const stats={prontos:0,criados:0,existentes:0,revisar:0,parciais:0};
+ linhas.forEach(r=>{
+   if(r.status==='PRONTO')stats.prontos++;
+   else if(r.status==='CRIADO')stats.criados++;
+   else if(r.status==='EXISTENTE')stats.existentes++;
+   else if(r.status==='REVISAR')stats.revisar++;
+   else stats.parciais++;
+ });
+ el('resumo').innerHTML=[
+  ['Prontos para criar',stats.prontos],['Criados',stats.criados],
+  ['Já existentes',stats.existentes],['Revisar / pendentes',stats.revisar+stats.parciais]
+ ].map(x=>'<div class="metric"><strong>'+x[1]+'</strong><span class="small muted">'+x[0]+'</span></div>').join('');
+ el('linhas').innerHTML=linhas.map(r=>{
+   const cor=r.status==='CRIADO'?'ok':r.status==='PRONTO'?'warn':r.status==='EXISTENTE'?'muted':'bad';
+   return '<tr><td>'+esc(r.nome)+'</td><td>'+esc(r.filhos)+'</td><td><code>'+esc(r.username)+'</code></td><td><span class="pill '+cor+'">'+esc(r.status)+'</span>'+
+     (r.erro?'<div class="small muted">'+esc(r.erro)+'</div>':'')+'</td></tr>';
+ }).join('');
+ el('executar').disabled=importando||!stats.prontos;
+ el('executar').textContent=importando?'Criando contas…':'Criar '+stats.prontos+' acesso(s) conferido(s)';
+ el('baixar').disabled=importando||!stats.criados;
+ el('revalidar').disabled=importando||!linhas.length;
+}
+async function revalidar(){
+ if(importando)return;
+ try{await atualizarBase();validarLinhas();mensagem('Conferência atualizada.');}catch(e){mensagem(e.message,true);}
+}
+async function checarNovamente(r){
+ const [u,n]=await Promise.all([
+   db.from('perfis').select('user_id,username,nome').eq('username',r.username).limit(2),
+   db.from('perfis').select('user_id,username,nome').ilike('nome',r.nome).limit(2),
+ ]);
+ if(u.error||n.error)throw Error('Falha ao verificar contas existentes.');
+ return [...(u.data||[]),...(n.data||[])];
+}
+async function criarUm(r){
+ const antigos=await checarNovamente(r);
+ if(antigos.length){r.status='EXISTENTE';r.erro='Já havia cadastro no banco. Nenhuma senha alterada.';return;}
+ // Usa o mesmo fluxo de criação isolada que já funciona no painel da
+ // Grand Focus. Este client não toca na sessão do administrador.
+ const emailAuth=r.username+'@login.grandfocus.internal';
+ const {data:auth,error:authErr}=await criador.auth.signUp({
+   email:emailAuth,password:r.senha,options:{data:{full_name:r.nome}}
+ });
+ if(authErr)throw Error('Autenticação: '+authErr.message);
+ if(!auth?.user?.id||auth.user.identities?.length===0)
+   throw Error('A identidade já pode existir no Auth. Conferência manual necessária.');
+ const userId=auth.user.id;
+ r.status='PARCIAL';r.erro='Autenticação criada; aguardando perfil e vínculo.';
+ const {error:pErr}=await db.from('perfis').insert({
+   user_id:userId,role:'responsavel',escola_id:ENTREPLIES_ID,
+   nome:r.nome,username:r.username,telefone:r.telefone||null
+ });
+ if(pErr)throw Error('Conta criada, mas perfil não vinculado: '+pErr.message);
+ const {error:aErr}=await db.from('responsavel_alunos').insert(
+   r.aluno_ids.map(aluno_id=>({user_id:userId,aluno_id}))
+ );
+ if(aErr)throw Error('Perfil criado, mas vínculo com bailarinas falhou: '+aErr.message);
+ // Cuidado: as senhas nunca entram no registro de auditoria.
+ try{await db.from('auditoria').insert({
+   user_id:user.id,user_nome:user.nome||'Admin',
+   acao:'criou responsável por importação',tabela:'perfis',registro_id:userId,
+   detalhe:'usuário '+r.username+'; alunos: '+r.aluno_ids.length
+ });}catch(_e){}
+ r.user_id=userId;
+ if(!auth.user.email_confirmed_at&&!auth.session){
+   r.status='AGUARDA CONFIRMAÇÃO';r.erro='E-mail ainda não confirmado no Supabase Auth. Não compartilhar a senha.';
+ }else{r.status='CRIADO';r.erro='Conta e vínculos confirmados.';}
+ perfis.push({user_id:userId,nome:r.nome,username:r.username});
+}
+async function executar(){
+ if(importando||!user)return;
+ const pendentes=linhas.filter(r=>r.status==='PRONTO');
+ if(!pendentes.length)return;
+ const ok=confirm('Criar '+pendentes.length+' novos acessos da Entre Pliés? Os 11 logins anteriores permanecerão intactos. Confirme os nomes e os vínculos antes de prosseguir.');
+ if(!ok)return;
+ importando=true;render();
+ let criados=0;
+ try{
+  const {data:{user:atual},error:authErr}=await db.auth.getUser();
+  const {data:perfil,error:roleErr}=await db.from('perfis').select('role').eq('user_id',atual?.id||'').maybeSingle();
+  if(authErr||!atual||roleErr||!['admin','super_admin'].includes(perfil?.role))throw Error('A sessão de administrador expirou.');
+  await atualizarBase();
+  validarLinhas();
+  for(const r of linhas.filter(x=>x.status==='PRONTO')){
+    mensagem('Cadastrando '+(criados+1)+' de '+pendentes.length+': '+r.nome+'. Não feche esta aba.');
+    try{
+      await criarUm(r);
+      if(r.status==='CRIADO')criados++;
+      render();
+      if(r.status==='AGUARDA CONFIRMAÇÃO')throw Error('O acesso requer confirmação do Auth. A importação foi interrompida.');
+    }catch(e){
+      if(r.status!=='PARCIAL'&&r.status!=='EXISTENTE')r.status='ERRO';
+      r.erro=e.message||'Erro de autenticação.';
+      render();
+      throw Error('Importação interrompida em '+r.nome+': '+r.erro);
+    }
+  }
+  mensagem('Concluído. '+criados+' novo(s) acesso(s) ativo(s). Baixe agora as credenciais confirmadas.');
+ }catch(e){mensagem(e.message||'Importação interrompida. Confira os resultados antes de repetir.',true);}
+ finally{importando=false;render();}
+}
+function baixarCredenciais(){
+ if(importando)return;
+ const concluidos=linhas.filter(r=>r.status==='CRIADO');
+ if(!concluidos.length)return;
+ const tabela=[['RESPONSÁVEL','BAILARINA(S)','WHATSAPP','USUÁRIO','SENHA INICIAL','STATUS','MENSAGEM INDIVIDUAL'],
+ ...concluidos.map(r=>[
+  r.nome,r.filhos,r.telefone,r.username,r.senha,'CRIADO E VINCULADO',
+  'Olá! Tudo bem? Aqui é a Grand Focus Fotografia. Seu acesso à Galeria Grand Focus está pronto.\nUsuário: '+r.username+
+  '\nSenha inicial: '+r.senha+'\nAcesse: https://galeria.grandfocus.com.br\nBailarina(s): '+r.filhos+
+  '\nPor segurança, não compartilhe seus dados de acesso.'
+ ])];
+ const ws=XLSX.utils.aoa_to_sheet(tabela);
+ ws['!cols']=[{wch:35},{wch:48},{wch:20},{wch:27},{wch:30},{wch:21},{wch:100}];
+ ws['!autofilter']={ref:'A1:G'+tabela.length};
+ const wb=XLSX.utils.book_new();
+ XLSX.utils.book_append_sheet(wb,ws,'ACESSOS_CONFIRMADOS');
+ XLSX.writeFile(wb,'GrandFocus_EntrePlies_Acessos_Confirmados.xlsx');
+ mensagem('Arquivo gerado apenas com '+concluidos.length+' acessos confirmados. Compartilhe cada linha somente com a família correspondente.');
+}
+iniciar();
+</script>
+</body>
+</html>
