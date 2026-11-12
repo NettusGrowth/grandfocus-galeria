@@ -1174,6 +1174,23 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 
 /* Curadoria privada do portfólio do Dashboard; não interfere nas outras galerias. */
+.portfolio-curadoria-fotos{margin-top:20px;border-top:1px solid rgba(140,110,110,.25);padding-top:16px}
+.portfolio-curadoria-fotos h4{margin:0 0 6px;font-size:16px;color:#692a3e}
+.portfolio-curadoria-barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 10px}
+.portfolio-curadoria-barra input[type=search]{flex:1 1 180px;min-width:120px;padding:10px;border-radius:9px;border:1px solid #d8c9c9;background:#fff;color:#231519}
+.portfolio-curadoria-barra label{display:flex;gap:5px;align-items:center;font-size:12px;cursor:pointer}
+.portfolio-curadoria-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;max-height:54vh;overflow:auto;padding:4px}
+.portfolio-curadoria-foto{min-width:0;border:2px solid rgba(180,157,158,.35);border-radius:11px;background:#f4efed;overflow:hidden;display:flex;flex-direction:column;transition:border-color .18s}
+.portfolio-curadoria-foto.marcada{border-color:#8d3151;box-shadow:0 0 0 1px #8d3151}
+.portfolio-curadoria-foto.capa{outline:3px solid #cf9d3f;outline-offset:-3px}
+.portfolio-curadoria-marcar{display:block;position:relative;border:0;padding:0;width:100%;aspect-ratio:4/5;cursor:pointer;background:#21121a;color:#fff}
+.portfolio-curadoria-marcar img{width:100%;height:100%;object-fit:cover;display:block}
+.portfolio-curadoria-selo{position:absolute;top:6px;left:6px;padding:3px 6px;border-radius:6px;background:#6c263c;color:#fff;font-size:10px;font-weight:700}
+.portfolio-curadoria-foto-info{display:block;font-size:10px;line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:5px 7px 3px;color:#4e3340}
+.portfolio-curadoria-capa{margin:3px 6px 7px;border-radius:7px;padding:6px 3px;background:#fff;color:#60243c;border:1px solid #c4a3ac;font-size:10px;cursor:pointer;min-height:29px}
+.portfolio-curadoria-foto.capa .portfolio-curadoria-capa{background:#6c263c;color:#fff;border-color:#6c263c}
+@media(max-width:640px){.portfolio-curadoria-grade{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.portfolio-curadoria-capa{font-size:9px}.portfolio-curadoria-foto-info{font-size:9px}}
+@media(max-width:360px){.portfolio-curadoria-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .portfolio-fontes-lista{max-height:min(54vh,540px);overflow:auto;border:1px solid rgba(170,138,112,.24);border-radius:12px;padding:10px;background:rgba(127,70,80,.04);}
 .portfolio-fontes-grupo{padding:10px 12px;border-bottom:1px solid rgba(150,130,130,.18);}
 .portfolio-fontes-grupo:last-child{border-bottom:0}
@@ -3786,6 +3803,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
     <div id="portfolio-fontes-lista" class="portfolio-fontes-lista" style="display:none;"></div>
     <p class="meta" id="portfolio-fontes-resumo" aria-live="polite">Carregando fontes…</p>
+    <section class="portfolio-curadoria-fotos">
+      <h4>Escolher fotografias e capa</h4>
+      <p class="meta">Toque nas fotografias para incluí-las no portfólio e em <strong>Definir capa</strong> para escolher a foto principal. Sem fotos marcadas, a seleção continua automática dentro das fontes escolhidas.</p>
+      <div class="portfolio-curadoria-barra">
+        <input id="portfolio-fotos-busca" type="search" placeholder="Buscar escola, evento ou pasta…" oninput="_portfolioEditorRedesenharFotos(true)" aria-label="Buscar fotos do portfólio">
+        <label><input type="checkbox" id="portfolio-fotos-so-marcadas" onchange="_portfolioEditorRedesenharFotos(true)"> Somente escolhidas</label>
+        <button type="button" class="btn btn-sm" onclick="_portfolioEditorLimparFotos()">Limpar seleção de fotos</button>
+      </div>
+      <p id="portfolio-fotos-status" class="meta" role="status" aria-live="polite">Carregando fotografias…</p>
+      <div id="portfolio-fotos-grade" class="portfolio-curadoria-grade"></div>
+      <button id="portfolio-fotos-mais" class="btn btn-sm" type="button" onclick="_portfolioEditorMaisFotos()" style="display:none;width:100%;margin-top:10px;">Mostrar mais fotografias</button>
+    </section>
     <div class="modal-actions">
       <button class="btn btn-sm" type="button" onclick="fecharModal('portfolio-fontes-modal')">Cancelar</button>
       <button class="btn btn-primary btn-sm" type="button" id="portfolio-fontes-salvar" onclick="_portfolioSalvarConfiguracao()">Salvar seleção</button>
