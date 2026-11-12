@@ -83,6 +83,8 @@ jobs:
         run: node scripts/e2e-gente-que-danca.mjs
       - name: Test interactive administrative spreadsheet in Chromium
         run: node scripts/e2e-planilha-admin.mjs
+      - name: Test safe appointment rescheduling in spreadsheet for both schools
+        run: node scripts/e2e-planilha-remarcacao.mjs
       - name: Validate contracting migration and reservation logic in temporary PostgreSQL
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -126,6 +128,8 @@ jobs:
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/gente-agenda-familias-tests.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/102_admin_planilha_edicao_segura.sql
           psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/planilha-editavel-tests.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/sql/104_planilha_remarcacao_agendamento_segura.sql
+          psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/test-fixtures/planilha-remarcacao-tests.sql
       - name: Test Gente que Dança commissions (paid children only)
         run: node scripts/test-gente-comissao.mjs
       - name: Set up Deno
