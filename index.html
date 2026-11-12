@@ -1172,6 +1172,22 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 .modal-secao-titulo-row .modal-secao-titulo{margin-bottom:0;}
 
+
+/* Curadoria privada do portfólio do Dashboard; não interfere nas outras galerias. */
+.portfolio-fontes-lista{max-height:min(54vh,540px);overflow:auto;border:1px solid rgba(170,138,112,.24);border-radius:12px;padding:10px;background:rgba(127,70,80,.04);}
+.portfolio-fontes-grupo{padding:10px 12px;border-bottom:1px solid rgba(150,130,130,.18);}
+.portfolio-fontes-grupo:last-child{border-bottom:0}
+.portfolio-fontes-grupo label{display:flex;align-items:center;gap:9px;cursor:pointer;padding:6px 2px;line-height:1.4}
+.portfolio-fontes-grupo input[type="checkbox"],.portfolio-fontes-modo input[type="radio"]{width:17px;height:17px;flex:0 0 auto;accent-color:#752038}
+.portfolio-fontes-grupo details{margin:5px 0 3px 24px}
+.portfolio-fontes-grupo summary{cursor:pointer;font-weight:600;padding:7px 3px}
+.portfolio-fontes-pastas{display:grid;gap:2px;padding-left:16px;font-size:12px}
+.portfolio-fontes-modo{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:13px}
+.portfolio-fontes-modo label{display:flex;align-items:center;gap:7px;cursor:pointer}
+#portfolio-fontes-modal .modal{max-height:92vh;overflow:auto;max-width:660px}
+#portfolio-fontes-modal .modal-actions{position:sticky;bottom:-1px;background:var(--card, #fff);padding:10px 0 0}
+@media(max-width:720px){.portfolio-admin-acoes{flex-wrap:wrap;justify-content:flex-end;gap:5px}.portfolio-admin-acoes .btn{font-size:11px}.portfolio-admin-topbar{padding:12px 14px 22px}.portfolio-admin-brand h2{font-size:20px}}
+
 /* ── Portfólio privado do super_admin ─────────────────────────────
    Tela cheia, isolada da Galeria de gestão. O visual segue o boutique
    já validado com alunos, mas as colunas são montadas em JS com
@@ -3731,11 +3747,12 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <div id="portfolio-admin-screen" aria-hidden="true">
   <div class="portfolio-admin-topbar">
     <div class="portfolio-admin-brand">
-      <div class="portfolio-admin-kicker">Grand Focus · Ballet</div>
+      <div class="portfolio-admin-kicker">Grand Focus · Fotografia</div>
       <h2>Portfólio</h2>
       <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
     </div>
     <div class="portfolio-admin-acoes">
+      <button class="btn btn-sm" type="button" onclick="_portfolioAbrirConfiguracao()" title="Escolher escolas, eventos e pastas do portfólio">⚙ Escolher conteúdo</button>
       <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Nova seleção</button>
       <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
@@ -3753,6 +3770,26 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </div>
       <div class="portfolio-admin-grid" id="portfolio-admin-grid"><div class="portfolio-admin-vazio">Carregando seleção…</div></div>
     </section>
+  </div>
+</div>
+
+
+<!-- Curadoria de fontes do portfólio (só super_admin; configuração salva em app_config).
+     Não altera pastas, álbuns, favoritos ou arquivos originais. -->
+<div class="modal-overlay" id="portfolio-fontes-modal">
+  <div class="modal">
+    <h3 style="margin-bottom:5px;">Escolher fotos do portfólio</h3>
+    <p class="meta" style="line-height:1.6;">Controle quais escolas, eventos ou pastas alimentam o portfólio e as miniaturas do cartão inicial. Nenhuma foto será apagada ou escondida das galerias dos clientes.</p>
+    <div class="portfolio-fontes-modo">
+      <label><input type="radio" name="portfolio-fontes-modo" value="todos" onchange="_portfolioEditorMostrarModo()">Seleção automática (como antes)</label>
+      <label><input type="radio" name="portfolio-fontes-modo" value="selecionados" onchange="_portfolioEditorMostrarModo()">Escolher fontes</label>
+    </div>
+    <div id="portfolio-fontes-lista" class="portfolio-fontes-lista" style="display:none;"></div>
+    <p class="meta" id="portfolio-fontes-resumo" aria-live="polite">Carregando fontes…</p>
+    <div class="modal-actions">
+      <button class="btn btn-sm" type="button" onclick="fecharModal('portfolio-fontes-modal')">Cancelar</button>
+      <button class="btn btn-primary btn-sm" type="button" id="portfolio-fontes-salvar" onclick="_portfolioSalvarConfiguracao()">Salvar seleção</button>
+    </div>
   </div>
 </div>
 
@@ -6198,21 +6235,8 @@ async function _dashCarregarModulos(totalFotos) {
   const tendAlu = document.getElementById('dash-mod-alunos-tend')
   if (tendAlu) tendAlu.innerHTML = _kpiTendenciaHTML(serieAlu)
 
-  const previewFotos = document.getElementById('dash-mod-fotos-preview')
-  if (previewFotos) {
-    const { data: fotosRecentes } = await db.from('fotos').select('storage_path,thumb_path').order('criado_em', { ascending: false }).limit(10)
-    if (fotosRecentes?.length) {
-      previewFotos.innerHTML = fotosRecentes.map((f, i) => `<img id="dash-fotos-prev-${i}" alt="">`).join('')
-      fotosRecentes.forEach(async (f, i) => {
-        const url = await _carregarImgCache(f.thumb_path || f.storage_path)
-        const img = document.getElementById(`dash-fotos-prev-${i}`)
-        if (url && img) img.src = url
-      })
-      _fotosCarrosselBindDrag(previewFotos)
-    } else {
-      previewFotos.innerHTML = '<div class="mkpi-vazio">Nenhuma foto no acervo ainda</div>'
-    }
-  }
+  // Miniaturas espelham as fontes do portfólio; a contagem acima segue mostrando TODO o acervo.
+  if (meuPerfil?.role === 'super_admin') _portfolioAtualizarPreviewHome()
 
   const { count: nPosts } = await db.from('posts').select('id', { count: 'exact', head: true })
   const elPosts = document.getElementById('dash-mod-posts'); if (elPosts) elPosts.textContent = nPosts ?? 0
@@ -6259,6 +6283,179 @@ function _fotosCarrosselBindDrag(el) {
 function _avancarCarrosselFotosDash() {
   const el = document.getElementById('dash-mod-fotos-preview')
   if (el) el.scrollBy({ left: el.clientWidth * 0.6, behavior: 'smooth' })
+}
+
+
+const PORTFOLIO_FONTES_CHAVE = 'portfolio_fontes_v1'
+let _portfolioEditorPastas = []
+
+function _portfolioFiltroAtual() {
+  let cfg
+  try { cfg = JSON.parse(_appConfig[PORTFOLIO_FONTES_CHAVE] || 'null') } catch (_) { cfg = null }
+  if (!cfg || cfg.modo !== 'selecionados') return { modo: 'todos', escolas: [], eventos: [], pastas: [] }
+  return {
+    modo: 'selecionados',
+    escolas: Array.isArray(cfg.escolas) ? cfg.escolas.filter(x => typeof x === 'string') : [],
+    eventos: Array.isArray(cfg.eventos) ? cfg.eventos.filter(x => typeof x === 'string') : [],
+    pastas: Array.isArray(cfg.pastas) ? cfg.pastas.filter(p => p && typeof p.evento_id === 'string' && typeof p.nome === 'string') : []
+  }
+}
+function _portfolioFotoPermitida(foto, filtro) {
+  if (filtro.modo !== 'selecionados') return true
+  const ev = store.eventos.find(e => e.id === foto.evento_id)
+  return !!(ev && (
+    (ev.escola_id && filtro.escolas.includes(ev.escola_id)) ||
+    filtro.eventos.includes(foto.evento_id) ||
+    filtro.pastas.some(p => p.evento_id === foto.evento_id && p.nome === (foto.subpasta || ''))
+  ))
+}
+async function _portfolioPreviewSelecionadas(filtro) {
+  const cols = 'id,evento_id,subpasta,storage_path,thumb_path,criado_em'
+  if (filtro.modo !== 'selecionados') {
+    const r = await db.from('fotos').select(cols).order('criado_em', { ascending: false }).limit(10)
+    if (r.error) throw r.error
+    return r.data || []
+  }
+  const tarefas = []
+  const idsDeEscola = [...new Set(store.eventos.filter(e => e.escola_id && filtro.escolas.includes(e.escola_id)).map(e => e.id))]
+  for (let i = 0; i < idsDeEscola.length; i += 60) {
+    const ids = idsDeEscola.slice(i, i + 60)
+    tarefas.push(() => db.from('fotos').select(cols).in('evento_id', ids).order('criado_em', { ascending: false }).limit(10))
+  }
+  for (const id of [...new Set(filtro.eventos)]) {
+    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', id).order('criado_em', { ascending: false }).limit(10))
+  }
+  for (const p of filtro.pastas) {
+    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', p.evento_id)
+      .eq('subpasta', p.nome).order('criado_em', { ascending: false }).limit(10))
+  }
+  const encontrados = new Map()
+  let proximo = 0
+  await Promise.all(Array.from({ length: Math.min(4, tarefas.length) }, async () => {
+    while (proximo < tarefas.length) {
+      const indice = proximo++
+      const r = await tarefas[indice]()
+      if (r.error) throw r.error
+      for (const foto of r.data || []) if (_portfolioFotoPermitida(foto, filtro)) encontrados.set(foto.id, foto)
+    }
+  }))
+  return [...encontrados.values()].sort((a,b) => new Date(b.criado_em || 0)-new Date(a.criado_em || 0)).slice(0, 10)
+}
+async function _portfolioAtualizarPreviewHome() {
+  const el = document.getElementById('dash-mod-fotos-preview')
+  if (!el) return
+  try {
+    // Outros administradores conservam a prévia automática anterior.
+    // O filtro salvo é exclusivo do portfólio do superadministrador.
+    if (meuPerfil?.role === 'super_admin') await _carregarAppConfig()
+    const filtro = meuPerfil?.role === 'super_admin'
+      ? _portfolioFiltroAtual() : { modo:'todos', escolas:[], eventos:[], pastas:[] }
+    const fotos = await _portfolioPreviewSelecionadas(filtro)
+    el.innerHTML = fotos.length
+      ? fotos.map((f,i) => '<img id="dash-fotos-prev-' + i + '" alt="">').join('')
+      : '<div class="mkpi-vazio">Nenhuma foto nas fontes escolhidas</div>'
+    fotos.forEach(async (f,i) => {
+      const url = await _carregarImgCache(f.thumb_path || f.storage_path)
+      const img = document.getElementById('dash-fotos-prev-' + i)
+      if (url && img) img.src = url
+    })
+    if (fotos.length) _fotosCarrosselBindDrag(el)
+  } catch (error) {
+    console.warn('Não foi possível atualizar prévia do portfólio:', error)
+    el.innerHTML = '<div class="mkpi-vazio">Prévia indisponível</div>'
+  }
+}
+function _portfolioEditorMostrarModo() {
+  const radio = document.querySelector('input[name="portfolio-fontes-modo"]:checked')
+  const ativo = radio?.value === 'selecionados'
+  document.getElementById('portfolio-fontes-lista').style.display = ativo ? '' : 'none'
+  _portfolioEditorAtualizarResumo()
+}
+function _portfolioEditorAtualizarResumo() {
+  const el = document.getElementById('portfolio-fontes-resumo')
+  const marcado = document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked').length
+  const ativo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value === 'selecionados'
+  el.textContent = ativo ? marcado + ' fonte(s) selecionada(s) · escolas, eventos e pastas se somam.'
+    : 'Todas as fotografias elegíveis continuam na seleção automática.'
+}
+async function _portfolioAbrirConfiguracao() {
+  if (meuPerfil?.role !== 'super_admin') return
+  await _carregarAppConfig()
+  const cfg = _portfolioFiltroAtual()
+  const lista = document.getElementById('portfolio-fontes-lista')
+  lista.innerHTML = '<div class="empty">Carregando escolas, eventos e pastas…</div>'
+  document.querySelector('input[name="portfolio-fontes-modo"][value="' + cfg.modo + '"]').checked = true
+  abrirModal('portfolio-fontes-modal')
+  _portfolioEditorMostrarModo()
+  try {
+    const pastas = await _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
+      .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true }))
+    _portfolioEditorPastas = pastas
+    const evs = store.eventos.filter(e => e.id)
+    const grupos = [...store.escolas.map(e => ({ id:e.id, nome:e.nome, eventos:evs.filter(ev=>ev.escola_id===e.id) })),
+      {id:'',nome:'Eventos sem escola / avulsos',eventos:evs.filter(ev=>!ev.escola_id)}]
+    const input = (tipo,id,extra,selecionado,rotulo) =>
+      '<label><input type="checkbox" data-fonte-tipo="' + esc(tipo) +
+      '" data-fonte-id="' + esc(id || '') + '" data-fonte-evento="' + esc(extra || '') +
+      '" ' + (selecionado?'checked ':'') + 'onchange="_portfolioEditorAtualizarResumo()">' + esc(rotulo) + '</label>'
+    lista.innerHTML = grupos.filter(g=>g.eventos.length).map(g => {
+      const escolas = g.id ? input('escola',g.id,'',cfg.escolas.includes(g.id),'Incluir escola inteira: ' + g.nome) : ''
+      const eventos = g.eventos.map(ev => {
+        const pastaItens = pastas.filter(p=>p.evento_id===ev.id && p.nome)
+        const unico = [...new Set(pastaItens.map(p=>p.nome))]
+        return '<details><summary>' + esc(ev.nome) + '</summary>' +
+          input('evento',ev.id,'',cfg.eventos.includes(ev.id),'Incluir evento inteiro') +
+          (unico.length ? '<div class="portfolio-fontes-pastas">' +
+            unico.map(nome => input('pasta',nome,ev.id,
+              cfg.pastas.some(p=>p.evento_id===ev.id && p.nome===nome),'📁 ' + nome)).join('') +
+            '</div>' : '<p class="meta">Sem pastas cadastradas neste evento.</p>') +
+          '</details>'
+      }).join('')
+      return '<section class="portfolio-fontes-grupo"><strong>' + esc(g.nome) + '</strong>' + escolas + eventos + '</section>'
+    }).join('') || '<div class="empty">Nenhum evento encontrado.</div>'
+    _portfolioEditorAtualizarResumo()
+  } catch(error) {
+    lista.innerHTML = '<div class="empty">Não foi possível carregar as fontes. Não salve antes de tentar novamente.</div>'
+    document.getElementById('portfolio-fontes-salvar').disabled = true
+    console.error('Portfólio: falha ao listar pastas',error)
+    return
+  }
+  document.getElementById('portfolio-fontes-salvar').disabled = false
+}
+async function _portfolioSalvarConfiguracao() {
+  if (meuPerfil?.role !== 'super_admin') return
+  const modo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value || 'todos'
+  const cfg = { modo, escolas: [], eventos: [], pastas: [] }
+  if (modo === 'selecionados') {
+    for(const input of document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked')) {
+      const tipo = input.dataset.fonteTipo, id = input.dataset.fonteId, evento = input.dataset.fonteEvento
+      if(tipo === 'escola') cfg.escolas.push(id)
+      if(tipo === 'evento') cfg.eventos.push(id)
+      if(tipo === 'pasta') cfg.pastas.push({evento_id:evento,nome:id})
+    }
+    if (!cfg.escolas.length && !cfg.eventos.length && !cfg.pastas.length) {
+      toast('Escolha pelo menos uma escola, evento ou pasta.')
+      return
+    }
+  }
+  const btn=document.getElementById('portfolio-fontes-salvar')
+  btn.disabled=true
+  try {
+    const valor=JSON.stringify(cfg)
+    const {error}=await db.from('app_config').upsert({chave:PORTFOLIO_FONTES_CHAVE,valor,atualizado_por:currentUser.id})
+    if (error) throw error
+    _appConfig[PORTFOLIO_FONTES_CHAVE]=valor
+    _portfolioAdminBase=null
+    _portfolioAdminFotos=[]
+    _portfolioAdminHero=null
+    fecharModal('portfolio-fontes-modal')
+    toast('Fontes do portfólio salvas ✓')
+    void _portfolioAtualizarPreviewHome()
+    void _abrirPortfolioAdmin()
+  } catch(error) {
+    console.error('Portfólio: falha ao salvar fontes',error)
+    toast('Não foi possível salvar: ' + error.message)
+  } finally { btn.disabled=false }
 }
 
 // ── Portfólio privado do Dashboard ────────────────────────────────
@@ -6385,6 +6582,10 @@ async function _abrirPortfolioAdmin() {
   }
   document.getElementById('portfolio-admin-scroll').scrollTop = 0
 
+  // Recarrega a seleção que também pode ter sido alterada em outro computador.
+  const antes = _appConfig[PORTFOLIO_FONTES_CHAVE] || ''
+  await _carregarAppConfig()
+  if ((_appConfig[PORTFOLIO_FONTES_CHAVE] || '') !== antes) _portfolioAdminBase = null
   if (_portfolioAdminBase) {
     _portfolioAdminReembaralhar()
     return
@@ -6397,32 +6598,46 @@ async function _abrirPortfolioAdmin() {
 
   try {
     await _portfolioCarregarFavoritos()
-    const [rf, rfa, rpop] = await Promise.all([
-      db.from('fotos').select('id,evento_id,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura,largura_original,altura_original'),
-      db.from('foto_aluno').select('foto_id,aluno_id'),
+    const [fotosTodas, fotoAluno, rpop] = await Promise.all([
+      _galBuscarTodasAsLinhas(() => db.from('fotos')
+        .select('id,evento_id,subpasta,storage_path,thumb_path,qtd_visualizacoes,criado_em,largura,altura,largura_original,altura_original')
+        .order('id', { ascending: true })),
+      _galBuscarTodasAsLinhas(() => db.from('foto_aluno').select('foto_id,aluno_id')
+        .order('foto_id', { ascending: true }).order('aluno_id', { ascending: true })),
       db.rpc('fotos_mais_populares', { p_limite: 2000 }),
     ])
-    if (rf.error) throw rf.error
-    if (rfa.error) throw rfa.error
-
-    const eventosBallet = new Set(
-      store.eventos
-        .filter(e => e.escola_id && e.tipo !== 'ensaio')
-        .map(e => e.id)
-    )
-    const fotos = (rf.data || []).filter(f => eventosBallet.has(f.evento_id))
+    const filtro = _portfolioFiltroAtual()
+    const eventosBallet = new Set(store.eventos.filter(e => e.escola_id && e.tipo !== 'ensaio').map(e => e.id))
+    const fotos = fotosTodas.filter(f => filtro.modo === 'selecionados'
+      ? _portfolioFotoPermitida(f,filtro)
+      : eventosBallet.has(f.evento_id))
     const fotoPorId = new Map(fotos.map(f => [f.id, f]))
     const metrica = new Map((rpop.error ? [] : (rpop.data || [])).map(f => [
       f.foto_id,
       { views: Number(f.qtd_visualizacoes || 0), downloads: Number(f.qtd_downloads || 0) },
     ]))
     const grupos = new Map()
-
-    for (const v of (rfa.data || [])) {
-      const aluno = store.alunos.find(a => a.id === v.aluno_id)
+    const vinculadas = new Set()
+    const alunoPorId = new Map(store.alunos.map(a => [a.id,a]))
+    for (const v of fotoAluno) {
+      const aluno = alunoPorId.get(v.aluno_id)
       const foto = fotoPorId.get(v.foto_id)
       if (!aluno || !foto) continue
       _portfolioAdminGrupo(grupos, aluno).fotos.set(foto.id, foto)
+      vinculadas.add(foto.id)
+    }
+    // Eventos e pastas também podem conter fotografias SEM marcação de aluno.
+    // Quando forem escolhidos, entram em grupos próprios para não sumirem.
+    if (filtro.modo === 'selecionados') {
+      for (const f of fotos) {
+        if (vinculadas.has(f.id)) continue
+        const ev = store.eventos.find(e => e.id === f.evento_id)
+        const id = 'fonte:' + f.evento_id + ':' + (f.subpasta || '')
+        if (!grupos.has(id)) grupos.set(id,{
+          id, nome: f.subpasta || ev?.nome || 'Evento', escola_id: ev?.escola_id || null, fotos: new Map()
+        })
+        grupos.get(id).fotos.set(f.id,f)
+      }
     }
 
     const baseGrupos = [...grupos.values()].filter(g => g.fotos.size).map(g => ({
@@ -6561,7 +6776,7 @@ function _renderPortfolioAdmin() {
   if (!grid || !heroEl || !resumo) return
 
   const total = _portfolioAdminFotos.length + (_portfolioAdminHero ? 1 : 0)
-  resumo.textContent = `${_portfolioAdminBase?.totalAlunos || 0} alunos · ${total} fotos · ♥ ${_portfolioFavoritos.size} selecionada(s) por você`
+  resumo.textContent = `${_portfolioAdminBase?.totalAlunos || 0} grupos · ${total} fotos · ♥ ${_portfolioFavoritos.size} selecionada(s) por você`
 
   if (!_portfolioAdminHero || !total) {
     heroEl.innerHTML = ''
