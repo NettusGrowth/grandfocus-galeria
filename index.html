@@ -6321,12 +6321,15 @@ let _portfolioEditorPastas = []
 function _portfolioFiltroAtual() {
   let cfg
   try { cfg = JSON.parse(_appConfig[PORTFOLIO_FONTES_CHAVE] || 'null') } catch (_) { cfg = null }
-  if (!cfg || cfg.modo !== 'selecionados') return { modo: 'todos', escolas: [], eventos: [], pastas: [] }
+  if (!cfg || typeof cfg !== 'object') cfg = {}
   return {
-    modo: 'selecionados',
+    modo: cfg.modo === 'selecionados' ? 'selecionados' : 'todos',
     escolas: Array.isArray(cfg.escolas) ? cfg.escolas.filter(x => typeof x === 'string') : [],
     eventos: Array.isArray(cfg.eventos) ? cfg.eventos.filter(x => typeof x === 'string') : [],
-    pastas: Array.isArray(cfg.pastas) ? cfg.pastas.filter(p => p && typeof p.evento_id === 'string' && typeof p.nome === 'string') : []
+    pastas: Array.isArray(cfg.pastas) ? cfg.pastas.filter(p => p && typeof p.evento_id === 'string' && typeof p.nome === 'string') : [],
+    // Campos opcionais: configurações v1 continuam funcionando automaticamente.
+    fotos: Array.isArray(cfg.fotos) ? [...new Set(cfg.fotos.filter(x => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 300) : [],
+    capa: typeof cfg.capa === 'string' && /^[0-9a-f-]{36}$/i.test(cfg.capa) ? cfg.capa : ''
   }
 }
 function _portfolioFotoPermitida(foto, filtro) {
@@ -6340,35 +6343,67 @@ function _portfolioFotoPermitida(foto, filtro) {
 }
 async function _portfolioPreviewSelecionadas(filtro) {
   const cols = 'id,evento_id,subpasta,storage_path,thumb_path,criado_em'
-  if (filtro.modo !== 'selecionados') {
-    const r = await db.from('fotos').select(cols).order('criado_em', { ascending: false }).limit(10)
-    if (r.error) throw r.error
-    return r.data || []
+  const idsEscolhidos = Array.isArray(filtro.fotos) ? filtro.fotos : []
+  const capa = filtro.capa || ''
+  const ordenar = fotos => {
+    const unicas = [...new Map(fotos.map(f=>[f.id,f])).values()]
+    return unicas.sort((a,b) =>
+      (b.id === capa ? 1 : 0) - (a.id === capa ? 1 : 0) ||
+      new Date(b.criado_em || 0) - new Date(a.criado_em || 0)).slice(0,10)
   }
-  const tarefas = []
-  const idsDeEscola = [...new Set(store.eventos.filter(e => e.escola_id && filtro.escolas.includes(e.escola_id)).map(e => e.id))]
-  for (let i = 0; i < idsDeEscola.length; i += 60) {
-    const ids = idsDeEscola.slice(i, i + 60)
-    tarefas.push(() => db.from('fotos').select(cols).in('evento_id', ids).order('criado_em', { ascending: false }).limit(10))
-  }
-  for (const id of [...new Set(filtro.eventos)]) {
-    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', id).order('criado_em', { ascending: false }).limit(10))
-  }
-  for (const p of filtro.pastas) {
-    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', p.evento_id)
-      .eq('subpasta', p.nome).order('criado_em', { ascending: false }).limit(10))
-  }
-  const encontrados = new Map()
-  let proximo = 0
-  await Promise.all(Array.from({ length: Math.min(4, tarefas.length) }, async () => {
-    while (proximo < tarefas.length) {
-      const indice = proximo++
-      const r = await tarefas[indice]()
-      if (r.error) throw r.error
-      for (const foto of r.data || []) if (_portfolioFotoPermitida(foto, filtro)) encontrados.set(foto.id, foto)
+  // Fotos marcadas manualmente: nenhuma outra fotografia entra na vitrine.
+  // A capa sempre integra a curadoria, mesmo se foi definida sozinha.
+  if (idsEscolhidos.length) {
+    const ids = [...new Set([...idsEscolhidos, capa].filter(Boolean))]
+    const tarefas = []
+    for (let i=0; i<ids.length; i+=50) {
+      const lote=ids.slice(i,i+50)
+      tarefas.push(() => db.from('fotos').select(cols).in('id',lote))
     }
-  }))
-  return [...encontrados.values()].sort((a,b) => new Date(b.criado_em || 0)-new Date(a.criado_em || 0)).slice(0, 10)
+    const respostas = await Promise.all(tarefas.map(fn=>fn()))
+    const fotos=[]
+    for (const r of respostas) {
+      if (r.error) throw r.error
+      for (const foto of r.data || []) if (_portfolioFotoPermitida(foto,filtro)) fotos.push(foto)
+    }
+    return ordenar(fotos)
+  }
+  // Sem seleção explícita: comportamento anterior, somente fixando a capa
+  // escolhida, caso ela pertença às fontes atuais.
+  let fotos=[]
+  if (filtro.modo !== 'selecionados') {
+    const r = await db.from('fotos').select(cols).order('criado_em',{ascending:false}).limit(10)
+    if (r.error) throw r.error
+    fotos = r.data || []
+  } else {
+    const tarefas=[]
+    const eventosDaEscola = [...new Set(store.eventos.filter(e=>e.escola_id && filtro.escolas.includes(e.escola_id)).map(e=>e.id))]
+    for(let i=0; i<eventosDaEscola.length; i+=60) {
+      const ids=eventosDaEscola.slice(i,i+60)
+      tarefas.push(()=>db.from('fotos').select(cols).in('evento_id',ids).order('criado_em',{ascending:false}).limit(10))
+    }
+    for(const id of [...new Set(filtro.eventos)])
+      tarefas.push(()=>db.from('fotos').select(cols).eq('evento_id',id).order('criado_em',{ascending:false}).limit(10))
+    for(const p of filtro.pastas)
+      tarefas.push(()=>db.from('fotos').select(cols).eq('evento_id',p.evento_id).eq('subpasta',p.nome).order('criado_em',{ascending:false}).limit(10))
+    const encontrados=new Map()
+    let proximo=0
+    await Promise.all(Array.from({length:Math.min(4,tarefas.length)},async()=>{
+      while(proximo<tarefas.length) {
+        const idx=proximo++
+        const r=await tarefas[idx]()
+        if(r.error) throw r.error
+        for(const f of r.data || []) if(_portfolioFotoPermitida(f,filtro)) encontrados.set(f.id,f)
+      }
+    }))
+    fotos=[...encontrados.values()]
+  }
+  if (capa && !fotos.some(f=>f.id===capa)) {
+    const r=await db.from('fotos').select(cols).eq('id',capa).limit(1)
+    if(r.error) throw r.error
+    for(const foto of r.data||[]) if(_portfolioFotoPermitida(foto,filtro)) fotos.push(foto)
+  }
+  return ordenar(fotos)
 }
 async function _portfolioAtualizarPreviewHome() {
   const el = document.getElementById('dash-mod-fotos-preview')
