@@ -6552,15 +6552,32 @@ async function _portfolioAbrirConfiguracao() {
   if (meuPerfil?.role !== 'super_admin') return
   await _carregarAppConfig()
   const cfg = _portfolioFiltroAtual()
+  const seq = ++_portfolioEditorSeq
+  _portfolioEditorFotos = new Set(cfg.fotos)
+  _portfolioEditorCapa = cfg.capa
+  _portfolioEditorTodasFotos = []
+  _portfolioEditorFotosProntas = false
+  _portfolioEditorQuantidadeVisivel = PORTFOLIO_EDITOR_LOTE
+  document.getElementById('portfolio-fotos-busca').value = ''
+  document.getElementById('portfolio-fotos-so-marcadas').checked = false
   const lista = document.getElementById('portfolio-fontes-lista')
   lista.innerHTML = '<div class="empty">Carregando escolas, eventos e pastas…</div>'
+  document.getElementById('portfolio-fontes-salvar').disabled = true
+  _portfolioEditorRedesenharFotos()
   document.querySelector('input[name="portfolio-fontes-modo"][value="' + cfg.modo + '"]').checked = true
   abrirModal('portfolio-fontes-modal')
   _portfolioEditorMostrarModo()
   try {
-    const pastas = await _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
-      .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true }))
+    const [pastas, fotos] = await Promise.all([
+      _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
+        .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true })),
+      _galBuscarTodasAsLinhas(() => db.from('fotos')
+        .select('id,evento_id,subpasta,storage_path,thumb_path,criado_em').order('id', { ascending: true }))
+    ])
+    if (seq !== _portfolioEditorSeq) return
     _portfolioEditorPastas = pastas
+    _portfolioEditorTodasFotos = fotos.sort((a,b)=>new Date(b.criado_em||0)-new Date(a.criado_em||0))
+    _portfolioEditorFotosProntas = true
     const evs = store.eventos.filter(e => e.id)
     const grupos = [...store.escolas.map(e => ({ id:e.id, nome:e.nome, eventos:evs.filter(ev=>ev.escola_id===e.id) })),
       {id:'',nome:'Eventos sem escola / avulsos',eventos:evs.filter(ev=>!ev.escola_id)}]
@@ -6585,7 +6602,9 @@ async function _portfolioAbrirConfiguracao() {
     }).join('') || '<div class="empty">Nenhum evento encontrado.</div>'
     _portfolioEditorAtualizarResumo()
   } catch(error) {
-    lista.innerHTML = '<div class="empty">Não foi possível carregar as fontes. Não salve antes de tentar novamente.</div>'
+    if (seq !== _portfolioEditorSeq) return
+    lista.innerHTML = '<div class="empty">Não foi possível carregar as fontes ou fotografias. Tente novamente sem salvar.</div>'
+    document.getElementById('portfolio-fotos-status').textContent = 'Falha ao carregar acervo. Nenhuma seleção foi modificada.'
     document.getElementById('portfolio-fontes-salvar').disabled = true
     console.error('Portfólio: falha ao listar pastas',error)
     return
@@ -6594,19 +6613,37 @@ async function _portfolioAbrirConfiguracao() {
 }
 async function _portfolioSalvarConfiguracao() {
   if (meuPerfil?.role !== 'super_admin') return
-  const modo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value || 'todos'
-  const cfg = { modo, escolas: [], eventos: [], pastas: [] }
-  if (modo === 'selecionados') {
-    for(const input of document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked')) {
-      const tipo = input.dataset.fonteTipo, id = input.dataset.fonteId, evento = input.dataset.fonteEvento
-      if(tipo === 'escola') cfg.escolas.push(id)
-      if(tipo === 'evento') cfg.eventos.push(id)
-      if(tipo === 'pasta') cfg.pastas.push({evento_id:evento,nome:id})
-    }
-    if (!cfg.escolas.length && !cfg.eventos.length && !cfg.pastas.length) {
-      toast('Escolha pelo menos uma escola, evento ou pasta.')
+  if (!_portfolioEditorFotosProntas) {
+    toast('Aguarde as fotos carregarem para não perder sua seleção.')
+    return
+  }
+  const cfg = _portfolioEditorFiltroRascunho()
+  if (cfg.modo === 'selecionados' && !cfg.escolas.length && !cfg.eventos.length && !cfg.pastas.length) {
+    toast('Escolha pelo menos uma escola, evento ou pasta.')
+    return
+  }
+  const permitidas=new Set(_portfolioEditorTodasFotos.filter(f=>_portfolioFotoPermitida(f,cfg)).map(f=>f.id))
+  const ignoradas=[..._portfolioEditorFotos].filter(id=>!permitidas.has(id))
+  if (ignoradas.length) {
+    const ok=await confirmModal(ignoradas.length+
+      ' foto(s) que estavam escolhidas ficaram fora das fontes atuais. Deseja salvar sem elas?',
+      {titulo:'Confirmar nova seleção',okLabel:'Salvar sem essas fotos'})
+    if (!ok) return
+  }
+  cfg.fotos=[..._portfolioEditorFotos].filter(id=>permitidas.has(id))
+  cfg.capa=permitidas.has(_portfolioEditorCapa)?_portfolioEditorCapa:''
+  if (_portfolioEditorCapa && !cfg.capa) {
+    toast('A capa anterior não pertence às fontes atuais. Escolha outra antes de salvar.')
+    return
+  }
+  // Ao escolher fotos individuais, a capa escolhida também precisa
+  // fazer parte da vitrine. Sem fotos escolhidas, só a capa fica fixa.
+  if (cfg.fotos.length && cfg.capa && !cfg.fotos.includes(cfg.capa)) {
+    if (cfg.fotos.length >= PORTFOLIO_EDITOR_MAX_FOTOS) {
+      toast('Remova uma foto antes de incluir a capa na seleção.')
       return
     }
+    cfg.fotos.unshift(cfg.capa)
   }
   const btn=document.getElementById('portfolio-fontes-salvar')
   btn.disabled=true
@@ -6619,12 +6656,12 @@ async function _portfolioSalvarConfiguracao() {
     _portfolioAdminFotos=[]
     _portfolioAdminHero=null
     fecharModal('portfolio-fontes-modal')
-    toast('Fontes do portfólio salvas ✓')
+    toast('Fotos, capa e fontes do portfólio salvas ✓')
     void _portfolioAtualizarPreviewHome()
     void _abrirPortfolioAdmin()
   } catch(error) {
-    console.error('Portfólio: falha ao salvar fontes',error)
-    toast('Não foi possível salvar: ' + error.message)
+    console.error('Portfólio: falha ao salvar fotos/capa',error)
+    toast('Não foi possível salvar: '+error.message)
   } finally { btn.disabled=false }
 }
 
