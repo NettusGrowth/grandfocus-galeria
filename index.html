@@ -1179,32 +1179,95 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .portfolio-curadoria-barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 10px}
 .portfolio-curadoria-barra input[type=search]{flex:1 1 180px;min-width:120px;padding:10px;border-radius:9px;border:1px solid #d8c9c9;background:#fff;color:#231519}
 .portfolio-curadoria-barra label{display:flex;gap:5px;align-items:center;font-size:12px;cursor:pointer}
-.portfolio-curadoria-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;max-height:54vh;overflow:auto;padding:4px}
-.portfolio-curadoria-foto{min-width:0;border:2px solid rgba(180,157,158,.35);border-radius:11px;background:#f4efed;overflow:hidden;display:flex;flex-direction:column;transition:border-color .18s}
-.portfolio-curadoria-foto.marcada{border-color:#8d3151;box-shadow:0 0 0 1px #8d3151}
-.portfolio-curadoria-foto.capa{outline:3px solid #cf9d3f;outline-offset:-3px}
-.portfolio-curadoria-marcar{display:block;position:relative;border:0;padding:0;width:100%;aspect-ratio:4/5;cursor:pointer;background:#21121a;color:#fff}
-.portfolio-curadoria-marcar img{width:100%;height:100%;object-fit:cover;display:block}
-.portfolio-curadoria-selo{position:absolute;top:6px;left:6px;padding:3px 6px;border-radius:6px;background:#6c263c;color:#fff;font-size:10px;font-weight:700}
-.portfolio-curadoria-foto-info{display:block;font-size:10px;line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:5px 7px 3px;color:#4e3340}
-.portfolio-curadoria-capa{margin:3px 6px 7px;border-radius:7px;padding:6px 3px;background:#fff;color:#60243c;border:1px solid #c4a3ac;font-size:10px;cursor:pointer;min-height:29px}
-.portfolio-curadoria-foto.capa .portfolio-curadoria-capa{background:#6c263c;color:#fff;border-color:#6c263c}
-@media(max-width:640px){.portfolio-curadoria-grade{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.portfolio-curadoria-capa{font-size:9px}.portfolio-curadoria-foto-info{font-size:9px}}
-@media(max-width:360px){.portfolio-curadoria-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.portfolio-fontes-lista{max-height:min(54vh,540px);overflow:auto;border:1px solid rgba(170,138,112,.24);border-radius:12px;padding:10px;background:rgba(127,70,80,.04);}
-.portfolio-fontes-grupo{padding:10px 12px;border-bottom:1px solid rgba(150,130,130,.18);}
-.portfolio-fontes-grupo:last-child{border-bottom:0}
-.portfolio-fontes-grupo label{display:flex;align-items:center;gap:9px;cursor:pointer;padding:6px 2px;line-height:1.4}
-.portfolio-fontes-grupo input[type="checkbox"],.portfolio-fontes-modo input[type="radio"]{width:17px;height:17px;flex:0 0 auto;accent-color:#752038}
-.portfolio-fontes-grupo details{margin:5px 0 3px 24px}
-.portfolio-fontes-grupo summary{cursor:pointer;font-weight:600;padding:7px 3px}
-.portfolio-fontes-pastas{display:grid;gap:2px;padding-left:16px;font-size:12px}
-.portfolio-fontes-modo{display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;font-size:13px}
-.portfolio-fontes-modo label{display:flex;align-items:center;gap:7px;cursor:pointer}
-#portfolio-fontes-modal .modal{max-height:92vh;overflow:auto;max-width:660px}
-#portfolio-fontes-modal .modal-actions{position:sticky;bottom:-1px;background:var(--card, #fff);padding:10px 0 0}
-@media(max-width:720px){.portfolio-admin-acoes{flex-wrap:wrap;justify-content:flex-end;gap:5px}.portfolio-admin-acoes .btn{font-size:11px}.portfolio-admin-topbar{padding:12px 14px 22px}.portfolio-admin-brand h2{font-size:20px}}
 
+/* Editor visual do portfólio: tela única, navegação por fontes e grade paginada. */
+#portfolio-fontes-modal{z-index:320;padding:14px;align-items:center;justify-content:center}
+#portfolio-fontes-modal .modal{width:min(1440px,100%);max-width:none;height:min(920px,calc(100dvh - 28px));max-height:none;padding:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid rgba(218,180,125,.23);border-radius:20px;background:#100c11;color:#f4ebdf;box-shadow:0 30px 110px rgba(0,0,0,.75)}
+.portfolio-editor-header{flex-shrink:0;display:flex;align-items:center;justify-content:space-between;gap:18px;padding:22px 28px;border-bottom:1px solid rgba(218,180,125,.15);background:linear-gradient(110deg,#30131c,#171017 70%)}
+.portfolio-editor-eyebrow{font-family:var(--sans);font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.23em;color:#d5b885}
+.portfolio-editor-header h3{font-size:clamp(23px,3vw,31px);font-family:var(--serif);color:#f8ecde;font-weight:500;margin:3px 0}
+.portfolio-editor-header p{color:#bcaeaa;font-size:12px;margin:0;line-height:1.5}
+.portfolio-editor-fechar{border:1px solid #695158;background:rgba(255,255,255,.06);color:#fff;border-radius:10px;width:40px;height:40px;cursor:pointer;font-size:22px;flex:none}
+.portfolio-editor-layout{display:grid;grid-template-columns:minmax(260px,315px) minmax(0,1fr);min-height:0;flex:1;overflow:hidden}
+.portfolio-editor-fontes{padding:24px 20px 30px;overflow-y:auto;background:#191117;border-right:1px solid rgba(218,180,125,.13)}
+.portfolio-editor-fotos{min-width:0;overflow-y:auto;padding:24px 27px 34px}
+.portfolio-editor-sectionlabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#dbc395;font-weight:700;margin-bottom:7px}
+.portfolio-editor-ajuda{margin:0 0 17px;color:#aaa0a1;font-size:12px;line-height:1.55}
+.portfolio-fontes-modo{display:grid;grid-template-columns:1fr;gap:9px;margin-bottom:16px}
+.portfolio-fontes-modo label{display:flex;gap:12px;align-items:center;padding:12px;background:#251922;border:1px solid #59434c;border-radius:12px;cursor:pointer;font-size:13px;line-height:1.3;color:#e9ddd5}
+.portfolio-fontes-modo label:has(input:checked){border-color:#d6b17e;background:#3a2330;box-shadow:0 0 0 1px rgba(214,177,126,.18)}
+.portfolio-fontes-modo input[type=radio]{width:18px;height:18px;flex:none;accent-color:#cfad7a}
+.portfolio-fontes-lista{overflow:visible;max-height:none;background:transparent;border:0;padding:0;margin:8px 0 0}
+.portfolio-fontes-grupo{padding:11px 0;border-bottom:1px solid #46353c;font-size:12px}
+.portfolio-fontes-grupo strong{display:block;font-size:13px;color:#f2e4d4}
+.portfolio-fontes-grupo label{display:flex;align-items:center;gap:9px;cursor:pointer;padding:8px 3px;font-size:12px;line-height:1.35;color:#d5c3bd}
+.portfolio-fontes-grupo input[type=checkbox]{width:18px;height:18px;flex:none;accent-color:#c7a875}
+.portfolio-fontes-grupo details{margin:4px 0 5px 8px;padding-left:12px;border-left:1px solid #5e4a4f}
+.portfolio-fontes-grupo summary{cursor:pointer;padding:8px 2px;color:#ddc4b3;font-weight:500}
+.portfolio-fontes-pastas{display:grid;padding-left:9px;gap:1px}
+#portfolio-fontes-resumo{margin-top:12px;color:#d3b68a;font-size:12px;line-height:1.5}
+.portfolio-editor-overview{display:grid;grid-template-columns:minmax(0,1fr) minmax(190px,250px);gap:16px;margin-bottom:24px;align-items:stretch}
+.portfolio-editor-resumo{border:1px solid #514049;border-radius:15px;padding:17px 19px;background:linear-gradient(135deg,#2a1822,#1e151d)}
+.portfolio-editor-resumo strong{font-size:32px;font-weight:600;color:#ecd0a0;display:block;line-height:1.2;font-family:var(--sans-num)}
+.portfolio-editor-resumo span{font-size:12px;color:#c6b2b1}
+.portfolio-editor-resumo p{font-size:12px;line-height:1.5;color:#b9a7a6;margin:12px 0 0}
+.portfolio-editor-capa{background:#211720;border:1px solid #6a4f54;border-radius:15px;padding:10px 13px;display:flex;align-items:center;gap:12px}
+.portfolio-editor-capa-preview{width:66px;height:78px;flex:none;display:flex;align-items:center;justify-content:center;border:1px solid #665253;border-radius:8px;overflow:hidden;background:#3a2530;font-size:24px;color:#d0a870}
+.portfolio-editor-capa-preview img{width:100%;height:100%;object-fit:cover}
+.portfolio-editor-capa b{display:block;color:#f4e1cb;font-size:12px;line-height:1.35}
+.portfolio-editor-capa small{color:#b5a3a2;font-size:11px;line-height:1.45;display:block;margin-top:4px}
+.portfolio-editor-toolbar{display:grid;grid-template-columns:minmax(210px,1fr) minmax(210px,1.3fr);gap:12px;margin-bottom:12px}
+.portfolio-editor-toolbar label{font-size:11px;color:#c4b4a7;font-weight:600;display:grid;gap:5px}
+#portfolio-fotos-origem,#portfolio-fotos-busca{min-width:0;width:100%;height:43px;padding:10px 12px;border-radius:9px;color:#f2e4dc;background:#241821;border:1px solid #735b60;font-family:var(--sans)}
+#portfolio-fotos-origem option{background:#241821;color:#f2e4dc}
+.portfolio-editor-filtros{display:flex;align-items:center;gap:13px;justify-content:space-between;flex-wrap:wrap;padding:3px 0 12px}
+.portfolio-editor-filtros label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:#e1cdb8}
+.portfolio-editor-filtros input{width:17px;height:17px;accent-color:#c5a375}
+.portfolio-editor-filtros .btn{font-size:11px;border:1px solid #70515b;color:#e9d1bf;border-radius:9px;background:#2b1c24}
+#portfolio-fotos-status{color:#c3ada8;margin:0 0 12px;font-size:12px}
+.portfolio-curadoria-grade{display:grid;grid-template-columns:repeat(auto-fill,minmax(135px,1fr));gap:14px;max-height:none;overflow:visible;padding:3px 3px 15px}
+.portfolio-curadoria-foto{display:flex;flex-direction:column;min-width:0;background:#241922;border:1px solid #654e54;border-radius:12px;overflow:hidden;transition:transform .15s,border-color .15s,box-shadow .15s}
+.portfolio-curadoria-foto:hover{transform:translateY(-2px);border-color:#d4b184}
+.portfolio-curadoria-foto.marcada{border:2px solid #d6b17e;box-shadow:0 0 0 2px rgba(214,177,126,.18)}
+.portfolio-curadoria-foto.capa{box-shadow:0 0 0 2px rgba(226,185,94,.48);border-color:#e2b95e}
+.portfolio-curadoria-marcar{width:100%;display:block;position:relative;border:0;padding:0;aspect-ratio:4/5;cursor:pointer;background:#23151f;color:#fff}
+.portfolio-curadoria-marcar img{display:block;width:100%;height:100%;object-fit:cover}
+.portfolio-curadoria-selo{position:absolute;top:9px;left:8px;padding:5px 8px;background:#bd9258;color:#1c1016;border-radius:6px;font-weight:700;font-size:10px}
+.portfolio-curadoria-check{position:absolute;top:9px;right:9px;width:22px;height:22px;border:1px solid rgba(255,255,255,.7);background:rgba(18,9,14,.7);border-radius:50%;display:grid;place-items:center;color:#fff;font-size:14px}
+.portfolio-curadoria-foto.marcada .portfolio-curadoria-check{background:#d8b681;border-color:#d8b681;color:#26131c}
+.portfolio-curadoria-foto-info{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:10px 10px 4px;color:#d8c6ba}
+.portfolio-curadoria-capa{display:block;margin:2px 8px 9px;padding:9px 2px;border:1px solid #82665f;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;color:#d6bc9b;background:#38232a;min-height:35px}
+.portfolio-curadoria-foto.capa .portfolio-curadoria-capa{background:#d2ad76;color:#25131d;border-color:#d2ad76}
+#portfolio-fotos-mais{width:100%;max-width:360px;margin:14px auto 0;display:block;background:#3c2831;border:1px solid #8b6b65;border-radius:10px;color:#f2dfce;padding:11px}
+#portfolio-fontes-modal .modal-actions{display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:16px;margin:0;background:#1d131a;border-top:1px solid #604650;padding:14px 26px;position:relative;bottom:auto}
+.portfolio-editor-footer-hint{font-size:12px;color:#b5a3a0}
+#portfolio-fontes-modal .modal-actions .btn{border-radius:10px;font-size:12px;min-height:42px;padding:9px 17px}
+#portfolio-fontes-salvar{background:#d3ad79;color:#23121a;border:1px solid #d3ad79;font-weight:700}
+#portfolio-fontes-salvar:disabled{opacity:.55;cursor:not-allowed}
+@media(max-width:850px){
+  #portfolio-fontes-modal{padding:0}
+  #portfolio-fontes-modal .modal{height:100dvh;max-height:none;width:100vw;border:0;border-radius:0}
+  .portfolio-editor-header{padding:15px 17px}
+  .portfolio-editor-layout{display:flex;flex-direction:column;overflow-y:auto}
+  .portfolio-editor-fontes{overflow:visible;border-right:0;border-bottom:1px solid #5b434c;padding:18px}
+  .portfolio-editor-fotos{overflow:visible;padding:20px 17px 30px}
+  .portfolio-fontes-lista{max-height:180px;overflow-y:auto}
+  .portfolio-editor-overview{grid-template-columns:minmax(0,1fr) minmax(155px,190px)}
+  .portfolio-curadoria-grade{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+  #portfolio-fontes-modal .modal-actions{padding:10px 13px}
+  .portfolio-editor-footer-hint{font-size:10px}
+}
+@media(max-width:530px){
+  .portfolio-editor-toolbar{grid-template-columns:1fr}
+  .portfolio-editor-overview{grid-template-columns:minmax(0,1fr) minmax(135px,.9fr);gap:8px}
+  .portfolio-editor-resumo{padding:12px}
+  .portfolio-editor-resumo strong{font-size:25px}
+  .portfolio-editor-capa{gap:8px;padding:7px}
+  .portfolio-editor-capa-preview{width:47px;height:61px}
+  .portfolio-curadoria-grade{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #portfolio-fontes-modal .modal-actions .btn{font-size:11px;padding:8px 11px}
+  .portfolio-editor-header h3{font-size:24px}
+}
 /* ── Portfólio privado do super_admin ─────────────────────────────
    Tela cheia, isolada da Galeria de gestão. O visual segue o boutique
    já validado com alunos, mas as colunas são montadas em JS com
@@ -3769,7 +3832,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
     </div>
     <div class="portfolio-admin-acoes">
-      <button class="btn btn-sm" type="button" onclick="_portfolioAbrirConfiguracao()" title="Escolher escolas, eventos e pastas do portfólio">⚙ Escolher conteúdo</button>
+      <button class="btn btn-sm" type="button" onclick="_portfolioAbrirConfiguracao()" title="Selecionar fotos, capa, escolas, eventos e pastas">✦ Personalizar portfólio</button>
       <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Nova seleção</button>
       <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
@@ -3794,30 +3857,59 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 <!-- Curadoria de fontes do portfólio (só super_admin; configuração salva em app_config).
      Não altera pastas, álbuns, favoritos ou arquivos originais. -->
 <div class="modal-overlay" id="portfolio-fontes-modal">
-  <div class="modal">
-    <h3 style="margin-bottom:5px;">Escolher fotos do portfólio</h3>
-    <p class="meta" style="line-height:1.6;">Controle quais escolas, eventos ou pastas alimentam o portfólio e as miniaturas do cartão inicial. Nenhuma foto será apagada ou escondida das galerias dos clientes.</p>
-    <div class="portfolio-fontes-modo">
-      <label><input type="radio" name="portfolio-fontes-modo" value="todos" onchange="_portfolioEditorMostrarModo()">Seleção automática (como antes)</label>
-      <label><input type="radio" name="portfolio-fontes-modo" value="selecionados" onchange="_portfolioEditorMostrarModo()">Escolher fontes</label>
-    </div>
-    <div id="portfolio-fontes-lista" class="portfolio-fontes-lista" style="display:none;"></div>
-    <p class="meta" id="portfolio-fontes-resumo" aria-live="polite">Carregando fontes…</p>
-    <section class="portfolio-curadoria-fotos">
-      <h4>Escolher fotografias e capa</h4>
-      <p class="meta">Toque nas fotografias para incluí-las no portfólio e em <strong>Definir capa</strong> para escolher a foto principal. Sem fotos marcadas, a seleção continua automática dentro das fontes escolhidas.</p>
-      <div class="portfolio-curadoria-barra">
-        <input id="portfolio-fotos-busca" type="search" placeholder="Buscar escola, evento ou pasta…" oninput="_portfolioEditorRedesenharFotos(true)" aria-label="Buscar fotos do portfólio">
-        <label><input type="checkbox" id="portfolio-fotos-so-marcadas" onchange="_portfolioEditorRedesenharFotos(true)"> Somente escolhidas</label>
-        <button type="button" class="btn btn-sm" onclick="_portfolioEditorLimparFotos()">Limpar seleção de fotos</button>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="portfolio-editor-titulo">
+    <header class="portfolio-editor-header">
+      <div>
+        <div class="portfolio-editor-eyebrow">Grand Focus · Gestão da vitrine</div>
+        <h3 id="portfolio-editor-titulo">Personalizar portfólio</h3>
+        <p>Escolha as fotografias, defina a capa e organize o que aparece na página inicial.</p>
       </div>
-      <p id="portfolio-fotos-status" class="meta" role="status" aria-live="polite">Carregando fotografias…</p>
-      <div id="portfolio-fotos-grade" class="portfolio-curadoria-grade"></div>
-      <button id="portfolio-fotos-mais" class="btn btn-sm" type="button" onclick="_portfolioEditorMaisFotos()" style="display:none;width:100%;margin-top:10px;">Mostrar mais fotografias</button>
-    </section>
+      <button type="button" class="portfolio-editor-fechar" aria-label="Fechar editor" onclick="fecharModal('portfolio-fontes-modal')">×</button>
+    </header>
+    <div class="portfolio-editor-layout">
+      <aside class="portfolio-editor-fontes">
+        <div class="portfolio-editor-sectionlabel">01 · De onde vêm as fotos?</div>
+        <p class="portfolio-editor-ajuda">Selecione as escolas, os eventos ou as pastas que poderão aparecer no portfólio.</p>
+        <div class="portfolio-fontes-modo">
+          <label><input type="radio" name="portfolio-fontes-modo" value="todos" onchange="_portfolioEditorMostrarModo()"> <span><b>Automático</b><br>Usar o acervo disponível</span></label>
+          <label><input type="radio" name="portfolio-fontes-modo" value="selecionados" onchange="_portfolioEditorMostrarModo()"> <span><b>Escolher as fontes</b><br>Escolher escola, evento ou pasta</span></label>
+        </div>
+        <div id="portfolio-fontes-lista" class="portfolio-fontes-lista" style="display:none;"></div>
+        <p class="meta" id="portfolio-fontes-resumo" aria-live="polite">Preparando as fontes…</p>
+      </aside>
+      <main class="portfolio-editor-fotos">
+        <div class="portfolio-editor-sectionlabel">02 · Escolha as fotos e a capa</div>
+        <p class="portfolio-editor-ajuda">Clique na imagem para selecionar. Use a estrela <b>Definir capa</b> para escolher a foto principal.</p>
+        <div class="portfolio-editor-overview">
+          <div class="portfolio-editor-resumo"><strong id="portfolio-editor-contador">0</strong><span>fotografias escolhidas</span><p>Sem fotos selecionadas, o portfólio continua escolhendo automaticamente entre as fontes liberadas.</p></div>
+          <div class="portfolio-editor-capa">
+            <div class="portfolio-editor-capa-preview" id="portfolio-editor-capa-preview">☆</div>
+            <div><b>Foto de capa</b><small id="portfolio-editor-capa-status">Automática — escolha uma foto abaixo.</small></div>
+          </div>
+        </div>
+        <div class="portfolio-editor-toolbar">
+          <label for="portfolio-fotos-origem">Navegar no acervo
+            <select id="portfolio-fotos-origem" onchange="_portfolioEditorTrocarOrigem()"><option value="todas">Fotos recentes</option></select>
+          </label>
+          <label for="portfolio-fotos-busca">Filtrar fotos exibidas
+            <input id="portfolio-fotos-busca" type="search" placeholder="Pesquisar nas fotos carregadas…" oninput="_portfolioEditorRedesenharFotos(true)" aria-label="Buscar fotos do portfólio">
+          </label>
+        </div>
+        <div class="portfolio-editor-filtros">
+          <label><input type="checkbox" id="portfolio-fotos-so-marcadas" onchange="_portfolioEditorRedesenharFotos(true)"> Mostrar apenas escolhidas</label>
+          <button type="button" class="btn btn-sm" onclick="_portfolioEditorLimparFotos()">Limpar fotos escolhidas</button>
+        </div>
+        <p id="portfolio-fotos-status" class="meta" role="status" aria-live="polite">Preparando fotografias…</p>
+        <div id="portfolio-fotos-grade" class="portfolio-curadoria-grade"></div>
+        <button id="portfolio-fotos-mais" class="btn btn-sm" type="button" onclick="_portfolioEditorMaisFotos()" style="display:none;">Carregar mais fotos</button>
+      </main>
+    </div>
     <div class="modal-actions">
-      <button class="btn btn-sm" type="button" onclick="fecharModal('portfolio-fontes-modal')">Cancelar</button>
-      <button class="btn btn-primary btn-sm" type="button" id="portfolio-fontes-salvar" onclick="_portfolioSalvarConfiguracao()">Salvar seleção</button>
+      <span class="portfolio-editor-footer-hint">As fotos originais e as galerias dos clientes não serão alteradas.</span>
+      <div style="display:flex;gap:10px;flex-shrink:0">
+        <button class="btn btn-sm" type="button" onclick="fecharModal('portfolio-fontes-modal')">Cancelar</button>
+        <button class="btn btn-primary btn-sm" type="button" id="portfolio-fontes-salvar" onclick="_portfolioSalvarConfiguracao()">Salvar portfólio</button>
+      </div>
     </div>
   </div>
 </div>
