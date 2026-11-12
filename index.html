@@ -10732,9 +10732,39 @@ async function _baixarFotoRapido(storagePath) {
   await _baixarFotosPrivadoNativo([storagePath], null)
 }
 
+// Admin · Álbuns & Eventos e Ensaios Avulsos compartilham o mesmo banco.
+// PostgREST normalmente limita respostas a 1.000 linhas: consultas sem
+// paginação escondiam as pastas enviadas por último (eventos com >1.000 fotos).
+// Reutiliza os leitores paginados já usados e testados pela Galeria.
+let _eventoUploaderCargaSeq = 0
+let _ensaioUploaderCargaSeq = 0
+async function _uploaderCarregarAlbumCompleto(eventoId) {
+  const fotos = await _galBuscarTodasAsLinhas(() => db.from('fotos')
+    .select('*').eq('evento_id', eventoId)
+    .order('criado_em', { ascending: true }).order('id', { ascending: true }))
+  const fotoIds = fotos.map(f => f.id)
+  const [fa, fp] = fotoIds.length ? await Promise.all([
+    _galBuscarVinculosFotosAlbum('foto_aluno', fotoIds, 'aluno_id'),
+    _galBuscarVinculosFotosAlbum('foto_pessoa', fotoIds, 'user_id'),
+  ]) : [[], []]
+  return { fotos, fa, fp }
+}
+function _uploaderAplicarAlbumCompleto(eventoId, { fotos, fa, fp }) {
+  // Só substitui a fatia deste álbum; não altera outras escolas/álbuns,
+  // nem manda DELETE/UPDATE/INSERT para o Supabase ou para o R2.
+  // Limpa também marcações de fotos removidas, sem manter vínculos fantasmas.
+  const idsAnteriores = new Set(store.fotos.filter(f => f.evento_id === eventoId).map(f => f.id))
+  const idsNovos = new Set(fotos.map(f => f.id))
+  const idsDoAlbum = new Set([...idsAnteriores, ...idsNovos])
+  store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(fotos)
+  store.fotoAluno = store.fotoAluno.filter(x => !idsDoAlbum.has(x.foto_id)).concat(fa)
+  store.fotoPessoa = store.fotoPessoa.filter(x => !idsDoAlbum.has(x.foto_id)).concat(fp)
+}
+
 async function abrirEventoAdmin(eventoId, voltarContexto) {
   _eventoAtual = store.eventos.find(e => e.id === eventoId)
   if (!_eventoAtual) return
+  const minhaSeq = ++_eventoUploaderCargaSeq
   _eventoFotoSelecao = new Set()
   _eventoVoltarContexto = voltarContexto || null
   document.getElementById('eventos-lista-wrap').style.display = 'none'
@@ -10783,20 +10813,25 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   `
   if (_eventoAtual.capa_url) { const url = await _carregarImgCache(_eventoAtual.capa_url); if (url) document.getElementById('evt-header-bg').style.backgroundImage = `url('${url}')` }
   _ligarDropzone('evt-dropzone', 'evt-upload-input', files => _prepararUploadEvento(files))
-  const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
-  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
-  store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
-  const fotoIds = (data || []).map(f => f.id)
-  if (fotoIds.length) {
-    const [{ data: fa }, { data: fp }] = await Promise.all([
-      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
-      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+  let resultado, pastasResult
+  try {
+    [resultado, pastasResult] = await Promise.all([
+      _uploaderCarregarAlbumCompleto(eventoId),
+      db.from('evento_subpastas').select('nome').eq('evento_id', eventoId),
     ])
-    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
-    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  } catch (error) {
+    if (minhaSeq === _eventoUploaderCargaSeq && _eventoAtual?.id === eventoId) {
+      console.error('Álbuns & Eventos: falha na carga paginada', error)
+      document.getElementById('evt-fotos-por-subpasta').innerHTML =
+        '<div class="empty">Não foi possível carregar todas as fotos. Volte e abra este evento novamente.</div>'
+      toast('Erro ao carregar todas as fotos: ' + error.message)
+    }
+    return
   }
-  const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', eventoId)
-  _eventoSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
+  if (minhaSeq !== _eventoUploaderCargaSeq || _eventoAtual?.id !== eventoId) return
+  _uploaderAplicarAlbumCompleto(eventoId, resultado)
+  if (pastasResult.error) console.warn('Não foi possível atualizar a lista de pastas', pastasResult.error)
+  _eventoSubpastasConhecidas = new Set((pastasResult.data || []).map(p => p.nome))
   // nasce tudo FECHADO (não expandido) — com dezenas de fotos por
   // pasta, abrir um evento já jogava todas as pastas renderizadas de
   // uma vez (cada uma paginando as próprias 60 primeiras fotos em
@@ -10810,6 +10845,7 @@ async function abrirEventoAdmin(eventoId, voltarContexto) {
   renderFotosEventoAdmin()
 }
 function fecharEventoAdmin() {
+  ++_eventoUploaderCargaSeq
   _eventoAtual = null
   document.getElementById('eventos-lista-wrap').style.display = 'block'
   document.getElementById('evento-detalhe-wrap').style.display = 'none'
@@ -10820,19 +10856,19 @@ function fecharEventoAdmin() {
 // evento aberto sem perder o header/dropzone já montados — só refaz a
 // busca de fotos/marcação e redesenha a grade.
 async function _recarregarFotosEvento(eventoId) {
-  const { data, error } = await db.from('fotos').select('*').eq('evento_id', eventoId).order('criado_em')
-  if (error) return
-  store.fotos = store.fotos.filter(f => f.evento_id !== eventoId).concat(data || [])
-  const fotoIds = (data || []).map(f => f.id)
-  if (fotoIds.length) {
-    const [{ data: fa }, { data: fp }] = await Promise.all([
-      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
-      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
-    ])
-    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
-    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  // Nunca deixar uma consulta iniciada antes do upload ocultar uma foto
+  // recém-enviada. O upload já atualiza o store local conforme conclui.
+  if (_evtUploadAtivo || _eventoAtual?.id !== eventoId) return
+  const minhaSeq = ++_eventoUploaderCargaSeq
+  try {
+    const resultado = await _uploaderCarregarAlbumCompleto(eventoId)
+    if (minhaSeq !== _eventoUploaderCargaSeq || _eventoAtual?.id !== eventoId) return
+    _uploaderAplicarAlbumCompleto(eventoId, resultado)
+    renderFotosEventoAdmin()
+  } catch (error) {
+    if (minhaSeq === _eventoUploaderCargaSeq && _eventoAtual?.id === eventoId)
+      console.error('Álbuns & Eventos: falha ao atualizar todas as fotos', error)
   }
-  renderFotosEventoAdmin()
 }
 
 // tela de conferência antes de efetivamente subir — nada vai pro
@@ -11006,6 +11042,7 @@ async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_eventoAtual) return
   if (_evtUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
   _evtUploadAtivo = true
+  ++_eventoUploaderCargaSeq // cancela refresh iniciado antes deste upload
   try {
   // captura o evento/roster no início — o upload continua rodando em
   // segundo plano se o admin trocar de evento (ou sair da aba) no meio
@@ -15394,6 +15431,7 @@ function _ensaioToggleColapsarPasta(nome) {
 async function abrirEnsaioAdmin(ensaioId) {
   _ensaioAtual = store.eventos.find(e => e.id === ensaioId)
   if (!_ensaioAtual) return
+  const minhaSeq = ++_ensaioUploaderCargaSeq
   _ensaioFotoSelecao = new Set()
   document.getElementById('ensaios-lista-wrap').style.display = 'none'
   const wrap = document.getElementById('ensaio-detalhe-wrap')
@@ -15441,20 +15479,25 @@ async function abrirEnsaioAdmin(ensaioId) {
   `
   if (_ensaioAtual.capa_url) { const url = await _carregarImgCache(_ensaioAtual.capa_url); if (url) document.getElementById('ens-header-bg').style.backgroundImage = `url('${url}')` }
   _ligarDropzone('ens-dropzone', 'ens-upload-input', files => _prepararUploadEnsaio(files))
-  const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
-  if (error) { toast('Erro ao carregar fotos: ' + error.message); return }
-  store.fotos = store.fotos.filter(f => f.evento_id !== ensaioId).concat(data || [])
-  const fotoIds = (data || []).map(f => f.id)
-  if (fotoIds.length) {
-    const [{ data: fa }, { data: fp }] = await Promise.all([
-      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
-      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
+  let resultado, pastasResult
+  try {
+    [resultado, pastasResult] = await Promise.all([
+      _uploaderCarregarAlbumCompleto(ensaioId),
+      db.from('evento_subpastas').select('nome').eq('evento_id', ensaioId),
     ])
-    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
-    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  } catch (error) {
+    if (minhaSeq === _ensaioUploaderCargaSeq && _ensaioAtual?.id === ensaioId) {
+      console.error('Ensaios: falha na carga paginada', error)
+      document.getElementById('ens-fotos-por-subpasta').innerHTML =
+        '<div class="empty">Não foi possível carregar todas as fotos. Volte e abra este ensaio novamente.</div>'
+      toast('Erro ao carregar todas as fotos: ' + error.message)
+    }
+    return
   }
-  const { data: subpastas } = await db.from('evento_subpastas').select('nome').eq('evento_id', ensaioId)
-  _ensaioSubpastasConhecidas = new Set((subpastas || []).map(s => s.nome))
+  if (minhaSeq !== _ensaioUploaderCargaSeq || _ensaioAtual?.id !== ensaioId) return
+  _uploaderAplicarAlbumCompleto(ensaioId, resultado)
+  if (pastasResult.error) console.warn('Não foi possível atualizar a lista de pastas', pastasResult.error)
+  _ensaioSubpastasConhecidas = new Set((pastasResult.data || []).map(p => p.nome))
   // mesmo motivo de abrirEventoAdmin: nasce tudo fechado, não
   // expandido — evita travar a tela inteira com dezenas de fotos por
   // pasta renderizando de uma vez, e evita ter que fechar pasta por
@@ -15463,6 +15506,7 @@ async function abrirEnsaioAdmin(ensaioId) {
   renderFotosEnsaioAdmin()
 }
 function fecharEnsaioAdmin() {
+  ++_ensaioUploaderCargaSeq
   _ensaioAtual = null
   document.getElementById('ensaios-lista-wrap').style.display = 'block'
   document.getElementById('ensaio-detalhe-wrap').style.display = 'none'
@@ -15471,25 +15515,24 @@ function fecharEnsaioAdmin() {
 
 // mesma ideia de _recarregarFotosEvento, pro ensaio avulso.
 async function _recarregarFotosEnsaio(ensaioId) {
-  const { data, error } = await db.from('fotos').select('*').eq('evento_id', ensaioId).order('criado_em')
-  if (error) return
-  store.fotos = store.fotos.filter(f => f.evento_id !== ensaioId).concat(data || [])
-  const fotoIds = (data || []).map(f => f.id)
-  if (fotoIds.length) {
-    const [{ data: fa }, { data: fp }] = await Promise.all([
-      db.from('foto_aluno').select('*').in('foto_id', fotoIds),
-      db.from('foto_pessoa').select('*').in('foto_id', fotoIds),
-    ])
-    store.fotoAluno = store.fotoAluno.filter(x => !fotoIds.includes(x.foto_id)).concat(fa || [])
-    store.fotoPessoa = store.fotoPessoa.filter(x => !fotoIds.includes(x.foto_id)).concat(fp || [])
+  if (_ensUploadAtivo || _ensaioAtual?.id !== ensaioId) return
+  const minhaSeq = ++_ensaioUploaderCargaSeq
+  try {
+    const resultado = await _uploaderCarregarAlbumCompleto(ensaioId)
+    if (minhaSeq !== _ensaioUploaderCargaSeq || _ensaioAtual?.id !== ensaioId) return
+    _uploaderAplicarAlbumCompleto(ensaioId, resultado)
+    renderFotosEnsaioAdmin()
+  } catch (error) {
+    if (minhaSeq === _ensaioUploaderCargaSeq && _ensaioAtual?.id === ensaioId)
+      console.error('Ensaios: falha ao atualizar todas as fotos', error)
   }
-  renderFotosEnsaioAdmin()
 }
 
 async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
   if (!files?.length || !_ensaioAtual) return
   if (_ensUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
   _ensUploadAtivo = true
+  ++_ensaioUploaderCargaSeq // cancela refresh iniciado antes deste upload
   try {
   // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
   // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto

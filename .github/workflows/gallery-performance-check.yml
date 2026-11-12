@@ -5,6 +5,7 @@ on:
       - 'index.html'
       - 'scripts/test-gallery-performance.mjs'
       - 'scripts/test-gallery-role-navigation.mjs'
+      - 'scripts/test-uploader-pagination.mjs'
       - '.github/workflows/gallery-performance-check.yml'
   workflow_dispatch:
 permissions:
@@ -21,5 +22,6 @@ jobs:
           node-version: '22'
       - run: node scripts/test-gallery-performance.mjs
       - run: node scripts/test-gallery-role-navigation.mjs
+      - run: node scripts/test-uploader-pagination.mjs
       - run: node scripts/test-gallery-load.mjs
       - run: npm run build
