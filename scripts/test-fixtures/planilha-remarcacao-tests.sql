@@ -18,7 +18,7 @@ begin
  select id into strict novo_g from public.gf_contratacao_horarios
   where evento_contratacao_id=gente and inicio='18:30';
  select id into strict ocupado_g from public.gf_contratacao_horarios
-  where evento_contratacao_id=gente and inicio='18:45';
+  where evento_contratacao_id=gente and inicio='19:00';
  retorno:=public.gf_gente_solicitar_agendamento('gente-que-danca-2026',inicio_g,
   'Responsavel Remarcar','16999998888',
   '[{"nome":"Bailarina Primeira"},{"nome":"Bailarina Segunda"}]'::jsonb,
