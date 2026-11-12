@@ -1290,6 +1290,38 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .portfolio-admin-acoes .btn,.portfolio-admin-acoes .icon-btn{
   background:rgba(12,8,12,.55);border-color:rgba(255,255,255,.22);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
 }
+/* Rolagem suave para gravar Stories no portfólio, independente da galeria pública. */
+.portfolio-auto-scroll{position:relative;flex:none}
+.portfolio-auto-scroll > .btn{white-space:nowrap;border-color:rgba(224,185,120,.5);color:#f3dbac}
+.portfolio-auto-scroll > .btn.is-playing{background:rgba(190,136,72,.22);border-color:#d9b27c;color:#ffedcd}
+.portfolio-auto-scroll-painel{position:absolute;right:0;top:calc(100% + 12px);z-index:20;width:min(318px,calc(100vw - 24px));padding:19px;border:1px solid rgba(222,177,109,.45);border-radius:15px;background:#20131b;box-shadow:0 20px 65px rgba(0,0,0,.75);color:#f7e9de;display:grid;gap:11px;text-align:left}
+.portfolio-auto-scroll-painel[hidden]{display:none}
+.portfolio-auto-scroll-painel h3{font:600 15px var(--sans);margin:0;color:#f6e4c5}
+.portfolio-auto-scroll-painel p{font:400 12px/1.55 var(--sans);margin:0;color:#c5b2aa}
+.portfolio-auto-scroll-linha{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12px;color:#e9d3c0}
+.portfolio-auto-scroll-linha output{font-weight:700;font-variant-numeric:tabular-nums;color:#e7c68e}
+#portfolio-auto-scroll-velocidade{display:block;width:100%;padding:0;margin:4px 0;accent-color:#d5b17d;cursor:pointer;height:23px;background:transparent}
+.portfolio-auto-scroll-marcas{display:flex;justify-content:space-between;font-size:11px;color:#ad9e9c}
+.portfolio-auto-scroll-opcao{display:flex;gap:10px;align-items:flex-start;font-size:12px;line-height:1.45;color:#e5d1c5;cursor:pointer}
+.portfolio-auto-scroll-opcao input{width:17px;height:17px;flex:none;margin:1px 0 0;accent-color:#d4b078}
+.portfolio-auto-scroll-painel .portfolio-auto-scroll-iniciar{width:100%;padding:11px;border-radius:9px;border:1px solid #d2ae7a;background:#d2ae7a;color:#24141d;font:700 13px var(--sans);cursor:pointer}
+.portfolio-auto-scroll-captura{display:none;position:absolute;inset:0;z-index:15;width:100%;height:100%;padding:0;border:0;background:transparent;cursor:default;touch-action:manipulation}
+#portfolio-admin-screen.portfolio-gravacao-limpa .portfolio-admin-topbar{opacity:0;pointer-events:none}
+#portfolio-admin-screen.portfolio-gravacao-limpa .portfolio-auto-scroll-captura{display:block}
+@media(max-width:900px){
+  .portfolio-auto-scroll > .btn{font-size:11px;padding:8px 9px}
+  .portfolio-auto-scroll-painel{right:-38px;top:calc(100% + 8px)}
+}
+@media(max-width:520px){
+  .portfolio-admin-topbar{gap:8px}
+  .portfolio-admin-brand{max-width:110px}
+  .portfolio-admin-brand h2{font-size:18px}
+  .portfolio-admin-kicker{font-size:8px}
+  .portfolio-admin-resumo{font-size:10px}
+  .portfolio-admin-acoes{gap:5px}
+  .portfolio-admin-acoes > .btn{font-size:10px;padding:8px 7px}
+  .portfolio-auto-scroll-painel{right:-44px}
+}
 .portfolio-admin-scroll{
   flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scrollbar-gutter:stable;background:#080508;
 }
@@ -3832,6 +3864,27 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       <div class="portfolio-admin-resumo" id="portfolio-admin-resumo">Preparando seleção…</div>
     </div>
     <div class="portfolio-admin-acoes">
+      <div class="portfolio-auto-scroll" id="portfolio-auto-scroll-widget">
+        <button class="btn btn-sm" type="button" id="portfolio-auto-scroll-botao"
+          onclick="_portfolioAutoScrollAlternarPainel()" aria-expanded="false" aria-controls="portfolio-auto-scroll-painel"
+          title="Rolar o portfólio automaticamente para gravar Stories">⇣ Rolagem suave</button>
+        <div class="portfolio-auto-scroll-painel" id="portfolio-auto-scroll-painel" hidden>
+          <h3>Rolagem suave para Stories</h3>
+          <p>Velocidade constante e sem saltos. Escolha o ritmo e grave a tela sem precisar arrastar.</p>
+          <label class="portfolio-auto-scroll-linha" for="portfolio-auto-scroll-velocidade">
+            <span>Velocidade</span><output id="portfolio-auto-scroll-valor" for="portfolio-auto-scroll-velocidade">4/10 · Suave</output>
+          </label>
+          <input type="range" id="portfolio-auto-scroll-velocidade" min="1" max="10" step="1" value="4"
+            oninput="_portfolioAutoScrollAtualizarVelocidade(this.value)" aria-label="Velocidade da rolagem">
+          <div class="portfolio-auto-scroll-marcas"><span>Muito lenta</span><span>Mais rápida</span></div>
+          <label class="portfolio-auto-scroll-opcao">
+            <input type="checkbox" id="portfolio-auto-scroll-tela-limpa" checked>
+            <span><b>Modo Stories</b> — ocultar os botões durante a rolagem. Toque na tela para pausar.</span>
+          </label>
+          <button class="portfolio-auto-scroll-iniciar" id="portfolio-auto-scroll-iniciar"
+            type="button" onclick="_portfolioAutoScrollAlternarExecucao()">▶ Iniciar rolagem</button>
+        </div>
+      </div>
       <button class="btn btn-sm" type="button" onclick="_portfolioAbrirConfiguracao()" title="Selecionar fotos, capa, escolas, eventos e pastas">✦ Personalizar portfólio</button>
       <button class="btn btn-sm portfolio-admin-misturar" type="button" onclick="_portfolioAdminReembaralhar()">↻ Nova seleção</button>
       <button class="icon-btn" type="button" title="Fechar" aria-label="Fechar portfólio" onclick="_fecharPortfolioAdmin()">
@@ -3839,6 +3892,9 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
       </button>
     </div>
   </div>
+  <button type="button" class="portfolio-auto-scroll-captura" id="portfolio-auto-scroll-captura"
+    tabindex="-1" aria-label="Toque para pausar a rolagem suave"
+    onclick="_portfolioAutoScrollPausar()" onwheel="_portfolioAutoScrollPausar()"></button>
   <div class="portfolio-admin-scroll" id="portfolio-admin-scroll">
     <section class="portfolio-admin-hero" id="portfolio-admin-hero">
       <div class="portfolio-admin-vazio">Carregando portfólio…</div>
@@ -7256,7 +7312,126 @@ function _portfolioAdminAbrirFoto(fotoId) {
   abrirLightbox(fotoId)
 }
 
+// Rolagem automática da tela de Portfólio. Usa requestAnimationFrame com
+// deslocamento fracionário em px/s (em vez de scrollBy por etapas) para
+// manter a velocidade constante mesmo em telas de 60/120 Hz.
+const PORTFOLIO_AUTO_SCROLL_VELOCIDADES = [0,12,18,25,34,46,60,78,100,128,160]
+let _portfolioAutoScrollAtivo = false
+let _portfolioAutoScrollRaf = 0
+let _portfolioAutoScrollUltimoFrame = null
+let _portfolioAutoScrollPosicao = 0
+let _portfolioAutoScrollNivel = 4
+
+function _portfolioAutoScrollAtualizarVelocidade(valor) {
+  _portfolioAutoScrollNivel = Math.max(1, Math.min(10, Math.round(Number(valor) || 4)))
+  const slider = document.getElementById('portfolio-auto-scroll-velocidade')
+  const saida = document.getElementById('portfolio-auto-scroll-valor')
+  if (slider) slider.value = String(_portfolioAutoScrollNivel)
+  const descricao = _portfolioAutoScrollNivel <= 2 ? 'Muito lenta'
+    : _portfolioAutoScrollNivel <= 4 ? 'Suave'
+    : _portfolioAutoScrollNivel <= 6 ? 'Moderada'
+    : _portfolioAutoScrollNivel <= 8 ? 'Rápida' : 'Muito rápida'
+  if (saida) saida.textContent = _portfolioAutoScrollNivel+'/10 · '+descricao
+}
+function _portfolioAutoScrollPainelVisivel(abrir) {
+  const painel = document.getElementById('portfolio-auto-scroll-painel')
+  const botao = document.getElementById('portfolio-auto-scroll-botao')
+  if (!painel || !botao) return
+  painel.hidden = !abrir
+  botao.setAttribute('aria-expanded', String(abrir))
+}
+function _portfolioAutoScrollAtualizarBotoes() {
+  const botao = document.getElementById('portfolio-auto-scroll-botao')
+  const iniciar = document.getElementById('portfolio-auto-scroll-iniciar')
+  if (botao) {
+    botao.textContent = _portfolioAutoScrollAtivo ? 'Ⅱ Pausar rolagem' : '⇣ Rolagem suave'
+    botao.classList.toggle('is-playing', _portfolioAutoScrollAtivo)
+  }
+  if (iniciar) iniciar.textContent = _portfolioAutoScrollAtivo ? 'Ⅱ Pausar' : '▶ Iniciar rolagem'
+}
+function _portfolioAutoScrollPausar() {
+  _portfolioAutoScrollAtivo = false
+  _portfolioAutoScrollUltimoFrame = null
+  if (_portfolioAutoScrollRaf) cancelAnimationFrame(_portfolioAutoScrollRaf)
+  _portfolioAutoScrollRaf = 0
+  document.getElementById('portfolio-admin-screen')?.classList.remove('portfolio-gravacao-limpa')
+  _portfolioAutoScrollAtualizarBotoes()
+}
+function _portfolioAutoScrollFrame(agora) {
+  if (!_portfolioAutoScrollAtivo) return
+  const tela = document.getElementById('portfolio-admin-screen')
+  const area = document.getElementById('portfolio-admin-scroll')
+  if (!tela?.classList.contains('show') || !area || document.hidden) {
+    _portfolioAutoScrollPausar()
+    return
+  }
+  // Limite do delta: frame lento não pode produzir um salto na gravação.
+  const delta = _portfolioAutoScrollUltimoFrame === null ? 0
+    : Math.max(0, Math.min(50, agora - _portfolioAutoScrollUltimoFrame))
+  _portfolioAutoScrollUltimoFrame = agora
+  const fim = Math.max(0, area.scrollHeight - area.clientHeight)
+  _portfolioAutoScrollPosicao = Math.min(fim,
+    _portfolioAutoScrollPosicao + PORTFOLIO_AUTO_SCROLL_VELOCIDADES[_portfolioAutoScrollNivel] * delta / 1000)
+  area.scrollTop = _portfolioAutoScrollPosicao
+  if (fim <= 0 || area.scrollTop >= fim - 0.5) {
+    _portfolioAutoScrollPausar()
+    return
+  }
+  _portfolioAutoScrollRaf = requestAnimationFrame(_portfolioAutoScrollFrame)
+}
+function _portfolioAutoScrollIniciar() {
+  const tela = document.getElementById('portfolio-admin-screen')
+  const area = document.getElementById('portfolio-admin-scroll')
+  if (!tela?.classList.contains('show') || !area) return
+  if (area.scrollHeight - area.clientHeight <= area.scrollTop + 1) {
+    toast('Você já está no final do portfólio. Role para cima para iniciar.')
+    return
+  }
+  _portfolioAutoScrollPausar()
+  _portfolioAutoScrollAtivo = true
+  _portfolioAutoScrollPosicao = area.scrollTop
+  _portfolioAutoScrollUltimoFrame = null
+  _portfolioAutoScrollPainelVisivel(false)
+  if (document.getElementById('portfolio-auto-scroll-tela-limpa')?.checked) {
+    tela.classList.add('portfolio-gravacao-limpa')
+  }
+  document.activeElement?.blur?.()
+  _portfolioAutoScrollAtualizarBotoes()
+  _portfolioAutoScrollRaf = requestAnimationFrame(_portfolioAutoScrollFrame)
+}
+function _portfolioAutoScrollAlternarExecucao() {
+  if (_portfolioAutoScrollAtivo) _portfolioAutoScrollPausar()
+  else _portfolioAutoScrollIniciar()
+}
+function _portfolioAutoScrollAlternarPainel() {
+  if (_portfolioAutoScrollAtivo) {
+    _portfolioAutoScrollPausar()
+    _portfolioAutoScrollPainelVisivel(true)
+    return
+  }
+  const painel = document.getElementById('portfolio-auto-scroll-painel')
+  _portfolioAutoScrollPainelVisivel(!!painel?.hidden)
+}
+document.getElementById('portfolio-admin-scroll')?.addEventListener('wheel', () => {
+  if (_portfolioAutoScrollAtivo) _portfolioAutoScrollPausar()
+}, {passive:true})
+document.getElementById('portfolio-admin-scroll')?.addEventListener('touchstart', () => {
+  if (_portfolioAutoScrollAtivo) _portfolioAutoScrollPausar()
+}, {passive:true})
+document.getElementById('portfolio-admin-scroll')?.addEventListener('pointerdown', () => {
+  if (_portfolioAutoScrollAtivo) _portfolioAutoScrollPausar()
+}, {passive:true})
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && _portfolioAutoScrollAtivo) _portfolioAutoScrollPausar()
+})
+document.addEventListener('keydown', e => {
+  if (!_portfolioAutoScrollAtivo) return
+  if (['ArrowDown','ArrowUp','PageDown','PageUp','Home','End',' '].includes(e.key)) _portfolioAutoScrollPausar()
+})
+
 function _fecharPortfolioAdmin() {
+  _portfolioAutoScrollPausar()
+  _portfolioAutoScrollPainelVisivel(false)
   const tela = document.getElementById('portfolio-admin-screen')
   if (!tela?.classList.contains('show')) return
   tela.classList.remove('show')
