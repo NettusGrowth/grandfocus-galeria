@@ -6817,7 +6817,7 @@ async function _abrirPortfolioAdmin() {
     const eventosBallet = new Set(store.eventos.filter(e => e.escola_id && e.tipo !== 'ensaio').map(e => e.id))
     const fotos = fotosTodas.filter(f => filtro.modo === 'selecionados'
       ? _portfolioFotoPermitida(f,filtro)
-      : eventosBallet.has(f.evento_id))
+      : eventosBallet.has(f.evento_id) || filtro.fotos.includes(f.id) || f.id === filtro.capa)
     const fotoPorId = new Map(fotos.map(f => [f.id, f]))
     const metrica = new Map((rpop.error ? [] : (rpop.data || [])).map(f => [
       f.foto_id,
@@ -6835,9 +6835,10 @@ async function _abrirPortfolioAdmin() {
     }
     // Eventos e pastas também podem conter fotografias SEM marcação de aluno.
     // Quando forem escolhidos, entram em grupos próprios para não sumirem.
-    if (filtro.modo === 'selecionados') {
+    if (filtro.modo === 'selecionados' || filtro.fotos.length || filtro.capa) {
       for (const f of fotos) {
         if (vinculadas.has(f.id)) continue
+        if (filtro.modo !== 'selecionados' && !filtro.fotos.includes(f.id) && f.id !== filtro.capa) continue
         const ev = store.eventos.find(e => e.id === f.evento_id)
         const id = 'fonte:' + f.evento_id + ':' + (f.subpasta || '')
         if (!grupos.has(id)) grupos.set(id,{
@@ -6876,50 +6877,67 @@ async function _abrirPortfolioAdmin() {
 
 function _portfolioAdminReembaralhar() {
   if (meuPerfil?.role !== 'super_admin' || !_portfolioAdminBase) return
-  const escolhidas = new Map()
-
-  for (const g of _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)) {
-    const favoritas = g.fotos.filter(f => _portfolioFavoritos.has(f.id))
-    const outras = g.fotos.filter(f => !_portfolioFavoritos.has(f.id))
-    const alvo = Math.min(3, g.fotos.length)
-    const candidatas = [
-      ...favoritas,
-      ...(outras.length ? [outras[0], ..._portfolioAdminEmbaralhar(outras.slice(1, Math.min(8, outras.length)))] : []),
-      ...outras.slice(8),
-    ]
-    let usados = 0
-
-    for (const f of candidatas) {
-      if (usados >= alvo) break
-      const existente = escolhidas.get(f.id)
-      if (existente) {
-        if (!existente.alunos.some(a => a.id === g.id)) {
-          existente.alunos.push({ id: g.id, nome: g.nome, escola_id: g.escola_id })
-          usados++
-        }
-        continue
+  const filtro=_portfolioFiltroAtual()
+  const escolhidas=new Map()
+  const adicionar=(f,g)=>{
+    const existente=escolhidas.get(f.id)
+    if (existente) {
+      if (!existente.alunos.some(a=>a.id===g.id))
+        existente.alunos.push({id:g.id,nome:g.nome,escola_id:g.escola_id})
+      return
+    }
+    const evento=store.eventos.find(e=>e.id===f.evento_id)
+    escolhidas.set(f.id,{
+      ...f,_favorita:_portfolioFavoritos.has(f.id),
+      evento_nome:evento?.nome||'',
+      escola_nome:nomeEscola(evento?.escola_id)||'',
+      alunos:[{id:g.id,nome:g.nome,escola_id:g.escola_id}]
+    })
+  }
+  if (filtro.fotos.length) {
+    // Curadoria manual: inclui TODAS as fotos escolhidas (não limita a
+    // três por aluno como faz o modo automático), sem duplicar imagens.
+    const ids=new Set([...filtro.fotos,filtro.capa].filter(Boolean))
+    for (const grupo of _portfolioAdminBase.grupos)
+      for (const foto of grupo.fotos)
+        if (ids.has(foto.id)) adicionar(foto,grupo)
+  } else {
+    // Mantém o algoritmo anterior de diversidade e favoritos intacto.
+    for (const g of _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)) {
+      const favoritas=g.fotos.filter(f=>_portfolioFavoritos.has(f.id))
+      const outras=g.fotos.filter(f=>!_portfolioFavoritos.has(f.id))
+      const alvo=Math.min(3,g.fotos.length)
+      const candidatas=[
+        ...favoritas,
+        ...(outras.length?[outras[0],..._portfolioAdminEmbaralhar(outras.slice(1,Math.min(8,outras.length)))]:[]),
+        ...outras.slice(8)
+      ]
+      let usados=0
+      for (const f of candidatas) {
+        if (usados>=alvo) break
+        adicionar(f,g)
+        usados++
       }
-      const evento = store.eventos.find(e => e.id === f.evento_id)
-      escolhidas.set(f.id, {
-        ...f,
-        _favorita: _portfolioFavoritos.has(f.id),
-        evento_nome: evento?.nome || '',
-        escola_nome: nomeEscola(evento?.escola_id) || '',
-        alunos: [{ id: g.id, nome: g.nome, escola_id: g.escola_id }],
-      })
-      usados++
     }
   }
-
-  const lista = [...escolhidas.values()]
-  const heroAlta = lista.filter(f => Math.max(Number(f.largura_original || 0), Number(f.altura_original || 0)) >= 2800)
-  const heroPool = heroAlta.length ? heroAlta : lista
-  _portfolioAdminHero = [...heroPool].sort((a, b) =>
-    Number(b._favorita) - Number(a._favorita) ||
-    b._score - a._score ||
-    (Number(b.largura_original || 0) * Number(b.altura_original || 0)) - (Number(a.largura_original || 0) * Number(a.altura_original || 0))
+  // Capa escolhida nunca pode se perder no embaralhamento automático;
+  // só será fixada se ainda existir nas fontes acessíveis.
+  if (filtro.capa && !escolhidas.has(filtro.capa)) {
+    for (const g of _portfolioAdminBase.grupos) {
+      const foto=g.fotos.find(f=>f.id===filtro.capa)
+      if (foto) adicionar(foto,g)
+    }
+  }
+  const lista=[...escolhidas.values()]
+  const heroAlta=lista.filter(f=>Math.max(Number(f.largura_original||0),Number(f.altura_original||0))>=2800)
+  const heroPool=heroAlta.length?heroAlta:lista
+  _portfolioAdminHero=escolhidas.get(filtro.capa) || [...heroPool].sort((a,b)=>
+    Number(b._favorita)-Number(a._favorita)||
+    b._score-a._score||
+    Number(b.largura_original||0)*Number(b.altura_original||0)-
+    Number(a.largura_original||0)*Number(a.altura_original||0)
   )[0] || null
-  _portfolioAdminFotos = _portfolioAdminEmbaralhar(lista.filter(f => f.id !== _portfolioAdminHero?.id))
+  _portfolioAdminFotos=_portfolioAdminEmbaralhar(lista.filter(f=>f.id!==_portfolioAdminHero?.id))
   _renderPortfolioAdmin()
 }
 
