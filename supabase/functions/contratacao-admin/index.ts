@@ -70,6 +70,7 @@ Deno.serve(async (req: Request) => {
       case 'gente_atualizar_agendamento': return await actionGenteStatusAdmin(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
       case 'planilha_editar_resposta': return await actionPlanilhaEditarResposta(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'planilha_horarios_remarcacao': return await actionPlanilhaHorariosRemarcacao(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'planilha_configurar_colunas': return await actionPlanilhaConfigurarColunas(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
       case 'central_salvar_acompanhamento': return await actionCentralSalvarAcompanhamento(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -632,6 +633,19 @@ async function actionPlanilhaConfigurarColunas(req:Request,admin:any,userId:stri
  return jsonResponse(req,data||{ok:true})
 }
 
+// Retorna os blocos existentes e indica a disponibilidade real para a
+// quantidade de bailarinos. A remarcação revalida tudo atomicamente no banco.
+async function actionPlanilhaHorariosRemarcacao(req:Request,admin:any,userId:string,body:any,slug:string){
+ const id=String(body?.resposta_id||'')
+ if(!/^[a-f0-9-]{36}$/i.test(id))
+  return jsonResponse(req,{error:'Inscrição não identificada.'},400)
+ const {data,error}=await admin.rpc('gf_planilha_horarios_remarcacao',{
+  p_slug:slug,p_resposta:id,p_usuario:userId
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível consultar os horários.'},409)
+ return jsonResponse(req,data||{ok:true,horarios:[]})
+}
+
 async function actionPlanilhaEditarResposta(req:Request,admin:any,userId:string,body:any,slug:string){
  const evento=await getCampaign(admin,slug)
  const id=String(body?.resposta_id||'')
@@ -647,10 +661,19 @@ async function actionPlanilhaEditarResposta(req:Request,admin:any,userId:string,
    !campos||typeof campos!=='object'||Array.isArray(campos)||
    (alunos!==null&&!Array.isArray(alunos))||JSON.stringify(body).length>18000)
   return jsonResponse(req,{error:'Revise os campos da resposta antes de salvar.'},400)
- const {data,error}=await admin.rpc('gf_contratacao_admin_editar_resposta',{
+ const remarcar=Object.prototype.hasOwnProperty.call(body,'novo_horario_id')
+ const anterior=String(body?.horario_anterior_id||'')
+ const novo=String(body?.novo_horario_id||'')
+ if(remarcar&&(!/^[a-f0-9-]{36}$/i.test(anterior)||!/^[a-f0-9-]{36}$/i.test(novo)))
+  return jsonResponse(req,{error:'Escolha uma data e um horário da agenda.'},400)
+ // A função que combina edição e remarcação executa tudo numa só transação
+ // Postgres. Se o horário ficar ocupado, nenhum campo editado é salvo.
+ const {data,error}=await admin.rpc(
+  remarcar?'gf_planilha_editar_com_remarcacao':'gf_contratacao_admin_editar_resposta',{
   p_campanha_id:evento.id,p_resposta_id:id,p_usuario_id:userId,
   p_nome:nome,p_whatsapp:whatsapp,p_bailarina:bailarina,
-  p_alunos:alunos,p_campos:campos,p_cor:cor,p_nota:nota
+  p_alunos:alunos,p_campos:campos,p_cor:cor,p_nota:nota,
+  ...(remarcar?{p_horario_anterior:anterior,p_novo_horario:novo}:{})
  })
  if(error)return jsonResponse(req,{error:error.message||'Não foi possível editar a resposta.'},409)
  return jsonResponse(req,data||{ok:true})
