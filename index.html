@@ -6343,12 +6343,14 @@ async function _portfolioPreviewSelecionadas(filtro) {
 }
 async function _portfolioAtualizarPreviewHome() {
   const el = document.getElementById('dash-mod-fotos-preview')
-  if (!el || meuPerfil?.role !== 'super_admin') return
+  if (!el) return
   try {
-    // A consulta de configuração garante que a seleção persista entre PCs
-    // mesmo quando o Dashboard começou a carregar antes do login terminar.
-    await _carregarAppConfig()
-    const fotos = await _portfolioPreviewSelecionadas(_portfolioFiltroAtual())
+    // Outros administradores conservam a prévia automática anterior.
+    // O filtro salvo é exclusivo do portfólio do superadministrador.
+    if (meuPerfil?.role === 'super_admin') await _carregarAppConfig()
+    const filtro = meuPerfil?.role === 'super_admin'
+      ? _portfolioFiltroAtual() : { modo:'todos', escolas:[], eventos:[], pastas:[] }
+    const fotos = await _portfolioPreviewSelecionadas(filtro)
     el.innerHTML = fotos.length
       ? fotos.map((f,i) => '<img id="dash-fotos-prev-' + i + '" alt="">').join('')
       : '<div class="mkpi-vazio">Nenhuma foto nas fontes escolhidas</div>'
@@ -6580,6 +6582,10 @@ async function _abrirPortfolioAdmin() {
   }
   document.getElementById('portfolio-admin-scroll').scrollTop = 0
 
+  // Recarrega a seleção que também pode ter sido alterada em outro computador.
+  const antes = _appConfig[PORTFOLIO_FONTES_CHAVE] || ''
+  await _carregarAppConfig()
+  if ((_appConfig[PORTFOLIO_FONTES_CHAVE] || '') !== antes) _portfolioAdminBase = null
   if (_portfolioAdminBase) {
     _portfolioAdminReembaralhar()
     return
