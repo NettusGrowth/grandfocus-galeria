@@ -405,8 +405,8 @@ function loadEditSchedule(r){
  request('planilha_horarios_remarcacao',{resposta_id:r.id}).then(payload=>{
   if(data.editing?.id!==r.id||data.editSchedule!==state)return
   state.slots=Array.isArray(payload.horarios)?payload.horarios.filter(s=>
-   /^[a-f0-9-]{36}$/i.test(String(s.id))&&/^\\d{4}-\\d{2}-\\d{2}$/.test(s.dia)
-   &&/^\\d{2}:\\d{2}$/.test(s.inicio)):[]
+   /^[a-f0-9-]{36}$/i.test(String(s.id))&&/^\d{4}-\d{2}-\d{2}$/.test(s.dia)
+   &&/^\d{2}:\d{2}$/.test(s.inicio)):[]
   state.ready=true
   state.count=Number(payload.quantidade)||state.count
   editScheduleDateOptions()
