@@ -7,7 +7,7 @@ declare
  admin_id uuid:='11111111-1111-4111-8111-111111111111'::uuid;
  gente uuid; natal uuid;inicio_g uuid;novo_g uuid;ocupado_g uuid;
  outro_g uuid; r_g uuid; r_outro uuid;
- sabado uuid;domingo uuid;r_n uuid;
+ sabado uuid;domingo uuid;r_n uuid;token_n uuid:=gen_random_uuid();
  retorno jsonb;lista jsonb;oldPaid integer;oldStatus text;v uuid;
 begin
  select id into strict gente from public.gf_contratacao_eventos
@@ -91,11 +91,13 @@ begin
  where evento_contratacao_id=natal and dia='2026-12-12' and inicio='08:00';
  select id into strict domingo from public.gf_contratacao_horarios
  where evento_contratacao_id=natal and dia='2026-12-13' and inicio='09:00';
+ perform public.gf_natal_reservar_temporariamente(
+  'natal-fada-acucarada-2026',sabado,2,token_n);
  retorno:=public.gf_natal_solicitar_horario(
   'natal-fada-acucarada-2026',sabado,
   'Responsavel Natal Teste','16999998888','',
   '[{"nome":"Criança Um"},{"nome":"Criança Dois"}]'::jsonb,
-  'a_pagar','',null,'','',gen_random_uuid(),true);
+  'a_pagar','',null,'','',token_n,true);
  select id into strict r_n from public.gf_contratacao_form_respostas
  where evento_contratacao_id=natal and responsavel_nome='Responsavel Natal Teste';
  -- A confirmação de pagamento é simulada apenas dentro do ROLLBACK.
