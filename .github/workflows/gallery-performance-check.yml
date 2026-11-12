@@ -7,6 +7,7 @@ on:
       - 'scripts/test-gallery-role-navigation.mjs'
       - 'scripts/test-uploader-pagination.mjs'
       - 'scripts/test-portfolio-fontes.mjs'
+      - 'scripts/test-portfolio-fotos-capa.mjs'
       - '.github/workflows/gallery-performance-check.yml'
   workflow_dispatch:
 permissions:
@@ -25,5 +26,6 @@ jobs:
       - run: node scripts/test-gallery-role-navigation.mjs
       - run: node scripts/test-uploader-pagination.mjs
       - run: node scripts/test-portfolio-fontes.mjs
+      - run: node scripts/test-portfolio-fotos-capa.mjs
       - run: node scripts/test-gallery-load.mjs
       - run: npm run build

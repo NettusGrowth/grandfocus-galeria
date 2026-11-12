@@ -1174,6 +1174,23 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 
 
 /* Curadoria privada do portfólio do Dashboard; não interfere nas outras galerias. */
+.portfolio-curadoria-fotos{margin-top:20px;border-top:1px solid rgba(140,110,110,.25);padding-top:16px}
+.portfolio-curadoria-fotos h4{margin:0 0 6px;font-size:16px;color:#692a3e}
+.portfolio-curadoria-barra{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:14px 0 10px}
+.portfolio-curadoria-barra input[type=search]{flex:1 1 180px;min-width:120px;padding:10px;border-radius:9px;border:1px solid #d8c9c9;background:#fff;color:#231519}
+.portfolio-curadoria-barra label{display:flex;gap:5px;align-items:center;font-size:12px;cursor:pointer}
+.portfolio-curadoria-grade{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;max-height:54vh;overflow:auto;padding:4px}
+.portfolio-curadoria-foto{min-width:0;border:2px solid rgba(180,157,158,.35);border-radius:11px;background:#f4efed;overflow:hidden;display:flex;flex-direction:column;transition:border-color .18s}
+.portfolio-curadoria-foto.marcada{border-color:#8d3151;box-shadow:0 0 0 1px #8d3151}
+.portfolio-curadoria-foto.capa{outline:3px solid #cf9d3f;outline-offset:-3px}
+.portfolio-curadoria-marcar{display:block;position:relative;border:0;padding:0;width:100%;aspect-ratio:4/5;cursor:pointer;background:#21121a;color:#fff}
+.portfolio-curadoria-marcar img{width:100%;height:100%;object-fit:cover;display:block}
+.portfolio-curadoria-selo{position:absolute;top:6px;left:6px;padding:3px 6px;border-radius:6px;background:#6c263c;color:#fff;font-size:10px;font-weight:700}
+.portfolio-curadoria-foto-info{display:block;font-size:10px;line-height:1.4;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:5px 7px 3px;color:#4e3340}
+.portfolio-curadoria-capa{margin:3px 6px 7px;border-radius:7px;padding:6px 3px;background:#fff;color:#60243c;border:1px solid #c4a3ac;font-size:10px;cursor:pointer;min-height:29px}
+.portfolio-curadoria-foto.capa .portfolio-curadoria-capa{background:#6c263c;color:#fff;border-color:#6c263c}
+@media(max-width:640px){.portfolio-curadoria-grade{grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}.portfolio-curadoria-capa{font-size:9px}.portfolio-curadoria-foto-info{font-size:9px}}
+@media(max-width:360px){.portfolio-curadoria-grade{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .portfolio-fontes-lista{max-height:min(54vh,540px);overflow:auto;border:1px solid rgba(170,138,112,.24);border-radius:12px;padding:10px;background:rgba(127,70,80,.04);}
 .portfolio-fontes-grupo{padding:10px 12px;border-bottom:1px solid rgba(150,130,130,.18);}
 .portfolio-fontes-grupo:last-child{border-bottom:0}
@@ -3786,6 +3803,18 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
     </div>
     <div id="portfolio-fontes-lista" class="portfolio-fontes-lista" style="display:none;"></div>
     <p class="meta" id="portfolio-fontes-resumo" aria-live="polite">Carregando fontes…</p>
+    <section class="portfolio-curadoria-fotos">
+      <h4>Escolher fotografias e capa</h4>
+      <p class="meta">Toque nas fotografias para incluí-las no portfólio e em <strong>Definir capa</strong> para escolher a foto principal. Sem fotos marcadas, a seleção continua automática dentro das fontes escolhidas.</p>
+      <div class="portfolio-curadoria-barra">
+        <input id="portfolio-fotos-busca" type="search" placeholder="Buscar escola, evento ou pasta…" oninput="_portfolioEditorRedesenharFotos(true)" aria-label="Buscar fotos do portfólio">
+        <label><input type="checkbox" id="portfolio-fotos-so-marcadas" onchange="_portfolioEditorRedesenharFotos(true)"> Somente escolhidas</label>
+        <button type="button" class="btn btn-sm" onclick="_portfolioEditorLimparFotos()">Limpar seleção de fotos</button>
+      </div>
+      <p id="portfolio-fotos-status" class="meta" role="status" aria-live="polite">Carregando fotografias…</p>
+      <div id="portfolio-fotos-grade" class="portfolio-curadoria-grade"></div>
+      <button id="portfolio-fotos-mais" class="btn btn-sm" type="button" onclick="_portfolioEditorMaisFotos()" style="display:none;width:100%;margin-top:10px;">Mostrar mais fotografias</button>
+    </section>
     <div class="modal-actions">
       <button class="btn btn-sm" type="button" onclick="fecharModal('portfolio-fontes-modal')">Cancelar</button>
       <button class="btn btn-primary btn-sm" type="button" id="portfolio-fontes-salvar" onclick="_portfolioSalvarConfiguracao()">Salvar seleção</button>
@@ -6292,12 +6321,15 @@ let _portfolioEditorPastas = []
 function _portfolioFiltroAtual() {
   let cfg
   try { cfg = JSON.parse(_appConfig[PORTFOLIO_FONTES_CHAVE] || 'null') } catch (_) { cfg = null }
-  if (!cfg || cfg.modo !== 'selecionados') return { modo: 'todos', escolas: [], eventos: [], pastas: [] }
+  if (!cfg || typeof cfg !== 'object') cfg = {}
   return {
-    modo: 'selecionados',
+    modo: cfg.modo === 'selecionados' ? 'selecionados' : 'todos',
     escolas: Array.isArray(cfg.escolas) ? cfg.escolas.filter(x => typeof x === 'string') : [],
     eventos: Array.isArray(cfg.eventos) ? cfg.eventos.filter(x => typeof x === 'string') : [],
-    pastas: Array.isArray(cfg.pastas) ? cfg.pastas.filter(p => p && typeof p.evento_id === 'string' && typeof p.nome === 'string') : []
+    pastas: Array.isArray(cfg.pastas) ? cfg.pastas.filter(p => p && typeof p.evento_id === 'string' && typeof p.nome === 'string') : [],
+    // Campos opcionais: configurações v1 continuam funcionando automaticamente.
+    fotos: Array.isArray(cfg.fotos) ? [...new Set(cfg.fotos.filter(x => typeof x === 'string' && /^[0-9a-f-]{36}$/i.test(x)))].slice(0, 300) : [],
+    capa: typeof cfg.capa === 'string' && /^[0-9a-f-]{36}$/i.test(cfg.capa) ? cfg.capa : ''
   }
 }
 function _portfolioFotoPermitida(foto, filtro) {
@@ -6311,35 +6343,67 @@ function _portfolioFotoPermitida(foto, filtro) {
 }
 async function _portfolioPreviewSelecionadas(filtro) {
   const cols = 'id,evento_id,subpasta,storage_path,thumb_path,criado_em'
-  if (filtro.modo !== 'selecionados') {
-    const r = await db.from('fotos').select(cols).order('criado_em', { ascending: false }).limit(10)
-    if (r.error) throw r.error
-    return r.data || []
+  const idsEscolhidos = Array.isArray(filtro.fotos) ? filtro.fotos : []
+  const capa = filtro.capa || ''
+  const ordenar = fotos => {
+    const unicas = [...new Map(fotos.map(f=>[f.id,f])).values()]
+    return unicas.sort((a,b) =>
+      (b.id === capa ? 1 : 0) - (a.id === capa ? 1 : 0) ||
+      new Date(b.criado_em || 0) - new Date(a.criado_em || 0)).slice(0,10)
   }
-  const tarefas = []
-  const idsDeEscola = [...new Set(store.eventos.filter(e => e.escola_id && filtro.escolas.includes(e.escola_id)).map(e => e.id))]
-  for (let i = 0; i < idsDeEscola.length; i += 60) {
-    const ids = idsDeEscola.slice(i, i + 60)
-    tarefas.push(() => db.from('fotos').select(cols).in('evento_id', ids).order('criado_em', { ascending: false }).limit(10))
-  }
-  for (const id of [...new Set(filtro.eventos)]) {
-    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', id).order('criado_em', { ascending: false }).limit(10))
-  }
-  for (const p of filtro.pastas) {
-    tarefas.push(() => db.from('fotos').select(cols).eq('evento_id', p.evento_id)
-      .eq('subpasta', p.nome).order('criado_em', { ascending: false }).limit(10))
-  }
-  const encontrados = new Map()
-  let proximo = 0
-  await Promise.all(Array.from({ length: Math.min(4, tarefas.length) }, async () => {
-    while (proximo < tarefas.length) {
-      const indice = proximo++
-      const r = await tarefas[indice]()
-      if (r.error) throw r.error
-      for (const foto of r.data || []) if (_portfolioFotoPermitida(foto, filtro)) encontrados.set(foto.id, foto)
+  // Fotos marcadas manualmente: nenhuma outra fotografia entra na vitrine.
+  // A capa sempre integra a curadoria, mesmo se foi definida sozinha.
+  if (idsEscolhidos.length) {
+    const ids = [...new Set([...idsEscolhidos, capa].filter(Boolean))]
+    const tarefas = []
+    for (let i=0; i<ids.length; i+=50) {
+      const lote=ids.slice(i,i+50)
+      tarefas.push(() => db.from('fotos').select(cols).in('id',lote))
     }
-  }))
-  return [...encontrados.values()].sort((a,b) => new Date(b.criado_em || 0)-new Date(a.criado_em || 0)).slice(0, 10)
+    const respostas = await Promise.all(tarefas.map(fn=>fn()))
+    const fotos=[]
+    for (const r of respostas) {
+      if (r.error) throw r.error
+      for (const foto of r.data || []) if (_portfolioFotoPermitida(foto,filtro)) fotos.push(foto)
+    }
+    return ordenar(fotos)
+  }
+  // Sem seleção explícita: comportamento anterior, somente fixando a capa
+  // escolhida, caso ela pertença às fontes atuais.
+  let fotos=[]
+  if (filtro.modo !== 'selecionados') {
+    const r = await db.from('fotos').select(cols).order('criado_em',{ascending:false}).limit(10)
+    if (r.error) throw r.error
+    fotos = r.data || []
+  } else {
+    const tarefas=[]
+    const eventosDaEscola = [...new Set(store.eventos.filter(e=>e.escola_id && filtro.escolas.includes(e.escola_id)).map(e=>e.id))]
+    for(let i=0; i<eventosDaEscola.length; i+=60) {
+      const ids=eventosDaEscola.slice(i,i+60)
+      tarefas.push(()=>db.from('fotos').select(cols).in('evento_id',ids).order('criado_em',{ascending:false}).limit(10))
+    }
+    for(const id of [...new Set(filtro.eventos)])
+      tarefas.push(()=>db.from('fotos').select(cols).eq('evento_id',id).order('criado_em',{ascending:false}).limit(10))
+    for(const p of filtro.pastas)
+      tarefas.push(()=>db.from('fotos').select(cols).eq('evento_id',p.evento_id).eq('subpasta',p.nome).order('criado_em',{ascending:false}).limit(10))
+    const encontrados=new Map()
+    let proximo=0
+    await Promise.all(Array.from({length:Math.min(4,tarefas.length)},async()=>{
+      while(proximo<tarefas.length) {
+        const idx=proximo++
+        const r=await tarefas[idx]()
+        if(r.error) throw r.error
+        for(const f of r.data || []) if(_portfolioFotoPermitida(f,filtro)) encontrados.set(f.id,f)
+      }
+    }))
+    fotos=[...encontrados.values()]
+  }
+  if (capa && !fotos.some(f=>f.id===capa)) {
+    const r=await db.from('fotos').select(cols).eq('id',capa).limit(1)
+    if(r.error) throw r.error
+    for(const foto of r.data||[]) if(_portfolioFotoPermitida(foto,filtro)) fotos.push(foto)
+  }
+  return ordenar(fotos)
 }
 async function _portfolioAtualizarPreviewHome() {
   const el = document.getElementById('dash-mod-fotos-preview')
@@ -6365,6 +6429,111 @@ async function _portfolioAtualizarPreviewHome() {
     el.innerHTML = '<div class="mkpi-vazio">Prévia indisponível</div>'
   }
 }
+
+const PORTFOLIO_EDITOR_LOTE = 48
+const PORTFOLIO_EDITOR_MAX_FOTOS = 250
+let _portfolioEditorTodasFotos = []
+let _portfolioEditorFotos = new Set()
+let _portfolioEditorCapa = ''
+let _portfolioEditorQuantidadeVisivel = PORTFOLIO_EDITOR_LOTE
+let _portfolioEditorFotosProntas = false
+let _portfolioEditorSeq = 0
+
+function _portfolioEditorFiltroRascunho() {
+  const modo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value || 'todos'
+  const cfg = {modo,escolas:[],eventos:[],pastas:[]}
+  if (modo === 'selecionados') {
+    for (const item of document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked')) {
+      const tipo = item.dataset.fonteTipo, id = item.dataset.fonteId, evento = item.dataset.fonteEvento
+      if (tipo === 'escola') cfg.escolas.push(id)
+      else if (tipo === 'evento') cfg.eventos.push(id)
+      else if (tipo === 'pasta') cfg.pastas.push({evento_id:evento,nome:id})
+    }
+  }
+  return cfg
+}
+function _portfolioEditorFotosPermitidas(cfg = _portfolioEditorFiltroRascunho()) {
+  if (!_portfolioEditorFotosProntas) return []
+  const busca = (document.getElementById('portfolio-fotos-busca')?.value || '').trim().toLocaleLowerCase('pt-BR')
+  const marcadas = document.getElementById('portfolio-fotos-so-marcadas')?.checked
+  const eventos = new Map(store.eventos.map(e=>[e.id,e]))
+  const escolas = new Map(store.escolas.map(e=>[e.id,e]))
+  return _portfolioEditorTodasFotos.filter(f => {
+    if (!_portfolioFotoPermitida(f,cfg)) return false
+    if (marcadas && !_portfolioEditorFotos.has(f.id) && f.id !== _portfolioEditorCapa) return false
+    if (!busca) return true
+    const ev=eventos.get(f.evento_id)
+    const nome=[ev?.nome,escolas.get(ev?.escola_id)?.nome,f.subpasta,f.id].join(' ').toLocaleLowerCase('pt-BR')
+    return nome.includes(busca)
+  })
+}
+function _portfolioEditorRedesenharFotos(reiniciar=false) {
+  const grade=document.getElementById('portfolio-fotos-grade')
+  if (!grade) return
+  if (reiniciar) _portfolioEditorQuantidadeVisivel=PORTFOLIO_EDITOR_LOTE
+  const status=document.getElementById('portfolio-fotos-status')
+  const mais=document.getElementById('portfolio-fotos-mais')
+  if (!_portfolioEditorFotosProntas) {
+    grade.innerHTML='<div class="empty">Consultando o acervo…</div>'
+    status.textContent='Buscando as fotografias…'
+    mais.style.display='none'
+    return
+  }
+  const fonte=_portfolioEditorFiltroRascunho()
+  const todasPermitidas=_portfolioEditorTodasFotos.filter(f=>_portfolioFotoPermitida(f,fonte))
+  const mostradas=_portfolioEditorFotosPermitidas(fonte)
+  const fotos=mostradas.slice(0,_portfolioEditorQuantidadeVisivel)
+  const escolhidas=todasPermitidas.filter(f=>_portfolioEditorFotos.has(f.id)).length
+  const capa=todasPermitidas.find(f=>f.id===_portfolioEditorCapa)
+  const ocultas=_portfolioEditorFotos.size-escolhidas
+  status.textContent=escolhidas+' foto(s) escolhida(s) · '+todasPermitidas.length+' na(s) fonte(s) · '+
+    mostradas.length+' após pesquisa'+(capa?' · capa escolhida':' · capa automática')+
+    (ocultas>0?' · '+ocultas+' escolha(s) fora das fontes atuais':'')
+  grade.innerHTML=fotos.map(f=>{
+    const ev=store.eventos.find(e=>e.id===f.evento_id)
+    const nome=ev?.nome||'Evento'
+    const marcada=_portfolioEditorFotos.has(f.id)
+    const isCapa=f.id===_portfolioEditorCapa
+    return '<article class="portfolio-curadoria-foto'+(marcada?' marcada':'')+(isCapa?' capa':'')+'">'+
+      '<button class="portfolio-curadoria-marcar" type="button" onclick="_portfolioEditorAlternarFoto(\''+f.id+'\')"'+
+      ' aria-pressed="'+marcada+'" title="Selecionar ou remover fotografia">'+
+      _imgTagCache(f.thumb_path||f.storage_path,'alt="Fotografia do portfólio" loading="lazy"')+
+      (marcada?'<span class="portfolio-curadoria-selo">✓ Escolhida</span>':'')+
+      '</button><span class="portfolio-curadoria-foto-info" title="'+esc(nome+' · '+(f.subpasta||''))+'">'+
+      esc(f.subpasta||nome)+'</span>'+
+      '<button class="portfolio-curadoria-capa" type="button" onclick="_portfolioEditorDefinirCapa(\''+f.id+'\')" '+
+      'aria-pressed="'+isCapa+'">'+(isCapa?'★ Capa escolhida':'☆ Definir capa')+'</button></article>'
+  }).join('') || '<div class="empty">Nenhuma fotografia corresponde a esta seleção. Ajuste as fontes ou a busca.</div>'
+  mais.style.display=mostradas.length>fotos.length?'block':'none'
+  _hidratarImgCache(grade)
+}
+function _portfolioEditorMaisFotos() {
+  _portfolioEditorQuantidadeVisivel+=PORTFOLIO_EDITOR_LOTE
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorAlternarFoto(id) {
+  if (!_portfolioEditorFotosProntas || !_portfolioEditorTodasFotos.some(f=>f.id===id)) return
+  if (_portfolioEditorFotos.has(id)) _portfolioEditorFotos.delete(id)
+  else {
+    if (_portfolioEditorFotos.size >= PORTFOLIO_EDITOR_MAX_FOTOS) {
+      toast('Limite de 250 fotografias selecionadas neste portfólio.')
+      return
+    }
+    _portfolioEditorFotos.add(id)
+  }
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorDefinirCapa(id) {
+  if (!_portfolioEditorFotosProntas || !_portfolioEditorTodasFotos.some(f=>f.id===id)) return
+  _portfolioEditorCapa=_portfolioEditorCapa===id?'':id
+  _portfolioEditorRedesenharFotos()
+}
+function _portfolioEditorLimparFotos() {
+  _portfolioEditorFotos.clear()
+  document.getElementById('portfolio-fotos-so-marcadas').checked=false
+  _portfolioEditorRedesenharFotos(true)
+  toast('Escolha de fotos removida. A capa, se escolhida, continua fixa.')
+}
 function _portfolioEditorMostrarModo() {
   const radio = document.querySelector('input[name="portfolio-fontes-modo"]:checked')
   const ativo = radio?.value === 'selecionados'
@@ -6377,20 +6546,38 @@ function _portfolioEditorAtualizarResumo() {
   const ativo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value === 'selecionados'
   el.textContent = ativo ? marcado + ' fonte(s) selecionada(s) · escolas, eventos e pastas se somam.'
     : 'Todas as fotografias elegíveis continuam na seleção automática.'
+  _portfolioEditorRedesenharFotos(true)
 }
 async function _portfolioAbrirConfiguracao() {
   if (meuPerfil?.role !== 'super_admin') return
   await _carregarAppConfig()
   const cfg = _portfolioFiltroAtual()
+  const seq = ++_portfolioEditorSeq
+  _portfolioEditorFotos = new Set(cfg.fotos)
+  _portfolioEditorCapa = cfg.capa
+  _portfolioEditorTodasFotos = []
+  _portfolioEditorFotosProntas = false
+  _portfolioEditorQuantidadeVisivel = PORTFOLIO_EDITOR_LOTE
+  document.getElementById('portfolio-fotos-busca').value = ''
+  document.getElementById('portfolio-fotos-so-marcadas').checked = false
   const lista = document.getElementById('portfolio-fontes-lista')
   lista.innerHTML = '<div class="empty">Carregando escolas, eventos e pastas…</div>'
+  document.getElementById('portfolio-fontes-salvar').disabled = true
+  _portfolioEditorRedesenharFotos()
   document.querySelector('input[name="portfolio-fontes-modo"][value="' + cfg.modo + '"]').checked = true
   abrirModal('portfolio-fontes-modal')
   _portfolioEditorMostrarModo()
   try {
-    const pastas = await _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
-      .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true }))
+    const [pastas, fotos] = await Promise.all([
+      _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
+        .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true })),
+      _galBuscarTodasAsLinhas(() => db.from('fotos')
+        .select('id,evento_id,subpasta,storage_path,thumb_path,criado_em').order('id', { ascending: true }))
+    ])
+    if (seq !== _portfolioEditorSeq) return
     _portfolioEditorPastas = pastas
+    _portfolioEditorTodasFotos = fotos.sort((a,b)=>new Date(b.criado_em||0)-new Date(a.criado_em||0))
+    _portfolioEditorFotosProntas = true
     const evs = store.eventos.filter(e => e.id)
     const grupos = [...store.escolas.map(e => ({ id:e.id, nome:e.nome, eventos:evs.filter(ev=>ev.escola_id===e.id) })),
       {id:'',nome:'Eventos sem escola / avulsos',eventos:evs.filter(ev=>!ev.escola_id)}]
@@ -6415,7 +6602,9 @@ async function _portfolioAbrirConfiguracao() {
     }).join('') || '<div class="empty">Nenhum evento encontrado.</div>'
     _portfolioEditorAtualizarResumo()
   } catch(error) {
-    lista.innerHTML = '<div class="empty">Não foi possível carregar as fontes. Não salve antes de tentar novamente.</div>'
+    if (seq !== _portfolioEditorSeq) return
+    lista.innerHTML = '<div class="empty">Não foi possível carregar as fontes ou fotografias. Tente novamente sem salvar.</div>'
+    document.getElementById('portfolio-fotos-status').textContent = 'Falha ao carregar acervo. Nenhuma seleção foi modificada.'
     document.getElementById('portfolio-fontes-salvar').disabled = true
     console.error('Portfólio: falha ao listar pastas',error)
     return
@@ -6424,19 +6613,37 @@ async function _portfolioAbrirConfiguracao() {
 }
 async function _portfolioSalvarConfiguracao() {
   if (meuPerfil?.role !== 'super_admin') return
-  const modo = document.querySelector('input[name="portfolio-fontes-modo"]:checked')?.value || 'todos'
-  const cfg = { modo, escolas: [], eventos: [], pastas: [] }
-  if (modo === 'selecionados') {
-    for(const input of document.querySelectorAll('#portfolio-fontes-lista input[type="checkbox"]:checked')) {
-      const tipo = input.dataset.fonteTipo, id = input.dataset.fonteId, evento = input.dataset.fonteEvento
-      if(tipo === 'escola') cfg.escolas.push(id)
-      if(tipo === 'evento') cfg.eventos.push(id)
-      if(tipo === 'pasta') cfg.pastas.push({evento_id:evento,nome:id})
-    }
-    if (!cfg.escolas.length && !cfg.eventos.length && !cfg.pastas.length) {
-      toast('Escolha pelo menos uma escola, evento ou pasta.')
+  if (!_portfolioEditorFotosProntas) {
+    toast('Aguarde as fotos carregarem para não perder sua seleção.')
+    return
+  }
+  const cfg = _portfolioEditorFiltroRascunho()
+  if (cfg.modo === 'selecionados' && !cfg.escolas.length && !cfg.eventos.length && !cfg.pastas.length) {
+    toast('Escolha pelo menos uma escola, evento ou pasta.')
+    return
+  }
+  const permitidas=new Set(_portfolioEditorTodasFotos.filter(f=>_portfolioFotoPermitida(f,cfg)).map(f=>f.id))
+  const ignoradas=[..._portfolioEditorFotos].filter(id=>!permitidas.has(id))
+  if (ignoradas.length) {
+    const ok=await confirmModal(ignoradas.length+
+      ' foto(s) que estavam escolhidas ficaram fora das fontes atuais. Deseja salvar sem elas?',
+      {titulo:'Confirmar nova seleção',okLabel:'Salvar sem essas fotos'})
+    if (!ok) return
+  }
+  cfg.fotos=[..._portfolioEditorFotos].filter(id=>permitidas.has(id))
+  cfg.capa=permitidas.has(_portfolioEditorCapa)?_portfolioEditorCapa:''
+  if (_portfolioEditorCapa && !cfg.capa) {
+    toast('A capa anterior não pertence às fontes atuais. Escolha outra antes de salvar.')
+    return
+  }
+  // Ao escolher fotos individuais, a capa escolhida também precisa
+  // fazer parte da vitrine. Sem fotos escolhidas, só a capa fica fixa.
+  if (cfg.fotos.length && cfg.capa && !cfg.fotos.includes(cfg.capa)) {
+    if (cfg.fotos.length >= PORTFOLIO_EDITOR_MAX_FOTOS) {
+      toast('Remova uma foto antes de incluir a capa na seleção.')
       return
     }
+    cfg.fotos.unshift(cfg.capa)
   }
   const btn=document.getElementById('portfolio-fontes-salvar')
   btn.disabled=true
@@ -6449,12 +6656,12 @@ async function _portfolioSalvarConfiguracao() {
     _portfolioAdminFotos=[]
     _portfolioAdminHero=null
     fecharModal('portfolio-fontes-modal')
-    toast('Fontes do portfólio salvas ✓')
+    toast('Fotos, capa e fontes do portfólio salvas ✓')
     void _portfolioAtualizarPreviewHome()
     void _abrirPortfolioAdmin()
   } catch(error) {
-    console.error('Portfólio: falha ao salvar fontes',error)
-    toast('Não foi possível salvar: ' + error.message)
+    console.error('Portfólio: falha ao salvar fotos/capa',error)
+    toast('Não foi possível salvar: '+error.message)
   } finally { btn.disabled=false }
 }
 
@@ -6610,7 +6817,7 @@ async function _abrirPortfolioAdmin() {
     const eventosBallet = new Set(store.eventos.filter(e => e.escola_id && e.tipo !== 'ensaio').map(e => e.id))
     const fotos = fotosTodas.filter(f => filtro.modo === 'selecionados'
       ? _portfolioFotoPermitida(f,filtro)
-      : eventosBallet.has(f.evento_id))
+      : eventosBallet.has(f.evento_id) || filtro.fotos.includes(f.id) || f.id === filtro.capa)
     const fotoPorId = new Map(fotos.map(f => [f.id, f]))
     const metrica = new Map((rpop.error ? [] : (rpop.data || [])).map(f => [
       f.foto_id,
@@ -6628,9 +6835,10 @@ async function _abrirPortfolioAdmin() {
     }
     // Eventos e pastas também podem conter fotografias SEM marcação de aluno.
     // Quando forem escolhidos, entram em grupos próprios para não sumirem.
-    if (filtro.modo === 'selecionados') {
+    if (filtro.modo === 'selecionados' || filtro.fotos.length || filtro.capa) {
       for (const f of fotos) {
         if (vinculadas.has(f.id)) continue
+        if (filtro.modo !== 'selecionados' && !filtro.fotos.includes(f.id) && f.id !== filtro.capa) continue
         const ev = store.eventos.find(e => e.id === f.evento_id)
         const id = 'fonte:' + f.evento_id + ':' + (f.subpasta || '')
         if (!grupos.has(id)) grupos.set(id,{
@@ -6669,50 +6877,67 @@ async function _abrirPortfolioAdmin() {
 
 function _portfolioAdminReembaralhar() {
   if (meuPerfil?.role !== 'super_admin' || !_portfolioAdminBase) return
-  const escolhidas = new Map()
-
-  for (const g of _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)) {
-    const favoritas = g.fotos.filter(f => _portfolioFavoritos.has(f.id))
-    const outras = g.fotos.filter(f => !_portfolioFavoritos.has(f.id))
-    const alvo = Math.min(3, g.fotos.length)
-    const candidatas = [
-      ...favoritas,
-      ...(outras.length ? [outras[0], ..._portfolioAdminEmbaralhar(outras.slice(1, Math.min(8, outras.length)))] : []),
-      ...outras.slice(8),
-    ]
-    let usados = 0
-
-    for (const f of candidatas) {
-      if (usados >= alvo) break
-      const existente = escolhidas.get(f.id)
-      if (existente) {
-        if (!existente.alunos.some(a => a.id === g.id)) {
-          existente.alunos.push({ id: g.id, nome: g.nome, escola_id: g.escola_id })
-          usados++
-        }
-        continue
+  const filtro=_portfolioFiltroAtual()
+  const escolhidas=new Map()
+  const adicionar=(f,g)=>{
+    const existente=escolhidas.get(f.id)
+    if (existente) {
+      if (!existente.alunos.some(a=>a.id===g.id))
+        existente.alunos.push({id:g.id,nome:g.nome,escola_id:g.escola_id})
+      return
+    }
+    const evento=store.eventos.find(e=>e.id===f.evento_id)
+    escolhidas.set(f.id,{
+      ...f,_favorita:_portfolioFavoritos.has(f.id),
+      evento_nome:evento?.nome||'',
+      escola_nome:nomeEscola(evento?.escola_id)||'',
+      alunos:[{id:g.id,nome:g.nome,escola_id:g.escola_id}]
+    })
+  }
+  if (filtro.fotos.length) {
+    // Curadoria manual: inclui TODAS as fotos escolhidas (não limita a
+    // três por aluno como faz o modo automático), sem duplicar imagens.
+    const ids=new Set([...filtro.fotos,filtro.capa].filter(Boolean))
+    for (const grupo of _portfolioAdminBase.grupos)
+      for (const foto of grupo.fotos)
+        if (ids.has(foto.id)) adicionar(foto,grupo)
+  } else {
+    // Mantém o algoritmo anterior de diversidade e favoritos intacto.
+    for (const g of _portfolioAdminEmbaralhar(_portfolioAdminBase.grupos)) {
+      const favoritas=g.fotos.filter(f=>_portfolioFavoritos.has(f.id))
+      const outras=g.fotos.filter(f=>!_portfolioFavoritos.has(f.id))
+      const alvo=Math.min(3,g.fotos.length)
+      const candidatas=[
+        ...favoritas,
+        ...(outras.length?[outras[0],..._portfolioAdminEmbaralhar(outras.slice(1,Math.min(8,outras.length)))]:[]),
+        ...outras.slice(8)
+      ]
+      let usados=0
+      for (const f of candidatas) {
+        if (usados>=alvo) break
+        adicionar(f,g)
+        usados++
       }
-      const evento = store.eventos.find(e => e.id === f.evento_id)
-      escolhidas.set(f.id, {
-        ...f,
-        _favorita: _portfolioFavoritos.has(f.id),
-        evento_nome: evento?.nome || '',
-        escola_nome: nomeEscola(evento?.escola_id) || '',
-        alunos: [{ id: g.id, nome: g.nome, escola_id: g.escola_id }],
-      })
-      usados++
     }
   }
-
-  const lista = [...escolhidas.values()]
-  const heroAlta = lista.filter(f => Math.max(Number(f.largura_original || 0), Number(f.altura_original || 0)) >= 2800)
-  const heroPool = heroAlta.length ? heroAlta : lista
-  _portfolioAdminHero = [...heroPool].sort((a, b) =>
-    Number(b._favorita) - Number(a._favorita) ||
-    b._score - a._score ||
-    (Number(b.largura_original || 0) * Number(b.altura_original || 0)) - (Number(a.largura_original || 0) * Number(a.altura_original || 0))
+  // Capa escolhida nunca pode se perder no embaralhamento automático;
+  // só será fixada se ainda existir nas fontes acessíveis.
+  if (filtro.capa && !escolhidas.has(filtro.capa)) {
+    for (const g of _portfolioAdminBase.grupos) {
+      const foto=g.fotos.find(f=>f.id===filtro.capa)
+      if (foto) adicionar(foto,g)
+    }
+  }
+  const lista=[...escolhidas.values()]
+  const heroAlta=lista.filter(f=>Math.max(Number(f.largura_original||0),Number(f.altura_original||0))>=2800)
+  const heroPool=heroAlta.length?heroAlta:lista
+  _portfolioAdminHero=escolhidas.get(filtro.capa) || [...heroPool].sort((a,b)=>
+    Number(b._favorita)-Number(a._favorita)||
+    b._score-a._score||
+    Number(b.largura_original||0)*Number(b.altura_original||0)-
+    Number(a.largura_original||0)*Number(a.altura_original||0)
   )[0] || null
-  _portfolioAdminFotos = _portfolioAdminEmbaralhar(lista.filter(f => f.id !== _portfolioAdminHero?.id))
+  _portfolioAdminFotos=_portfolioAdminEmbaralhar(lista.filter(f=>f.id!==_portfolioAdminHero?.id))
   _renderPortfolioAdmin()
 }
 
