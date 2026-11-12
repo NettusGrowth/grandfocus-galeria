@@ -4864,7 +4864,7 @@ document.addEventListener('visibilitychange', () => {
 // estas tabelas como arrays globais; buscar sem paginação fazia pastas e fotos
 // desaparecerem quando o total ultrapassava o limite. A ordenação por chave
 // estável evita sobreposição entre páginas. Falhas abortam a carga inteira.
-async function _galBuscarTodasAsLinhas(criarConsulta, tamanhoPagina = 500) {
+async function _galBuscarTodasAsLinhas(criarConsulta, tamanhoPagina = 1000) {
   const linhas = []
   const maxPaginas = 2000
   for (let pagina = 0; pagina < maxPaginas; pagina++) {
@@ -8906,7 +8906,10 @@ document.addEventListener('click', e => { if (!e.target.closest('.escola-menu-wr
 
 function verGaleriaDaEscola(escolaId) {
   setAdminTab('galeria')
-  iniciarGaleriaAdmin().then(() => { _galRaiz = 'escolas'; _galEscolaId = escolaId; renderGaleriaAdmin() })
+  // Não esperar todo o banco baixar para abrir a pasta da escola.
+  iniciarGaleriaAdmin()
+  _galRaiz = 'escolas'; _galEscolaId = escolaId
+  renderGaleriaAdmin()
 }
 function verComunidadeDaEscola(escolaId) {
   setAdminTab('comunidade')
@@ -14050,6 +14053,10 @@ async function iniciarGaleriaAdmin() {
   _galRaiz = null; _galEscolaId = undefined; _galAlunoId = null; _galAno = null
   _galAlbumId = null; _galAvulsoId = null; _galSubpasta = null; _galFiltroTexto = ''; _galFiltroAvulso = ''
   _galFiltroEscolaAlunos = ''; _galFiltroPessoaAlbum = null; _galSelecao = new Set()
+  // A navegação deve responder imediatamente: a consulta da base de fotos
+  // continua em paralelo, sem bloquear a abertura das pastas de escolas.
+  // O retorno posterior atualiza a tela atualmente aberta, preservando o drill-down.
+  renderGaleriaAdmin()
   // eventos (com o embed fotos(count)) SEMPRE recarrega ao entrar na
   // aba — diferente de fotos/foto_aluno/foto_pessoa abaixo, esse dado
   // fica velho rápido: criar um álbum e subir fotos nele acontece fora
@@ -14427,28 +14434,33 @@ function _galSubpastasDisponiveis(eventoId) {
 }
 
 async function _galBuscarVinculosFotosAlbum(tabela, ids, campoOrdem) {
-  const linhas = []
-  // Mantém as consultas pequenas para eventos com centenas ou milhares de fotos.
-  for (let i = 0; i < ids.length; i += 80) {
-    const loteIds = ids.slice(i, i + 80)
-    const lote = await _galBuscarTodasAsLinhas(() => db.from(tabela)
-      .select('*')
-      .in('foto_id', loteIds)
-      .order('foto_id', { ascending: true })
-      .order(campoOrdem, { ascending: true }))
-    linhas.push(...lote)
-  }
-  return linhas
+  // 80 IDs por requisição mantém a URL pequena. Quatro workers reduzem
+  // a latência sem gerar uma tempestade de requests por álbum.
+  const lotes = []
+  for (let i = 0; i < ids.length; i += 80) lotes.push(ids.slice(i, i + 80))
+  const resultados = Array(lotes.length)
+  let proximo = 0
+  await Promise.all(Array.from({ length: Math.min(4, lotes.length) }, async () => {
+    while (proximo < lotes.length) {
+      const idx = proximo++
+      resultados[idx] = await _galBuscarTodasAsLinhas(() => db.from(tabela)
+        .select('*')
+        .in('foto_id', lotes[idx])
+        .order('foto_id', { ascending: true })
+        .order(campoOrdem, { ascending: true }))
+    }
+  }))
+  return resultados.flat()
 }
 
 function _galAbrirAlbum(eventoId) {
   _galAlbumId = eventoId
   _galSubpasta = null
   _galFiltroPessoaAlbum = null
-  if (_galRole !== 'admin') {
-    renderGaleriaAdmin()
-    return
-  }
+  // Os dados já disponíveis aparecem no mesmo clique; o refresh do álbum
+  // roda em segundo plano para captar novas fotos/exclusões recentes.
+  renderGaleriaAdmin()
+  if (_galRole !== 'admin') return
   return _galAbrirAlbumAtualizado(eventoId)
 }
 
@@ -14460,7 +14472,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
         .eq('evento_id', eventoId).order('id', { ascending: true })),
       db.from('evento_subpastas').select('nome').eq('evento_id', eventoId),
     ])
-    if (seq !== _galAlbumAberturaSeq) return
+    if (seq !== _galAlbumAberturaSeq || _galAlbumId !== eventoId) return
 
     const fotos = Array.isArray(fotosResult) ? fotosResult : []
     const nomesPastas = (pastasResult?.data || [])
@@ -14476,7 +14488,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
           _galBuscarVinculosFotosAlbum('foto_pessoa', idsConsulta, 'user_id'),
         ])
       : [[], []]
-    if (seq !== _galAlbumAberturaSeq) return
+    if (seq !== _galAlbumAberturaSeq || _galAlbumId !== eventoId) return
 
     // Substitui só este álbum. RLS continua filtrando cada consulta e nada
     // é inserido/alterado no banco; outros eventos ficam intocados.
@@ -14492,7 +14504,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
     }
     renderGaleriaAdmin()
   } catch (error) {
-    if (seq === _galAlbumAberturaSeq) {
+    if (seq === _galAlbumAberturaSeq && _galAlbumId === eventoId) {
       console.error('Galeria: falha ao atualizar álbum antes de exibir', error)
       toast('Não foi possível carregar todas as fotos deste álbum. Tente novamente.')
     }
@@ -16001,44 +16013,36 @@ async function vincularFilho() {
 // ══════════════════════════════════════════════════════════════
 async function iniciarViewEscola() {
   const minhaSeq = ++_galCargaSeq
-  // embed de count (fotos(count)) traz o total de mídias de cada evento
-  // numa tacada só — sem isso seria uma query extra por card.
-  const { data: eventos, error } = await db.from('eventos').select('*, fotos(count)').order('data', { ascending: false })
-  if (error) { toast('Erro ao carregar eventos: ' + error.message); return }
-  if (minhaSeq !== _galCargaSeq) return
-  store.eventos = eventos || []
-  // sem filtro de escola aqui de propósito (mesmo motivo do "eventos"
-  // duas linhas acima) — RLS (alunos_select) já escopa pro que esse
-  // login pode ver. Filtrar client-side só por meuPerfil.escola_id
-  // (a escola PRINCIPAL) deixava a lista vazia/incompleta pra
-  // professor com vínculo só via escola adicional (professor_escolas)
-  // ou sem escola_id principal nenhuma.
-  const { data: alunos } = await db.from('alunos').select('*').order('nome')
-  if (minhaSeq !== _galCargaSeq) return
-  store.alunos = alunos || []
-  // resto do que a árvore da Galeria precisa — RLS já escopa cada uma
-  // dessas queries pro que esse login pode ver (a própria escola).
-  // fotos/foto_aluno/foto_pessoa sempre recarregam (não só "se
-  // vazio") pelo mesmo motivo do iniciarGaleriaAdmin: são arrays
-  // globais que outra tela pode ter deixado com um recorte parcial.
-  if (!store.escolas.length) { const { data } = await db.from('escolas').select('*'); store.escolas = data || [] }
-  if (!store.turmas.length) { const { data } = await db.from('turmas').select('*'); store.turmas = data || [] }
+  // Iniciar a carga de fotos e de metadados juntos. Antes a navegação
+  // aguardava Eventos -> Alunos -> Escolas -> Turmas e SÓ ENTÃO fotos
+  // e vínculos. Com latência de rede, os tempos se somavam.
+  // Não alteramos as consultas nem os filtros RLS; apenas as executamos
+  // em paralelo e aplicamos o resultado depois de todas terminarem.
+  const precisaEscolas = !store.escolas.length
+  const precisaTurmas = !store.turmas.length
   let resultadoEsc
   try {
-    // Paginação obrigatória: o limite PostgREST de 1.000 registros
-    // truncava o acesso de proprietários/diretores a galerias grandes.
-    // A RLS continua aplicada a cada página no servidor.
     resultadoEsc = await Promise.all([
+      db.from('eventos').select('*, fotos(count)').order('data', { ascending: false }),
+      db.from('alunos').select('*').order('nome'),
+      precisaEscolas ? db.from('escolas').select('*') : Promise.resolve({ data: null, error: null }),
+      precisaTurmas ? db.from('turmas').select('*') : Promise.resolve({ data: null, error: null }),
+      // A paginação é obrigatória para galerias acima do limite PostgREST.
       _galBuscarTodasAsLinhas(() => db.from('fotos').select('*').order('id', { ascending: true })),
       _galBuscarTodasAsLinhas(() => db.from('foto_aluno').select('*').order('foto_id', { ascending: true }).order('aluno_id', { ascending: true })),
       _galBuscarTodasAsLinhas(() => db.from('foto_pessoa').select('*').order('foto_id', { ascending: true }).order('user_id', { ascending: true })),
     ])
   } catch (e) {
-    toast('Erro ao carregar fotos: ' + e.message)
+    if (minhaSeq === _galCargaSeq) toast('Erro ao carregar fotos: ' + e.message)
     return
   }
   if (minhaSeq !== _galCargaSeq) return
-  const [fotos, fa, fp] = resultadoEsc
+  const [eventosRes, alunosRes, escolasRes, turmasRes, fotos, fa, fp] = resultadoEsc
+  if (eventosRes.error) { toast('Erro ao carregar eventos: ' + eventosRes.error.message); return }
+  store.eventos = eventosRes.data || []
+  store.alunos = alunosRes.data || []
+  if (precisaEscolas) store.escolas = escolasRes.data || []
+  if (precisaTurmas) store.turmas = turmasRes.data || []
   store.fotos = fotos
   store.fotoAluno = fa
   store.fotoPessoa = fp
