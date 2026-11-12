@@ -6391,7 +6391,7 @@ async function _portfolioAbrirConfiguracao() {
     const pastas = await _galBuscarTodasAsLinhas(() => db.from('evento_subpastas')
       .select('evento_id,nome').order('evento_id', { ascending: true }).order('nome', { ascending: true }))
     _portfolioEditorPastas = pastas
-    const evs = store.eventos.filter(e => e.id && e.tipo !== 'ensaio')
+    const evs = store.eventos.filter(e => e.id)
     const grupos = [...store.escolas.map(e => ({ id:e.id, nome:e.nome, eventos:evs.filter(ev=>ev.escola_id===e.id) })),
       {id:'',nome:'Eventos sem escola / avulsos',eventos:evs.filter(ev=>!ev.escola_id)}]
     const input = (tipo,id,extra,selecionado,rotulo) =>
