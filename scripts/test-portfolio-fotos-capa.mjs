@@ -93,13 +93,17 @@ assert.ok(renderCount>=3)
 
 const expected=[
  'id="portfolio-fotos-grade"','id="portfolio-fotos-busca"',
+ 'id="portfolio-fotos-origem"','id="portfolio-editor-capa-preview"',
+ 'id="portfolio-editor-contador"',
  'id="portfolio-fotos-so-marcadas"',
  'onclick="_portfolioEditorLimparFotos()"',
  'function _portfolioEditorDefinirCapa(id)',
  'function _portfolioEditorAlternarFoto(id)',
- "cfg.fotos=[..._portfolioEditorFotos]",
- "cfg.capa=permitidas.has(_portfolioEditorCapa)",
- "select('id,evento_id,subpasta,storage_path,thumb_path,criado_em').order('id'",
+ 'function _portfolioEditorBuscarPagina(reiniciar=false)',
+ 'function _portfolioEditorTrocarOrigem()',
+ 'cfg.fotos=[..._portfolioEditorFotos]',
+ 'cfg.capa=capaFoto',
+ "query.range(indice,indice+PORTFOLIO_EDITOR_LOTE-1)",
  'const PORTFOLIO_EDITOR_LOTE = 48',
  'const PORTFOLIO_EDITOR_MAX_FOTOS = 250'
 ]
