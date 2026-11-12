@@ -41,6 +41,12 @@ dialog input[type=checkbox]{min-height:0;width:19px;height:19px}
 .sheet-dialog textarea{display:block;width:100%;border-radius:9px;border:1px solid #d1c5c8;background:white;color:#321e2a;padding:11px;resize:vertical;min-height:78px}
 .sheet-dialog input,.sheet-dialog select{width:100%;max-width:100%}
 .edit-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.sheet-edit-schedule{padding:15px 16px;margin:17px 0;border:1px solid #d4b49f;border-radius:12px;background:#fffaf5}
+.sheet-edit-schedule h3{font-size:16px;color:#5b1732;margin:0 0 8px}
+.sheet-edit-schedule .muted{margin:9px 0}
+.sheet-edit-schedule select{min-height:43px;border:1px solid #d1c5c8;border-radius:8px;background:white;color:#321e2a;padding:8px}
+.sheet-edit-schedule select:disabled{background:#eee9e9;color:#756871}
+@media(max-width:520px){.sheet-edit-schedule .edit-grid{grid-template-columns:minmax(0,1fr)}}
 .edit-grid label{display:grid;gap:6px;font-size:13px;font-weight:650}
 #edit-students,#edit-extras,#columns-list{display:grid;gap:11px;margin:12px 0}
 #edit-students label,#edit-extras label{display:grid;gap:6px;font-weight:650;font-size:13px}

@@ -2,8 +2,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Planilha de respostas | Grand Focus</title>
 <link rel="icon" type="image/png" href="/assets/logo-icone.png">
-<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=20261110-finance-sync1">
-<script type="module" src="/contratar/planilha/planilha.js?v=20261110-finance-sync1"></script></head>
+<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=20261112-remarcacao1">
+<script type="module" src="/contratar/planilha/planilha.js?v=20261112-remarcacao1"></script></head>
 <body>
 <header><a id="back" href="/contratar/admin/">← Voltar à campanha</a>
  <div><h1>Planilha de respostas</h1><p id="campaign-name">Grand Focus · carregando...</p></div>
@@ -33,7 +33,7 @@
  <p id="error" class="error" role="alert" hidden></p>
  <div class="sheet-scroll"><table aria-label="Respostas editáveis da campanha"><thead><tr id="sheet-head"></tr></thead>
  <tbody id="rows"><tr><td colspan="15">Carregando...</td></tr></tbody></table></div>
- <p class="help">Clique em <strong>Editar</strong> para corrigir nomes, contatos, anotações e cores. <strong>Remover</strong> arquiva respostas sem pagamento, sem excluí-las definitivamente. Para corrigir um pagamento, use <strong>Conferir / corrigir</strong>; essa mudança fica registrada no histórico. Os dados são atualizados enquanto a página estiver aberta.</p>
+ <p class="help">Clique em <strong>Editar</strong> para corrigir nomes, contatos, anotações e cores, ou mudar o dia e horário de uma reserva ativa. <strong>Remover</strong> arquiva respostas sem pagamento, sem excluí-las definitivamente. Para corrigir um pagamento, use <strong>Conferir / corrigir</strong>; essa mudança fica registrada no histórico. Os dados são atualizados enquanto a página estiver aberta.</p>
 </main>
 <dialog id="pay-dialog" class="sheet-dialog"><form id="pay-form">
  <h2>Conferência de pagamento</h2><p id="pay-person" class="muted"></p>
@@ -63,6 +63,15 @@
   <label>WhatsApp com DDD <input id="edit-phone" required maxlength="25" inputmode="tel"></label>
  </div>
  <div id="edit-students"></div>
+ <section id="edit-schedule" class="sheet-edit-schedule" hidden>
+  <h3>Data e horário do ensaio</h3>
+  <p id="edit-schedule-info" class="muted" role="status" aria-live="polite">Carregando horários...</p>
+  <div class="edit-grid">
+   <label>Dia do ensaio <select id="edit-schedule-day" disabled></select></label>
+   <label>Horário de início <select id="edit-schedule-time" disabled></select></label>
+  </div>
+  <p class="muted">Só é possível escolher horários livres para todos os bailarinos da família. O cadastro, o pagamento e a confirmação existentes serão preservados.</p>
+ </section>
  <label>Cor da linha <select id="edit-color">
   <option value="sem">Padrão</option><option value="verde">Verde</option>
   <option value="amarelo">Amarelo</option><option value="rosa">Rosa</option>
@@ -70,7 +79,7 @@
  </select></label>
  <label>Anotações internas <textarea id="edit-note" rows="3" maxlength="3000" placeholder="Ex.: figurino, próximo passo, informações da sessão..."></textarea></label>
  <div id="edit-extras"></div>
- <p class="muted">Você pode salvar só a nota ou a cor. O financeiro e os horários ficam protegidos.</p>
+ <p class="muted">Você pode corrigir o cadastro e, quando houver reserva ativa, remarcar para outro horário disponível. Valores e pagamentos nunca são modificados por esta edição.</p>
  <div class="actions"><button type="button" id="edit-cancel">Cancelar</button><button type="submit" id="edit-save">Salvar alterações</button></div>
  <p id="edit-error" class="error" role="alert" hidden></p>
 </form></dialog>
