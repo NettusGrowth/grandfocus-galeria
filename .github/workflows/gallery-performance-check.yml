@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'index.html'
+      - 'admin-importar-acessos.html'
+      - 'scripts/build-gallery.cjs'
+      - 'scripts/test-admin-import-acessos.mjs'
       - 'scripts/test-gallery-performance.mjs'
       - 'scripts/test-gallery-role-navigation.mjs'
       - 'scripts/test-uploader-pagination.mjs'
@@ -29,5 +32,6 @@ jobs:
       - run: node scripts/test-portfolio-fontes.mjs
       - run: node scripts/test-portfolio-fotos-capa.mjs
       - run: node scripts/test-portfolio-auto-scroll.mjs
+      - run: node scripts/test-admin-import-acessos.mjs
       - run: node scripts/test-gallery-load.mjs
       - run: npm run build
