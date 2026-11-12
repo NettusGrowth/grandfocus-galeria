@@ -8906,7 +8906,10 @@ document.addEventListener('click', e => { if (!e.target.closest('.escola-menu-wr
 
 function verGaleriaDaEscola(escolaId) {
   setAdminTab('galeria')
-  iniciarGaleriaAdmin().then(() => { _galRaiz = 'escolas'; _galEscolaId = escolaId; renderGaleriaAdmin() })
+  // Não esperar todo o banco baixar para abrir a pasta da escola.
+  iniciarGaleriaAdmin()
+  _galRaiz = 'escolas'; _galEscolaId = escolaId
+  renderGaleriaAdmin()
 }
 function verComunidadeDaEscola(escolaId) {
   setAdminTab('comunidade')
@@ -14469,7 +14472,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
         .eq('evento_id', eventoId).order('id', { ascending: true })),
       db.from('evento_subpastas').select('nome').eq('evento_id', eventoId),
     ])
-    if (seq !== _galAlbumAberturaSeq) return
+    if (seq !== _galAlbumAberturaSeq || _galAlbumId !== eventoId) return
 
     const fotos = Array.isArray(fotosResult) ? fotosResult : []
     const nomesPastas = (pastasResult?.data || [])
@@ -14485,7 +14488,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
           _galBuscarVinculosFotosAlbum('foto_pessoa', idsConsulta, 'user_id'),
         ])
       : [[], []]
-    if (seq !== _galAlbumAberturaSeq) return
+    if (seq !== _galAlbumAberturaSeq || _galAlbumId !== eventoId) return
 
     // Substitui só este álbum. RLS continua filtrando cada consulta e nada
     // é inserido/alterado no banco; outros eventos ficam intocados.
@@ -14501,7 +14504,7 @@ async function _galAbrirAlbumAtualizado(eventoId) {
     }
     renderGaleriaAdmin()
   } catch (error) {
-    if (seq === _galAlbumAberturaSeq) {
+    if (seq === _galAlbumAberturaSeq && _galAlbumId === eventoId) {
       console.error('Galeria: falha ao atualizar álbum antes de exibir', error)
       toast('Não foi possível carregar todas as fotos deste álbum. Tente novamente.')
     }
