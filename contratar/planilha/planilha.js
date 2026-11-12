@@ -16,7 +16,7 @@ const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'
 const clean=str=>String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const wa=tel=>{let n=String(tel||'').replace(/\D/g,'');if(n.length===10||n.length===11)n='55'+n;return /^55\d{10,11}$/.test(n)?'https://wa.me/'+n:null}
-const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,columns:[],draft:[],editIntentHandled:false}
+const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,editSchedule:null,columns:[],draft:[],editIntentHandled:false}
 const palette=['vinho','dourado','azul','verde','rosa','cinza']
 const rowColors=['sem','verde','amarelo','rosa','azul','cinza']
 const scheduleStatuses={solicitado:'Solicitado',confirmado:'Confirmado',cancelado:'Cancelado'}
@@ -346,6 +346,79 @@ function labelInput(label,id,value,area=false){
  else input.maxLength=120
  wrapper.append(input);return wrapper
 }
+function editScheduleTimeOptions(preferredId=''){
+ const state=data.editSchedule
+ if(!state||!state.ready)return
+ const day=$('edit-schedule-day').value
+ const times=$('edit-schedule-time')
+ const list=state.slots.filter(s=>s.dia===day)
+ times.replaceChildren(new Option('Selecione um horário',''))
+ for(const slot of list){
+  const label=slot.inicio+' – '+slot.fim+
+   (slot.atual?' (atual)':slot.disponivel?'':' (ocupado)')
+  const opt=new Option(label,slot.id)
+  opt.disabled=!slot.disponivel&&!slot.atual
+  times.add(opt)
+ }
+ const choice=list.find(s=>s.id===preferredId&&(s.disponivel||s.atual))
+ times.value=choice?choice.id:''
+ times.disabled=!list.some(s=>s.disponivel||s.atual)
+ $('edit-schedule-info').textContent='Horário atual: '+state.oldLabel+
+  ' · '+state.count+' bailarino(a)(s), '+state.count*15+' minutos. '+ 
+  'Escolha o horário de início; a duração da família será mantida.'
+}
+function editScheduleDateOptions(){
+ const state=data.editSchedule
+ if(!state||!state.ready)return
+ const days=$('edit-schedule-day')
+ days.replaceChildren()
+ const dates=[...new Set(state.slots
+   .filter(s=>s.disponivel||s.atual).map(s=>s.dia))].sort()
+ if(!dates.length){
+  days.add(new Option('Nenhum horário disponível',''))
+  days.disabled=true
+  $('edit-schedule-time').replaceChildren(new Option('Sem horários',''))
+  $('edit-schedule-time').disabled=true
+  $('edit-schedule-info').textContent='Não há horários livres para esta família.'
+  return
+ }
+ for(const day of dates)days.add(new Option(ptDay(day),day))
+ days.value=dates.includes(state.oldDay)?state.oldDay:dates[0]
+ days.disabled=dates.length<=1
+ editScheduleTimeOptions(state.oldSlot)
+}
+function loadEditSchedule(r){
+ data.editSchedule=null
+ const allowed=!!r.slot&&['solicitado','confirmado'].includes(r.scheduleStatus)&&
+  ['gente-que-danca-2026','natal-fada-acucarada-2026'].includes(slug)
+ const section=$('edit-schedule')
+ section.hidden=!allowed
+ if(!allowed)return
+ const state={id:r.id,oldSlot:r.slot,oldDay:r.scheduleDayISO,
+  oldLabel:r.scheduleDay+' · '+r.scheduleTime,slots:[],ready:false,count:r.students?.length||1}
+ data.editSchedule=state
+ $('edit-schedule-day').replaceChildren(new Option('Carregando...',''))
+ $('edit-schedule-day').disabled=true
+ $('edit-schedule-time').replaceChildren(new Option('Carregando...',''))
+ $('edit-schedule-time').disabled=true
+ $('edit-schedule-info').textContent='Consultando a agenda e os horários livres...'
+ request('planilha_horarios_remarcacao',{resposta_id:r.id}).then(payload=>{
+  if(data.editing?.id!==r.id||data.editSchedule!==state)return
+  state.slots=Array.isArray(payload.horarios)?payload.horarios.filter(s=>
+   /^[a-f0-9-]{36}$/i.test(String(s.id))&&/^\\d{4}-\\d{2}-\\d{2}$/.test(s.dia)
+   &&/^\\d{2}:\\d{2}$/.test(s.inicio)):[]
+  state.ready=true
+  state.count=Number(payload.quantidade)||state.count
+  editScheduleDateOptions()
+ }).catch(error=>{
+  if(data.editing?.id!==r.id||data.editSchedule!==state)return
+  $('edit-schedule-info').textContent='Não foi possível consultar a agenda: '+error.message+
+   ' Você ainda pode salvar outros dados sem remarcar.'
+  $('edit-schedule-day').replaceChildren(new Option('Horários indisponíveis',''))
+  $('edit-schedule-time').replaceChildren(new Option('Horários indisponíveis',''))
+ })
+}
+$('edit-schedule-day').onchange=()=>editScheduleTimeOptions()
 function openEdit(r){
  if(r.source!=='formulario'||r.archived)return
  data.editing=r
@@ -371,6 +444,7 @@ function openEdit(r){
   extras.append(x)
  }
  $('edit-dialog').showModal()
+ loadEditSchedule(r)
  $('edit-name').focus()
 }
 $('edit-cancel').onclick=()=>$('edit-dialog').close()
@@ -389,10 +463,33 @@ $('edit-form').addEventListener('submit',async event=>{
   bailarina:alunos?alunos.map(a=>a.nome).join(', '):$('edit-dancer')?.value.trim()||r.dancer,
   alunos,campos,cor:$('edit-color').value,nota:$('edit-note').value
  }
+ const schedule=data.editSchedule
+ let remarcar=false
+ if(schedule&&schedule.id===r.id&&schedule.ready){
+  const chosen=$('edit-schedule-time').value
+  if(!chosen){
+   setDialogError('edit','Escolha um horário válido ou mantenha o dia e horário atuais.');return
+  }
+  remarcar=chosen!==r.slot
+  if(remarcar){
+   const selected=schedule.slots.find(s=>s.id===chosen&&s.disponivel)
+   if(!selected){
+    setDialogError('edit','O horário escolhido não está disponível. Selecione outro.');return
+   }
+   const confirmText='Remarcar '+r.name+' de '+schedule.oldLabel+' para '+
+    ptDay(selected.dia)+' · '+selected.inicio+'–'+selected.fim+
+    '? O pagamento e a situação da reserva serão preservados.'
+   if(!window.confirm(confirmText))return
+   payload.horario_anterior_id=r.slot
+   payload.novo_horario_id=chosen
+  }
+ }
  const b=$('edit-save');b.disabled=true;$('edit-error').hidden=true
  try{
   await request('planilha_editar_resposta',payload)
-  $('edit-dialog').close();toast('Alterações salvas no cadastro, sem alterar pagamentos.')
+  $('edit-dialog').close()
+  toast(remarcar?'Cadastro e horário atualizados com segurança.':'Alterações salvas no cadastro, sem alterar pagamentos.')
+  if(remarcar)notifyFinance('agendamento')
   await refresh()
  }catch(e){setDialogError('edit',e.message)}
  finally{b.disabled=false}
