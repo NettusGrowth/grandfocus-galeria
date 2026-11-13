@@ -11988,7 +11988,7 @@ async function _galUploadRegistrarAlbum(job,eventoId,payload){
   const {data,error}=await db.from('fotos').select('*')
    .eq('evento_id',eventoId).eq('storage_path',job.path).maybeSingle();
   if(error)throw Error('Falha conferindo registro anterior: '+error.message);
-  if(data){job.registro=data;return data;}
+  if(data){job.registro=data;job.registroRecuperado=true;return data;}
  }
  job.tentativasRegistro++;
  const {data,error}=await db.from('fotos').insert(payload).select().single();
@@ -12008,15 +12008,18 @@ async function _galUploadVincularAlbum(job,fotoRow,alunosRoster,pessoasRoster){
    if(error)throw Error('Falha ao verificar marcações: '+error.message);
    const salvos=new Set((data||[]).map(x=>x[chave]));
    pendentes=ids.filter(id=>!salvos.has(id));
+   // Apenas na retentativa, sincroniza marcações que o banco já confirmou.
+   const locais=new Set(lista.filter(x=>x.foto_id===fotoRow.id).map(x=>x[chave]));
+   for(const id of salvos){if(!locais.has(id))lista.push({foto_id:fotoRow.id,[chave]:id});}
   }
   if(pendentes.length){
    job.tagsTentadas[tabela]=true;
    const tags=pendentes.map(id=>({foto_id:fotoRow.id,[chave]:id}));
    const {error}=await db.from(tabela).insert(tags);
    if(error)throw Error('Falha ao marcar pessoa: '+error.message);
-   for(const tag of tags){
-    if(!lista.some(x=>x.foto_id===tag.foto_id&&x[chave]===tag[chave]))lista.push(tag);
-   }
+   // Primeira gravação: a foto é única. Não fazer varredura global de
+   // milhares de vínculos por foto nova (custo quadrático).
+   lista.push(...tags);
   }
   job.tagsConcluidas[tabela]=true;
  }
@@ -12046,7 +12049,10 @@ async function _galUploadProcessarAlbum(job,ctx){
   subpasta:ctx.subpasta||null,largura:t.largura,altura:t.altura,
   largura_original:t.larguraOriginal,altura_original:t.alturaOriginal
  });
- if(!store.fotos.some(x=>x.id===row.id))store.fotos.push(row);
+ if(!job.registroNoStore){
+  if(!job.registroRecuperado||!store.fotos.some(x=>x.id===row.id))store.fotos.push(row);
+  job.registroNoStore=true;
+ }
  if(job.marcarEssaFoto)await _galUploadVincularAlbum(job,row,ctx.alunosRoster,ctx.pessoasRoster);
 }
 function _galUploadResumo(sessao){
@@ -18215,7 +18221,7 @@ async function _galUploadProcessarSelecao(job,ctx){
    const {data,error}=await db.from('selecao_fotos').select('*')
     .eq('galeria_id',galeria.id).eq('storage_path_alta',job.path).maybeSingle();
    if(error)throw Error('Falha ao conferir foto já registrada: '+error.message);
-   if(data)job.registro=data;
+   if(data){job.registro=data;job.registroRecuperado=true;}
   }
   if(!job.registro){
    job.tentativasRegistro++;
@@ -18227,7 +18233,10 @@ async function _galUploadProcessarSelecao(job,ctx){
    job.registro=data;
   }
  }
- if(!galeria.fotos.some(f=>f.id===job.registro.id))galeria.fotos.push(job.registro);
+ if(!job.registroNoStore){
+  if(!job.registroRecuperado||!galeria.fotos.some(f=>f.id===job.registro.id))galeria.fotos.push(job.registro);
+  job.registroNoStore=true;
+ }
 }
 async function uploadFotosSelecao(files,bonus){
  if(!files?.length||!_selecaoDetalheAtual)return;
