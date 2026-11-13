@@ -14560,6 +14560,7 @@ async function renderFotosEventoAdmin() {
   wrap.innerHTML = ordemGrupos.map((nome, i) => {
     const colapsada = nome && _eventoSubpastasColapsadas.has(nome)
     const qtd = grupos.get(nome).length
+    const selecionadasNaPasta = grupos.get(nome).filter(f => _eventoFotoSelecao.has(f.id)).length
     // cabeçalho por grupo só faz sentido quando dá pra confundir com
     // outro grupo — se é a única pasta do evento, o "Selecionar
     // todas" do topo já cobre o mesmo escopo.
@@ -14568,9 +14569,10 @@ async function renderFotosEventoAdmin() {
     <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_eventoDropNaPasta(event,'${escJs(nome)}',this)">
       ${mostraCabecalho ? `<div class="subpasta-titulo">
         ${nome ? `<h3 onclick="_eventoToggleColapsarPasta('${escJs(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="meta">${qtd} foto(s)</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="meta">${qtd} foto(s)${selecionadasNaPasta ? ` · ${selecionadasNaPasta} selecionada(s)` : ''}</span>
           ${qtd ? `<button class="btn btn-sm" onclick="_eventoSelecionarTodasDaPasta('${escJs(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${selecionadasNaPasta ? `<button class="btn btn-sm" title="Retirar somente as fotos selecionadas desta pasta, sem alterar outras pastas" onclick="_eventoDesmarcarTodasDaPasta('${escJs(nome)}')">Desmarcar esta pasta (${selecionadasNaPasta})</button>` : ''}
           ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_eventoApagarPasta('${escJs(nome)}')">${ICON_LIXEIRA}</button>` : ''}
         </div>
       </div>` : ''}
@@ -14605,6 +14607,13 @@ function _eventoSelecionarTodas() {
 function _eventoSelecionarTodasDaPasta(nome) {
   if (!_eventoAtual) return
   store.fotos.filter(f => f.evento_id === _eventoAtual.id && (f.subpasta || '') === (nome || '')).forEach(f => _eventoFotoSelecao.add(f.id))
+  renderFotosEventoAdmin()
+}
+function _eventoDesmarcarTodasDaPasta(nome) {
+  if (!_eventoAtual) return
+  // Remove só as IDs selecionadas desta subpasta; outras pastas ficam intactas.
+  store.fotos.filter(f => f.evento_id === _eventoAtual.id && (f.subpasta || '') === (nome || ''))
+    .forEach(f => _eventoFotoSelecao.delete(f.id))
   renderFotosEventoAdmin()
 }
 function _eventoLimparSelecao() {
@@ -16564,14 +16573,16 @@ async function renderFotosEnsaioAdmin() {
   wrap.innerHTML = ordemGrupos.map((nome, i) => {
     const colapsada = nome && _ensaioSubpastasColapsadas.has(nome)
     const qtd = grupos.get(nome).length
+    const selecionadasNaPasta = grupos.get(nome).filter(f => _ensaioFotoSelecao.has(f.id)).length
     const mostraCabecalho = nome || (ordemGrupos.length > 1 && qtd)
     return `
     <div class="subpasta-grupo${colapsada ? ' colapsada' : ''}" ondragover="event.preventDefault();this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="_ensaioDropNaPasta(event,'${escJs(nome)}',this)">
       ${mostraCabecalho ? `<div class="subpasta-titulo">
         ${nome ? `<h3 onclick="_ensaioToggleColapsarPasta('${escJs(nome)}')"><svg class="colapsa-seta" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>📁 ${esc(nome)}</h3>` : `<h3 style="cursor:default;">Fotos soltas</h3>`}
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span class="meta">${qtd} foto(s)</span>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span class="meta">${qtd} foto(s)${selecionadasNaPasta ? ` · ${selecionadasNaPasta} selecionada(s)` : ''}</span>
           ${qtd ? `<button class="btn btn-sm" onclick="_ensaioSelecionarTodasDaPasta('${escJs(nome)}')">Selecionar todas desta pasta</button>` : ''}
+          ${selecionadasNaPasta ? `<button class="btn btn-sm" title="Retirar somente as fotos selecionadas desta pasta, sem alterar outras pastas" onclick="_ensaioDesmarcarTodasDaPasta('${escJs(nome)}')">Desmarcar esta pasta (${selecionadasNaPasta})</button>` : ''}
           ${nome ? `<button class="icon-btn danger" title="Apagar pasta" onclick="_ensaioApagarPasta('${escJs(nome)}')">${ICON_LIXEIRA}</button>` : ''}
         </div>
       </div>` : ''}
@@ -16603,6 +16614,13 @@ function _ensaioSelecionarTodas() {
 function _ensaioSelecionarTodasDaPasta(nome) {
   if (!_ensaioAtual) return
   store.fotos.filter(f => f.evento_id === _ensaioAtual.id && (f.subpasta || '') === (nome || '')).forEach(f => _ensaioFotoSelecao.add(f.id))
+  renderFotosEnsaioAdmin()
+}
+function _ensaioDesmarcarTodasDaPasta(nome) {
+  if (!_ensaioAtual) return
+  // Remove só as IDs selecionadas desta subpasta, mantendo outras escolhas.
+  store.fotos.filter(f => f.evento_id === _ensaioAtual.id && (f.subpasta || '') === (nome || ''))
+    .forEach(f => _ensaioFotoSelecao.delete(f.id))
   renderFotosEnsaioAdmin()
 }
 function _ensaioLimparSelecao() {
