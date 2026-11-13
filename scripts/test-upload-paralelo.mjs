@@ -24,7 +24,7 @@ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms))
 const originalUploads=new Map()
 let originalsConcurrent=0,maxOriginals=0
 let thumbsConcurrent=0,maxThumbs=0
-let failOriginal=true,failDbOnce=true
+let failOriginal=true,failDbOnce=true,failTagOnce=true
 const rows={fotos:[],foto_aluno:[],foto_pessoa:[],selecao_fotos:[],selecao_galerias:[]}
 let nextId=0
 const fakeDb={from(table){
@@ -33,13 +33,17 @@ const fakeDb={from(table){
   eq(k,v){conditions[k]=v;return this},
   select(){return this},
   maybeSingle:async()=>({data:(rows[table]||[]).find(row=>Object.entries(conditions).every(([k,v])=>row[k]===v))||null,error:null}),
+  then(resolve){return Promise.resolve({data:(rows[table]||[]).filter(row=>Object.entries(conditions).every(([k,v])=>row[k]===v)),error:null}).then(resolve)},
   insert(input){
    const values=Array.isArray(input)?input:[input]
    const saved=values.map(v=>({id:'row'+(++nextId),...v}))
    rows[table]||=[]
    rows[table].push(...saved)
-   const failed=table==='fotos'&&failDbOnce&&String(saved[0].storage_path).includes('-34-')
-   if(failed)failDbOnce=false
+   const failedPhoto=table==='fotos'&&failDbOnce&&String(saved[0].storage_path).includes('-34-')
+   const failedTag=table==='foto_aluno'&&failTagOnce
+   const failed=failedPhoto||failedTag
+   if(failedPhoto)failDbOnce=false
+   if(failedTag)failTagOnce=false
    return {
     then(resolve){return Promise.resolve({error:failed?new Error('Timeout after DB commit'):null}).then(resolve)},
     select(){return {single:async()=>({data:failed?null:saved[0],error:failed?new Error('Timeout after DB commit'):null})}}
@@ -126,6 +130,17 @@ assert.equal(originalUploads.size,300,'Retry não troca os caminhos originais')
 assert.equal([...originalUploads.values()].filter(n=>n>1).length,1,'Somente original com falha é reenviado')
 assert.ok(uiEventRenders>=2,'Visualização atualizada ao finalizar e repetir')
 assert.equal(vm.runInContext('_evtUploadAtivo',ctx),false,'Flag encerrada após upload')
+
+// Cadastro em lote com alunos marcados: timeout depois do commit das marcações.
+ctx.tagFiles=Array.from({length:4},(_,i)=>({name:'tag-'+i+'.jpg',type:'image/jpeg'}))
+vm.runInContext('_eventoAtual.alunos_selecionados=["a1","a2"]',ctx)
+await vm.runInContext('uploadFotosEvento(tagFiles,"Turma A")',ctx)
+assert.equal(vm.runInContext('_galUploadSessoes.evt.jobs.filter(j=>j.estado==="erro").length',ctx),1)
+assert.equal(rows.foto_aluno.length,8,'Falha de resposta não remove marcações já gravadas no banco')
+await vm.runInContext('_galUploadRepetirFalhas("evt")',ctx)
+assert.equal(rows.foto_aluno.length,8,'Retry não duplica relações foto-aluno')
+assert.equal(store.fotoAluno.length,8,'Retry sincroniza vínculos existentes no painel')
+assert.equal(vm.runInContext('_galUploadSessoes.evt.jobs.filter(j=>j.estado==="erro").length',ctx),0)
 
 ctx.ensaioFiles=Array.from({length:110},(_,i)=>({name:'ensaio-'+i+'.jpg',type:'image/jpeg'}))
 vm.runInContext('_ensaioAtual={id:"ens-A",nome:"Retratos",alunos_selecionados:[],pessoas_selecionadas:[]}',ctx)
