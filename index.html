@@ -15137,8 +15137,8 @@ function _galBreadcrumb() {
         const a = store.alunos.find(x => x.id === _galAlunoId)
         partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
       }
-      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
-      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
+      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()' }); if (_galSubpasta) partes.push({ label: esc(_galSubpasta === '__soltas__' ? 'Fotos soltas' : _galSubpasta) }) }
     }
   } else if (_galRaiz === 'escolas') {
     partes.push({ label: 'Escolas', onclick: '_galEscolaId=undefined;_galAlunoId=null;_galAno=null;_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
@@ -15146,8 +15146,8 @@ function _galBreadcrumb() {
     if (_galAlunoId) {
       const a = store.alunos.find(x => x.id === _galAlunoId)
       partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
-      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
-      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
+      if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+      if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()' }); if (_galSubpasta) partes.push({ label: esc(_galSubpasta === '__soltas__' ? 'Fotos soltas' : _galSubpasta) }) }
     } else {
       if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
       if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;renderGaleriaAdmin()' }) }
@@ -15163,8 +15163,8 @@ function _galBreadcrumb() {
       const a = store.alunos.find(x => x.id === _galAlunoId)
       partes.push({ label: esc(a?.nome || ''), onclick: '_galAno=null;_galAlbumId=null;renderGaleriaAdmin()' })
     }
-    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;renderGaleriaAdmin()' })
-    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || '') }) }
+    if (_galAno) partes.push({ label: _galAno, onclick: '_galAlbumId=null;_galSubpasta=null;renderGaleriaAdmin()' })
+    if (_galAlbumId) { const ev = store.eventos.find(e => e.id === _galAlbumId); partes.push({ label: '📁 ' + esc(ev?.nome || ''), onclick: '_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()' }); if (_galSubpasta) partes.push({ label: esc(_galSubpasta === '__soltas__' ? 'Fotos soltas' : _galSubpasta) }) }
   }
   _galBreadcrumbPartes = partes
   return partes.map(p => p.onclick ? `<span onclick="${p.onclick}" style="cursor:pointer;">${p.label}</span>` : `<span>${p.label}</span>`).join(' <span style="opacity:.4;">/</span> ')
@@ -15244,7 +15244,7 @@ function renderGaleriaAdmin() {
   if (_galRaiz === null) { renderGaleriaRaiz(wrap); return }
   if (_galRaiz === 'filhos') {
     if (_galVendoFotosPessoais) { renderGaleriaFotosPessoaisResp(wrap); return }
-    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAlunoOuPastas(wrap); return }
     if (_galAlunoId && _galAno) { renderGaleriaAlbunsDoAno(wrap); return }
     if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
     renderGaleriaListaFilhos(wrap); return
@@ -15265,7 +15265,7 @@ function renderGaleriaAdmin() {
     // 'alunos' derrubava esse papel na tela "todos os alunos, todas as
     // escolas" do admin ao voltar (_galRaiz nunca era desfeito).
     if (_galAlunoId) {
-      if (_galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+      if (_galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAlunoOuPastas(wrap); return }
       if (_galAno) { renderGaleriaAlbunsDoAno(wrap); return }
       renderGaleriaAnosDoAluno(wrap); return
     }
@@ -15281,7 +15281,7 @@ function renderGaleriaAdmin() {
     renderGaleriaEscolas(wrap); return
   }
   if (_galRaiz === 'alunos') {
-    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAluno(wrap); return }
+    if (_galAlunoId && _galAno && _galAlbumId) { renderGaleriaFotosDoAlbumDoAlunoOuPastas(wrap); return }
     if (_galAlunoId && _galAno) { renderGaleriaAlbunsDoAno(wrap); return }
     if (_galAlunoId) { renderGaleriaAnosDoAluno(wrap); return }
     renderGaleriaListaTodosAlunos(wrap); return
@@ -15834,7 +15834,7 @@ function renderGaleriaAlbunsDoAno(wrap) {
     .sort((a, b) => (b.data || '').localeCompare(a.data || ''))
   wrap.innerHTML += `<div class="pasta-grid">${eventos.length ? eventos.map(ev => {
     const lista = porEvento.get(ev.id)
-    return `<div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
+    return `<div class="list-item pasta-item" onclick="_galAlbumId='${ev.id}';_galSubpasta=null;_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">
       ${_galPastaCardHTML(ev.nome + (ev.tipo === 'ensaio' ? ' · avulso' : ''), lista.length, _fotoPreviewPath(lista[0]))}
       <div class="nome">📁 ${esc(ev.nome)}${ev.tipo === 'ensaio' ? ' <span class="meta">· avulso</span>' : ''}</div><div class="meta">${lista.length} foto(s)</div>
     </div>`
@@ -15847,9 +15847,44 @@ function renderGaleriaAlbunsDoAno(wrap) {
 // de pessoa marcada, toolbar, grid paginado), só que a base já vem
 // filtrada por _fotosDoAluno: nunca mistura com a foto de outra
 // criança do mesmo evento, mesmo esse sendo um álbum inteiro da escola.
+// Navegacao das contas individuais: mostrar as pastas do evento
+// somente quando elas contem fotos vinculadas a esta bailarina.
+// Nenhum acesso a fotos de outras alunas ou alteracao no banco.
+function renderGaleriaFotosDoAlbumDoAlunoOuPastas(wrap) {
+  const fotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId)
+  if (_galSubpasta === null && fotos.some(f => f.subpasta)) {
+    const porPasta = new Map()
+    for (const foto of fotos) {
+      const nome = foto.subpasta || '__soltas__'
+      if (!porPasta.has(nome)) porPasta.set(nome, [])
+      porPasta.get(nome).push(foto)
+    }
+    const ev = store.eventos.find(e => e.id === _galAlbumId)
+    const pastas = [...porPasta.keys()].sort((a, b) =>
+      a === '__soltas__' ? -1 : b === '__soltas__' ? 1 : a.localeCompare(b, 'pt-BR', { numeric: true }))
+    wrap.innerHTML += '<div class="section-h" style="margin-top:0;"><h2>' + esc(ev?.nome || '') + '</h2></div>' +
+      '<div class="pasta-grid" style="margin-bottom:12px;">' +
+      pastas.map(nome => {
+        const daPasta = porPasta.get(nome)
+        const soltas = nome === '__soltas__'
+        const titulo = soltas ? 'Fotos soltas' : nome
+        return '<div class="list-item pasta-item" onclick=\'_galSubpasta=' + esc(JSON.stringify(nome)) +
+          ';_galFiltroPessoaAlbum=null;renderGaleriaAdmin()\'>' +
+          _galPastaCardHTML(titulo, daPasta.length, _fotoPreviewPath(daPasta[0])) +
+          '<div class="nome">' + (soltas ? '' : '📁 ') + esc(titulo) + '</div><div class="meta">' +
+          daPasta.length + ' foto(s)</div></div>'
+      }).join('') + '</div>'
+    _hidratarImgCache(wrap)
+    return
+  }
+  renderGaleriaFotosDoAlbumDoAluno(wrap)
+}
+
 function renderGaleriaFotosDoAlbumDoAluno(wrap) {
   const ev = store.eventos.find(e => e.id === _galAlbumId)
-  const todasFotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId)
+  const todasFotos = _fotosDoAluno(_galAlunoId).filter(f => f.evento_id === _galAlbumId && (
+    _galSubpasta === '__soltas__' ? !f.subpasta : _galSubpasta ? f.subpasta === _galSubpasta : true
+  ))
   const idsDoAlbum = new Set(todasFotos.map(f => f.id))
   const pessoasNoAlbum = [
     ...new Set(store.fotoPessoa.filter(x => idsDoAlbum.has(x.foto_id)).map(x => x.user_id)),
@@ -15861,7 +15896,7 @@ function renderGaleriaFotosDoAlbumDoAluno(wrap) {
   _lightboxFotos = fotos
   _galSelecao = new Set()
   wrap.innerHTML += `
-    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}</h2></div>
+    <div class="section-h" style="margin-top:0;"><h2>${esc(ev?.nome || '')}${_galSubpasta ? ' — ' + esc(_galSubpasta === '__soltas__' ? 'Fotos soltas' : _galSubpasta) : ''}</h2></div>
     ${pessoasNoAlbum.length ? `<div class="chip-row gal-chip-row" style="margin-bottom:12px;">
       <span class="chip${!_galFiltroPessoaAlbum ? ' on' : ''}" onclick="_galFiltroPessoaAlbum=null;renderGaleriaAdmin()">Todos</span>
       ${pessoasNoAlbum.map(p => `<span class="chip${_galFiltroPessoaAlbum?.id === p.id ? ' on' : ''}" onclick='_galFiltroPessoaAlbum=${esc(JSON.stringify(p))};renderGaleriaAdmin()'>${esc(p.nome)}</span>`).join('')}
