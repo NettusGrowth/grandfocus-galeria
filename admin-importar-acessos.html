@@ -36,23 +36,27 @@ code{font-size:12px;white-space:nowrap}.pill{font-size:12px;border:1px solid cur
  <div><div class="muted small">GRAND FOCUS · ADMINISTRAÇÃO</div><h1>Importação de acessos</h1></div>
  <a href="/" aria-label="Voltar à galeria">Voltar à galeria</a>
 </div>
-<p class="lead">Importe a aba <strong>CADASTROS_NOVOS</strong> da planilha da Entre Pliés. O sistema confere duplicidades, encontra as bailarinas por nome completo e vincula cada responsável à mesma escola. Nenhuma conta existente terá a senha modificada.</p>
+<p class="lead">Importe diretamente o <strong>CSV baixado da planilha dos formulários</strong> da Grand Focus, ou use o Excel antigo com a aba CADASTROS_NOVOS. O sistema identifica responsáveis, bailarinas e telefone, reúne filhos da mesma família, verifica duplicidades e permite criar os vínculos. Situação de pagamento, valores, horários e outras respostas são ignorados.</p>
 <div class="status" role="status" id="seguranca">Verificando sua sessão administrativa…</div>
 <section class="panel" id="area" hidden>
-<h2>1. Selecione o arquivo Excel</h2>
-<label for="planilha">Planilha de cadastros da Entre Pliés (.xlsx)</label>
-<input type="file" id="planilha" accept=".xlsx,.xls" onchange="lerArquivo(this.files[0])">
-<div class="note small muted">Somente os cadastros marcados como <strong>PRONTO</strong> serão criados. As senhas vêm da sua planilha; não são enviadas para auditoria nem armazenadas em texto simples no banco. Não compartilhe a planilha integral com as famílias.</div>
+<h2>1. Escolha a escola e importe o arquivo</h2>
+<label for="escola-select">Escola à qual serão vinculados os alunos e responsáveis</label>
+<select id="escola-select" onchange="trocarEscola()" aria-describedby="escola-ajuda"><option value="">Selecione uma escola…</option></select>
+<p class="muted small" id="escola-ajuda">O sistema tenta identificar a escola pelo nome do CSV, mas você deve conferir antes de criar.</p>
+<label for="planilha">CSV da planilha do formulário (.csv) ou Excel de acessos (.xlsx)</label>
+<input type="file" id="planilha" accept=".csv,text/csv,.xlsx,.xls" onchange="lerArquivo(this.files[0])">
+<label class="small" style="font-weight:400;margin-top:15px"><input type="checkbox" id="criar-alunas" checked onchange="validarLinhas()"> Cadastrar automaticamente bailarinas novas, somente quando o nome completo for inequívoco e não houver nome parecido no cadastro atual</label>
+<div class="note small muted"><strong>Prévia obrigatória.</strong> Responsáveis que já têm conta conservam o login e a senha; os novos recebem credenciais geradas com segurança. Somente dados de cadastro e vínculo são utilizados. O pagamento e o horário não afetam quem pode ser importado. Guarde a planilha final apenas na administração.</div>
 <div id="resumo" class="grid"></div>
 <div id="tabela-box" hidden>
-<h2>2. Confira as pessoas e os vínculos</h2>
+<h2>2. Confira as famílias e as bailarinas antes de cadastrar</h2>
 <div class="scroll"><table><thead><tr><th>Responsável</th><th>Bailarina(s)</th><th>Login</th><th>Resultado</th></tr></thead><tbody id="linhas"></tbody></table></div>
 <div class="controls">
 <button id="executar" onclick="executar()" disabled>Criar acessos conferidos</button>
 <button class="alt" id="baixar" onclick="baixarCredenciais()" disabled>Baixar credenciais confirmadas (.xlsx)</button>
 <button class="alt" id="revalidar" onclick="revalidar()" disabled>Conferir novamente</button>
 </div>
-<p class="muted small">Os resultados são mantidos apenas nesta página. <strong>Baixe o arquivo de credenciais antes de fechar</strong> depois da criação. Uma falha parcial interrompe a importação para evitar repetição de contas.</p>
+<p class="muted small">Acesso existente não recebe senha nova. <strong>Baixe as credenciais após a criação</strong>, antes de fechar esta página. Qualquer falha interrompe o processamento para evitar duplicação.</p>
 </div>
 <div id="resultado" class="status" role="status" aria-live="polite">Selecione a planilha para iniciar.</div>
 </section>
@@ -67,7 +71,7 @@ const db=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 const criador=createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{
   auth:{storageKey:'gf-importar-acessos-contas',persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}
 });
-let user=null,alunos=[],perfis=[],linhas=[],importando=false;
+let user=null,alunos=[],perfis=[],vinculos=[],escolas=[],linhas=[],importando=false,arquivoCarregado=null;
 const el=id=>document.getElementById(id);
 const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -83,75 +87,252 @@ async function iniciar(){
     if(perfilErr||!['admin','super_admin'].includes(perfil?.role))
       throw Error('A importação é exclusiva para administradores da Grand Focus.');
     user={...usuario,nome:perfil.nome};
+    await carregarEscolas();
     await atualizarBase();
-    el('seguranca').textContent='Administração autorizada · '+(perfil.nome||'Grand Focus')+' · Studio Entrepliés';
+    el('seguranca').textContent='Administração autorizada · '+(perfil.nome||'Grand Focus')+' · Importação de formulários';
     el('seguranca').className='status ok';
     el('area').hidden=false;
   }catch(e){el('seguranca').textContent=e.message||'Falha na autorização.';el('seguranca').className='status bad';}
 }
-async function atualizarBase(){
- const [ra,rp]=await Promise.all([
-   db.from('alunos').select('id,nome,escola_id').eq('escola_id',ENTREPLIES_ID),
-   db.from('perfis').select('user_id,nome,username')
- ]);
- if(ra.error||rp.error)throw Error('Não foi possível conferir os cadastros atuais. Reabra a galeria.');
- alunos=ra.data||[];perfis=rp.data||[];
+
+const escolaAtual=()=>el('escola-select')?.value||'';
+function escolaSelecionada(){return escolas.find(e=>e.id===escolaAtual())||null}
+function nomeArquivoEscola(nomeArquivo){
+ const nome=norm(nomeArquivo).replace(/\s+/g,' ');
+ if(/entre estacoes|entreplies|entre plies/.test(nome))return 'Studio Entrepliés';
+ if(/gente que danca/.test(nome))return 'Gente que Dança';
+ if(/fada acucarada|natal fada/.test(nome))return 'Estúdio Fada Açucarada';
+ return '';
 }
-function jaExiste(r){
- return perfis.find(p=>p.username===r.username||norm(p.nome)===norm(r.nome));
+async function carregarEscolas(){
+ const {data,error}=await db.from('escolas').select('id,nome').order('nome');
+ if(error)throw Error('Não foi possível consultar as escolas. Tente novamente.');
+ escolas=data||[];
+ el('escola-select').innerHTML='<option value="">Escolha uma escola…</option>'+
+ escolas.map(e=>'<option value="'+esc(e.id)+'">'+esc(e.nome)+'</option>').join('');
+}
+function escolaDoArquivo(nome){
+ const previsto=nomeArquivoEscola(nome);
+ if(!previsto)return '';
+ const e=escolas.find(e=>norm(e.nome)===norm(previsto));
+ return e?.id||'';
+}
+async function trocarEscola(){
+ if(importando||linhas.some(r=>['CRIADO','VINCULADO','PARCIAL','AGUARDA CONFIRMAÇÃO'].includes(r.status))){
+   mensagem('Após iniciar o cadastro, não altere a escola. Importe outro arquivo para uma nova escola.',true);
+   return;
+ }
+ try{
+   await atualizarBase();
+   if(linhas.length){validarLinhas();mensagem('Escola selecionada: '+(escolaSelecionada()?.nome||'nenhuma')+'. Confira os vínculos novamente.');}
+ }catch(e){mensagem(e.message,true)}
+}
+async function atualizarBase(){
+ const escola=escolaAtual();
+ const [ra,rp,rv]=await Promise.all([
+   escola?db.from('alunos').select('id,nome,escola_id').eq('escola_id',escola):Promise.resolve({data:[],error:null}),
+   db.from('perfis').select('user_id,nome,username,telefone,role,escola_id'),
+   db.from('responsavel_alunos').select('user_id,aluno_id')
+ ]);
+ if(ra.error||rp.error||rv.error)throw Error('Não foi possível conferir os cadastros atuais. Reabra a galeria.');
+ alunos=ra.data||[];perfis=rp.data||[];vinculos=rv.data||[];
+}
+function senhaSegura(){
+ const alphabet='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@$';
+ const valores=new Uint8Array(24);crypto.getRandomValues(valores);
+ return Array.from(valores,x=>alphabet[x%alphabet.length]).join('');
+}
+function usernameBase(nome){
+ const words=norm(nome).split(' ').filter(Boolean);
+ const prefix=escolaAtual()===ENTREPLIES_ID?'ep':norm(escolaSelecionada()?.nome||'escola').split(' ')
+   .filter(w=>!['de','da','do','estudio','studio','que'].includes(w)).map(w=>w[0]).join('').slice(0,4)||'gf';
+ const first=words[0]||'usuario',last=words[words.length-1]||'novo';
+ return (prefix+'.'+first+'.'+last).slice(0,30);
+}
+function usuarioDisponivel(nome,ocupados){
+ const base=usernameBase(nome);
+ for(let suffix=0;suffix<200;suffix++){
+   const login=(base+(suffix?'.'+(suffix+1):'')).slice(0,32);
+   if(!ocupados.has(login)){ocupados.add(login);return login}
+ }
+ throw Error('Não foi possível gerar login exclusivo para '+nome);
+}
+function separarBailarinas(texto){
+ return [...new Map(String(texto||'').split(/\s*[,;|\n]\s*|\s+\/\s+/)
+   .map(s=>s.trim()).filter(Boolean).map(s=>[norm(s),s])).values()];
+}
+function interpretarCSV(texto){
+ const s=String(texto||'').replace(/^\uFEFF/,'');
+ const cabecalho=s.split(/\r?\n/,1)[0]||'';
+ const sep=[';',',','\t'].map(c=>[c,cabecalho.split(c).length-1]).sort((a,b)=>b[1]-a[1])[0][0];
+ const rows=[];let row=[],cell='',quoted=false;
+ for(let i=0;i<s.length;i++){
+   const c=s[i];
+   if(c==='"'){
+     if(quoted&&s[i+1]==='"'){cell+='"';i++}else quoted=!quoted;
+   }else if(c===sep&&!quoted){row.push(cell);cell=''}
+   else if((c==='\n'||c==='\r')&&!quoted){
+     if(c==='\r'&&s[i+1]==='\n')i++;
+     row.push(cell);if(row.some(x=>String(x).trim()))rows.push(row);
+     row=[];cell='';
+   }else cell+=c;
+ }
+ if(quoted)throw Error('CSV com aspas sem fechamento. Exporte novamente a planilha.');
+ row.push(cell);if(row.some(x=>String(x).trim()))rows.push(row);
+ if(rows.length<2)return [];
+ const headings=rows.shift().map(s=>String(s).trim().replace(/^\uFEFF/,''));
+ if(!headings.some(s=>norm(s)==='responsavel')||
+    !headings.some(s=>norm(s)==='bailarinas'||norm(s).startsWith('bailarina'))){
+   throw Error('CSV incompatível: precisa das colunas Responsável e Bailarinas do formulário Grand Focus.');
+ }
+ return rows.map((values,i)=>Object.fromEntries(headings.map((col,j)=>[col,values[j]||''])));
+}
+function registrosDoArquivo(arquivo,conteudo){
+ if(/\.csv$/i.test(arquivo.name)){
+   return {tipo:'csv',registros:interpretarCSV(new TextDecoder('utf-8').decode(conteudo))};
+ }
+ const wb=XLSX.read(conteudo,{type:'array'});
+ if(wb.Sheets.CADASTROS_NOVOS){
+   return {tipo:'legado',registros:XLSX.utils.sheet_to_json(wb.Sheets.CADASTROS_NOVOS,{defval:'',raw:false})};
+ }
+ const sheet=wb.Sheets[wb.SheetNames[0]];
+ const registros=XLSX.utils.sheet_to_json(sheet,{defval:'',raw:false});
+ if(!registros.length||!('RESPONSÁVEL' in Object.fromEntries(Object.entries(registros[0]).map(([k,v])=>[norm(k).toUpperCase(),v])))){
+   if(!registros[0]||!Object.keys(registros[0]).some(k=>norm(k)==='responsavel'))
+     throw Error('Selecione um CSV dos formulários ou o Excel com a aba CADASTROS_NOVOS.');
+ }
+ return {tipo:'csv',registros};
+}
+function construirLinhas(registros,tipo){
+ if(tipo==='legado'){
+   return registros.map((reg,i)=>({
+     linha:i+2,nome:coluna(reg,'responsavel'),filhos:coluna(reg,'bailarina'),
+     telefone:coluna(reg,'whatsapp').replace(/\D/g,'').slice(0,20),
+     username:coluna(reg,'usuario proposto').toLowerCase(),
+     senha:coluna(reg,'senha proposta'),tipo,
+     status:'PENDENTE',erro:'',aluno_ids:[],novas:[]
+   }));
+ }
+ const agrupados=new Map(), telefones=new Map();
+ for(const [idx,reg] of registros.entries()){
+   const nome=coluna(reg,'responsavel').trim().replace(/\s+/g,' ');
+   const telefone=coluna(reg,'whatsapp').replace(/\D/g,'').slice(0,20);
+   const email=coluna(reg,'e-mail')||coluna(reg,'email');
+   const filhos=separarBailarinas(coluna(reg,'bailarina'));
+   const chave=norm(nome);
+   if(!chave)continue;
+   if(!agrupados.has(chave)){
+     agrupados.set(chave,{linha:idx+2,nome,telefone,email,filhos:'',filhosLista:new Map(),
+       username:'',senha:'',tipo,status:'PENDENTE',erro:'',aluno_ids:[],novas:[],problemas:[]});
+   }
+   const row=agrupados.get(chave);
+   if(row.telefone&&telefone&&row.telefone!==telefone)row.problemas.push('Telefone divergente para o mesmo responsável.');
+   if(!row.telefone&&telefone)row.telefone=telefone;
+   if(!row.email&&email)row.email=email;
+   for(const child of filhos)row.filhosLista.set(norm(child),child);
+   if(telefone){
+     const outro=telefones.get(telefone);
+     if(outro&&outro!==chave){
+       row.problemas.push('Este WhatsApp aparece com outro responsável no arquivo.');
+       agrupados.get(outro)?.problemas.push('Este WhatsApp aparece com outro responsável no arquivo.');
+     }
+     telefones.set(telefone,chave);
+   }
+ }
+ const ocupados=new Set(perfis.map(p=>p.username).filter(Boolean));
+ const result=[...agrupados.values()];
+ for(const r of result){
+   r.filhos=[...r.filhosLista.values()].join('; ');
+   delete r.filhosLista;
+   r.username=usuarioDisponivel(r.nome,ocupados);
+   r.senha=senhaSegura();
+ }
+ return result;
+}
+function procurarResponsavel(r){
+ const candidatos=perfis.filter(p=>norm(p.nome)===norm(r.nome) ||
+   (r.telefone&&p.telefone&&String(p.telefone).replace(/\D/g,'')===r.telefone) ||
+   p.username===r.username);
+ if(!candidatos.length)return {encontrado:null,erro:''};
+ if(candidatos.length!==1)return {encontrado:null,erro:'Múltiplos cadastros possivelmente correspondentes. Conferir manualmente.'};
+ const p=candidatos[0],mesmoNome=norm(p.nome)===norm(r.nome);
+ const telDb=String(p.telefone||'').replace(/\D/g,'');
+ if(!mesmoNome)return {encontrado:null,erro:'Telefone ou usuário pertence a '+p.nome+'. Confirme antes de vincular.'};
+ if(telDb&&r.telefone&&telDb!==r.telefone)return {encontrado:null,erro:'Telefone diferente do cadastro de '+p.nome+'. Confirmar manualmente.'};
+ if(p.role!=='responsavel')return {encontrado:null,erro:'Usuário existente com outra função. Confirmar manualmente.'};
+ if(p.escola_id&&p.escola_id!==escolaAtual())return {encontrado:null,erro:'Responsável vinculado a outra escola. Confirmar manualmente.'};
+ return {encontrado:p,erro:''};
 }
 function idsDasAlunas(r){
- const nomes=r.filhos.split(/[;|\n]+/).map(s=>s.trim()).filter(Boolean);
- if(!nomes.length)return {erro:'Sem bailarina indicada',ids:[]};
- const ids=[],erro=[];
+ const nomes=separarBailarinas(r.filhos);
+ if(!nomes.length)return {erro:'Sem bailarina indicada',ids:[],novas:[]};
+ const ids=[],novas=[],erros=[];
  for(const nome of nomes){
-   const matches=alunos.filter(a=>norm(a.nome)===norm(nome));
-   if(matches.length!==1)erro.push(nome+' ('+(matches.length?'ambíguo':'não encontrado')+')');
-   else if(!ids.includes(matches[0].id))ids.push(matches[0].id);
+   const normalized=norm(nome);
+   const matches=alunos.filter(a=>norm(a.nome)===normalized);
+   if(matches.length===1){if(!ids.includes(matches[0].id))ids.push(matches[0].id);continue;}
+   if(matches.length>1){erros.push(nome+' (duplicada na escola)');continue;}
+   const parecidas=alunos.filter(a=>{
+     const atual=norm(a.nome);
+     return (atual.length>=3&&normalized.startsWith(atual+' ')) ||
+       (normalized.length>=3&&atual.startsWith(normalized+' '));
+   });
+   if(parecidas.length){erros.push(nome+' (nome semelhante: '+parecidas.map(x=>x.nome).join(', ')+')');continue;}
+   if(r.tipo==='csv'&&el('criar-alunas')?.checked&&normalized.split(' ').length>=2&&normalized.length>=8&&
+      !/\d/.test(nome)&&!['nao informada','nenhuma','nao sei'].includes(normalized)){
+     novas.push(nome);continue;
+   }
+   erros.push(nome+' (não cadastrada na escola; conferir nome completo)');
  }
- return {ids,erro:erro.length?'Verificar: '+erro.join('; '):''};
+ return {ids,novas,erro:erros.length?'Verificar: '+erros.join('; '):''};
 }
 function validarLinhas(){
  const usados=new Set();
  linhas.forEach(r=>{
-   if(r.status==='CRIADO'||r.status==='PARCIAL'||r.status==='AGUARDA CONFIRMAÇÃO')return;
-   r.status='PRONTO';r.erro='';
-   const existente=jaExiste(r);
-   const filhos=idsDasAlunas(r);r.aluno_ids=filhos.ids;
-   if(existente){r.status='EXISTENTE';r.erro='Cadastro anterior: '+(existente.username||existente.nome);}
-   else if(!/^[a-z0-9._-]{3,32}$/.test(r.username)||r.nome.length<4||r.senha.length<12)
-     {r.status='REVISAR';r.erro='Nome, usuário ou senha insuficiente';}
+   if(['CRIADO','VINCULADO','PARCIAL','AGUARDA CONFIRMAÇÃO'].includes(r.status))return;
+   r.status='PRONTO';r.erro='';r.existeUser=null;
+   const familia=procurarResponsavel(r);
+   const filhos=idsDasAlunas(r);
+   r.aluno_ids=filhos.ids;r.novas=filhos.novas;
+   if(!escolaAtual()){r.status='REVISAR';r.erro='Selecione a escola antes de importar.';}
+   else if(r.problemas?.length){r.status='REVISAR';r.erro=[...new Set(r.problemas)].join(' ');}
+   else if(familia.erro){r.status='REVISAR';r.erro=familia.erro;}
    else if(filhos.erro){r.status='REVISAR';r.erro=filhos.erro;}
-   else if(usados.has(r.username)||usados.has('nome:'+norm(r.nome)))
-     {r.status='REVISAR';r.erro='Repetido dentro da planilha';}
+   else if(familia.encontrado){
+     r.existeUser=familia.encontrado;
+     const jaVinculados=new Set(vinculos.filter(v=>v.user_id===r.existeUser.user_id).map(v=>v.aluno_id));
+     const faltam=r.aluno_ids.filter(id=>!jaVinculados.has(id));
+     r.status=faltam.length||r.novas.length?'VINCULAR':'EXISTENTE';
+     r.username=r.existeUser.username||r.username;
+     r.senha=''; // Senha de acesso anterior nunca é conhecida nem substituída.
+     r.erro=r.status==='VINCULAR'?'Conta existente: apenas novos vínculos serão adicionados.':'Conta e vínculos já existentes.';
+   }else if(!/^[a-z0-9._-]{3,32}$/.test(r.username)||r.nome.length<4||r.senha.length<12){
+     r.status='REVISAR';r.erro='Nome, usuário ou senha insuficiente.';
+   }else if(perfis.some(p=>p.username===r.username)||usados.has(r.username)){
+     r.status='REVISAR';r.erro='Usuário de acesso duplicado.';
+   }
+   if(usados.has('nome:'+norm(r.nome))){r.status='REVISAR';r.erro='Responsável duplicado na planilha.';}
    usados.add(r.username);usados.add('nome:'+norm(r.nome));
  });
  render();
 }
 async function lerArquivo(arquivo){
- if(importando)return;
- if(!arquivo)return;
+ if(importando||!arquivo)return;
  try{
-   if(!/\.xlsx?$/i.test(arquivo.name))throw Error('Selecione um arquivo Excel .xlsx ou .xls.');
+   if(!/\.(csv|xlsx|xls)$/i.test(arquivo.name))throw Error('Selecione um CSV exportado dos formulários ou um Excel .xlsx.');
    if(!user)throw Error('Sessão de administrador não autorizada.');
-   const wb=XLSX.read(await arquivo.arrayBuffer(),{type:'array'});
-   const ws=wb.Sheets.CADASTROS_NOVOS;
-   if(!ws)throw Error('A planilha precisa conter a aba CADASTROS_NOVOS.');
-   const registros=XLSX.utils.sheet_to_json(ws,{defval:'',raw:false});
-   if(!registros.length||registros.length>100)throw Error('O arquivo deve conter entre 1 e 100 linhas.');
+   const suggested=escolaDoArquivo(arquivo.name);
+   if(suggested&&el('escola-select').value!==suggested)el('escola-select').value=suggested;
+   if(!escolaAtual())throw Error('Selecione a escola do formulário antes de importar o CSV.');
    await atualizarBase();
-   linhas=registros.map((reg,i)=>({
-     linha:i+2,
-     nome:coluna(reg,'responsavel'),
-     filhos:coluna(reg,'bailarina'),
-     telefone:coluna(reg,'whatsapp').replace(/\D/g,'').slice(0,20),
-     username:coluna(reg,'usuario proposto').toLowerCase(),
-     senha:coluna(reg,'senha proposta'),
-     status:'PENDENTE',erro:'',aluno_ids:[],
-   }));
+   const parsed=registrosDoArquivo(arquivo,await arquivo.arrayBuffer());
+   if(!parsed.registros.length||parsed.registros.length>1000)throw Error('O arquivo deve conter de 1 a 1.000 respostas.');
+   linhas=construirLinhas(parsed.registros,parsed.tipo);
+   arquivoCarregado=arquivo.name;
+   if(!linhas.length)throw Error('Nenhum responsável encontrado no arquivo.');
    el('tabela-box').hidden=false;
    validarLinhas();
-   mensagem('Arquivo conferido. Revise a prévia antes de criar os acessos.');
+   mensagem('Arquivo '+arquivo.name+' lido. '+parsed.registros.length+' respostas agrupadas em '+linhas.length+' família(s). Verifique a escola, os nomes e os vínculos.');
  }catch(e){linhas=[];render();mensagem(e.message||'Falha ao ler a planilha.',true);}
 }
 function render(){
