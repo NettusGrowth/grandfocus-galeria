@@ -10,6 +10,7 @@ on:
       - 'scripts/test-gallery-role-navigation.mjs'
       - 'scripts/test-uploader-pagination.mjs'
       - 'scripts/test-upload-paralelo.mjs'
+      - 'scripts/test-desmarcar-pasta.mjs'
       - 'scripts/test-portfolio-fontes.mjs'
       - 'scripts/test-portfolio-fotos-capa.mjs'
       - 'scripts/test-portfolio-auto-scroll.mjs'
@@ -31,6 +32,7 @@ jobs:
       - run: node scripts/test-gallery-role-navigation.mjs
       - run: node scripts/test-uploader-pagination.mjs
       - run: node scripts/test-upload-paralelo.mjs
+      - run: node scripts/test-desmarcar-pasta.mjs
       - run: node scripts/test-portfolio-fontes.mjs
       - run: node scripts/test-portfolio-fotos-capa.mjs
       - run: node scripts/test-portfolio-auto-scroll.mjs
