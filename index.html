@@ -16462,70 +16462,16 @@ async function _recarregarFotosEnsaio(ensaioId) {
   }
 }
 
-async function uploadFotosEnsaio(files, subpasta, marcarPorFoto) {
-  if (!files?.length || !_ensaioAtual) return
-  if (_ensUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
-  _ensUploadAtivo = true
-  ++_ensaioUploaderCargaSeq // cancela refresh iniciado antes deste upload
-  try {
-  // mesmo motivo do uploadFotosEvento: captura tudo antes do loop pra
-  // sobreviver o admin trocando de ensaio (ou saindo da tela) enquanto
-  // o envio ainda está rolando em segundo plano.
-  const ensaioId = _ensaioAtual.id
-  const ensaioNome = _ensaioAtual.nome || ''
-  const alunosRoster = _ensaioAtual.alunos_selecionados || []
-  const pessoasRoster = _ensaioAtual.pessoas_selecionadas || []
-  const estados = files.map(() => 'aguardando')
-  _renderFilaUpload('ens', files, estados)
-  let ok = 0
-  let totalMarcados = 0
-  let falhasMarcacao = 0
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const marcarEssaFoto = marcarPorFoto ? marcarPorFoto[i] !== false : true
-    estados[i] = 'enviando'; _renderFilaUpload('ens', files, estados)
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `${ensaioId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await _r2Upload(path, file, file.type || 'application/octet-stream')
-    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    // mesmo motivo do uploadFotosEvento: marca d'água só existe na
-    // Seleção de Fotos, aqui a prévia é só redimensionada.
-    let thumbPath = null, largura = null, altura = null, larguraOriginal = null, alturaOriginal = null
-    try {
-      const thumb = await _gerarThumbGaleria(file)
-      thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await _r2Upload(thumbPath, thumb.blob, 'image/jpeg')
-      if (thumbErr) thumbPath = null
-      else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
-    } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: ensaioId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
-    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('ens', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
-    store.fotos.push(fotoRow)
-    const rosterAlunos = marcarEssaFoto ? alunosRoster : []
-    const rosterPessoas = marcarEssaFoto ? pessoasRoster : []
-    if (rosterAlunos.length) {
-      const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
-      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (tagErr) { console.error('marcar alunos na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
-      else { store.fotoAluno.push(...tags); totalMarcados += tags.length }
-    }
-    if (rosterPessoas.length) {
-      const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
-      const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (tagErr) { console.error('marcar pessoas na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
-      else { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
-    }
-    estados[i] = 'ok'; _renderFilaUpload('ens', files, estados)
-    ok++
-  }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}${falhasMarcacao ? ` — ⚠ ${falhasMarcacao} marcação(ões) falharam, confira manualmente` : ''}`)
-  const inputEl = document.getElementById('ens-upload-input')
-  if (inputEl) inputEl.value = ''
-  if (_ensaioAtual?.id === ensaioId) renderFotosEnsaioAdmin()
-  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', ensaioId, `${ok} de ${files.length} foto(s) — ${ensaioNome}`)
-  } finally {
-    _ensUploadAtivo = false
-  }
+async function uploadFotosEnsaio(files,subpasta,marcarPorFoto){
+ if(!files?.length||!_ensaioAtual)return;
+ if(_galUploadAtivo()){toast('Um envio já está em andamento.');return;}
+ const ensaio=_ensaioAtual;
+ ++_ensaioUploaderCargaSeq // cancela refresh iniciado antes deste upload
+ const ctx={eventoId:ensaio.id,eventoNome:ensaio.nome||'',subpasta,
+  alunosRoster:[...(ensaio.alunos_selecionados||[])],
+  pessoasRoster:[...(ensaio.pessoas_selecionadas||[])]};
+ try{await _galUploadIniciarAlbum('ens',files,subpasta,marcarPorFoto,ctx);}
+ finally{const input=document.getElementById('ens-upload-input');if(input)input.value='';}
 }
 
 function _fotoItemEnsaioAdminHTML(f, pessoasDisponiveis, contagemMarcacoes) {
@@ -18213,67 +18159,71 @@ function _renderSelecaoPedidoFotosGrid() {
   })
 }
 
-async function uploadFotosSelecao(files, bonus) {
-  if (!files?.length || !_selecaoDetalheAtual) return
-  if (_selUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
-  _selUploadAtivo = true
-  try {
-  // captura a galeria (por referência, não só o id) no início — se o
-  // admin sair dessa galeria (ou voltar pra lista) no meio do envio,
-  // `_selecaoDetalheAtual` passa a apontar pra outro objeto (ou null);
-  // sem isso, o resto das fotos contava "ordem"/atualizava a capa da
-  // galeria ERRADA, ou tentava re-renderizar por cima de outra tela —
-  // mesma causa raiz já corrigida antes em uploadFotosEvento/Ensaio.
-  const galeria = _selecaoDetalheAtual
-  const galeriaId = galeria.id
-  const estados = files.map(() => 'aguardando')
-  _renderFilaUpload('sel', files, estados)
-  let ok = 0
-  let primeiraCapaCandidata = null
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    estados[i] = 'enviando'; _renderFilaUpload('sel', files, estados)
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const sufixo = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    const altaPath = `selecoes/${galeriaId}/alta-${sufixo}.${ext}`
-    const { error: upErr } = await _r2Upload(altaPath, file, file.type || 'application/octet-stream')
-    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    let levePath
-    try {
-      const blob = await _gerarThumbWatermark(file)
-      levePath = `selecoes/${galeriaId}/leve-${sufixo}.jpg`
-      const { error: upLeveErr } = await _r2Upload(levePath, blob, 'image/jpeg')
-      if (upLeveErr) throw upLeveErr
-    } catch (e) {
-      estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao gerar prévia de ${file.name}`); continue
-    }
-    const { data: fotoRow, error: insErr } = await db.from('selecao_fotos').insert({
-      galeria_id: galeriaId, storage_path: levePath, storage_path_alta: altaPath, ordem: galeria.fotos.length, nome_original: file.name, bonus: !!bonus,
-    }).select().single()
-    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('sel', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
-    galeria.fotos.push(fotoRow)
-    if (!primeiraCapaCandidata) primeiraCapaCandidata = levePath
-    estados[i] = 'ok'; _renderFilaUpload('sel', files, estados)
-    ok++
+// Upload de seleção: mesmo limite de 3 em paralelo e recuperação por
+// etapa, mantendo a ordem escolhida para que fotos não mudem de lugar.
+async function _galUploadProcessarSelecao(job,ctx){
+ const galeria=ctx.galeria;
+ if(!job.path){
+  const ext=(job.file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+  const sufixo=Date.now()+'-'+job.i+'-'+Math.random().toString(36).slice(2,12);
+  job.path='selecoes/'+galeria.id+'/alta-'+sufixo+'.'+ext;
+  job.levePath='selecoes/'+galeria.id+'/leve-'+sufixo+'.jpg';
+ }
+ if(!job.originalOk){
+  const {error}=await _r2Upload(job.path,job.file,job.file.type||'application/octet-stream');
+  if(error)throw Error('Envio original: '+error.message);
+  job.originalOk=true;
+ }
+ if(!job.previaOk){
+  const blob=await _galUploadGerarThumb(job.file,_gerarThumbWatermark);
+  const {error}=await _r2Upload(job.levePath,blob,'image/jpeg');
+  if(error)throw Error('Envio da prévia: '+error.message);
+  job.previaOk=true;
+ }
+ if(!job.registro){
+  if(job.tentativasRegistro){
+   const {data,error}=await db.from('selecao_fotos').select('*')
+    .eq('galeria_id',galeria.id).eq('storage_path_alta',job.path).maybeSingle();
+   if(error)throw Error('Falha ao conferir foto já registrada: '+error.message);
+   if(data)job.registro=data;
   }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso`)
-  const inputEl = document.getElementById('sel-upload-input')
-  if (inputEl) inputEl.value = ''
-  if (ok) registrarAuditoria('fez upload de fotos de seleção', 'selecao_galerias', galeriaId, `${ok} foto(s)`)
-  // primeira leva de fotos da galeria vira capa automaticamente — só
-  // pra ter alguma prévia de cara; o admin pode trocar por qualquer
-  // outra foto a qualquer momento (botão "Usar como capa" no grid).
-  if (ok && !galeria.capa_url && primeiraCapaCandidata) {
-    const { error: capaErr } = await db.from('selecao_galerias').update({ capa_url: primeiraCapaCandidata }).eq('id', galeriaId)
-    if (!capaErr) galeria.capa_url = primeiraCapaCandidata
+  if(!job.registro){
+   job.tentativasRegistro++;
+   const {data,error}=await db.from('selecao_fotos').insert({
+    galeria_id:galeria.id,storage_path:job.levePath,storage_path_alta:job.path,
+    ordem:ctx.ordemBase+job.i,nome_original:job.nome,bonus:!!ctx.bonus,
+   }).select().single();
+   if(error||!data)throw Error('Falha ao registrar foto: '+(error?.message||'registro vazio'));
+   job.registro=data;
   }
-  // só redesenha a tela se o admin ainda estiver olhando pra ESSA
-  // galeria — se ele já saiu, `_selecaoDetalheAtual` é outro objeto
-  // (ou null) e desenhar por cima seria mostrar dado errado.
-  if (_selecaoDetalheAtual === galeria) _renderSelecaoFotosGrid()
-  } finally {
-    _selUploadAtivo = false
-  }
+ }
+ if(!galeria.fotos.some(f=>f.id===job.registro.id))galeria.fotos.push(job.registro);
+}
+async function uploadFotosSelecao(files,bonus){
+ if(!files?.length||!_selecaoDetalheAtual)return;
+ if(_galUploadAtivo()){toast('Um envio já está em andamento.');return;}
+ const galeria=_selecaoDetalheAtual;
+ const ordemBase=Math.max(galeria.fotos.length,
+  ...galeria.fotos.map(f=>(Number(f.ordem)||0)+1));
+ const ctx={galeria,ordemBase,bonus};
+ const sessao=_galUploadNovaSessao('sel',files,
+  j=>_galUploadProcessarSelecao(j,ctx),async s=>{
+   const info=_galUploadResumo(s);
+   if(info.ok)registrarAuditoria('fez upload de fotos de seleção',
+    'selecao_galerias',galeria.id,info.ok+' fotos');
+   const primeira=s.jobs.find(j=>j.estado==='ok'&&j.registro);
+   if(primeira&&!galeria.capa_url){
+    const {error}=await db.from('selecao_galerias')
+     .update({capa_url:primeira.levePath}).eq('id',galeria.id);
+    if(!error)galeria.capa_url=primeira.levePath;
+   }
+   if(_selecaoDetalheAtual===galeria)_renderSelecaoFotosGrid();
+   toast(info.ok+' de '+s.jobs.length+' foto(s) enviadas'+
+    (info.erros?' · '+info.erros+' falha(s): use Reenviar falhas':''));
+  });
+ if(!sessao)return;
+ try{await _galUploadExecutar(sessao);}
+ finally{const input=document.getElementById('sel-upload-input');if(input)input.value='';}
 }
 
 async function _definirCapaSelecao(fotoId) {
