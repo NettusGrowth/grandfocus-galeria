@@ -95,6 +95,7 @@ async function iniciar(){
   }catch(e){el('seguranca').textContent=e.message||'Falha na autorização.';el('seguranca').className='status bad';}
 }
 
+const telefoneComparavel=s=>{const d=String(s||'').replace(/\D/g,'');return d.length===13&&d.startsWith('55')?d.slice(2):d.length===12&&d.startsWith('0')?d.slice(1):d;};
 const escolaAtual=()=>el('escola-select')?.value||'';
 function escolaSelecionada(){return escolas.find(e=>e.id===escolaAtual())||null}
 function nomeArquivoEscola(nomeArquivo){
@@ -226,17 +227,19 @@ function construirLinhas(registros,tipo){
        username:'',senha:'',tipo,status:'PENDENTE',erro:'',aluno_ids:[],novas:[],problemas:[]});
    }
    const row=agrupados.get(chave);
-   if(row.telefone&&telefone&&row.telefone!==telefone)row.problemas.push('Telefone divergente para o mesmo responsável.');
+   // O mesmo nome completo identifica a família, mesmo que um número tenha sido digitado errado.
+   if(row.telefone&&telefone&&telefoneComparavel(row.telefone)!==telefoneComparavel(telefone))row.avisos=['Telefones diferentes nas respostas. Confira o contato antes de enviar credenciais.'];
    if(!row.telefone&&telefone)row.telefone=telefone;
    if(!row.email&&email)row.email=email;
    for(const child of filhos)row.filhosLista.set(norm(child),child);
    if(telefone){
-     const outro=telefones.get(telefone);
+     const chaveTelefone=telefoneComparavel(telefone);
+     const outro=telefones.get(chaveTelefone);
      if(outro&&outro!==chave){
        row.problemas.push('Este WhatsApp aparece com outro responsável no arquivo.');
        agrupados.get(outro)?.problemas.push('Este WhatsApp aparece com outro responsável no arquivo.');
      }
-     telefones.set(telefone,chave);
+     telefones.set(chaveTelefone,chave);
    }
  }
  const ocupados=new Set(perfis.map(p=>p.username).filter(Boolean));
@@ -251,14 +254,13 @@ function construirLinhas(registros,tipo){
 }
 function procurarResponsavel(r){
  const candidatos=perfis.filter(p=>norm(p.nome)===norm(r.nome) ||
-   (r.telefone&&p.telefone&&String(p.telefone).replace(/\D/g,'')===r.telefone) ||
+   (r.telefone&&p.telefone&&telefoneComparavel(p.telefone)===telefoneComparavel(r.telefone)) ||
    p.username===r.username);
  if(!candidatos.length)return {encontrado:null,erro:''};
  if(candidatos.length!==1)return {encontrado:null,erro:'Múltiplos cadastros possivelmente correspondentes. Conferir manualmente.'};
  const p=candidatos[0],mesmoNome=norm(p.nome)===norm(r.nome);
- const telDb=String(p.telefone||'').replace(/\D/g,'');
  if(!mesmoNome)return {encontrado:null,erro:'Telefone ou usuário pertence a '+p.nome+'. Confirme antes de vincular.'};
- if(telDb&&r.telefone&&telDb!==r.telefone)return {encontrado:null,erro:'Telefone diferente do cadastro de '+p.nome+'. Confirmar manualmente.'};
+ // Telefone antigo pode estar incorreto; nome completo idêntico prevalece, sem alterar o número salvo.
  if(p.role!=='responsavel')return {encontrado:null,erro:'Usuário existente com outra função. Confirmar manualmente.'};
  if(p.escola_id&&p.escola_id!==escolaAtual())return {encontrado:null,erro:'Responsável vinculado a outra escola. Confirmar manualmente.'};
  return {encontrado:p,erro:''};
@@ -318,6 +320,7 @@ function validarLinhas(){
 }
 async function lerArquivo(arquivo){
  if(importando||!arquivo)return;
+ if(linhas.some(r=>r.status==='CRIADO')&&!confirm('Você já criou acessos nesta página. Baixou a planilha com as senhas? Importar outro arquivo apagará o resumo da tela.'))return;
  try{
    if(!/\.(csv|xlsx|xls)$/i.test(arquivo.name))throw Error('Selecione um CSV exportado dos formulários ou um Excel .xlsx.');
    if(!user)throw Error('Sessão de administrador não autorizada.');
@@ -358,7 +361,7 @@ function render(){
  el('linhas').innerHTML=linhas.map(r=>{
    const cor=['CRIADO','VINCULADO'].includes(r.status)?'ok':
      ['PRONTO','VINCULAR'].includes(r.status)?'warn':r.status==='EXISTENTE'?'muted':'bad';
-   const detail=[r.erro,...(r.novas?.length?['Novas bailarinas: '+r.novas.join('; ')]:[])].filter(Boolean).join(' · ');
+   const detail=[r.erro,...(r.avisos||[]),...(r.novas?.length?['Novas bailarinas: '+r.novas.join('; ')]:[])].filter(Boolean).join(' · ');
    return '<tr><td>'+esc(r.nome)+'</td><td>'+esc(r.filhos)+'</td><td><code>'+esc(r.username)+'</code></td><td><span class="pill '+cor+'">'+esc(r.status)+'</span>'+
      (detail?'<div class="small muted">'+esc(detail)+'</div>':'')+'</td></tr>';
  }).join('');
@@ -422,7 +425,7 @@ async function vincularExistente(r){
    .select('user_id,role,nome,escola_id,telefone').eq('user_id',p.user_id).single();
  if(perfilErr||atual.role!=='responsavel'||norm(atual.nome)!==norm(r.nome)||
     (atual.escola_id&&atual.escola_id!==escolaAtual())||
-    (atual.telefone&&r.telefone&&String(atual.telefone).replace(/\D/g,'')!==r.telefone))
+    false)
     throw Error('A conta não corresponde com segurança ao responsável. Conferir manualmente.');
  const ids=await assegurarAlunas(r);
  const {data:atuais,error:vincErr}=await db.from('responsavel_alunos')
