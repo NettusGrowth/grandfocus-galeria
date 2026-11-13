@@ -336,45 +336,117 @@ async function lerArquivo(arquivo){
  }catch(e){linhas=[];render();mensagem(e.message||'Falha ao ler a planilha.',true);}
 }
 function render(){
- const stats={prontos:0,criados:0,existentes:0,revisar:0,parciais:0};
+ const stats={prontos:0,ligar:0,criados:0,vinculados:0,existentes:0,revisar:0,parciais:0,novas:0};
  linhas.forEach(r=>{
    if(r.status==='PRONTO')stats.prontos++;
+   else if(r.status==='VINCULAR')stats.ligar++;
    else if(r.status==='CRIADO')stats.criados++;
+   else if(r.status==='VINCULADO')stats.vinculados++;
    else if(r.status==='EXISTENTE')stats.existentes++;
    else if(r.status==='REVISAR')stats.revisar++;
    else stats.parciais++;
+   if(['PRONTO','VINCULAR'].includes(r.status))stats.novas+=(r.novas||[]).length;
  });
  el('resumo').innerHTML=[
-  ['Prontos para criar',stats.prontos],['Criados',stats.criados],
-  ['Já existentes',stats.existentes],['Revisar / pendentes',stats.revisar+stats.parciais]
+  ['Criar responsáveis',stats.prontos],
+  ['Vincular contas existentes',stats.ligar],
+  ['Bailarinas novas',stats.novas],
+  ['Contas já completas',stats.existentes],
+  ['Concluídos',stats.criados+stats.vinculados],
+  ['Revisar / pendentes',stats.revisar+stats.parciais]
  ].map(x=>'<div class="metric"><strong>'+x[1]+'</strong><span class="small muted">'+x[0]+'</span></div>').join('');
  el('linhas').innerHTML=linhas.map(r=>{
-   const cor=r.status==='CRIADO'?'ok':r.status==='PRONTO'?'warn':r.status==='EXISTENTE'?'muted':'bad';
+   const cor=['CRIADO','VINCULADO'].includes(r.status)?'ok':
+     ['PRONTO','VINCULAR'].includes(r.status)?'warn':r.status==='EXISTENTE'?'muted':'bad';
+   const detail=[r.erro,...(r.novas?.length?['Novas bailarinas: '+r.novas.join('; ')]:[])].filter(Boolean).join(' · ');
    return '<tr><td>'+esc(r.nome)+'</td><td>'+esc(r.filhos)+'</td><td><code>'+esc(r.username)+'</code></td><td><span class="pill '+cor+'">'+esc(r.status)+'</span>'+
-     (r.erro?'<div class="small muted">'+esc(r.erro)+'</div>':'')+'</td></tr>';
+     (detail?'<div class="small muted">'+esc(detail)+'</div>':'')+'</td></tr>';
  }).join('');
- el('executar').disabled=importando||!stats.prontos;
- el('executar').textContent=importando?'Criando contas…':'Criar '+stats.prontos+' acesso(s) conferido(s)';
- el('baixar').disabled=importando||!stats.criados;
+ el('executar').disabled=importando||!(stats.prontos+stats.ligar);
+ el('executar').textContent=importando?'Processando cadastros…':
+  'Confirmar '+stats.prontos+' novo(s) acesso(s) e '+stats.ligar+' vínculo(s)';
+ el('baixar').disabled=importando||!(stats.criados+stats.vinculados);
  el('revalidar').disabled=importando||!linhas.length;
+ el('escola-select').disabled=importando||linhas.some(r=>['CRIADO','VINCULADO','PARCIAL','AGUARDA CONFIRMAÇÃO'].includes(r.status));
+ el('criar-alunas').disabled=importando||el('escola-select').disabled;
 }
 async function revalidar(){
  if(importando)return;
- try{await atualizarBase();validarLinhas();mensagem('Conferência atualizada.');}catch(e){mensagem(e.message,true);}
+ try{await atualizarBase();validarLinhas();mensagem('Conferência de escola, responsáveis, bailarinas e vínculos atualizada.');}
+ catch(e){mensagem(e.message,true);}
 }
 async function checarNovamente(r){
- const [u,n]=await Promise.all([
-   db.from('perfis').select('user_id,username,nome').eq('username',r.username).limit(2),
-   db.from('perfis').select('user_id,username,nome').ilike('nome',r.nome).limit(2),
- ]);
- if(u.error||n.error)throw Error('Falha ao verificar contas existentes.');
- return [...(u.data||[]),...(n.data||[])];
+ const checks=[
+   db.from('perfis').select('user_id,username,nome,telefone,role,escola_id').eq('username',r.username).limit(2),
+   db.from('perfis').select('user_id,username,nome,telefone,role,escola_id').ilike('nome',r.nome).limit(2)
+ ];
+ if(r.telefone)checks.push(db.from('perfis').select('user_id,username,nome,telefone,role,escola_id').eq('telefone',r.telefone).limit(2));
+ const results=await Promise.all(checks);
+ if(results.some(x=>x.error))throw Error('Falha ao verificar contas existentes.');
+ return [...new Map(results.flatMap(x=>x.data||[]).map(p=>[p.user_id,p])).values()];
+}
+async function assegurarAlunas(r){
+ const escola=escolaAtual();
+ if(!escola)throw Error('Escolha a escola antes de criar vínculos.');
+ const nomes=separarBailarinas(r.filhos);
+ const {data:atuais,error:lerErro}=await db.from('alunos').select('id,nome,escola_id').eq('escola_id',escola);
+ if(lerErro)throw Error('Falha ao conferir bailarinas antes de salvar.');
+ const ids=[];
+ for(const nome of nomes){
+   let matches=(atuais||[]).filter(a=>norm(a.nome)===norm(nome));
+   if(matches.length>1)throw Error('Bailarina duplicada: '+nome);
+   if(matches.length===0){
+     if(!(r.novas||[]).some(n=>norm(n)===norm(nome)))throw Error('Bailarina sem correspondência segura: '+nome);
+     const semelhante=(atuais||[]).some(a=>
+       (norm(a.nome).length>2&&norm(nome).startsWith(norm(a.nome)+' ')) ||
+       (norm(nome).length>2&&norm(a.nome).startsWith(norm(nome)+' ')));
+     if(semelhante)throw Error('Nome semelhante encontrado: '+nome+'. Conferir manualmente.');
+     const {data:nova,error:novoErro}=await db.from('alunos').insert({
+       nome,escola_id:escola
+     }).select('id,nome,escola_id').single();
+     if(novoErro||!nova?.id)throw Error('Não foi possível cadastrar a bailarina '+nome+': '+(novoErro?.message||'erro'));
+     (atuais||[]).push(nova);alunos.push(nova);
+     matches=[nova];
+   }
+   if(!ids.includes(matches[0].id))ids.push(matches[0].id);
+ }
+ return ids;
+}
+async function vincularExistente(r){
+ const p=r.existeUser;
+ if(!p?.user_id)throw Error('Não foi identificado responsável existente para vínculo.');
+ const encontrados=await checarNovamente(r);
+ if(!encontrados.some(x=>x.user_id===p.user_id))throw Error('A conta anterior mudou. Confira manualmente.');
+ if(encontrados.length>1)throw Error('Encontramos mais de uma conta potencialmente correspondente. Confira.');
+ const {data:atual,error:perfilErr}=await db.from('perfis')
+   .select('user_id,role,nome,escola_id,telefone').eq('user_id',p.user_id).single();
+ if(perfilErr||atual.role!=='responsavel'||norm(atual.nome)!==norm(r.nome)||
+    (atual.escola_id&&atual.escola_id!==escolaAtual())||
+    (atual.telefone&&r.telefone&&String(atual.telefone).replace(/\D/g,'')!==r.telefone))
+    throw Error('A conta não corresponde com segurança ao responsável. Conferir manualmente.');
+ const ids=await assegurarAlunas(r);
+ const {data:atuais,error:vincErr}=await db.from('responsavel_alunos')
+   .select('aluno_id').eq('user_id',p.user_id);
+ if(vincErr)throw Error('Não foi possível verificar os filhos já vinculados.');
+ const conectados=new Set((atuais||[]).map(x=>x.aluno_id));
+ const faltam=ids.filter(id=>!conectados.has(id));
+ if(faltam.length){
+   const {error:linkErr}=await db.from('responsavel_alunos').insert(
+     faltam.map(aluno_id=>({user_id:p.user_id,aluno_id}))
+   );
+   if(linkErr)throw Error('Não foi possível vincular as bailarinas: '+linkErr.message);
+   vinculos.push(...faltam.map(aluno_id=>({user_id:p.user_id,aluno_id})));
+ }
+ r.status='VINCULADO';r.senha='';r.erro=faltam.length?
+   'Vínculos adicionados à conta existente. A senha anterior foi preservada.':
+   'Os vínculos já estavam cadastrados; nenhuma alteração necessária.';
 }
 async function criarUm(r){
  const antigos=await checarNovamente(r);
- if(antigos.length){r.status='EXISTENTE';r.erro='Já havia cadastro no banco. Nenhuma senha alterada.';return;}
- // Usa o mesmo fluxo de criação isolada que já funciona no painel da
- // Grand Focus. Este client não toca na sessão do administrador.
+ if(antigos.length){
+   r.status='REVISAR';r.erro='Uma conta surgiu no banco antes desta importação. Conferir antes de repetir.';
+   return;
+ }
  const emailAuth=r.username+'@login.grandfocus.internal';
  const {data:auth,error:authErr}=await criador.auth.signUp({
    email:emailAuth,password:r.senha,options:{data:{full_name:r.nome}}
@@ -384,68 +456,78 @@ async function criarUm(r){
    throw Error('A identidade já pode existir no Auth. Conferência manual necessária.');
  const userId=auth.user.id;
  r.status='PARCIAL';r.erro='Autenticação criada; aguardando perfil e vínculo.';
+ const ids=await assegurarAlunas(r);
  const {error:pErr}=await db.from('perfis').insert({
-   user_id:userId,role:'responsavel',escola_id:ENTREPLIES_ID,
-   nome:r.nome,username:r.username,telefone:r.telefone||null
+   user_id:userId,role:'responsavel',escola_id:escolaAtual(),
+   nome:r.nome,username:r.username,telefone:r.telefone||null,email:r.email||null
  });
  if(pErr)throw Error('Conta criada, mas perfil não vinculado: '+pErr.message);
  const {error:aErr}=await db.from('responsavel_alunos').insert(
-   r.aluno_ids.map(aluno_id=>({user_id:userId,aluno_id}))
+   ids.map(aluno_id=>({user_id:userId,aluno_id}))
  );
  if(aErr)throw Error('Perfil criado, mas vínculo com bailarinas falhou: '+aErr.message);
- // Cuidado: as senhas nunca entram no registro de auditoria.
  try{await db.from('auditoria').insert({
    user_id:user.id,user_nome:user.nome||'Admin',
    acao:'criou responsável por importação',tabela:'perfis',registro_id:userId,
-   detalhe:'usuário '+r.username+'; alunos: '+r.aluno_ids.length
+   detalhe:'usuário '+r.username+'; alunos: '+ids.length
  });}catch(_e){}
  r.user_id=userId;
  if(!auth.user.email_confirmed_at&&!auth.session){
    r.status='AGUARDA CONFIRMAÇÃO';r.erro='E-mail ainda não confirmado no Supabase Auth. Não compartilhar a senha.';
  }else{r.status='CRIADO';r.erro='Conta e vínculos confirmados.';}
- perfis.push({user_id:userId,nome:r.nome,username:r.username});
+ perfis.push({user_id:userId,nome:r.nome,username:r.username,telefone:r.telefone,role:'responsavel',escola_id:escolaAtual()});
+ vinculos.push(...ids.map(aluno_id=>({user_id:userId,aluno_id})));
 }
 async function executar(){
  if(importando||!user)return;
- const pendentes=linhas.filter(r=>r.status==='PRONTO');
+ const pendentes=linhas.filter(r=>['PRONTO','VINCULAR'].includes(r.status));
  if(!pendentes.length)return;
- const ok=confirm('Criar '+pendentes.length+' novos acessos da Entre Pliés? Os 11 logins anteriores permanecerão intactos. Confirme os nomes e os vínculos antes de prosseguir.');
- if(!ok)return;
+ const quantNovos=pendentes.filter(r=>r.status==='PRONTO').length;
+ const quantVinculos=pendentes.length-quantNovos;
+ if(!confirm('Confirmar a importação para '+(escolaSelecionada()?.nome||'a escola')+'?\n'+
+     quantNovos+' contas novas e '+quantVinculos+' responsáveis existentes para vincular.\n'+
+     'Pagamentos não serão considerados. Nenhuma senha antiga será alterada.'))return;
  importando=true;render();
- let criados=0;
+ let concluidos=0;
  try{
-  const {data:{user:atual},error:authErr}=await db.auth.getUser();
-  const {data:perfil,error:roleErr}=await db.from('perfis').select('role').eq('user_id',atual?.id||'').maybeSingle();
-  if(authErr||!atual||roleErr||!['admin','super_admin'].includes(perfil?.role))throw Error('A sessão de administrador expirou.');
-  await atualizarBase();
-  validarLinhas();
-  for(const r of linhas.filter(x=>x.status==='PRONTO')){
-    mensagem('Cadastrando '+(criados+1)+' de '+pendentes.length+': '+r.nome+'. Não feche esta aba.');
-    try{
-      await criarUm(r);
-      if(r.status==='CRIADO')criados++;
-      render();
-      if(r.status==='AGUARDA CONFIRMAÇÃO')throw Error('O acesso requer confirmação do Auth. A importação foi interrompida.');
-    }catch(e){
-      if(r.status!=='PARCIAL'&&r.status!=='EXISTENTE')r.status='ERRO';
-      r.erro=e.message||'Erro de autenticação.';
-      render();
-      throw Error('Importação interrompida em '+r.nome+': '+r.erro);
-    }
-  }
-  mensagem('Concluído. '+criados+' novo(s) acesso(s) ativo(s). Baixe agora as credenciais confirmadas.');
+   const {data:{user:atual},error:authErr}=await db.auth.getUser();
+   const {data:perfil,error:roleErr}=await db.from('perfis')
+     .select('role').eq('user_id',atual?.id||'').maybeSingle();
+   if(authErr||!atual||roleErr||!['admin','super_admin'].includes(perfil?.role))
+     throw Error('A sessão de administrador expirou.');
+   await atualizarBase();
+   validarLinhas();
+   for(const r of linhas.filter(x=>['PRONTO','VINCULAR'].includes(x.status))){
+     mensagem('Processando '+(concluidos+1)+' de '+pendentes.length+': '+r.nome+'. Não feche esta aba.');
+     try{
+       if(r.status==='VINCULAR')await vincularExistente(r);
+       else await criarUm(r);
+       if(['CRIADO','VINCULADO'].includes(r.status))concluidos++;
+       render();
+       if(r.status==='AGUARDA CONFIRMAÇÃO')
+         throw Error('O acesso requer confirmação no Supabase Auth. Importação interrompida.');
+       if(r.status==='REVISAR')throw Error('Cadastro possivelmente duplicado. Importação interrompida.');
+     }catch(e){
+       if(!['PARCIAL','AGUARDA CONFIRMAÇÃO'].includes(r.status))r.status='ERRO';
+       r.erro=e.message||'Erro de autenticação.';
+       render();
+       throw Error('Importação interrompida em '+r.nome+': '+r.erro);
+     }
+   }
+   mensagem('Concluído: '+concluidos+' famílias processadas. Baixe a planilha com os acessos novos e vínculos realizados.');
  }catch(e){mensagem(e.message||'Importação interrompida. Confira os resultados antes de repetir.',true);}
  finally{importando=false;render();}
 }
 function baixarCredenciais(){
  if(importando)return;
- const concluidos=linhas.filter(r=>r.status==='CRIADO');
+ const concluidos=linhas.filter(r=>['CRIADO','VINCULADO'].includes(r.status));
  if(!concluidos.length)return;
  const tabela=[['RESPONSÁVEL','BAILARINA(S)','WHATSAPP','USUÁRIO','SENHA INICIAL','STATUS','MENSAGEM INDIVIDUAL'],
  ...concluidos.map(r=>[
-  r.nome,r.filhos,r.telefone,r.username,r.senha,'CRIADO E VINCULADO',
-  'Olá! Tudo bem? Aqui é a Grand Focus Fotografia. Seu acesso à Galeria Grand Focus está pronto.\nUsuário: '+r.username+
-  '\nSenha inicial: '+r.senha+'\nAcesse: https://galeria.grandfocus.com.br\nBailarina(s): '+r.filhos+
+  r.nome,r.filhos,r.telefone,r.username,r.senha,r.status==='CRIADO'?'CRIADO E VINCULADO':'ACESSO ANTIGO VINCULADO',
+  (r.status==='CRIADO'? 'Olá! Tudo bem? Aqui é a Grand Focus Fotografia. Seu acesso à Galeria Grand Focus está pronto.\nUsuário: '+r.username+
+  '\nSenha inicial: '+r.senha : 'Olá! Aqui é a Grand Focus Fotografia. Atualizamos as bailarinas vinculadas ao seu acesso existente.\nUsuário: '+r.username+'\nSua senha permanece a mesma.')+
+  '\nAcesse: https://galeria.grandfocus.com.br\nBailarina(s): '+r.filhos+
   '\nPor segurança, não compartilhe seus dados de acesso.'
  ])];
  const ws=XLSX.utils.aoa_to_sheet(tabela);
@@ -453,8 +535,8 @@ function baixarCredenciais(){
  ws['!autofilter']={ref:'A1:G'+tabela.length};
  const wb=XLSX.utils.book_new();
  XLSX.utils.book_append_sheet(wb,ws,'ACESSOS_CONFIRMADOS');
- XLSX.writeFile(wb,'GrandFocus_EntrePlies_Acessos_Confirmados.xlsx');
- mensagem('Arquivo gerado apenas com '+concluidos.length+' acessos confirmados. Compartilhe cada linha somente com a família correspondente.');
+ XLSX.writeFile(wb,'GrandFocus_'+(norm(escolaSelecionada()?.nome||'Escola').replace(/\s+/g,'_'))+'_Acessos_Confirmados.xlsx');
+ mensagem('Arquivo gerado com '+concluidos.length+' famílias processadas. Apenas contas novas possuem senha inicial; as antigas conservam a senha. Compartilhe cada linha apenas com a própria família.');
 }
 iniciar();
 </script>
