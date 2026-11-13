@@ -11720,6 +11720,7 @@ function _atualizarPreviewUploadMarcarWrap(temRoster) {
 function _prepararUploadEvento(files) {
   if (!files?.length) return
   _previewUploadFiles = [...files]
+  _previewUploadExibir = GAL_PREVIEW_LOTE
   _previewUploadDestino = 'evento'
   document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_eventoAtual?.nome || ''}" — confira antes de enviar.`
   const subpastas = _todasSubpastasConhecidas()
@@ -11734,6 +11735,7 @@ function _prepararUploadEvento(files) {
 function _prepararUploadEnsaio(files) {
   if (!files?.length) return
   _previewUploadFiles = [...files]
+  _previewUploadExibir = GAL_PREVIEW_LOTE
   _previewUploadDestino = 'ensaio'
   document.getElementById('preview-upload-hint').textContent = `${files.length} foto(s) selecionada(s) pra "${_ensaioAtual?.nome || ''}" — confira antes de enviar.`
   const subpastas = _todasSubpastasConhecidasEnsaio()
@@ -11745,21 +11747,47 @@ function _prepararUploadEnsaio(files) {
   _renderPreviewUploadGrid()
   abrirModal('modal-preview-upload')
 }
+// Listas de 300–500 fotos não devem decodificar centenas de originais
+// na modal de conferência. Mostra 48 por vez, carregamento lazy, e
+// revoga as URLs temporárias ao sair para não reter memória indefinidamente.
+const GAL_PREVIEW_LOTE = 48;
+let _previewUploadExibir = GAL_PREVIEW_LOTE;
+let _previewUploadObjectUrls = [];
+function _previewUploadLiberarUrls() {
+ for(const url of _previewUploadObjectUrls) URL.revokeObjectURL(url);
+ _previewUploadObjectUrls=[];
+}
+function _previewUploadMostrarMais() {
+ _previewUploadExibir+=GAL_PREVIEW_LOTE;
+ _renderPreviewUploadGrid();
+}
 function _renderPreviewUploadGrid() {
-  const grid = document.getElementById('preview-upload-grid')
-  grid.innerHTML = _previewUploadFiles.map((f, i) => {
-    const marcado = _previewUploadMarcados.has(f)
-    const clicavel = _previewUploadTemRoster ? ` onclick="_toggleMarcarFotoPreview(${i})"` : ''
-    return `
-    <div class="foto-item${marcado ? ' sel' : ''}" style="cursor:${_previewUploadTemRoster ? 'pointer' : 'default'};"${clicavel}>
-      ${_previewUploadTemRoster ? `<span class="ck">${marcado ? '✓' : ''}</span>` : ''}
-      <img src="${URL.createObjectURL(f)}" alt="">
-      <button class="foto-expand" style="opacity:1;" title="Tirar essa foto do envio" onclick="event.stopPropagation();_removerDoPreviewUpload(${i})">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-      </button>
-    </div>
-  `}).join('')
-  _atualizarMasterCheckboxPreview()
+ const grid=document.getElementById('preview-upload-grid');
+ if(!grid||!_previewUploadFiles)return;
+ _previewUploadLiberarUrls();
+ const exibindo=Math.min(_previewUploadExibir,_previewUploadFiles.length);
+ grid.innerHTML=_previewUploadFiles.slice(0,exibindo).map((f,i)=>{
+  const marcado=_previewUploadMarcados.has(f);
+  const clicavel=_previewUploadTemRoster?' onclick="_toggleMarcarFotoPreview('+i+')"':'';
+  const url=URL.createObjectURL(f);
+  _previewUploadObjectUrls.push(url);
+  return '<div class="foto-item'+(marcado?' sel':'')+'" style="cursor:'+
+   (_previewUploadTemRoster?'pointer':'default')+';"'+clicavel+'>'+
+   (_previewUploadTemRoster?'<span class="ck">'+(marcado?'✓':'')+'</span>':'')+
+   '<img loading="lazy" decoding="async" src="'+url+'" alt="">'+
+   '<button class="foto-expand" style="opacity:1;" title="Tirar essa foto do envio" '+
+   'onclick="event.stopPropagation();_removerDoPreviewUpload('+i+')">'+
+   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+
+   '<path d="M6 6l12 12M18 6L6 18"/></svg></button></div>';
+ }).join('');
+ if(exibindo<_previewUploadFiles.length){
+  grid.insertAdjacentHTML('beforeend','<div style="grid-column:1/-1; padding:15px;text-align:center;">'+
+   '<div class="meta">Mostrando '+exibindo+' de '+_previewUploadFiles.length+
+   ' fotos — todas continuam selecionadas para o envio.</div>'+
+   '<button class="btn btn-sm" onclick="_previewUploadMostrarMais()">Ver próximas '+
+   Math.min(GAL_PREVIEW_LOTE,_previewUploadFiles.length-exibindo)+' fotos</button></div>');
+ }
+ _atualizarMasterCheckboxPreview();
 }
 // clique numa foto ou no seu ✓ — mutação direta do DOM (sem
 // re-render/sem recriar <img>/sem novo URL.createObjectURL), pra ficar
@@ -11778,7 +11806,7 @@ function _toggleMarcarFotoPreview(idx) {
 }
 function _toggleMarcarTodasPreview(marcarTudo) {
   _previewUploadMarcados = marcarTudo ? new Set(_previewUploadFiles) : new Set()
-  Array.from(document.getElementById('preview-upload-grid').children).forEach(item => {
+  Array.from(document.getElementById('preview-upload-grid').children).filter(item=>item.classList.contains('foto-item')).forEach(item => {
     item.classList.toggle('sel', marcarTudo)
     const ck = item.querySelector('.ck')
     if (ck) ck.textContent = marcarTudo ? '✓' : ''
@@ -11802,6 +11830,7 @@ function _removerDoPreviewUpload(idx) {
   _renderPreviewUploadGrid()
 }
 function _cancelarPreviewUpload() {
+  _previewUploadLiberarUrls()
   fecharModal('modal-preview-upload')
   _previewUploadFiles = null; _previewUploadDestino = null; _previewUploadMarcados = new Set()
   const i1 = document.getElementById('evt-upload-input'); if (i1) i1.value = ''
@@ -11814,6 +11843,7 @@ async function _confirmarPreviewUpload() {
   // array paralelo a "files", na mesma ordem — marcarPorFoto[i] diz se
   // a foto i entra com a marcação automática do roster ou não.
   const marcarPorFoto = files.map(f => _previewUploadMarcados.has(f))
+  _previewUploadLiberarUrls()
   fecharModal('modal-preview-upload')
   _previewUploadFiles = null; _previewUploadDestino = null; _previewUploadMarcados = new Set()
   if (destino === 'evento') await uploadFotosEvento(files, subpasta, marcarPorFoto)
