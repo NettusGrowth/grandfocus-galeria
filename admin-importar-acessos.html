@@ -424,8 +424,7 @@ async function vincularExistente(r){
  const {data:atual,error:perfilErr}=await db.from('perfis')
    .select('user_id,role,nome,escola_id,telefone').eq('user_id',p.user_id).single();
  if(perfilErr||atual.role!=='responsavel'||norm(atual.nome)!==norm(r.nome)||
-    (atual.escola_id&&atual.escola_id!==escolaAtual())||
-    false)
+    (atual.escola_id&&atual.escola_id!==escolaAtual()))
     throw Error('A conta não corresponde com segurança ao responsável. Conferir manualmente.');
  const ids=await assegurarAlunas(r);
  const {data:atuais,error:vincErr}=await db.from('responsavel_alunos')
