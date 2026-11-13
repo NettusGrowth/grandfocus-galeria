@@ -11820,126 +11820,237 @@ async function _confirmarPreviewUpload() {
   else if (destino === 'ensaio') await uploadFotosEnsaio(files, subpasta, marcarPorFoto)
 }
 
-// fila de upload com progresso por arquivo (estado discreto: aguardando
-// → enviando → concluído/erro — a Storage API do Supabase não expõe
-// progresso por byte, então a barra individual reflete o ESTADO do
-// arquivo, não porcentagem de bytes; a barra global reflete quantos
-// arquivos já terminaram do total, isso sim é uma % real).
-function _renderFilaUpload(prefixo, files, estados) {
-  const statusEl = document.getElementById(`${prefixo}-upload-status`)
-  if (!statusEl) return
-  const concluidos = estados.filter(s => s === 'ok' || s === 'erro').length
-  const pct = Math.round((concluidos / files.length) * 100)
-  statusEl.innerHTML = `
-    <div class="upload-progresso-global">
-      <div class="label"><span>Enviando ${concluidos}/${files.length}</span><span>${pct}%</span></div>
-      <div class="barra"><div class="barra-fill" style="width:${pct}%;"></div></div>
-    </div>
-    <div class="upload-fila">
-      ${files.map((f, i) => {
-        const st = estados[i]
-        const w = st === 'aguardando' ? 0 : st === 'enviando' ? 55 : 100
-        const icone = st === 'ok' ? '✓' : st === 'erro' ? '✕' : st === 'enviando' ? '…' : ''
-        return `<div class="upload-fila-item${st === 'erro' ? ' erro' : ''}"><span class="status-icone">${icone}</span><span class="nome-arq">${esc(f.name)}</span><span class="barra"><span class="barra-fill" style="width:${w}%;"></span></span></div>`
-      }).join('')}
-    </div>
-  `
+// Fila para galerias grandes: até três uploads por vez, miniaturas
+// serializadas para limitar a memória da câmera/browser.
+const GAL_UPLOAD_CONCORRENCIA=3;
+const GAL_UPLOAD_PREVIEW_STATUS=48;
+let _evtUploadAtivo=false;
+let _ensUploadAtivo=false;
+let _selUploadAtivo=false;
+const _galUploadSessoes={evt:null,ens:null,sel:null};
+let _galUploadThumbAnterior=Promise.resolve();
+window.addEventListener('beforeunload',e=>{
+ if(_evtUploadAtivo||_ensUploadAtivo||_selUploadAtivo){e.preventDefault();e.returnValue='';}
+});
+function _galUploadAtivo(){return _evtUploadAtivo||_ensUploadAtivo||_selUploadAtivo;}
+function _galUploadMarcarAtivo(prefixo,ativo){
+ if(prefixo==='evt')_evtUploadAtivo=ativo;
+ else if(prefixo==='ens')_ensUploadAtivo=ativo;
+ else if(prefixo==='sel')_selUploadAtivo=ativo;
 }
-
-// evita 2 lotes de upload rodando ao mesmo tempo pro mesmo destino
-// (admin reabre o seletor de arquivo por impaciência no meio de um
-// lote grande) — os dois terminariam certos no banco, mas a barra de
-// progresso vira uma bagunça ilegível com dois loops escrevendo nela.
-// Também vira o gatilho do aviso de "não feche a aba", que sem isso
-// não existia em lugar nenhum — fechar no meio de um lote de
-// centenas de fotos deixa o resto simplesmente sem subir, sem
-// nenhum jeito de retomar de onde parou.
-let _evtUploadAtivo = false
-let _ensUploadAtivo = false
-let _selUploadAtivo = false
-window.addEventListener('beforeunload', e => {
-  if (_evtUploadAtivo || _ensUploadAtivo || _selUploadAtivo) { e.preventDefault(); e.returnValue = '' }
-})
-
-async function uploadFotosEvento(files, subpasta, marcarPorFoto) {
-  if (!files?.length || !_eventoAtual) return
-  if (_evtUploadAtivo) { toast('Já tem um envio em andamento — aguarde terminar antes de escolher mais fotos.'); return }
-  _evtUploadAtivo = true
-  ++_eventoUploaderCargaSeq // cancela refresh iniciado antes deste upload
-  try {
-  // captura o evento/roster no início — o upload continua rodando em
-  // segundo plano se o admin trocar de evento (ou sair da aba) no meio
-  // do envio, e _eventoAtual muda de baixo; sem isso, o resto dos
-  // arquivos ia parar registrado no evento errado.
-  const eventoId = _eventoAtual.id
-  const eventoNome = _eventoAtual.nome || ''
-  const alunosRoster = _eventoAtual.alunos_selecionados || []
-  const pessoasRoster = _eventoAtual.pessoas_selecionadas || []
-  const estados = files.map(() => 'aguardando')
-  _renderFilaUpload('evt', files, estados)
-  let ok = 0
-  let totalMarcados = 0
-  let falhasMarcacao = 0
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    // marcarPorFoto vem alinhado com "files" na mesma ordem (um
-    // booleano por foto, escolhido no modal "Conferir antes de
-    // enviar") — sem array (chamada antiga/defensiva), assume marcar
-    // todo mundo, igual ao comportamento padrão de antes.
-    const marcarEssaFoto = marcarPorFoto ? marcarPorFoto[i] !== false : true
-    estados[i] = 'enviando'; _renderFilaUpload('evt', files, estados)
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg'
-    const path = `${eventoId}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.${ext}`
-    const { error: upErr } = await _r2Upload(path, file, file.type || 'application/octet-stream')
-    if (upErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao subir ${file.name}: ${upErr.message}`); continue }
-    // marca d'água só faz sentido na Seleção de Fotos (onde protege
-    // contra baixar antes de pagar) — na Galeria/Álbuns quem vê já tem
-    // vínculo/acesso liberado por RLS, então a prévia é o arquivo
-    // original só redimensionado, sem marca d'água nenhuma. Gera aqui
-    // (best-effort — se falhar por algum motivo, thumb_path fica null e
-    // cai pro storage_path original, igual sempre foi).
-    let thumbPath = null, largura = null, altura = null, larguraOriginal = null, alturaOriginal = null
-    try {
-      const thumb = await _gerarThumbGaleria(file)
-      thumbPath = _thumbPathDe(path)
-      const { error: thumbErr } = await _r2Upload(thumbPath, thumb.blob, 'image/jpeg')
-      if (thumbErr) thumbPath = null
-      else { largura = thumb.largura; altura = thumb.altura; larguraOriginal = thumb.larguraOriginal; alturaOriginal = thumb.alturaOriginal }
-    } catch (e) { console.error('gerar thumb da galeria falhou', file.name, e); thumbPath = null }
-    const { data: fotoRow, error: insErr } = await db.from('fotos').insert({ evento_id: eventoId, storage_path: path, thumb_path: thumbPath, subpasta: subpasta || null, largura, altura, largura_original: larguraOriginal, altura_original: alturaOriginal }).select().single()
-    if (insErr) { estados[i] = 'erro'; _renderFilaUpload('evt', files, estados); toast(`Erro ao registrar ${file.name}: ${insErr.message}`); continue }
-    store.fotos.push(fotoRow)
-    // marca automaticamente todo mundo que participa do evento — dá
-    // pra ajustar foto a foto depois (desmarcar quem não aparece nela).
-    // fotos desmarcadas no modal de conferência pulam isso de propósito.
-    const rosterAlunos = marcarEssaFoto ? alunosRoster : []
-    const rosterPessoas = marcarEssaFoto ? pessoasRoster : []
-    if (rosterAlunos.length) {
-      const tags = rosterAlunos.map(aluno_id => ({ foto_id: fotoRow.id, aluno_id }))
-      const { error: tagErr } = await db.from('foto_aluno').insert(tags)
-      if (tagErr) { console.error('marcar alunos na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
-      else { store.fotoAluno.push(...tags); totalMarcados += tags.length }
-    }
-    if (rosterPessoas.length) {
-      const tags = rosterPessoas.map(user_id => ({ foto_id: fotoRow.id, user_id }))
-      const { error: tagErr } = await db.from('foto_pessoa').insert(tags)
-      if (tagErr) { console.error('marcar pessoas na foto falhou', fotoRow.id, tagErr); falhasMarcacao++ }
-      else { store.fotoPessoa.push(...tags); totalMarcados += tags.length }
-    }
-    estados[i] = 'ok'; _renderFilaUpload('evt', files, estados)
-    ok++
+function _galUploadGerarThumb(file,fn){
+ const trabalho=_galUploadThumbAnterior.then(()=>fn(file));
+ _galUploadThumbAnterior=trabalho.then(()=>{},()=>{});
+ return trabalho;
+}
+function _galUploadNomePath(prefixo,id,i,file){
+ const ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+ return prefixo+id+'/'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,12)+'.'+ext;
+}
+function _galUploadNovaSessao(prefixo,files,processar,finalizar){
+ if(_galUploadAtivo()){toast('Já existe um envio ativo. Aguarde a conclusão antes de começar outro.');return null;}
+ const antiga=_galUploadSessoes[prefixo];
+ if(antiga&&antiga.jobs.some(j=>j.estado==='erro')){
+  toast('Existem fotos com falha: use "Reenviar apenas falhas" antes de iniciar outro lote.');
+  return null;
+ }
+ const jobs=[...files].map((file,i)=>({
+  i,file,nome:file.name,estado:'aguardando',erro:'',
+  originalOk:false,thumbFeito:false,registro:null,tentativasRegistro:0,
+  tagsTentadas:{},tagsConcluidas:{}
+ }));
+ const sessao={prefixo,jobs,processar,finalizar,running:false,alterado:null};
+ _galUploadSessoes[prefixo]=sessao;
+ return sessao;
+}
+// Só constrói as primeiras 48 linhas uma vez. Os arquivos restantes
+// continuam normalmente; falhas de qualquer índice aparecem embaixo.
+// Nunca recria a árvore inteira para cada conclusão de arquivo.
+function _renderFilaUpload(prefixo,files,estados,sessao){
+ const raiz=document.getElementById(prefixo+'-upload-status');
+ if(!raiz)return;
+ const jobs=sessao?sessao.jobs:files.map((f,i)=>({i,nome:f.name,estado:estados[i]}));
+ if(raiz._gfSessao!==sessao||!raiz._gfFilaMontada){
+  raiz._gfSessao=sessao;raiz._gfFilaMontada=true;
+  const rows=jobs.slice(0,GAL_UPLOAD_PREVIEW_STATUS).map(j=>
+   '<div class="upload-fila-item" data-fila-idx="'+j.i+'">'+
+   '<span class="status-icone"></span><span class="nome-arq">'+esc(j.nome)+'</span>'+
+   '<span class="barra"><span class="barra-fill" style="width:0%"></span></span></div>'
+  ).join('');
+  raiz.innerHTML='<div class="upload-progresso-global"><div class="label">'+
+   '<span data-fila-total></span><span data-fila-pct></span></div>'+
+   '<div class="barra"><div class="barra-fill" data-fila-barra style="width:0%"></div></div></div>'+
+   '<div class="upload-fila">'+rows+'</div>'+
+   (jobs.length>GAL_UPLOAD_PREVIEW_STATUS?'<div class="meta">Primeiras '+GAL_UPLOAD_PREVIEW_STATUS+
+    ' de '+jobs.length+' fotos exibidas. Todas serão enviadas; erros aparecem abaixo.</div>':'')+
+   '<div data-fila-erros></div><div data-fila-acoes></div>';
+ }
+ const ok=jobs.filter(j=>j.estado==='ok').length;
+ const erros=jobs.filter(j=>j.estado==='erro');
+ const feitos=ok+erros.length;
+ const pct=jobs.length?Math.round(feitos/jobs.length*100):0;
+ const total=raiz.querySelector('[data-fila-total]');
+ const percent=raiz.querySelector('[data-fila-pct]');
+ const barra=raiz.querySelector('[data-fila-barra]');
+ if(total)total.textContent=(sessao?.running?'Enviando ':'Lote ')+feitos+'/'+jobs.length+
+  ' · '+ok+' concluídas · '+erros.length+' falha(s)';
+ if(percent)percent.textContent=pct+'%';
+ if(barra)barra.style.width=pct+'%';
+ const indices=Number.isInteger(sessao?.alterado)?[sessao.alterado]:
+  jobs.slice(0,GAL_UPLOAD_PREVIEW_STATUS).map(j=>j.i);
+ for(const i of indices){
+  if(i>=GAL_UPLOAD_PREVIEW_STATUS)continue;
+  const j=jobs[i],item=raiz.querySelector('[data-fila-idx="'+i+'"]');
+  if(!j||!item)continue;
+  const icon=item.querySelector('.status-icone'),fill=item.querySelector('.barra-fill');
+  if(icon)icon.textContent=j.estado==='ok'?'✓':j.estado==='erro'?'✕':j.estado==='enviando'?'…':'';
+  if(fill)fill.style.width=j.estado==='aguardando'?'0%':j.estado==='enviando'?'55%':'100%';
+  item.classList.toggle('erro',j.estado==='erro');
+ }
+ const errorsEl=raiz.querySelector('[data-fila-erros]');
+ if(errorsEl)errorsEl.innerHTML=erros.length?
+  '<div class="meta" style="color:#eaa">⚠ '+erros.length+' foto(s) com erro:</div>'+
+   erros.slice(0,15).map(j=>'<div class="meta">'+esc(j.nome)+' — '+esc(j.erro)+'</div>').join('')+
+   (erros.length>15?'<div class="meta">…mais '+(erros.length-15)+' arquivos.</div>':''):'';
+ const actions=raiz.querySelector('[data-fila-acoes]');
+ if(actions)actions.innerHTML=sessao&&!sessao.running&&erros.length?
+  '<button class="btn btn-sm" onclick="_galUploadRepetirFalhas('+"'"+prefixo+"'"+')">'+
+  '↻ Reenviar apenas '+erros.length+' falha(s)</button>':'';
+}
+async function _galUploadExecutar(sessao,soFalhas=false){
+ if(!sessao||sessao.running||_galUploadAtivo())return;
+ const fila=sessao.jobs.filter(j=>soFalhas?j.estado==='erro':j.estado==='aguardando');
+ if(!fila.length)return;
+ sessao.running=true;sessao.alterado=null;
+ _galUploadMarcarAtivo(sessao.prefixo,true);
+ let prox=0;
+ _renderFilaUpload(sessao.prefixo,null,null,sessao);
+ try{
+  await Promise.all(Array.from({length:Math.min(GAL_UPLOAD_CONCORRENCIA,fila.length)},async()=>{
+   while(prox<fila.length){
+    const job=fila[prox++];
+    job.estado='enviando';job.erro='';sessao.alterado=job.i;
+    _renderFilaUpload(sessao.prefixo,null,null,sessao);
+    try{await sessao.processar(job);job.estado='ok';job.file=null;}
+    catch(error){job.estado='erro';job.erro=String(error?.message||error||'Erro').slice(0,180);
+     console.error('Falha no upload:',job.nome,job.erro);}
+    sessao.alterado=job.i;
+    _renderFilaUpload(sessao.prefixo,null,null,sessao);
+   }
+  }));
+  await sessao.finalizar(sessao);
+ }finally{
+  sessao.running=false;
+  _galUploadMarcarAtivo(sessao.prefixo,false);
+  sessao.alterado=null;
+  _renderFilaUpload(sessao.prefixo,null,null,sessao);
+ }
+}
+async function _galUploadRepetirFalhas(prefixo){
+ const sessao=_galUploadSessoes[prefixo];
+ if(sessao?.jobs.some(j=>j.estado==='erro'))await _galUploadExecutar(sessao,true);
+}
+// A primeira tentativa de insert pode ter concluído no banco apesar da
+// resposta HTTP falhar. Na repetição, procura o mesmo caminho exclusivo.
+async function _galUploadRegistrarAlbum(job,eventoId,payload){
+ if(job.registro)return job.registro;
+ if(job.tentativasRegistro){
+  const {data,error}=await db.from('fotos').select('*')
+   .eq('evento_id',eventoId).eq('storage_path',job.path).maybeSingle();
+  if(error)throw Error('Falha conferindo registro anterior: '+error.message);
+  if(data){job.registro=data;return data;}
+ }
+ job.tentativasRegistro++;
+ const {data,error}=await db.from('fotos').insert(payload).select().single();
+ if(error||!data)throw Error('Falha ao registrar foto: '+(error?.message||'registro vazio'));
+ job.registro=data;
+ return data;
+}
+async function _galUploadVincularAlbum(job,fotoRow,alunosRoster,pessoasRoster){
+ for(const [tabela,chave,ids,lista] of [
+  ['foto_aluno','aluno_id',alunosRoster,store.fotoAluno],
+  ['foto_pessoa','user_id',pessoasRoster,store.fotoPessoa]
+ ]){
+  if(!ids.length||job.tagsConcluidas[tabela])continue;
+  let pendentes=ids;
+  if(job.tagsTentadas[tabela]){
+   const {data,error}=await db.from(tabela).select(chave).eq('foto_id',fotoRow.id);
+   if(error)throw Error('Falha ao verificar marcações: '+error.message);
+   const salvos=new Set((data||[]).map(x=>x[chave]));
+   pendentes=ids.filter(id=>!salvos.has(id));
   }
-  toast(`${ok} de ${files.length} foto(s) enviada(s) com sucesso${totalMarcados ? ` — ${totalMarcados} marcação(ões) automática(s)` : ''}${falhasMarcacao ? ` — ⚠ ${falhasMarcacao} marcação(ões) falharam, confira manualmente` : ''}`)
-  const inputEl = document.getElementById('evt-upload-input')
-  if (inputEl) inputEl.value = ''
-  if (_eventoAtual?.id === eventoId) renderFotosEventoAdmin()
-  // grava na auditoria (não só o toast, que some em segundos) pra
-  // upload em massa aparecer no sino de notificações mesmo que ninguém
-  // estivesse olhando a tela quando o envio terminou.
-  if (ok) registrarAuditoria('fez upload de fotos', 'eventos', eventoId, `${ok} de ${files.length} foto(s) — ${eventoNome}`)
-  } finally {
-    _evtUploadAtivo = false
+  if(pendentes.length){
+   job.tagsTentadas[tabela]=true;
+   const tags=pendentes.map(id=>({foto_id:fotoRow.id,[chave]:id}));
+   const {error}=await db.from(tabela).insert(tags);
+   if(error)throw Error('Falha ao marcar pessoa: '+error.message);
+   for(const tag of tags){
+    if(!lista.some(x=>x.foto_id===tag.foto_id&&x[chave]===tag[chave]))lista.push(tag);
+   }
   }
+  job.tagsConcluidas[tabela]=true;
+ }
+}
+async function _galUploadProcessarAlbum(job,ctx){
+ if(!job.path)job.path=_galUploadNomePath('',ctx.eventoId,job.i,job.file);
+ if(!job.originalOk){
+  const {error}=await _r2Upload(job.path,job.file,job.file.type||'application/octet-stream');
+  if(error)throw Error('Envio original: '+error.message);
+  job.originalOk=true;
+ }
+ if(!job.thumbFeito){
+  job.thumbFeito=true;
+  job.thumb={path:null,largura:null,altura:null,larguraOriginal:null,alturaOriginal:null};
+  try{
+   const thumb=await _galUploadGerarThumb(job.file,_gerarThumbGaleria);
+   const thumbPath=_thumbPathDe(job.path);
+   const {error}=await _r2Upload(thumbPath,thumb.blob,'image/jpeg');
+   if(error)throw error;
+   job.thumb={path:thumbPath,largura:thumb.largura,altura:thumb.altura,
+    larguraOriginal:thumb.larguraOriginal,alturaOriginal:thumb.alturaOriginal};
+  }catch(error){job.semThumb=true;console.error('Prévia não criada; original salvo:',job.nome,error);}
+ }
+ const t=job.thumb;
+ const row=await _galUploadRegistrarAlbum(job,ctx.eventoId,{
+  evento_id:ctx.eventoId,storage_path:job.path,thumb_path:t.path,
+  subpasta:ctx.subpasta||null,largura:t.largura,altura:t.altura,
+  largura_original:t.larguraOriginal,altura_original:t.alturaOriginal
+ });
+ if(!store.fotos.some(x=>x.id===row.id))store.fotos.push(row);
+ if(job.marcarEssaFoto)await _galUploadVincularAlbum(job,row,ctx.alunosRoster,ctx.pessoasRoster);
+}
+function _galUploadResumo(sessao){
+ return {ok:sessao.jobs.filter(x=>x.estado==='ok').length,
+  erros:sessao.jobs.filter(x=>x.estado==='erro').length,
+  previas:sessao.jobs.filter(x=>x.semThumb).length};
+}
+function _galUploadIniciarAlbum(prefixo,files,subpasta,marcarPorFoto,ctx){
+ const sessao=_galUploadNovaSessao(prefixo,files,j=>_galUploadProcessarAlbum(j,ctx),async s=>{
+  const info=_galUploadResumo(s);
+  const atual=prefixo==='evt'?_eventoAtual:_ensaioAtual;
+  if(atual?.id===ctx.eventoId){
+   if(prefixo==='evt')renderFotosEventoAdmin();else renderFotosEnsaioAdmin();
+  }
+  if(info.ok)registrarAuditoria('fez upload de fotos','eventos',ctx.eventoId,
+   info.ok+' de '+s.jobs.length+' foto(s) — '+ctx.eventoNome);
+  toast(info.ok+' de '+s.jobs.length+' foto(s) enviadas'+
+   (info.erros?' · '+info.erros+' falha(s): use Reenviar falhas':'')+
+   (info.previas?' · '+info.previas+' sem miniatura (original disponível)':''));
+ });
+ if(!sessao)return;
+ sessao.jobs.forEach((job,i)=>job.marcarEssaFoto=marcarPorFoto?marcarPorFoto[i]!==false:true);
+ return _galUploadExecutar(sessao);
+}
+async function uploadFotosEvento(files,subpasta,marcarPorFoto){
+ if(!files?.length||!_eventoAtual)return;
+ if(_galUploadAtivo()){toast('Um envio já está em andamento.');return;}
+ const evento=_eventoAtual;
+ ++_eventoUploaderCargaSeq // cancela refresh iniciado antes deste upload
+ const ctx={eventoId:evento.id,eventoNome:evento.nome||'',subpasta,
+  alunosRoster:[...(evento.alunos_selecionados||[])],
+  pessoasRoster:[...(evento.pessoas_selecionadas||[])]};
+ try{await _galUploadIniciarAlbum('evt',files,subpasta,marcarPorFoto,ctx);}
+ finally{const input=document.getElementById('evt-upload-input');if(input)input.value='';}
 }
 
 // signed URL dura 300s no servidor — cachear evita gerar uma nova (round
