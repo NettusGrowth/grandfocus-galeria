@@ -19277,6 +19277,161 @@ async function _selPubEnviarPedido(opts = {}) {
 let _selPubBastidoresLiberados = []
 let _selPubDownloadGeradoEm = 0
 let _selPubDownloadNativoAtivo = false
+let _selPubIOSFila = null
+let _selPubIOSProcessando = false
+
+// iPhone/iPad: NÃO usar downloads diretos. Safari salva esses arquivos no
+// app Arquivos, e não no Fotos. Preparar File por uma rota CORS controlada
+// no Supabase e aguardar um NOVO toque no botão para navigator.share.
+// Esse segundo gesto é fundamental para a janela nativa "Salvar Imagem".
+function _selPubIOSCancelar() {
+  if (_selPubIOSProcessando || _selPubIOSFila?.salvando) return
+  _selPubIOSFila = null
+  _dlProgressFechar()
+}
+function _selPubIOSIniciar(tipo, indices) {
+  if (!_precisaWebShare()) return
+  if (!navigator.share || !navigator.canShare) {
+    toast('Este navegador não oferece Salvar Imagem. Abra a galeria no Safari e tente novamente.')
+    return
+  }
+  if (_selPubIOSProcessando || _selPubIOSFila) {
+    toast('Já existem fotos em preparação. Termine ou cancele essa etapa antes de iniciar outra.')
+    return
+  }
+  const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
+  const validos = indices.filter(i => Number.isInteger(i) && i >= 0 && i < fotos.length)
+  if (!validos.length) return
+  _selPubIOSFila = { tipo, indices: validos, posicao: 0, prontos: [], falhas: 0, totalProcessado: 0, salvando: false }
+  _selPubIOSPreparar()
+}
+async function _selPubIOSBuscarArquivo(tipo, foto, nome) {
+  // Os bytes saem da Edge Function, que valida novamente se a seleção
+  // já está liberada. A rota responde com CORS para o JS do iPhone.
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/selecao-publica`, {
+    method: 'POST',
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({
+      action: 'arquivo', token: _selPub.token, senha: _selPub.senha || null,
+      foto_id: foto.id, tipo,
+    }),
+  })
+  if (!resp.ok) {
+    const dados = await resp.json().catch(() => ({}))
+    throw new Error(dados.error || 'Falha ao preparar a foto (' + resp.status + ')')
+  }
+  const blob = await resp.blob()
+  if (!blob.size) throw new Error('Arquivo vazio')
+  return new File([blob], nome, { type: blob.type || 'image/jpeg' })
+}
+async function _selPubIOSPreparar() {
+  const fila = _selPubIOSFila
+  if (!fila || _selPubIOSProcessando || fila.salvando) return
+  _selPubIOSProcessando = true
+  const inicio = fila.posicao
+  const indices = fila.indices.slice(inicio, inicio + 4)
+  fila.prontos = []
+  const nomeTipo = fila.tipo === 'bastidores' ? 'presente' : 'foto'
+  const fotos = fila.tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
+  try {
+    for (let i = 0; i < indices.length; i++) {
+      if (_selPubIOSFila !== fila) return
+      _dlProgressMostrar('Preparando fotos para o iPhone…',
+        'Carregando ' + (inicio + i + 1) + ' de ' + fila.indices.length + ' para o app Fotos.', {
+          progresso: { atual: inicio + i, total: fila.indices.length },
+          acaoHtml: '',
+        })
+      const indice = indices[i]
+      const foto = fotos[indice]
+      const nome = foto.nome_download || nomeTipo + '-' + (indice + 1) + '.jpg'
+      let arquivo = null
+      for (let tentativa = 0; tentativa < 2 && !arquivo; tentativa++) {
+        try {
+          arquivo = await _selPubIOSBuscarArquivo(fila.tipo, foto, nome)
+        } catch (erro) {
+          console.warn('Preparação para Salvar Imagem falhou:', erro)
+          if (tentativa === 0) await new Promise(r => setTimeout(r, 400))
+        }
+      }
+      if (arquivo) fila.prontos.push(arquivo)
+      else fila.falhas++
+    }
+    if (_selPubIOSFila !== fila) return
+    if (!fila.prontos.length) {
+      _dlProgressMostrar('Não foi possível preparar as fotos',
+        'Confira a conexão e toque em Tentar novamente. Nenhuma foto foi apagada.', {
+          parado: true,
+          acaoHtml: '<button class="btn btn-primary" onclick="_selPubIOSPreparar()">Tentar novamente</button>' +
+            '<button class="btn" onclick="_selPubIOSCancelar()">Cancelar</button>',
+        })
+      return
+    }
+    if (!navigator.canShare({ files: fila.prontos })) {
+      _dlProgressMostrar('O navegador não permite salvar essas imagens',
+        'Abra a galeria no Safari do iPhone. Os arquivos continuam disponíveis.', {
+          parado: true, acaoHtml: '<button class="btn" onclick="_selPubIOSCancelar()">Fechar</button>',
+        })
+      return
+    }
+    const parte = Math.floor(inicio / 4) + 1
+    const partes = Math.ceil(fila.indices.length / 4)
+    _dlProgressMostrar('Fotos prontas para salvar',
+      'Toque em “Salvar no Fotos” e escolha “Salvar ' +
+        (fila.prontos.length === 1 ? 'Imagem' : fila.prontos.length + ' Imagens') +
+        '” no menu nativo do iPhone.' + (fila.falhas ? ' Algumas imagens não foram preparadas: tente essas individualmente.' : ''), {
+        parado: true,
+        progresso: { atual: inicio, total: fila.indices.length },
+        acaoHtml: '<button class="btn btn-primary" onclick="_selPubIOSSalvar()">📷 Salvar no Fotos' +
+          (partes > 1 ? ' — parte ' + parte + '/' + partes : '') + '</button>' +
+          '<button class="btn" onclick="_selPubIOSCancelar()">Cancelar</button>',
+      })
+  } finally {
+    _selPubIOSProcessando = false
+  }
+}
+async function _selPubIOSSalvar() {
+  const fila = _selPubIOSFila
+  if (!fila || !fila.prontos.length || fila.salvando || _selPubIOSProcessando) return
+  fila.salvando = true
+  // navigator.share precisa acontecer ANTES de qualquer await neste clique.
+  const resposta = await _compartilharArquivos(fila.prontos, 'Fotos Grand Focus')
+  fila.salvando = false
+  if (_selPubIOSFila !== fila) return
+  if (resposta !== 'ok') {
+    _dlProgressMostrar(resposta === 'cancelado' ? 'Salvamento cancelado' : 'Não foi possível abrir o menu do iPhone',
+      'Toque novamente para abrir o menu e selecione “Salvar Imagens”.', {
+        parado: true,
+        acaoHtml: '<button class="btn btn-primary" onclick="_selPubIOSSalvar()">Tentar salvar no Fotos</button>' +
+          '<button class="btn" onclick="_selPubIOSCancelar()">Cancelar</button>',
+      })
+    return
+  }
+  fila.totalProcessado += fila.prontos.length
+  fila.prontos = [] // solta a memória desse lote (máximo 4 imagens).
+  fila.posicao += Math.min(4, fila.indices.length - fila.posicao)
+  if (fila.posicao < fila.indices.length) {
+    _dlProgressMostrar('Etapa concluída',
+      'Se escolheu “Salvar Imagens”, as fotos desta etapa irão para o app Fotos. Prepare a próxima parte.', {
+        parado: true,
+        progresso: { atual: fila.posicao, total: fila.indices.length },
+        acaoHtml: '<button class="btn btn-primary" onclick="_selPubIOSPreparar()">Preparar próxima parte</button>' +
+          '<button class="btn" onclick="_selPubIOSCancelar()">Encerrar</button>',
+      })
+    return
+  }
+  _dlProgressMostrar('Compartilhamento concluído',
+    'Se escolheu “Salvar Imagens” no menu do iPhone, procure suas fotografias no app Fotos.' +
+      (fila.falhas ? ' ' + fila.falhas + ' arquivo(s) não puderam ser preparados; toque neles individualmente para tentar.' : ''), {
+      parado: true, progresso: { atual: fila.indices.length, total: fila.indices.length },
+      acaoHtml: '<button class="btn" onclick="_dlProgressFechar()">Fechar</button>',
+    })
+  _selPubIOSFila = null
+}
+
 
 // <img> pode carregar foto de outra origem que fetch() bloqueia por CORS.
 // A URL de download vem assinada do servidor com Content-Disposition: attachment.
@@ -19302,6 +19457,7 @@ function _selPubDownloadValido() {
 }
 function _selPubBaixarFotoIndividual(tipo, indice) {
   if (!_selPubDownloadValido()) return
+  if (_precisaWebShare()) { _selPubIOSIniciar(tipo, [indice]); return }
   const lista = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   const foto = lista[indice]
   if (!foto) return
@@ -19320,6 +19476,7 @@ async function _renderSelPubLiberado() {
   if (error) { conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`; return }
   _selPubFotosLiberadas = data.fotos || []
   _selPubBastidoresLiberados = data.bastidores || []
+  _selPubIOSFila = null
   _selPubDownloadGeradoEm = Date.now()
   _renderSelPubLiberadoConteudo()
 }
@@ -19332,7 +19489,7 @@ function _renderSelPubLiberadoConteudo() {
   const temBastidores = _selPubBastidoresLiberados.length > 0
   conteudo.innerHTML = `
     <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
-    <div class="selpub-banner">✨ Suas fotos estão prontas! Toque em uma foto para baixá-la individualmente ou use o botão “Baixar todas as fotos” no rodapé para baixar a seleção completa.</div>
+    <div class="selpub-banner">✨ Suas fotos estão prontas! ${_precisaWebShare() ? 'No iPhone, toque em uma foto ou em “Baixar todas”, aguarde a preparação e depois escolha “Salvar Imagem” ou “Salvar Imagens” no menu do iPhone para guardar no app Fotos.' : 'Toque em uma foto para baixá-la individualmente ou use o botão “Baixar todas as fotos” no rodapé para baixar a seleção completa.'}</div>
     <div class="selpub-grid" id="selpub-liberado-grid"></div>
     ${temBastidores ? `
       <div class="selpub-bastidores-bloco">
@@ -19381,6 +19538,7 @@ function _renderSelPubLiberadoConteudo() {
 async function _selPubBaixarTodas(tipo) {
   const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   if (!fotos.length || !_selPubDownloadValido()) return
+  if (_precisaWebShare()) { _selPubIOSIniciar(tipo, fotos.map((_, i) => i)); return }
   if (_selPubDownloadNativoAtivo) {
     toast('O download já está sendo iniciado. Confira as permissões do navegador.')
     return
