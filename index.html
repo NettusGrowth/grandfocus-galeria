@@ -1510,6 +1510,19 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 /* tarja clara de bônus (Seleção de Fotos) — em vez de um emoji
    pequeno disputando espaço com os ícones de ação no canto, ocupa a
    base inteira da foto pra ficar óbvio num relance de olhos. */
+.selfoto-ordem-barra{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;border:1px solid rgba(200,175,127,.3);background:rgba(200,175,127,.08);border-radius:11px;padding:12px;margin-bottom:12px;}
+.selfoto-ordem-barra .meta{margin:0;line-height:1.55;}
+#sel-fotos-grid .foto-item.selfoto-ordenando{border:2px solid rgba(200,175,127,.6);cursor:grab;touch-action:pan-y;user-select:none;}
+#sel-fotos-grid .foto-item.selfoto-ordenando:active{cursor:grabbing;}
+#sel-fotos-grid .foto-item.selfoto-ordenando img{pointer-events:none;user-select:none;}
+#sel-fotos-grid .foto-item.selfoto-ordenando.drop-alvo{outline:3px solid var(--ouro-luz);outline-offset:-3px;}
+.selfoto-posicao{position:absolute;top:7px;left:7px;z-index:3;min-width:31px;padding:5px 7px;border-radius:8px;background:rgba(21,10,16,.9);color:var(--ouro-luz);font-size:12px;font-weight:800;text-align:center;border:1px solid rgba(200,175,127,.5);}
+.selfoto-setas{position:absolute;bottom:7px;right:7px;left:7px;z-index:4;display:flex;justify-content:flex-end;gap:7px;}
+.selfoto-seta{display:grid;place-items:center;min-width:37px;min-height:37px;border-radius:10px;border:1px solid rgba(235,210,170,.5);background:rgba(20,11,19,.88);color:#f1d2a5;font-size:21px;font-weight:700;cursor:pointer;touch-action:manipulation;}
+.selfoto-seta:disabled{opacity:.28;cursor:not-allowed;}
+.selfoto-seta:not(:disabled):hover{background:var(--ouro);color:var(--tinta);}
+#sel-fotos-grid .foto-item.selfoto-ordenando .selfoto-bonus-badge{bottom:49px;}
+@media(max-width:650px){.selfoto-ordem-barra{align-items:stretch}.selfoto-ordem-barra .selfoto-ordem-actions{width:100%;display:flex;gap:7px}.selfoto-ordem-barra .selfoto-ordem-actions button{flex:1}.selfoto-seta{min-width:42px;min-height:42px;}}
 .selfoto-bonus-badge{
   position:absolute;left:0;right:0;bottom:0;background:linear-gradient(0deg,rgba(212,175,55,.96),rgba(212,175,55,.82));
   color:#1A0A0E;font-size:10px;font-weight:700;letter-spacing:.03em;text-align:center;padding:4px 6px;
@@ -18290,6 +18303,9 @@ async function abrirSelecaoDetalhe(id) {
   if (error) { toast('Erro ao abrir galeria: ' + error.message); return }
   const { data: fotos } = await db.from('selecao_fotos').select('*').eq('galeria_id', id).order('ordem')
   const { data: pedido } = await db.from('selecao_pedidos').select('*').eq('galeria_id', id).maybeSingle()
+  _selOrdemModoAtivo = false
+  _selOrdemOriginalIds = []
+  _selOrdemArrastando = null
   _selecaoDetalheAtual = { ...g, fotos: fotos || [], pedido: pedido || null }
   document.getElementById('selecao-lista-wrap').style.display = 'none'
   document.getElementById('selecao-detalhe-wrap').style.display = 'block'
@@ -18297,6 +18313,8 @@ async function abrirSelecaoDetalhe(id) {
 }
 
 function _selecaoVoltarLista() {
+  _selOrdemModoAtivo = false
+  _selOrdemOriginalIds = []
   _selecaoDetalheAtual = null
   document.getElementById('selecao-detalhe-wrap').style.display = 'none'
   document.getElementById('selecao-lista-wrap').style.display = 'block'
@@ -18361,18 +18379,28 @@ function renderSelecaoDetalhe() {
     <div class="card">
       <div class="foto-toolbar">
         <h3 style="font-size:15px;">Fotos da galeria (${g.fotos.length})</h3>
-        <div style="display:flex;gap:8px;">
-          ${g.fotos.length ? `<button class="btn btn-sm" onclick="_selecaoReprocessarMarcaDagua()" title="Gera de novo a prévia com marca d'água (tamanho/opacidade atuais) de todas as fotos já enviadas — não muda fotos novas, elas já saem certas.">🔄 Atualizar marca d'água</button>` : ''}
-          <button class="btn btn-sm" onclick="_selecaoLoteToggleModo()">${_selLoteModoAtivo ? '✕ Cancelar seleção' : '☑ Selecionar fotos'}</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          ${!_selOrdemModoAtivo && g.fotos.length ? `<button class="btn btn-sm" onclick="_selecaoReprocessarMarcaDagua()" title="Gera de novo a prévia com marca d'água (tamanho/opacidade atuais) de todas as fotos já enviadas — não muda fotos novas, elas já saem certas.">🔄 Atualizar marca d'água</button>` : ''}
+          ${!_selOrdemModoAtivo && g.fotos.length > 1 && !_selLoteModoAtivo ? `<button class="btn btn-sm btn-primary" onclick="_selecaoOrdemAbrir()">↕ Organizar ordem</button>` : ''}
+          ${!_selOrdemModoAtivo ? `<button class="btn btn-sm" onclick="_selecaoLoteToggleModo()">${_selLoteModoAtivo ? '✕ Cancelar seleção' : '☑ Selecionar fotos'}</button>` : ''}
         </div>
       </div>
       <div class="meta" id="sel-reprocessar-status" style="margin-bottom:4px;color:var(--gf-verde-vivo);"></div>
-      <div class="meta" style="margin-bottom:10px;">${_selLoteModoAtivo ? 'Clique nas fotos pra marcar — depois converta todas de uma vez.' : 'Marque uma foto como <b>🎁 Bônus/Brinde</b> clicando no ícone de presente sobre ela — não conta no pacote e libera de graça junto com o pedido pago.'}</div>
-      <div class="selfoto-lote-barra" id="sel-lote-barra" style="display:${_selLoteModoAtivo ? 'flex' : 'none'};">
+      ${_selOrdemModoAtivo ? `
+        <div class="selfoto-ordem-barra">
+          <div class="meta"><b>↕ Organize as fotos</b><div>Arraste as fotos no computador ou use as setas no celular. A sequência só muda para os clientes depois de salvar.</div></div>
+          <div class="selfoto-ordem-actions" style="display:flex;gap:7px;">
+            <button class="btn btn-sm" onclick="_selecaoOrdemCancelar()" ${_selOrdemSalvando ? 'disabled' : ''}>Cancelar</button>
+            <button class="btn btn-sm btn-primary" id="sel-ordem-salvar" onclick="_selecaoOrdemSalvar()" ${_selOrdemSalvando ? 'disabled' : ''}>✓ Salvar ordem</button>
+          </div>
+        </div>` : `
+        <div class="meta" style="margin-bottom:10px;">${_selLoteModoAtivo ? 'Clique nas fotos pra marcar — depois converta todas de uma vez.' : 'Marque uma foto como <b>🎁 Bônus/Brinde</b> clicando no ícone de presente sobre ela — não conta no pacote e libera de graça junto com o pedido pago.'}</div>
+      `}
+      <div class="selfoto-lote-barra" id="sel-lote-barra" style="display:${_selLoteModoAtivo && !_selOrdemModoAtivo ? 'flex' : 'none'};">
         <span class="meta" id="sel-lote-contagem" style="margin:0;">${_selLoteMarcadas.size} selecionada(s)</span>
         <button class="btn btn-sm btn-primary" onclick="_selecaoLoteConverterBonus()">🎁 Converter em Bônus</button>
       </div>
-      <div class="upload-drop" id="sel-dropzone" style="${_selLoteModoAtivo ? 'display:none;' : ''}" onclick="document.getElementById('sel-upload-input').click()">
+      <div class="upload-drop" id="sel-dropzone" style="${_selLoteModoAtivo || _selOrdemModoAtivo ? 'display:none;' : ''}" onclick="document.getElementById('sel-upload-input').click()">
         Clique ou arraste fotos aqui pra enviar (pode ser várias de uma vez)
         <input type="file" id="sel-upload-input" accept="image/*" multiple style="display:none;" onchange="uploadFotosSelecao([...this.files], false)">
       </div>
@@ -18392,6 +18420,97 @@ function renderSelecaoDetalhe() {
 // isso aqui é só um atalho pra marcar várias de uma vez. ──
 let _selLoteModoAtivo = false
 let _selLoteMarcadas = new Set()
+let _selOrdemModoAtivo = false
+let _selOrdemOriginalIds = []
+let _selOrdemSalvando = false
+let _selOrdemArrastando = null
+
+function _selecaoOrdemAbrir() {
+  const g = _selecaoDetalheAtual
+  if (!g || _selLoteModoAtivo || _galUploadAtivo() || _selOrdemSalvando) {
+    toast('Finalize o envio ou a seleção em lote antes de organizar as fotos.')
+    return
+  }
+  _selOrdemOriginalIds = g.fotos.map(f => f.id)
+  _selOrdemModoAtivo = true
+  renderSelecaoDetalhe()
+}
+function _selecaoOrdemCancelar() {
+  if (_selOrdemSalvando) return
+  const g = _selecaoDetalheAtual
+  if (g && _selOrdemModoAtivo) {
+    const pos = new Map(_selOrdemOriginalIds.map((id, i) => [id, i]))
+    g.fotos.sort((a,b) => (pos.get(a.id) ?? 999999)-(pos.get(b.id) ?? 999999))
+  }
+  _selOrdemModoAtivo = false
+  _selOrdemOriginalIds = []
+  _selOrdemArrastando = null
+  renderSelecaoDetalhe()
+}
+function _selecaoOrdemMover(de, para) {
+  const g = _selecaoDetalheAtual
+  if (!g || !_selOrdemModoAtivo || _selOrdemSalvando) return
+  if (de < 0 || para < 0 || de >= g.fotos.length || para >= g.fotos.length || de === para) return
+  const [foto] = g.fotos.splice(de,1)
+  g.fotos.splice(para,0,foto)
+  _renderSelecaoFotosGrid()
+}
+function _selecaoOrdemSeta(fotoId, delta) {
+  const g = _selecaoDetalheAtual
+  if (!g) return
+  const i = g.fotos.findIndex(f => f.id === fotoId)
+  _selecaoOrdemMover(i,i+delta)
+}
+function _selecaoOrdemDragStart(event,fotoId) {
+  if (!_selOrdemModoAtivo || _selOrdemSalvando) { event.preventDefault();return }
+  _selOrdemArrastando = fotoId
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain',fotoId)
+  }
+}
+function _selecaoOrdemSoltar(event, destinoId) {
+  event.preventDefault()
+  if (!_selOrdemModoAtivo || _selOrdemSalvando || !_selecaoDetalheAtual) return
+  const g = _selecaoDetalheAtual
+  const de = g.fotos.findIndex(f => f.id === _selOrdemArrastando)
+  const para = g.fotos.findIndex(f => f.id === destinoId)
+  _selOrdemArrastando = null
+  _selecaoOrdemMover(de,para)
+}
+async function _selecaoOrdemSalvar() {
+  const g = _selecaoDetalheAtual
+  if (!g || !_selOrdemModoAtivo || _selOrdemSalvando) return
+  if (_galUploadAtivo()) { toast('Aguarde o upload terminar antes de salvar a ordem.'); return }
+  const ids = g.fotos.map(f => f.id)
+  if (ids.every((id,i)=>id===_selOrdemOriginalIds[i])) {
+    _selOrdemModoAtivo=false
+    _selOrdemOriginalIds=[]
+    renderSelecaoDetalhe()
+    toast('A ordem não foi alterada.')
+    return
+  }
+  _selOrdemSalvando = true
+  const btn = document.getElementById('sel-ordem-salvar')
+  if (btn) { btn.disabled=true;btn.textContent='Salvando…' }
+  try {
+    const {data,error} = await db.rpc('selecao_reordenar_fotos',{p_galeria_id:g.id,p_foto_ids:ids})
+    if (error) throw error
+    if (Number(data)!==ids.length) throw new Error('A quantidade de fotos salva não confere.')
+    g.fotos.forEach((f,i)=>{f.ordem=i})
+    _selOrdemModoAtivo = false
+    _selOrdemOriginalIds = []
+    _selOrdemArrastando = null
+    renderSelecaoDetalhe()
+    toast('Ordem das fotos salva! ✓')
+    registrarAuditoria('reordenou fotos de seleção','selecao_galerias',g.id,ids.length+' fotos')
+  } catch(e) {
+    toast('Não foi possível salvar a ordem: '+(e?.message||'tente novamente'))
+  } finally {
+    _selOrdemSalvando = false
+    if (btn && btn.isConnected) { btn.disabled=false;btn.textContent='✓ Salvar ordem' }
+  }
+}
 
 function _selecaoLoteToggleModo() {
   _selLoteModoAtivo = !_selLoteModoAtivo
@@ -18465,15 +18584,16 @@ function _renderSelecaoFotosGrid() {
   const grid = document.getElementById('sel-fotos-grid')
   if (!g || !grid) return
   if (!g.fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto enviada ainda.</div>'; return }
-  grid.innerHTML = g.fotos.map(f => {
+  grid.innerHTML = g.fotos.map((f, i) => {
     const ehCapa = g.capa_url && f.storage_path === g.capa_url
     const marcada = _selLoteMarcadas.has(f.id)
     return `
-    <div class="foto-item${marcada ? ' sel-lote' : ''}" id="selfoto-${f.id}" ${_selLoteModoAtivo ? `onclick="_selecaoLoteToggleFoto('${f.id}')"` : ''}>
+    <div class="foto-item${marcada ? ' sel-lote' : ''}${_selOrdemModoAtivo ? ' selfoto-ordenando' : ''}" id="selfoto-${f.id}" ${_selLoteModoAtivo ? `onclick="_selecaoLoteToggleFoto('${f.id}')"` : ''} ${_selOrdemModoAtivo ? `draggable="true" ondragstart="_selecaoOrdemDragStart(event,'${f.id}')" ondragend="_selOrdemArrastando=null;this.classList.remove('drop-alvo')" ondragover="event.preventDefault();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="this.classList.remove('drop-alvo');_selecaoOrdemSoltar(event,'${f.id}')"` : ''}>
       <img alt="">
+      ${_selOrdemModoAtivo ? `<span class="selfoto-posicao">${i+1}</span><div class="selfoto-setas"><button type="button" class="selfoto-seta" ${i===0?'disabled':''} title="Mover para posição anterior" aria-label="Mover foto ${i+1} para antes" onclick="event.stopPropagation();_selecaoOrdemSeta('${f.id}',-1)">↑</button><button type="button" class="selfoto-seta" ${i===g.fotos.length-1?'disabled':''} title="Mover para próxima posição" aria-label="Mover foto ${i+1} para depois" onclick="event.stopPropagation();_selecaoOrdemSeta('${f.id}',1)">↓</button></div>` : ''}
       ${ehCapa ? '<span class="ck" style="left:6px;right:auto;background:var(--verde);color:#fff;opacity:1;" title="Capa da galeria">⭐</span>' : ''}
       ${f.bonus ? '<div class="selfoto-bonus-badge">🎁 Bônus/Brinde</div>' : ''}
-      ${!_selLoteModoAtivo ? `
+      ${!_selLoteModoAtivo && !_selOrdemModoAtivo ? `
       <button class="foto-expand" style="opacity:1;right:62px;" onclick="event.stopPropagation();_definirCapaSelecao('${f.id}')" title="${ehCapa ? 'Essa é a capa da galeria' : 'Usar como capa da galeria'}" ${ehCapa ? 'disabled' : ''}>${ehCapa ? '★' : '☆'}</button>
       <button class="foto-expand" style="opacity:1;right:34px;" onclick="event.stopPropagation();_toggleBonusSelecao('${f.id}')" title="${f.bonus ? 'Tirar de Bastidores/Brinde' : 'Marcar como Bastidores/Brinde'}">🎁</button>
       <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>` : ''}
