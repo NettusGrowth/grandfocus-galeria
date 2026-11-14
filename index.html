@@ -12594,6 +12594,19 @@ function _hidratarPathImg(img, path) {
   Promise.resolve(carregar).then(url => {
     if (!img.isConnected || img._gfCargaSeq !== sequencia || img._gfFallbackIntentado) return
     if (!url) {
+      // Retentar com atraso quando o assinador de imagens sofrer 503,
+      // sem deixar as fotos vazias até o usuário recarregar a página.
+      const tentativas=img._gfAssinaturaRetentativas||0
+      if(tentativas<2 && img.isConnected && img._gfCargaSeq===sequencia){
+        img._gfAssinaturaRetentativas=tentativas+1
+        const atraso=2200*(tentativas+1)+(path.length%9)*160
+        setTimeout(()=>{
+          if(!img.isConnected || img._gfCargaSeq!==sequencia)return
+          _invalidarUrlCache(path)
+          _hidratarPathImg(img,path)
+        },atraso)
+        return
+      }
       // Falha em assinar a miniatura: tenta o arquivo original somente
       // quando o nome segue o padrão *_thumb.ext (sem disparar ambos).
       const fallback = typeof _originalPathDaMiniatura === 'function'
@@ -18663,6 +18676,7 @@ function _renderSelecaoFotosGrid() {
   const g = _selecaoDetalheAtual
   const grid = document.getElementById('sel-fotos-grid')
   if (!g || !grid) return
+  _cancelarHidratacaoImgCache(grid)
   if (!g.fotos.length) { grid.innerHTML = '<div class="empty">Nenhuma foto enviada ainda.</div>'; return }
   grid.innerHTML = g.fotos.map((f, i) => {
     const ehCapa = g.capa_url && f.storage_path === g.capa_url
@@ -18682,6 +18696,8 @@ function _renderSelecaoFotosGrid() {
   }).join('')
   // Miniaturas somente quando próximas ao visor: evita carregar tudo de uma vez.
   _hidratarImgCache(grid)
+  grid.ondragover=e=>{if(_selOrdemArrastando)e.preventDefault()}
+  grid.ondrop=e=>{if(_selOrdemArrastando)_selecaoOrdemSoltar(e)}
 }
 
 function _renderSelecaoPedidoFotosGrid() {
@@ -18689,6 +18705,7 @@ function _renderSelecaoPedidoFotosGrid() {
   const grid = document.getElementById('sel-pedido-fotos-grid')
   if (!g?.pedido || !grid) return
   const fotos = g.fotos.filter(f => (g.pedido.foto_ids || []).includes(f.id))
+  _cancelarHidratacaoImgCache(grid)
   grid.innerHTML = fotos.map(f => `<div class="foto-item" id="selpedfoto-${f.id}">${_imgTagCache(f.storage_path, 'alt="" loading="lazy"')}</div>`).join('')
   _hidratarImgCache(grid)
 }
