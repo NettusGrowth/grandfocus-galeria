@@ -1795,6 +1795,55 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .feed-filtro-row input[type="text"]{max-width:260px;}
 .feed-filtro-row input[type="date"]{max-width:150px;width:auto;}
 
+/* Painel de acessos: compacto no dashboard e responsivo na analítica. */
+.gf-access-home-extra{display:flex;gap:7px 12px;flex-wrap:wrap;font-size:11px;color:var(--ouro-luz);opacity:.82;margin-top:8px}
+.gf-access-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:20px}
+.gf-access-head h2{margin:4px 0 5px;font:600 clamp(24px,3vw,32px) var(--serif);color:var(--ouro-luz)}
+.gf-access-head p{font-size:13px;opacity:.72;margin:0}
+.gf-access-eyebrow{font-size:10px;letter-spacing:.13em;color:var(--ouro-luz);font-weight:700}
+.gf-access-periods{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.gf-access-period{background:rgba(200,175,127,.06);border:1px solid rgba(200,175,127,.22);color:var(--ouro-luz);border-radius:999px;padding:9px 14px;font:600 12px inherit;cursor:pointer;transition:background .2s}
+.gf-access-period:hover,.gf-access-period.active{background:rgba(200,175,127,.23);border-color:var(--ouro-luz)}
+.gf-access-custom{display:flex;gap:12px;flex-wrap:wrap;align-items:end;margin-bottom:16px}
+.gf-access-custom[hidden]{display:none}
+.gf-access-custom label{display:grid;gap:5px;font-size:12px;min-width:150px}
+.gf-access-custom input{width:100%;color:inherit}
+.gf-access-feedback{font-size:12px;color:var(--ouro-luz);margin:9px 0 15px;min-height:16px}
+.gf-access-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:15px}
+.gf-access-kpi,.gf-access-section{background:rgba(200,175,127,.045);border:1px solid rgba(200,175,127,.17);border-radius:15px;padding:19px}
+.gf-access-kpi>span{display:block;font-size:12px;opacity:.78;margin-bottom:9px}
+.gf-access-kpi strong{display:block;font-size:clamp(24px,3vw,37px);line-height:1.1;letter-spacing:-.025em;color:var(--ouro-luz);font-weight:650;font-variant-numeric:tabular-nums}
+.gf-access-kpi small{display:block;margin-top:8px;font-size:11px;opacity:.62}
+.gf-access-section{margin-bottom:15px;min-width:0}
+.gf-access-section h3{font-size:15px;font-weight:650;margin:0 0 15px;color:var(--ouro-luz)}
+.gf-access-quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.gf-access-quick>div{border-radius:10px;padding:14px;background:rgba(200,175,127,.07);display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.gf-access-quick span,.gf-access-insights span{font-size:12px;opacity:.8}
+.gf-access-quick b{font-size:23px;font-variant-numeric:tabular-nums;color:var(--ouro-luz)}
+.gf-access-note{font-size:11px;opacity:.67;line-height:1.55;margin:10px 0 16px}
+.gf-access-columns{display:grid;grid-template-columns:1.25fr 1fr;gap:15px}
+.gf-access-section-header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.gf-access-section-header span{font-size:11px;opacity:.6}
+.gf-access-chart{height:185px;display:flex;align-items:stretch;gap:4px;padding:10px 0 20px;overflow:hidden;border-bottom:1px solid rgba(200,175,127,.15)}
+.gf-access-chart-col{min-width:0;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:end;gap:3px;position:relative}
+.gf-access-chart-bars{width:100%;height:100%;display:flex;align-items:end;justify-content:center;gap:2px}
+.gf-access-chart-bar{width:48%;max-width:22px;border-radius:4px 4px 0 0;background:#C8AF7F;min-height:1px}
+.gf-access-chart-bar.download{background:#9B617D}
+.gf-access-chart-label{position:absolute;bottom:-19px;font-size:9px;opacity:.65;white-space:nowrap}
+.gf-access-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;margin-top:14px;opacity:.84}
+.gf-access-legend span{display:flex;align-items:center;gap:5px}
+.gf-access-legend i{display:inline-block;background:#C8AF7F;width:9px;height:9px;border-radius:2px}
+.gf-access-legend span+span i{background:#9B617D}
+.gf-access-insights>div,.gf-access-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(200,175,127,.1)}
+.gf-access-insights>div:last-child,.gf-access-row:last-child{border-bottom:0}
+.gf-access-insights b{color:var(--ouro-luz);font-size:13px;text-align:right;font-variant-numeric:tabular-nums}
+.gf-access-row>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.gf-access-row b{flex-shrink:0;color:var(--ouro-luz);font-variant-numeric:tabular-nums}
+.gf-access-row small{font-size:11px;opacity:.67;flex-shrink:0}
+.gf-access-empty{font-size:12px;opacity:.68;padding:18px 0}
+.gf-access-footer{display:flex;justify-content:flex-end;padding-bottom:22px}
+@media(max-width:850px){.gf-access-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.gf-access-columns{grid-template-columns:1fr}.gf-access-quick{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:460px){.gf-access-kpis{gap:8px}.gf-access-kpi,.gf-access-section{padding:13px}.gf-access-period{padding:8px 11px}.gf-access-head h2{font-size:23px}.gf-access-kpi strong{font-size:26px}.gf-access-quick>div{padding:11px}.gf-access-quick b{font-size:20px}}
 /* ── auditoria: tabela compacta + badges de severidade ── */
 .tabela-auditoria{width:100%;border-collapse:collapse;font-size:13px;}
 .tabela-auditoria tr{border-bottom:1px solid rgba(200,175,127,.1);}
@@ -2441,10 +2490,15 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             <div class="mkpi-barras" id="dash-ganhos-barras"></div>
             <div class="ms" id="dash-ganhos-acumulado" style="margin-top:8px;display:block;">Drill-down no Gold Reserve →</div>
           </div>
-          <div class="modulo-card t-vinho" id="dash-card-comunidade" onclick="setAdminTab('comunidade');iniciarComunidadeAdmin()">
-            <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5.5h16v10H9.5L5 19v-3.5H4Z"/></svg></div>
-            <div class="mn">Comunidade</div>
-            <div><span class="mv num" id="dash-mod-posts">—</span><span class="ms">publicações</span></div>
+          <div class="modulo-card t-vinho" id="dash-card-acessos" onclick="_acessosAbrir()">
+            <div class="mkpi-topo">
+              <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M3 12h18M12 4c-5 4.5-5 11.5 0 16M12 4c5 4.5 5 11.5 0 16"/></svg></div>
+              <span class="ms">Últimas 24h</span>
+            </div>
+            <div class="mn">Acessos</div>
+            <div><span class="mv num" id="dash-acessos-pessoas">—</span><span class="ms">pessoas únicas</span></div>
+            <div class="gf-access-home-extra"><span id="dash-acessos-logins">— logins</span><span id="dash-acessos-downloads">— fotos baixadas</span></div>
+            <div class="ms" style="margin-top:10px;">Ver estatísticas e períodos →</div>
           </div>
           <div class="modulo-card t-burgundy" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()">
             <div class="mi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5 19 6.5v5.5c0 4.3-3 7.6-7 8.5-4-.9-7-4.2-7-8.5V6.5Z"/><path d="M9 12l2 2 4-4.2"/></svg></div>
@@ -2728,6 +2782,72 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <div id="comunidade-admin-header"></div>
         <div id="comunidade-admin-composer-wrap"></div>
         <div id="comunidade-admin-feed"></div>
+      </div>
+
+      <div class="admin-tab" id="admintab-acessos" style="display:none;">
+        <div class="gf-access-head">
+          <div><div class="gf-access-eyebrow">GRAND FOCUS · INTELIGÊNCIA DA GALERIA</div><h2>Acessos e atividade</h2><p>Histórico real de logins e downloads registrado na auditoria.</p></div>
+          <button class="btn btn-sm" type="button" onclick="_acessosAtualizar(true)">↻ Atualizar dados</button>
+        </div>
+        <div class="gf-access-periods" role="group" aria-label="Período analisado">
+          <button class="gf-access-period" type="button" data-period="hour" onclick="_acessosEscolher('hour')">Última hora</button>
+          <button class="gf-access-period" type="button" data-period="today" onclick="_acessosEscolher('today')">Hoje</button>
+          <button class="gf-access-period" type="button" data-period="day" onclick="_acessosEscolher('day')">24 horas</button>
+          <button class="gf-access-period" type="button" data-period="week" onclick="_acessosEscolher('week')">7 dias</button>
+          <button class="gf-access-period" type="button" data-period="month" onclick="_acessosEscolher('month')">30 dias</button>
+          <button class="gf-access-period" type="button" data-period="all" onclick="_acessosEscolher('all')">Todo histórico</button>
+          <button class="gf-access-period" type="button" data-period="custom" onclick="_acessosEscolher('custom')">Personalizado</button>
+        </div>
+        <div class="gf-access-custom" id="gf-access-custom" hidden>
+          <label>Início <input type="date" id="gf-access-from"></label>
+          <label>Fim <input type="date" id="gf-access-to"></label>
+          <button class="btn btn-primary btn-sm" type="button" onclick="_acessosAtualizar(true)">Aplicar período</button>
+        </div>
+        <div id="gf-access-feedback" class="gf-access-feedback" role="status">Carregando estatísticas…</div>
+        <div class="gf-access-kpis">
+          <div class="gf-access-kpi"><span>Pessoas únicas</span><strong id="gf-access-unique">—</strong><small>Contas distintas com login</small></div>
+          <div class="gf-access-kpi"><span>Total de logins</span><strong id="gf-access-logins">—</strong><small>Entradas registradas no período</small></div>
+          <div class="gf-access-kpi"><span>Fotos baixadas</span><strong id="gf-access-photos">—</strong><small>Quantidade informada na auditoria</small></div>
+          <div class="gf-access-kpi"><span>Pessoas que baixaram</span><strong id="gf-access-downloaders">—</strong><small>Contas distintas com downloads</small></div>
+        </div>
+        <div class="gf-access-section">
+          <h3>Visão rápida</h3>
+          <div class="gf-access-quick">
+            <div><span>Última hora</span><b id="gf-access-hour">—</b></div>
+            <div><span>Hoje</span><b id="gf-access-today">—</b></div>
+            <div><span>Últimas 24h</span><b id="gf-access-day">—</b></div>
+            <div><span>Últimos 7 dias</span><b id="gf-access-week">—</b></div>
+          </div>
+          <p class="gf-access-note">Pessoas distintas que fizeram login em cada intervalo. “Hoje” considera o horário de Brasília.</p>
+        </div>
+        <div class="gf-access-columns">
+          <section class="gf-access-section">
+            <div class="gf-access-section-header"><h3>Movimentação no período</h3><span id="gf-access-chart-info">Logins e downloads</span></div>
+            <div id="gf-access-chart" class="gf-access-chart" aria-label="Gráfico de atividade"></div>
+            <div class="gf-access-legend"><span><i></i>Logins</span><span><i></i>Fotos baixadas</span></div>
+          </section>
+          <section class="gf-access-section">
+            <h3>Indicadores adicionais</h3>
+            <div class="gf-access-insights">
+              <div><span>Downloads realizados</span><b id="gf-access-events">—</b></div>
+              <div><span>Pessoas com múltiplos acessos</span><b id="gf-access-returned">—</b></div>
+              <div><span>Downloads por pessoa que baixou</span><b id="gf-access-average">—</b></div>
+              <div><span>Última atualização</span><b id="gf-access-updated">—</b></div>
+            </div>
+          </section>
+        </div>
+        <div class="gf-access-columns">
+          <section class="gf-access-section">
+            <h3>Contas com mais logins</h3>
+            <div id="gf-access-top" class="gf-access-rows"></div>
+          </section>
+          <section class="gf-access-section">
+            <h3>Últimas entradas no período</h3>
+            <div id="gf-access-recent" class="gf-access-rows"></div>
+          </section>
+        </div>
+        <p class="gf-access-note">Acessos representam registros de “fez login”, não visualizações de páginas. Downloads em lote usam a quantidade salva na auditoria; ações sem quantidade explícita contam como uma foto. Períodos sem registros não permitem recuperar acessos anteriores ao início da auditoria.</p>
+        <div class="gf-access-footer"><button class="btn btn-sm" type="button" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()">Abrir auditoria detalhada</button></div>
       </div>
 
       <div class="admin-tab" id="admintab-auditoria" style="display:none;">
@@ -6128,7 +6248,7 @@ async function iniciarDashboardAdmin() {
   _dashRenderAcessos()
   _dashCarregarModulos(error ? null : count)
   _dashRenderProximosEventos()
-  _dashRenderGanhosRecentes()
+  _dashCarregarAcessosCard()
   _dashRenderAlertaCritico()
   _dashCarregarFotosPopulares()
   _dashBindParallax()
@@ -6415,8 +6535,7 @@ async function _dashCarregarModulos(totalFotos) {
   // Miniaturas espelham as fontes do portfólio; a contagem acima segue mostrando TODO o acervo.
   if (meuPerfil?.role === 'super_admin') _portfolioAtualizarPreviewHome()
 
-  const { count: nPosts } = await db.from('posts').select('id', { count: 'exact', head: true })
-  const elPosts = document.getElementById('dash-mod-posts'); if (elPosts) elPosts.textContent = nPosts ?? 0
+  // O cartão Comunidade foi substituído por Acessos; não carregar contagem de posts.
 }
 
 // overflow-x:auto sozinho só dá swipe nativo em touch — arrastar com o
@@ -7473,6 +7592,129 @@ function _dashRenderProximosEventos() {
   }).join('')
 }
 
+
+// Acessos: todos os cálculos são feitos no Postgres sobre a auditoria histórica.
+// A interface recebe somente agregados pequenos; nunca baixa a auditoria completa.
+let _gfAccessPeriod = 'day'
+let _gfAccessCache = new Map()
+let _gfAccessSeq = 0
+let _gfAccessHomeSeq = 0
+function _acessosNumero(n) { return Number(n || 0).toLocaleString('pt-BR') }
+function _acessosHojeISO() {
+  const fmt = new Intl.DateTimeFormat('en-CA', {timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'})
+  const parts = Object.fromEntries(fmt.formatToParts(new Date()).filter(p=>p.type!=='literal').map(p=>[p.type,p.value]))
+  return parts.year+'-'+parts.month+'-'+parts.day
+}
+function _acessosHojeInicio() {
+  // São Paulo atualmente UTC-03:00; Intl evita adivinhar data local do dispositivo.
+  const hoje=_acessosHojeISO()
+  const horaLocal=new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo',hour12:false})
+  void horaLocal
+  return new Date(hoje+'T03:00:00Z')
+}
+function _acessosIntervalo() {
+  const fim=new Date()
+  const mapa={hour:3600000,day:86400000,week:7*86400000,month:30*86400000,all:370*86400000}
+  if (_gfAccessPeriod==='custom') {
+    const de=document.getElementById('gf-access-from')?.value
+    const ate=document.getElementById('gf-access-to')?.value
+    if (!de||!ate) throw Error('Escolha as duas datas do período.')
+    const inicio=new Date(de+'T03:00:00Z')
+    const final=new Date(ate+'T03:00:00Z')
+    final.setUTCDate(final.getUTCDate()+1)
+    if (inicio >= final || final-inicio > 370*86400000 || inicio > fim) throw Error('Escolha até 370 dias, com início anterior ao fim.')
+    return {inicio:inicio.toISOString(),fim:new Date(Math.min(final.getTime(),fim.getTime())).toISOString()}
+  }
+  return {inicio:(_gfAccessPeriod==='today'?_acessosHojeInicio():new Date(fim.getTime()-(mapa[_gfAccessPeriod]||86400000))).toISOString(),fim:fim.toISOString()}
+}
+function _acessosEscolher(periodo) {
+  _gfAccessPeriod=periodo
+  document.querySelectorAll('.gf-access-period').forEach(b=>b.classList.toggle('active',b.dataset.period===periodo))
+  const custom=document.getElementById('gf-access-custom')
+  if(custom) custom.hidden=periodo!=='custom'
+  if(periodo!=='custom') _acessosAtualizar()
+}
+function _acessosAbrir() {
+  setAdminTab('acessos')
+}
+function _acessosAtualizar(forcar=false) {
+  const pagina=document.getElementById('admintab-acessos')
+  if(!pagina||pagina.style.display==='none') return
+  document.querySelectorAll('.gf-access-period').forEach(b=>b.classList.toggle('active',b.dataset.period===_gfAccessPeriod))
+  const custom=document.getElementById('gf-access-custom')
+  if(custom)custom.hidden=_gfAccessPeriod!=='custom'
+  const status=document.getElementById('gf-access-feedback')
+  let intervalo
+  try { intervalo=_acessosIntervalo() } catch(e) {if(status)status.textContent=e.message;return}
+  const key=_gfAccessPeriod+'|'+intervalo.inicio.slice(0,16)+'|'+intervalo.fim.slice(0,16)
+  const cached=_gfAccessCache.get(key)
+  if(!forcar&&cached&&Date.now()-cached.em<60000){_acessosDesenhar(cached.dados);return}
+  const seq=++_gfAccessSeq
+  if(status)status.textContent='Consultando o histórico da galeria…'
+  db.rpc('gf_painel_acessos',{p_inicio:intervalo.inicio,p_fim:intervalo.fim}).then(({data,error})=>{
+    if(seq!==_gfAccessSeq)return
+    if(error){if(status)status.textContent='Não foi possível consultar acessos: '+error.message;return}
+    if(!data){if(status)status.textContent='Nenhuma informação disponível.';return}
+    _gfAccessCache.set(key,{em:Date.now(),dados:data})
+    if(_gfAccessCache.size>16)_gfAccessCache.clear()
+    _acessosDesenhar(data)
+  }).catch(e=>{if(seq===_gfAccessSeq&&status)status.textContent='Falha ao atualizar: '+e.message})
+}
+function _acessosDesenhar(data) {
+  const k=data.indicadores||{},q=data.rapidos||{}
+  const ids={
+    'gf-access-unique':k.pessoas,'gf-access-logins':k.logins,
+    'gf-access-photos':k.fotos,'gf-access-downloaders':k.pessoas_baixaram,
+    'gf-access-hour':q.hora,'gf-access-today':q.hoje,'gf-access-day':q.dia,'gf-access-week':q.semana,
+    'gf-access-events':k.downloads,'gf-access-returned':data.retornaram
+  }
+  Object.entries(ids).forEach(([id,value])=>{const el=document.getElementById(id);if(el)el.textContent=_acessosNumero(value)})
+  const avg=document.getElementById('gf-access-average')
+  if(avg)avg.textContent=k.pessoas_baixaram? (Number(k.fotos)/Number(k.pessoas_baixaram)).toLocaleString('pt-BR',{maximumFractionDigits:1}):'0'
+  const atualizado=new Date(data.atualizado_em)
+  const up=document.getElementById('gf-access-updated')
+  if(up)up.textContent=atualizado.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+  const status=document.getElementById('gf-access-feedback')
+  if(status)status.textContent='Período: '+new Date(data.inicio).toLocaleString('pt-BR')+' até '+new Date(data.fim).toLocaleString('pt-BR')+' · Horário de Brasília'
+  const serie=(data.serie||[]).map(x=>({...x,logins:Number(x.logins||0),fotos:Number(x.fotos||0)}))
+  const chart=document.getElementById('gf-access-chart')
+  if(chart){
+    if(!serie.length)chart.innerHTML='<div class="gf-access-empty">Nenhuma atividade registrada neste período.</div>'
+    else {
+      // Limite de colunas para não deixar o gráfico pesado em períodos extensos.
+      const passo=Math.max(1,Math.ceil(serie.length/36)),baldes=[]
+      for(let i=0;i<serie.length;i+=passo){const fatia=serie.slice(i,i+passo);baldes.push({faixa:fatia[0].faixa,logins:fatia.reduce((n,x)=>n+x.logins,0),fotos:fatia.reduce((n,x)=>n+x.fotos,0)})}
+      const max=Math.max(1,...baldes.flatMap(x=>[x.logins,x.fotos]))
+      chart.innerHTML=baldes.map((x,i)=>{
+        const etiqueta=new Date(x.faixa).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})
+        const hora=new Date(x.faixa).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})
+        const label=_gfAccessPeriod==='hour'||_gfAccessPeriod==='day'||_gfAccessPeriod==='today'?hora:etiqueta
+        const h1=Math.round(x.logins/max*100),h2=Math.round(x.fotos/max*100)
+        return '<div class="gf-access-chart-col" title="'+esc(label+': '+x.logins+' logins, '+x.fotos+' fotos baixadas')+'"><div class="gf-access-chart-bars"><span class="gf-access-chart-bar" style="height:'+h1+'%"></span><span class="gf-access-chart-bar download" style="height:'+h2+'%"></span></div>'+(i%Math.max(1,Math.ceil(baldes.length/7))===0?'<span class="gf-access-chart-label">'+esc(label)+'</span>':'')+'</div>'
+      }).join('')
+    }
+  }
+  const top=document.getElementById('gf-access-top')
+  if(top)top.innerHTML=data.mais_ativos?.length?data.mais_ativos.map((x,i)=>'<div class="gf-access-row"><span>'+String(i+1).padStart(2,'0')+' · '+esc(x.nome)+'</span><b>'+_acessosNumero(x.logins)+' logins</b></div>').join(''):'<div class="gf-access-empty">Nenhum login no período.</div>'
+  const recent=document.getElementById('gf-access-recent')
+  if(recent)recent.innerHTML=data.ultimos?.length?data.ultimos.map(x=>'<div class="gf-access-row"><span>'+esc(x.nome)+'</span><small>'+esc(new Date(x.criado_em).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}))+'</small></div>').join(''):'<div class="gf-access-empty">Nenhum login no período.</div>'
+}
+async function _dashCarregarAcessosCard() {
+  const el=document.getElementById('dash-acessos-pessoas')
+  if(!el)return
+  const seq=++_gfAccessHomeSeq
+  // Um único RPC agrega dados de todo o histórico necessário aos cards.
+  const {data,error}=await db.rpc('gf_painel_acessos',{
+    p_inicio:new Date(Date.now()-86400000).toISOString(),p_fim:new Date().toISOString()
+  })
+  if(seq!==_gfAccessHomeSeq)return
+  if(error||!data){el.textContent='—';return}
+  el.textContent=_acessosNumero(data.indicadores?.pessoas)
+  const a=document.getElementById('dash-acessos-logins'),b=document.getElementById('dash-acessos-downloads')
+  if(a)a.textContent=_acessosNumero(data.indicadores?.logins)+' logins'
+  if(b)b.textContent=_acessosNumero(data.indicadores?.fotos)+' fotos baixadas'
+}
+
 // Ganhos Recentes — mesmo cadeado do Gold Reserve (só super_admin viu
 // dado financeiro desde o Bloco 16; entrar no Dashboard não abre
 // exceção pra isso). Pra quem não é super_admin, o card volta a ser
@@ -7484,9 +7726,7 @@ async function _dashRenderGanhosRecentes() {
   // A antiga área de ganhos saiu da Galeria; o controle financeiro
   // agora fica apenas em /contratar/admin/financeiro/.
   const cardGanhos = document.getElementById('dash-card-ganhos');
-  const cardComunidade = document.getElementById('dash-card-comunidade');
   if (cardGanhos) cardGanhos.style.display = 'none';
-  if (cardComunidade) cardComunidade.style.display = '';
 }
 
 // Alertas Críticos — "crítico" é a MESMA classificação que a aba
@@ -7614,7 +7854,8 @@ function setAdminTab(tab) {
   // download/visualização acontecem em segundo plano (outra pessoa
   // navegando a galeria), então reabrir a aba Dashboard é a deixa
   // natural pra atualizar sem precisar de F5.
-  if (tab === 'dashboard') _dashCarregarFotosPopulares()
+  if (tab === 'dashboard') { _dashCarregarFotosPopulares(); _dashCarregarAcessosCard(); }
+  if (tab === 'acessos') _acessosAtualizar()
 }
 
 window.addEventListener('message', (event) => {
