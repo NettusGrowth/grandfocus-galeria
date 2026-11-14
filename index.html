@@ -19275,6 +19275,43 @@ async function _selPubEnviarPedido(opts = {}) {
 }
 
 let _selPubBastidoresLiberados = []
+let _selPubDownloadGeradoEm = 0
+let _selPubDownloadNativoAtivo = false
+
+// <img> pode carregar foto de outra origem que fetch() bloqueia por CORS.
+// A URL de download vem assinada do servidor com Content-Disposition: attachment.
+function _selPubAbrirDownloadNativo(url, nome) {
+  if (!url || !/^https:\/\//i.test(url)) {
+    toast('Não foi possível preparar o arquivo. Atualize a galeria e tente novamente.')
+    return false
+  }
+  const a = document.createElement('a')
+  a.href = url
+  a.download = nome || 'foto.jpg'
+  a.rel = 'noopener noreferrer'
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  return true
+}
+function _selPubDownloadValido() {
+  if (!_selPubDownloadGeradoEm || Date.now() - _selPubDownloadGeradoEm < 45 * 60 * 1000) return true
+  toast('Atualizando os links de download. Após carregar, toque na foto novamente.')
+  _renderSelPubLiberado()
+  return false
+}
+function _selPubBaixarFotoIndividual(tipo, indice) {
+  if (!_selPubDownloadValido()) return
+  const lista = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
+  const foto = lista[indice]
+  if (!foto) return
+  if (foto.download_url) {
+    _selPubAbrirDownloadNativo(foto.download_url, foto.nome_download || 'foto-' + (indice + 1) + '.jpg')
+    return
+  }
+  _baixarUrl(foto.url, 'foto-' + (indice + 1) + '.jpg')
+}
+
 
 async function _renderSelPubLiberado() {
   const conteudo = document.getElementById('selecao-pub-conteudo')
@@ -19283,6 +19320,7 @@ async function _renderSelPubLiberado() {
   if (error) { conteudo.innerHTML = `<div class="empty">${esc(error)}</div>`; return }
   _selPubFotosLiberadas = data.fotos || []
   _selPubBastidoresLiberados = data.bastidores || []
+  _selPubDownloadGeradoEm = Date.now()
   _renderSelPubLiberadoConteudo()
 }
 
@@ -19321,13 +19359,13 @@ function _renderSelPubLiberadoConteudo() {
   }
   const grid = document.getElementById('selpub-liberado-grid')
   grid.innerHTML = _selPubFotosLiberadas.length ? _selPubFotosLiberadas.map((f, i) => `
-    <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','foto-${i + 1}.jpg')" title="Baixar essa foto">
+    <div class="selpub-card" style="cursor:pointer;" onclick="_selPubBaixarFotoIndividual('fotos',${i})" title="Baixar essa foto">
       <img src="${f.url}" loading="lazy" alt="" onload="this.classList.add('gf-loaded')">
     </div>`).join('') : '<div class="empty">Nenhuma foto por aqui.</div>'
   if (temBastidores) {
     const gridB = document.getElementById('selpub-bastidores-grid')
     gridB.innerHTML = _selPubBastidoresLiberados.map((f, i) => `
-      <div class="selpub-card" style="cursor:pointer;" onclick="_baixarUrl('${f.url}','bastidor-${i + 1}.jpg')" title="Baixar essa foto">
+      <div class="selpub-card" style="cursor:pointer;" onclick="_selPubBaixarFotoIndividual('bastidores',${i})" title="Baixar essa foto">
         <img src="${f.url}" loading="lazy" alt="" onload="this.classList.add('gf-loaded')">
       </div>`).join('')
   }
@@ -19342,11 +19380,41 @@ function _renderSelPubLiberadoConteudo() {
 // repassa a lista inteira de uma vez, sem loop aqui.
 async function _selPubBaixarTodas(tipo) {
   const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
-  if (!fotos.length) return
-  const sufixoNome = tipo === 'bastidores' ? '-bastidores' : ''
-  const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-') + sufixoNome
-  const itens = fotos.map((f, i) => ({ url: f.url, nome: `foto-${i + 1}.jpg` }))
-  await _baixarFotosEmMassa(itens, nomeBase)
+  if (!fotos.length || !_selPubDownloadValido()) return
+  if (_selPubDownloadNativoAtivo) {
+    toast('O download já está sendo iniciado. Confira as permissões do navegador.')
+    return
+  }
+  if (!fotos.every(f => f.download_url)) {
+    const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-')
+    return _baixarFotosEmMassa(fotos.map((f, i) => ({ url: f.url, nome: 'foto-' + (i + 1) + '.jpg' })), nomeBase)
+  }
+  _selPubDownloadNativoAtivo = true
+  try {
+    // Alguns navegadores bloqueiam downloads múltiplos. Estes botões
+    // permitem repetir individualmente sem depender de fetch() ou CORS.
+    const botoes = fotos.map((_, i) =>
+      '<button type="button" class="btn" style="padding:8px 12px;font-size:12px;margin:3px;" onclick="_selPubBaixarFotoIndividual(\'' +
+      tipo + '\',' + i + ')">⬇ Foto ' + (i + 1) + '</button>'
+    ).join('')
+    _dlProgressMostrar('Baixando ' + fotos.length + ' foto(s)…',
+      'Se o navegador pedir autorização para vários arquivos, escolha Permitir.', {
+        progresso: { atual: 0, total: fotos.length },
+        acaoHtml: '<div style="max-height:170px;overflow:auto;">' + botoes + '</div>',
+      })
+    for (let i = 0; i < fotos.length; i++) {
+      _selPubAbrirDownloadNativo(fotos[i].download_url, fotos[i].nome_download || 'foto-' + (i + 1) + '.jpg')
+      if (i !== fotos.length - 1) await new Promise(r => setTimeout(r, 420))
+    }
+    _dlProgressMostrar('Downloads iniciados (' + fotos.length + ')',
+      'Confira os arquivos no seu aparelho. Se algum não aparecer, use os botões individuais abaixo.', {
+        parado: true,
+        progresso: { atual: fotos.length, total: fotos.length },
+        acaoHtml: '<div style="max-height:170px;overflow:auto;">' + botoes + '</div>',
+      })
+  } finally {
+    _selPubDownloadNativoAtivo = false
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
