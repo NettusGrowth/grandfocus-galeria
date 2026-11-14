@@ -62,24 +62,39 @@ async function acaoDados(admin: any, token: string, senha: string | null) {
 // server-side, em paralelo. Cada URL é temporária; a leitura do objeto
 // só acontece quando o navegador abre o link, e nunca expomos credenciais
 // S3 ao cliente.
-async function assinarEmLote(admin: any, lista: any[], campoPath: string) {
+async function assinarEmLote(admin: any, lista: any[], campoPath: string, prefixoDownload: string | null = null) {
   if (!Array.isArray(lista) || lista.length === 0) return []
-  return await Promise.all(lista.map(async (f) => {
+  return await Promise.all(lista.map(async (f, indice) => {
     try {
       const key = f?.[campoPath]
       if (typeof key !== 'string' || !key.trim()) {
         throw new Error(`Chave R2 ausente no campo ${campoPath}`)
       }
+      // Na tela de entrega, a URL de visualização permanece intacta;
+      // a segunda URL vem com Content-Disposition: attachment assinado pelo servidor.
+      // Assim o navegador salva por navegação nativa (sem fetch/CORS no JS).
+      const extensao = key.toLowerCase().match(/\.(jpe?g|png|webp)$/)?.[1] || 'jpg'
+      const nomeDownload = prefixoDownload ? `${prefixoDownload}-${indice + 1}.${extensao}` : null
       if (R2_KEY.test(key)) {
         try {
-          if (await r2ObjectExists(key)) return { id: f.id, url: await signR2Object(key, 3600) }
+          if (await r2ObjectExists(key)) {
+            const url = await signR2Object(key, 3600)
+            const download_url = nomeDownload ? await signR2Object(key, 3600, nomeDownload) : null
+            return { id: f.id, url, ...(download_url ? { download_url, nome_download: nomeDownload } : {}) }
+          }
         } catch (r2Error) {
           console.warn('selecao-publica: R2 lookup failed; trying preserved Supabase copy', { id: f?.id ?? null, message: String(r2Error) })
         }
       }
       const { data, error } = await admin.storage.from(BUCKET).createSignedUrl(key, 3600)
       if (error) throw error
-      return { id: f.id, url: data?.signedUrl || null }
+      let download_url: string | null = null
+      if (nomeDownload) {
+        const resultadoDownload = await admin.storage.from(BUCKET).createSignedUrl(key, 3600, { download: nomeDownload })
+        if (resultadoDownload.error) throw resultadoDownload.error
+        download_url = resultadoDownload.data?.signedUrl || null
+      }
+      return { id: f.id, url: data?.signedUrl || null, ...(download_url ? { download_url, nome_download: nomeDownload } : {}) }
     } catch (e) {
       console.error('selecao-publica: falha ao assinar objeto R2', {
         id: f?.id ?? null,
@@ -173,8 +188,8 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
   if (error) { console.error('selecao-publica[download]: RPC falhou', { token, message: error.message }); return json({ error: mapErro(error.message) }, 401) }
 
   const [fotos, bastidores] = await Promise.all([
-    assinarEmLote(admin, data.fotos || [], 'storage_path_alta'),
-    assinarEmLote(admin, data.bastidores || [], 'storage_path_alta'),
+    assinarEmLote(admin, data.fotos || [], 'storage_path_alta', 'foto'),
+    assinarEmLote(admin, data.bastidores || [], 'storage_path_alta', 'presente'),
   ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
 }
