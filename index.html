@@ -2261,6 +2261,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 .alba-toggle input:disabled + .trilho{opacity:.35;cursor:default;}
 .alba-toggle input:disabled{cursor:default;}
 </style>
+<link rel="stylesheet" href="/assets/gf-priority-notifications.css">
 <style id="digipix-disabled">
 /* Digipix desativado temporariamente sem remover o código nem os dados. */
 #view-admin .tabs .tab[data-tab="albuns"],
@@ -2354,12 +2355,16 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
         <button class="icon-btn" title="Notificações" onclick="_toggleSinoNotificacoes()">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-1.7 2.3h15.4L18 16Z"/><path d="M9.5 20.3a2.5 2.5 0 0 0 5 0"/></svg>
           <span class="sino-dot" id="sino-dot" style="display:none;"></span>
+           <span class="gf-notif-badge" id="gf-notif-numero" aria-label="Notificações não lidas"></span>
         </button>
         <div class="perfil-menu-drop sino-drop" id="sino-drop">
-          <div class="sino-titulo">Notificações</div>
+          <div class="gf-notif-topline">
+             <div class="sino-titulo">Notificações <span id="gf-notif-total" style="font-size:10px;letter-spacing:0;text-transform:none;color:#D7BDA8;"></span></div>
+             <button id="gf-notif-som" type="button" class="gf-notif-sound" onclick="_gfNotifAlternarSom()" style="display:none;">♫ Som ligado</button>
+           </div>
           <ul class="dash-activity" id="sino-lista"></ul>
           <div class="sino-footer">
-            <button onclick="_notifMarcarTodasLidas()">Marcar tudo como lido</button>
+            <button onclick="_gfNotifMarcarTodas()">Marcar tudo como lido</button>
             <button id="sino-ver-historico" onclick="fecharModal('modal-busca');document.getElementById('sino-drop').classList.remove('open');setAdminTab('auditoria');iniciarAuditoriaAdmin()">Ver histórico</button>
           </div>
         </div>
@@ -4360,6 +4365,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
 </div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<div id="gf-prio-toasts" class="gf-prio-toasts" aria-live="polite" aria-atomic="false"></div>
 
 <!-- banner de progresso de download — diferente do toast (que some
      sozinho em 3.2s): fica na tela até o usuário fechar, mostra em
@@ -4381,6 +4387,7 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
   <div class="dl-progress-acao" id="dl-progress-acao" style="display:none;"></div>
 </div>
 
+<script src="/assets/gf-priority-notifications.js"></script>
 <script>
 // ══════════════════════════════════════════════════════════════
 // CONFIG — troque pelos dados do SEU projeto Supabase (Project
@@ -5048,6 +5055,7 @@ function _ligarRealtimeGlobal() {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'foto_pessoa' }, _onRealtimeFotos)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'eventos' }, _onRealtimeEventos)
     .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'auditoria' }, _onRealtimeAuditoria)
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gf_notificacoes_prioritarias' }, _gfNotifRealtime)
     .subscribe()
 }
 
@@ -5299,6 +5307,7 @@ function iniciarAuth() {
 
 function mostrarLogin() {
   currentUser = null; meuPerfil = null
+  _gfNotifParar()
   _desligarRealtimeGlobal()
   document.getElementById('login-screen').style.display = 'flex'
   document.getElementById('app').style.display = 'none'
@@ -5758,6 +5767,7 @@ async function iniciarSinoNotificacoes() {
   const role = meuPerfil?.role
   const wrap = document.getElementById('sino-lista')
   if (!wrap) return
+  if (['admin', 'super_admin'].includes(role)) return _gfNotifIniciarSino()
   let itens = []
   if (['admin', 'super_admin'].includes(role)) {
     const [auditRes, agendaItens] = await Promise.all([
