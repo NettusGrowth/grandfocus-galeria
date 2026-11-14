@@ -73,6 +73,8 @@ function _gfNotifParar(){
   if(summary)summary.textContent='';
   const som=document.getElementById('gf-notif-som');
   if(som)som.style.display='none';
+  const lista=document.getElementById('sino-lista');
+  if(lista)lista.innerHTML='';
   _gfNotifAudioLiberado=false;
   if(_gfNotifAudio){_gfNotifAudio.close().catch(()=>{});_gfNotifAudio=null;}
   document.getElementById('gf-prio-toasts')?.replaceChildren();
