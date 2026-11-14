@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
   if (action === 'dados') return await acaoDados(admin, token, senha)
   if (action === 'enviar') return await acaoEnviar(admin, token, senha, body?.foto_ids || [], body?.observacoes || null)
   if (action === 'download') return await acaoDownload(admin, token, senha)
+  if (action === 'arquivo') return await acaoArquivo(admin, token, senha, body?.foto_id, body?.tipo)
   if (action === 'criar_pagamento') return await acaoCriarPagamento(admin, token, senha, body?.redirect_url || null)
   return json({ error: 'Ação desconhecida.' }, 400)
 })
@@ -192,6 +193,63 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
     assinarEmLote(admin, data.bastidores || [], 'storage_path_alta', 'presente'),
   ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
+}
+
+// Streaming seguro para o Web Share do iPhone. O navegador não precisa ler
+// os bytes diretamente do R2 (que pode não liberar CORS), mas o direito
+// de acesso continua sendo validado pela mesma RPC da entrega liberada.
+async function acaoArquivo(admin: any, token: string, senha: string | null, fotoId: unknown, tipo: unknown) {
+  if (typeof fotoId !== 'string' || !/^[a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12}$/i.test(fotoId))
+    return json({ error: 'Fotografia inválida.' }, 400)
+  if (tipo !== 'fotos' && tipo !== 'bastidores')
+    return json({ error: 'Tipo de fotografia inválido.' }, 400)
+  // Não aceitar path fornecido pelo browser. Sempre buscar a chave real
+  // de uma foto autorizada da seleção, após confirmar a liberação.
+  const { data, error } = await admin.rpc('selecao_download_liberado', { p_token: token, p_senha: senha })
+  if (error) return json({ error: mapErro(error.message) }, 401)
+  const foto = (tipo === 'bastidores' ? (data?.bastidores || []) : (data?.fotos || []))
+    .find((f: any) => f?.id === fotoId)
+  const key = foto?.storage_path_alta
+  if (typeof key !== 'string' || !key.trim()) return json({ error: 'Arquivo não autorizado ou indisponível.' }, 404)
+  try {
+    let signed: string | null = null
+    if (R2_KEY.test(key)) {
+      try {
+        if (await r2ObjectExists(key)) signed = await signR2Object(key, 120)
+      } catch (r2Error) {
+        console.warn('selecao-publica[arquivo]: R2 indisponível; conferindo cópia preservada', { foto_id: fotoId, message: String(r2Error) })
+      }
+    }
+    if (!signed) {
+      const { data: storageData, error: storageError } = await admin.storage.from(BUCKET).createSignedUrl(key, 120)
+      if (storageError) throw storageError
+      signed = storageData?.signedUrl || null
+    }
+    if (!signed) return json({ error: 'Não foi possível preparar a foto.' }, 502)
+    const resposta = await fetch(signed, { headers: { 'Accept': 'image/*' } })
+    if (!resposta.ok || !resposta.body) {
+      console.error('selecao-publica[arquivo]: origem recusou leitura', { foto_id: fotoId, status: resposta.status })
+      return json({ error: 'Falha temporária ao buscar a foto.' }, 502)
+    }
+    const mime = (resposta.headers.get('content-type') || '').toLowerCase()
+    const tipoMime = /^(image\/jpeg|image\/png|image\/webp)(;|$)/.test(mime)
+      ? mime.split(';')[0]
+      : /\.png$/i.test(key) ? 'image/png' : /\.webp$/i.test(key) ? 'image/webp' : 'image/jpeg'
+    // Sem Content-Disposition:attachment: o arquivo precisa entrar no
+    // navigator.share({files}) para permitir "Salvar Imagem" no Fotos.
+    const headers: Record<string,string> = {
+      ...CORS, 'Content-Type': tipoMime,
+      'Content-Security-Policy': "default-src 'none'",
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    }
+    const len = resposta.headers.get('content-length')
+    if (len && /^\d+$/.test(len)) headers['Content-Length'] = len
+    return new Response(resposta.body, { status: 200, headers })
+  } catch (erro) {
+    console.error('selecao-publica[arquivo]: erro de transporte', { foto_id: fotoId, message: String(erro) })
+    return json({ error: 'Não foi possível preparar essa foto. Tente novamente.' }, 502)
+  }
 }
 
 function mapErro(msg: string) {
