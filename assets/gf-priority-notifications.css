@@ -1,0 +1,39 @@
+
+/* Grand Focus · Notificações prioritárias — apenas a administração. */
+.gf-notif-badge{display:none;position:absolute;top:-5px;right:-7px;min-width:16px;height:16px;border-radius:20px;padding:0 4px;align-items:center;justify-content:center;background:#C5446F;color:#fff;font-size:10px;font-weight:700;box-shadow:0 0 0 2px #21111A}
+.gf-notif-topline{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;padding:8px 8px 11px}
+.gf-notif-topline .sino-titulo{padding:0;margin:0;display:flex;align-items:center;gap:7px}
+.gf-notif-sound{display:none;align-items:center;gap:6px;padding:7px 10px;font-family:inherit;font-size:11px;color:var(--ouro-luz);border:1px solid rgba(200,175,127,.25);background:rgba(200,175,127,.07);border-radius:999px;cursor:pointer;transition:.15s ease}
+.gf-notif-sound:hover{background:rgba(200,175,127,.19)}
+.gf-notif-sound[data-off="true"]{opacity:.65}
+.sino-drop.gf-notif-admin{width:min(380px,calc(100vw - 22px));padding:8px;background:linear-gradient(165deg,#24131e,#1b101a);border:1px solid rgba(200,175,127,.19);border-radius:19px;box-shadow:0 20px 70px rgba(0,0,0,.42)}
+.sino-drop.gf-notif-admin .dash-activity{max-height:min(57vh,490px);padding:0 2px 2px;overscroll-behavior:contain}
+.gf-notif-row{width:100%;display:flex;align-items:flex-start;gap:10px;border:0;border-bottom:1px solid rgba(200,175,127,.1);background:transparent;text-align:left;padding:13px 10px;border-radius:9px;color:inherit;cursor:pointer;transition:background .15s}
+.gf-notif-row:hover{background:rgba(200,175,127,.1)}
+.gf-notif-row:last-child{border-bottom:0}
+.gf-notif-row[data-read="true"]{opacity:.64}
+.gf-notif-row-icon{display:flex;align-items:center;justify-content:center;flex:0 0 33px;width:33px;height:33px;border-radius:11px;background:rgba(200,175,127,.13);font-size:16px}
+.gf-notif-row-icon[data-type="selecao_enviada"]{background:rgba(200,175,127,.19)}
+.gf-notif-row-icon[data-type="pedido_pagamento"],.gf-notif-row-icon[data-type="selecao_pagamento"],.gf-notif-row-icon[data-type="formulario_pagamento"]{background:rgba(61,207,142,.16)}
+.gf-notif-row-main{min-width:0;flex:1;display:block}
+.gf-notif-row-title{display:flex;align-items:center;gap:6px;color:#F1DDD0;font-size:12.5px;font-weight:700}
+.gf-notif-row-message{display:block;margin-top:4px;color:#CBB6A7;font-size:11.8px;line-height:1.5;word-break:break-word}
+.gf-notif-row-time{display:block;margin-top:5px;color:#967F78;font-size:10px}
+.gf-notif-row-unread{flex:0 0 7px;width:7px;height:7px;border-radius:50%;background:#DE6A8C;margin-top:12px}
+.gf-notif-empty{font-size:12px;color:#C9B5AB;padding:22px 11px;line-height:1.6}
+.gf-prio-toasts{position:fixed;z-index:500;top:calc(var(--topbar-h, 62px) + 14px);right:22px;display:flex;flex-direction:column;gap:11px;width:min(384px,calc(100vw - 28px));pointer-events:none}
+.gf-prio-toast{position:relative;pointer-events:auto;display:flex;align-items:flex-start;gap:11px;border:1px solid rgba(209,167,133,.30);border-left:3px solid #C7A46C;background:linear-gradient(135deg,rgba(48,23,39,.98),rgba(27,17,27,.98));box-shadow:0 18px 54px rgba(0,0,0,.37);backdrop-filter:blur(15px);color:#FAF1E9;padding:16px 38px 17px 14px;border-radius:17px;overflow:hidden;animation:gf-notif-enter .28s cubic-bezier(.2,.7,.2,1) both;cursor:pointer}
+.gf-prio-toast[data-type="selecao_pagamento"],.gf-prio-toast[data-type="pedido_pagamento"],.gf-prio-toast[data-type="formulario_pagamento"]{border-left-color:#5BCC9A}
+.gf-prio-toast-ico{font-size:20px;line-height:1.4;flex-shrink:0}
+.gf-prio-toast-body{min-width:0;display:grid;gap:4px}
+.gf-prio-toast-tag{font-size:9px;color:#E4BFCF;letter-spacing:.15em;text-transform:uppercase;font-weight:750}
+.gf-prio-toast-title{font:600 17px/1.3 var(--serif,Georgia,serif);color:#FFF1DE}
+.gf-prio-toast-message{font-size:12px;color:#D8C5B9;line-height:1.48}
+.gf-prio-toast-action{margin-top:7px;font-size:11px;font-weight:700;color:#F1CAA2}
+.gf-prio-toast-close{position:absolute;top:9px;right:9px;width:26px;height:26px;border:0;border-radius:50%;background:rgba(255,255,255,.06);color:#E8D2C8;font-size:17px;cursor:pointer}
+.gf-prio-toast-progress{position:absolute;left:0;bottom:0;height:3px;background:linear-gradient(90deg,#B99064,#ECC39C);width:100%;transform-origin:left;animation:gf-notif-progress var(--gf-notif-duration,9s) linear forwards}
+.gf-prio-toast[data-type="selecao_pagamento"] .gf-prio-toast-progress,.gf-prio-toast[data-type="pedido_pagamento"] .gf-prio-toast-progress,.gf-prio-toast[data-type="formulario_pagamento"] .gf-prio-toast-progress{background:#5BCC9A}
+@keyframes gf-notif-enter{from{opacity:0;transform:translateX(24px) scale(.97)}to{opacity:1;transform:translateX(0) scale(1)}}
+@keyframes gf-notif-progress{to{transform:scaleX(0)}}
+@media(max-width:640px){.gf-prio-toasts{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);right:14px;left:14px;width:auto}.sino-drop.gf-notif-admin{position:fixed;right:9px;left:9px;top:calc(var(--topbar-h,62px) + 8px);width:auto;max-height:75dvh}.sino-drop.gf-notif-admin .dash-activity{max-height:min(57dvh,490px)}.gf-prio-toast{padding:14px 35px 15px 13px}.gf-prio-toast-title{font-size:15px}}
+@media(prefers-reduced-motion:reduce){.gf-prio-toast{animation:none}.gf-prio-toast-progress{animation:none;display:none}}
