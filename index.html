@@ -18589,7 +18589,7 @@ function _renderSelecaoFotosGrid() {
     const marcada = _selLoteMarcadas.has(f.id)
     return `
     <div class="foto-item${marcada ? ' sel-lote' : ''}${_selOrdemModoAtivo ? ' selfoto-ordenando' : ''}" id="selfoto-${f.id}" ${_selLoteModoAtivo ? `onclick="_selecaoLoteToggleFoto('${f.id}')"` : ''} ${_selOrdemModoAtivo ? `draggable="true" ondragstart="_selecaoOrdemDragStart(event,'${f.id}')" ondragend="_selOrdemArrastando=null;this.classList.remove('drop-alvo')" ondragover="event.preventDefault();this.classList.add('drop-alvo')" ondragleave="this.classList.remove('drop-alvo')" ondrop="this.classList.remove('drop-alvo');_selecaoOrdemSoltar(event,'${f.id}')"` : ''}>
-      <img alt="">
+      ${_imgTagCache(f.storage_path, 'alt="" loading="lazy" draggable="false"')}
       ${_selOrdemModoAtivo ? `<span class="selfoto-posicao">${i+1}</span><div class="selfoto-setas"><button type="button" class="selfoto-seta" ${i===0?'disabled':''} title="Mover para posição anterior" aria-label="Mover foto ${i+1} para antes" onclick="event.stopPropagation();_selecaoOrdemSeta('${f.id}',-1)">↑</button><button type="button" class="selfoto-seta" ${i===g.fotos.length-1?'disabled':''} title="Mover para próxima posição" aria-label="Mover foto ${i+1} para depois" onclick="event.stopPropagation();_selecaoOrdemSeta('${f.id}',1)">↓</button></div>` : ''}
       ${ehCapa ? '<span class="ck" style="left:6px;right:auto;background:var(--verde);color:#fff;opacity:1;" title="Capa da galeria">⭐</span>' : ''}
       ${f.bonus ? '<div class="selfoto-bonus-badge">🎁 Bônus/Brinde</div>' : ''}
@@ -18599,11 +18599,8 @@ function _renderSelecaoFotosGrid() {
       <button class="foto-expand" style="opacity:1;" onclick="event.stopPropagation();_apagarFotoSelecao('${f.id}')" title="Apagar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg></button>` : ''}
     </div>`
   }).join('')
-  g.fotos.forEach(async f => {
-    const url = await _carregarImgCache(f.storage_path)
-    const img = document.querySelector(`#selfoto-${f.id} img`)
-    if (url && img) img.src = url
-  })
+  // Miniaturas somente quando próximas ao visor: evita carregar tudo de uma vez.
+  _hidratarImgCache(grid)
 }
 
 function _renderSelecaoPedidoFotosGrid() {
@@ -18611,12 +18608,8 @@ function _renderSelecaoPedidoFotosGrid() {
   const grid = document.getElementById('sel-pedido-fotos-grid')
   if (!g?.pedido || !grid) return
   const fotos = g.fotos.filter(f => (g.pedido.foto_ids || []).includes(f.id))
-  grid.innerHTML = fotos.map(f => `<div class="foto-item" id="selpedfoto-${f.id}"><img alt=""></div>`).join('')
-  fotos.forEach(async f => {
-    const url = await _carregarImgCache(f.storage_path)
-    const img = document.querySelector(`#selpedfoto-${f.id} img`)
-    if (url && img) img.src = url
-  })
+  grid.innerHTML = fotos.map(f => `<div class="foto-item" id="selpedfoto-${f.id}">${_imgTagCache(f.storage_path, 'alt="" loading="lazy"')}</div>`).join('')
+  _hidratarImgCache(grid)
 }
 
 // Upload de seleção: mesmo limite de 3 em paralelo e recuperação por
