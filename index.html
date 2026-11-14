@@ -19284,12 +19284,13 @@ function _renderSelPubLiberadoConteudo() {
   const temBastidores = _selPubBastidoresLiberados.length > 0
   conteudo.innerHTML = `
     <h2>${esc(_selPub.dados.galeria.titulo)}</h2>
-    <div class="selpub-banner">✨ Seu ensaio está pronto! Clique em qualquer foto abaixo pra baixar ela sozinha, ou use o botão fixo no rodapé pra baixar tudo de uma vez.</div>
+    <div class="selpub-banner">✨ Suas fotos estão prontas! Toque em uma foto para baixá-la individualmente ou use o botão “Baixar todas as fotos” no rodapé para baixar a seleção completa.</div>
     <div class="selpub-grid" id="selpub-liberado-grid"></div>
     ${temBastidores ? `
       <div class="selpub-bastidores-bloco">
-        <h3>🎁 Seu Presente Exclusivo: Fotos de Bastidores!</h3>
-        <button class="btn" style="margin-bottom:8px;" onclick="_selPubBaixarTodas('bastidores')">⬇ Baixar todas (${_selPubBastidoresLiberados.length})</button>
+        <h3>🎁 Presente desbloqueado!</h3>
+        <p style="font-size:13px;opacity:.82;line-height:1.6;margin:0 0 12px;">Preparamos uma surpresa especial para você. Aproveite seu presente!</p>
+        <button class="btn" style="margin-bottom:8px;" onclick="_selPubBaixarTodas('bastidores')">⬇ Baixar todas as fotos do presente (${_selPubBastidoresLiberados.length})</button>
         <div class="selpub-grid" id="selpub-bastidores-grid"></div>
       </div>` : ''}
   `
@@ -19302,7 +19303,7 @@ function _renderSelPubLiberadoConteudo() {
   const btnEl = document.getElementById('selpub-btn-finalizar')
   if (_selPubFotosLiberadas.length) {
     resumoEl.textContent = `${_selPubFotosLiberadas.length} foto${_selPubFotosLiberadas.length > 1 ? 's' : ''} em alta resolução`
-    btnEl.textContent = '⬇ Baixar Tudo (ZIP)'
+    btnEl.textContent = `⬇ Baixar todas as fotos (${_selPubFotosLiberadas.length})`
     btnEl.onclick = () => _selPubBaixarTodas('fotos')
     sticky.style.display = 'flex'
   } else {
