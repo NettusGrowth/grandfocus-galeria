@@ -6,6 +6,7 @@ let _gfNotifDados=[];
 let _gfNotifLidas=new Set();
 let _gfNotifConhecidas=new Set();
 let _gfNotifIniciada=false;
+let _gfNotifTemBase=false;
 let _gfNotifCarregando=false;
 let _gfNotifPendente=false;
 let _gfNotifUltimaConsulta=0;
@@ -62,8 +63,16 @@ function _gfNotifParar(){
   if(_gfNotifTimer)clearInterval(_gfNotifTimer);
   _gfNotifTimer=null;
   _gfNotifDados=[];_gfNotifLidas=new Set();_gfNotifConhecidas=new Set();
-  _gfNotifIniciada=false;_gfNotifCarregando=false;_gfNotifPendente=false;
+  _gfNotifIniciada=false;_gfNotifTemBase=false;_gfNotifCarregando=false;_gfNotifPendente=false;
   _gfNotifUltimaConsulta=0;_gfNotifInicializadoEm=0;
+  const badge=document.getElementById('gf-notif-numero');
+  if(badge){badge.style.display='none';badge.textContent='';}
+  const dot=document.getElementById('sino-dot');
+  if(dot)dot.style.display='none';
+  const summary=document.getElementById('gf-notif-total');
+  if(summary)summary.textContent='';
+  const som=document.getElementById('gf-notif-som');
+  if(som)som.style.display='none';
   _gfNotifAudioLiberado=false;
   if(_gfNotifAudio){_gfNotifAudio.close().catch(()=>{});_gfNotifAudio=null;}
   document.getElementById('gf-prio-toasts')?.replaceChildren();
@@ -104,10 +113,11 @@ async function _gfNotifAtualizar(forcar=false){
     if(!_gfNotifAdmin()||currentUser.id!==userId)return;
     const lidas=new Set((resposta.data||[]).map(x=>x.notificacao_id));
     const anterior=_gfNotifConhecidas;
-    const primeira=anterior.size===0;
+    const primeira=!_gfNotifTemBase;
     const novos=registros.filter(r=>!primeira&&!anterior.has(r.id)&&!lidas.has(r.id)
       &&new Date(r.criado_em).getTime()>=_gfNotifInicializadoEm-1000);
     _gfNotifConhecidas=new Set(registros.map(x=>x.id));
+    _gfNotifTemBase=true;
     _gfNotifLidas=lidas;
     _gfNotifDados=registros;
     _gfNotifDesenhar();
