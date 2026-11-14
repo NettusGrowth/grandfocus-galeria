@@ -273,10 +273,13 @@ Deno.serve(async (req) => {
       try {
         let url: string | null = null
         try {
-          if (GALLERY_KEY.test(key)) {
-            // Todos os 2.425 pares foto/miniatura foram confirmados
-            // existentes no R2. Evita 80 HEADs concorrentes para cada
-            // pedido da grade; assinatura local é suficiente.
+          if (GALLERY_KEY.test(key) || SELECTION_KEY.test(key)) {
+            // As fotos e prévias das galerias E das seleções são gravadas
+            // diretamente no R2. Assinar não exige HEAD: antes, cada
+            // miniatura da seleção disparava uma requisição extra para
+            // R2; vários admins abrindo seleções causavam rajadas e 503.
+            // A verificação HEAD permanece para recursos auxiliares, que
+            // podem existir apenas na cópia antiga do Supabase Storage.
             url = await signR2Object(key, expiresIn, keys.length === 1 ? downloadName : null)
           } else if (await r2ObjectExists(key)) {
             // Recursos auxiliares têm histórico de migração parcial:
