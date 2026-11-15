@@ -2878,6 +2878,17 @@ main{flex:1;width:100%;overflow-y:auto;overflow-x:hidden;}
             <div id="gf-access-recent" class="gf-access-rows"></div>
           </section>
         </div>
+        <div class="gf-access-section" style="margin-top:14px;">
+          <h3>Downloads das galerias de seleção</h3>
+          <div class="gf-access-insights" style="margin-top:10px;">
+            <div><span>Ações de baixar</span><b id="gf-access-sel-acoes">—</b></div>
+            <div><span>Fotos solicitadas</span><b id="gf-access-sel-fotos">—</b></div>
+            <div><span>Galerias com download</span><b id="gf-access-sel-galerias">—</b></div>
+          </div>
+          <div id="gf-access-sel-status" class="gf-access-note">Consultando os downloads de seleção…</div>
+          <div id="gf-access-sel-recentes" class="gf-access-rows"></div>
+          <p class="gf-access-note">Registros separados dos downloads das contas: não exigem login, não contam visitas e não identificam pessoas únicas. Ações iniciadas não garantem salvamento no dispositivo. Downloads antigos sem registro não são estimados.</p>
+        </div>
         <p class="gf-access-note">Acessos representam registros de “fez login”, não visualizações de páginas. Downloads em lote usam a quantidade salva na auditoria; ações sem quantidade explícita contam como uma foto. Períodos sem registros não permitem recuperar acessos anteriores ao início da auditoria.</p>
         <div class="gf-access-footer"><button class="btn btn-sm" type="button" onclick="setAdminTab('auditoria');iniciarAuditoriaAdmin()">Abrir auditoria detalhada</button></div>
       </div>
@@ -7641,6 +7652,8 @@ function _dashRenderProximosEventos() {
 // A interface recebe somente agregados pequenos; nunca baixa a auditoria completa.
 let _gfAccessPeriod = 'day'
 let _gfAccessCache = new Map()
+let _gfAccessSelecaoCache = new Map()
+let _gfAccessSelecaoSeq = 0
 let _gfAccessSeq = 0
 let _gfAccessHomeSeq = 0
 function _acessosNumero(n) { return Number(n || 0).toLocaleString('pt-BR') }
@@ -7692,7 +7705,7 @@ function _acessosAtualizar(forcar=false) {
   try { intervalo=_acessosIntervalo() } catch(e) {if(status)status.textContent=e.message;return}
   const key=_gfAccessPeriod+'|'+intervalo.inicio.slice(0,16)+'|'+intervalo.fim.slice(0,16)
   const cached=_gfAccessCache.get(key)
-  if(!forcar&&cached&&Date.now()-cached.em<60000){_acessosDesenhar(cached.dados);return}
+  if(!forcar&&cached&&Date.now()-cached.em<60000){_acessosDesenhar(cached.dados);_acessosSelecaoAtualizar(intervalo,key);return}
   const seq=++_gfAccessSeq
   if(status)status.textContent='Consultando o histórico da galeria…'
   db.rpc('gf_painel_acessos',{p_inicio:intervalo.inicio,p_fim:intervalo.fim}).then(({data,error})=>{
@@ -7702,7 +7715,57 @@ function _acessosAtualizar(forcar=false) {
     _gfAccessCache.set(key,{em:Date.now(),dados:data})
     if(_gfAccessCache.size>16)_gfAccessCache.clear()
     _acessosDesenhar(data)
+    _acessosSelecaoAtualizar(intervalo,key,forcar)
   }).catch(e=>{if(seq===_gfAccessSeq&&status)status.textContent='Falha ao atualizar: '+e.message})
+}
+// Segunda leitura pequena SOMENTE na aba Acessos: não consulta visitas e
+// não altera o RPC consolidado dos usuários autenticados. A soma das fotos
+// é calculada pelo Postgres e não exige baixar o histórico inteiro.
+function _acessosSelecaoDesenhar(d) {
+  const campos = {
+    'gf-access-sel-acoes': d?.acoes,
+    'gf-access-sel-fotos': d?.fotos,
+    'gf-access-sel-galerias': d?.galerias,
+  }
+  for (const [id,n] of Object.entries(campos)) {
+    const el=document.getElementById(id); if(el)el.textContent=_acessosNumero(n)
+  }
+  const status=document.getElementById('gf-access-sel-status')
+  if(status)status.textContent=Number(d?.acoes||0)
+    ? 'Histórico de cliques de download, não de arquivos confirmados no dispositivo.'
+    : 'Nenhuma ação de download registrada neste período.'
+  const recentes=document.getElementById('gf-access-sel-recentes')
+  if (recentes) {
+    const eventos=Array.isArray(d?.recentes)?d.recentes:[]
+    recentes.innerHTML=eventos.map(e=>{
+      const quantidade=_acessosNumero(e.quantidade)
+      const nome=esc(e.user_nome||'Link de seleção')
+      const data=esc(new Date(e.criado_em).toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}))
+      return `<div class="gf-access-row"><span>${nome} · ${e.tipo==='bastidores'?'presente':'seleção'}</span><b>${quantidade} foto(s)</b><small>${data}</small></div>`
+    }).join('')
+  }
+}
+function _acessosSelecaoAtualizar(intervalo,key,forcar=false) {
+  const seq=++_gfAccessSelecaoSeq
+  const cached=_gfAccessSelecaoCache.get(key)
+  if(!forcar&&cached&&Date.now()-cached.em<60000){_acessosSelecaoDesenhar(cached.dados);return}
+  const status=document.getElementById('gf-access-sel-status')
+  if(status)status.textContent='Consultando downloads de seleção…'
+  db.rpc('gf_selecao_downloads_metricas',{
+    p_inicio: intervalo.inicio, p_fim: intervalo.fim,
+  }).then(({data,error})=>{
+    if(seq!==_gfAccessSelecaoSeq) return
+    if(document.getElementById('admintab-acessos')?.style.display==='none') return
+    if(error||!data) {
+      if(status)status.textContent='Não foi possível consultar os downloads de seleção.'
+      return
+    }
+    _gfAccessSelecaoCache.set(key,{em:Date.now(),dados:data})
+    if(_gfAccessSelecaoCache.size>16)_gfAccessSelecaoCache.clear()
+    _acessosSelecaoDesenhar(data)
+  }).catch(()=>{
+    if(seq===_gfAccessSelecaoSeq&&status)status.textContent='Falha temporária nas métricas de seleção.'
+  })
 }
 function _acessosDesenhar(data) {
   const k=data.indicadores||{},q=data.rapidos||{}
