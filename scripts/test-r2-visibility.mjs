@@ -24,7 +24,7 @@ assert.match(migration,/grant execute on function public\.storage_paths_visiveis
 // por foto e preserva as checagens para capas e outros recursos.
 assert.match(edge,/await canReadObjectKey\(key, isAdmin, visiblePaths, visibleIds, activeHeroPath\)/);
 assert.match(edge,/if \(!authorized\) return \{ key, url: null \}/);
-assert.match(edge,/if \(GALLERY_KEY\.test\(key\)\) \{/);
+assert.match(edge,/if \(GALLERY_KEY\.test\(key\) \|\| SELECTION_KEY\.test\(key\)\) \{/);
 assert.match(edge,/else if \(await r2ObjectExists\(key\)\)/);
 assert.match(edge,/r2ObjectExists\(key\)/);
 assert.match(edge,/async function canUploadObjectKey/);
