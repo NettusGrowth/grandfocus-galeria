@@ -296,7 +296,7 @@ function patchSocialStudio(html) {
       '  _adminRenderAba(tab)',
       "  if (tab === 'estudio-social' && meuPerfil?.role === 'super_admin') {",
       "    import('/assets/gf-estudio-social-v2.js').then(module => {",
-      "      if (meuPerfil?.role === 'super_admin') module.mountStudio(document.getElementById('gf-social-host'))",
+      "      if (meuPerfil?.role === 'super_admin') module.mountStudio(document.getElementById('gf-social-host'), () => ({ db, perfil: meuPerfil, escolas: store.escolas, eventos: store.eventos, assinar: _urlAssinada }))",
       "    }).catch(() => {",
       "      const host = document.getElementById('gf-social-host')",
       "      if (host) host.textContent = 'Falha ao abrir o Estúdio Social. Atualize a página e tente novamente.'",
@@ -311,7 +311,7 @@ function patchSocialStudio(html) {
     [
       'function mostrarLogin() {',
       "  const socialHost = document.getElementById('gf-social-host')",
-      "  if (socialHost) { socialHost.replaceChildren(); delete socialHost.dataset.gfStudioMounted }",
+      "  if (socialHost) { socialHost._gfSocialUnmount?.(); socialHost.replaceChildren(); delete socialHost.dataset.gfStudioMounted }",
       "  const socialTab = document.getElementById('gf-social-tab')",
       "  if (socialTab) socialTab.style.display = 'none'",
       '  currentUser = null; meuPerfil = null'
