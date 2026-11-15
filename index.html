@@ -19296,54 +19296,76 @@ function _selPubCalcularTotal(faixas, precoFlat, qtdExtra) {
   return total
 }
 
+// O preço é marginal por faixa: a faixa de R$ 30 não transforma
+// retroativamente as duas fotos anteriores de R$ 45 em R$ 30.
+function _selPubDetalharExtras(faixas, precoFlat, qtdExtra) {
+  if (qtdExtra <= 0) return ''
+  if (!Array.isArray(faixas) || !faixas.length) return `${qtdExtra} × ${fmtBRL(precoFlat)}`
+  let restante = qtdExtra, anterior = 0
+  const partes = []
+  for (const f of faixas) {
+    if (restante <= 0) break
+    const temTeto = f.ate !== null && f.ate !== undefined
+    const nesta = temTeto ? Math.max(0, Math.min(restante, f.ate - anterior)) : restante
+    if (nesta > 0) partes.push(`${nesta} × ${fmtBRL(f.preco)}`)
+    restante -= nesta
+    anterior = temTeto ? f.ate : anterior + nesta
+  }
+  return partes.join(' + ')
+}
 function _selPubRenderRegua(extras) {
   const wrap = document.getElementById('selpub-regua')
-  const g = _selPub.dados.galeria
-  const faixas = g.faixas_preco
-  if (!wrap || !Array.isArray(faixas) || faixas.length < 2) { if (wrap) wrap.style.display = 'none'; return }
+  const g = _selPub.dados?.galeria
+  if (!wrap || !g) return
   wrap.style.display = 'block'
-  const precoBase = faixas[0].preco
-  // cada checkpoint = fronteira de uma faixa (todas menos a última, que
-  // não tem "até") pareada com o preço da PRÓXIMA faixa — é esse preço
-  // que passa a valer assim que esse número de extras for ultrapassado
-  // (não alcançado — na própria fronteira ainda vale o preço de antes).
-  const checkpoints = faixas.slice(0, -1).map((f, i) => ({ ate: f.ate, preco: faixas[i + 1].preco }))
-  const maxAte = checkpoints[checkpoints.length - 1].ate
-  const escala = Math.max(maxAte * 1.15, extras + 1)
-  const pctPos = v => Math.min(100, (v / escala) * 100)
-  document.getElementById('selpub-regua-fill').style.width = pctPos(extras) + '%'
-  document.getElementById('selpub-regua-pontos').innerHTML = checkpoints.map(c => {
-    const pctOff = Math.round((1 - c.preco / precoBase) * 100)
-    const atingiu = extras > c.ate
-    return `<div class="selpub-regua-ponto${atingiu ? ' on' : ''}" style="left:${pctPos(c.ate)}%;">
-      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : fmtBRL(c.preco)}<br>${c.ate + 1}+ fotos</span>
-    </div>`
-  }).join('')
-  const nudgeEl = document.getElementById('selpub-regua-nudge')
-  const proxima = checkpoints.find(c => extras <= c.ate)
-  if (proxima) {
-    const faltam = proxima.ate + 1 - extras
-    const pctOff = Math.round((1 - proxima.preco / precoBase) * 100)
-    nudgeEl.textContent = `Adicione mais ${faltam} foto${faltam > 1 ? 's' : ''} pra pagar ${fmtBRL(proxima.preco)} em cada extra${pctOff > 0 ? ' (' + pctOff + '% OFF)' : ''}!`
-  } else if (extras > 0) {
-    nudgeEl.textContent = '🎉 Você já está no melhor preço por foto extra!'
+  const faixas = g.faixas_preco
+  const pontos = document.getElementById('selpub-regua-pontos')
+  document.getElementById('selpub-regua-titulo').textContent =
+    g.qtd_incluida > 0 ? 'Preço das fotos adicionais (opcionais)' : 'Preço das fotos escolhidas'
+  if (!Array.isArray(faixas) || !faixas.length) {
+    pontos.innerHTML = `<span class="selpub-faixa">${g.qtd_incluida > 0 ? 'Cada foto além do pacote' : 'Cada foto escolhida'}: <b>${fmtBRL(g.preco_extra)} por foto</b></span>`
   } else {
-    nudgeEl.textContent = ''
+    let inicio = 1
+    pontos.innerHTML = faixas.map(f => {
+      const fim = f.ate === null || f.ate === undefined ? null : Number(f.ate)
+      const faixa = fim === null
+        ? `A partir da ${inicio}ª foto extra`
+        : (fim === inicio ? `${inicio}ª foto extra` : `Da ${inicio}ª à ${fim}ª fotos extras`)
+      inicio = fim === null ? inicio : fim + 1
+      return `<span class="selpub-faixa">${faixa}: <b>${fmtBRL(f.preco)} cada</b></span>`
+    }).join('')
   }
+  const nota = document.getElementById('selpub-regua-nota')
+  nota.textContent = Array.isArray(faixas) && faixas.length > 1
+    ? 'Importante: o preço reduzido vale apenas para as fotos dessa nova faixa. As anteriores mantêm seu valor.'
+    : (g.qtd_incluida > 0 ? 'Este valor só se aplica às fotos além das incluídas no pacote.' : 'O valor depende de quantas fotos você escolher.')
+  const dica = document.getElementById('selpub-regua-nudge')
+  dica.textContent = extras > 0
+    ? `Conta das fotos adicionais: ${_selPubDetalharExtras(faixas, g.preco_extra, extras)} = ${fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, extras))}.`
+    : (g.qtd_incluida > 0 ? 'As fotos do seu pacote já estão incluídas. Escolher extras é opcional.' : 'O valor é calculado conforme a quantidade de fotos escolhidas.')
 }
 
 function _selPubAtualizarContador() {
   const g = _selPub.dados.galeria
   const n = _selPub.selecionados.size
+  const inclusas = Math.min(n, g.qtd_incluida)
   const extras = Math.max(0, n - g.qtd_incluida)
   const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
   _selPubRenderRegua(extras)
-  document.getElementById('selpub-btn-finalizar').textContent = `Avançar (${n}) ➔`
+  document.getElementById('selpub-btn-finalizar').textContent = 'Revisar escolha ➔'
   const resumoEl = document.getElementById('selpub-sticky-resumo')
   if (resumoEl) {
-    resumoEl.textContent = extras > 0
-      ? `${fmtBRL(total)} · ${extras} foto${extras > 1 ? 's' : ''} extra${extras > 1 ? 's' : ''}`
-      : `${Math.min(n, g.qtd_incluida)}/${g.qtd_incluida} fotos inclusas`
+    const saldo = extras > 0
+      ? `${extras} foto${extras > 1 ? 's' : ''} extra${extras > 1 ? 's' : ''} · ${fmtBRL(total)} adicionais`
+      : (g.qtd_incluida > 0 ? `${inclusas}/${g.qtd_incluida} no pacote · sem custo extra` : 'R$ 0,00 até agora')
+    resumoEl.innerHTML = `<span>${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}</span><strong>${saldo}</strong>`
+  }
+  const vivo = document.getElementById('selpub-resumo-vivo')
+  if (vivo) {
+    const situacao = g.qtd_incluida > 0
+      ? `${inclusas} de ${g.qtd_incluida} fotos incluídas${extras ? ` + ${extras} extra${extras > 1 ? 's' : ''}` : ''}`
+      : `${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}`
+    vivo.innerHTML = `<div><strong>Sua escolha: ${n} foto${n === 1 ? '' : 's'}</strong><span>${situacao}</span></div><div><span>Valor adicional</span><div class="selpub-valor">${fmtBRL(total)}</div></div>`
   }
 }
 
