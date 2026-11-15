@@ -87,10 +87,47 @@ assert.match(html,/12000 - \(Date\.now\(\) - _gfRealtimeFotosUltimo\)/)
 assert.match(html,/if \(!_gfRealtimeFotosTemTelaAtiva\(\)\) return/)
 assert.match(html,/if \(_eventoAtual && _visivel\('evento-detalhe-wrap'\)\)/)
 assert.match(html,/const idsDoAlbum = new Set\(todasFotos\.map\(f => f\.id\)\)/)
-// Seleção do cliente: layout anterior preservado, única frase da faixa esclarecida.
+// Seleção: a interface original permanece intocada; apenas a frase da régua muda.
 assert.match(html, /class="selpub-regua-track"/)
-assert.match(html, /As anteriores mantêm o preço original/)
-assert.doesNotMatch(html, /Adicione mais \$\{faltam\} foto/)
 assert.doesNotMatch(html, /class="selpub-guia"/)
 assert.doesNotMatch(html, /class="selpub-resumo-vivo"/)
+assert.doesNotMatch(html, /As anteriores mantêm o preço original/)
+
+// Comprovar a oferta do conjunto com os valores REAIS de cada galeria.
+const precosEls = new Map()
+const precosCtx=vm.createContext({
+  document:{getElementById(id){
+    if(!precosEls.has(id))precosEls.set(id,{style:{},textContent:'',innerHTML:''})
+    return precosEls.get(id)
+  }},
+  fmtBRL:n=>'R$ '+Number(n).toFixed(2).replace('.',','),
+  _selPub:{dados:{galeria:{
+    qtd_incluida:5,preco_extra:30,
+    faixas_preco:[{ate:2,preco:30},{ate:3,preco:10},{ate:null,preco:5}]
+  }}},
+  Math,Number,Array,
+})
+vm.runInContext(extract('function _selPubCalcularTotal(', 'function _selPubAtualizarContador()'),precosCtx)
+function conferirOferta(qtd,trecho){
+  vm.runInContext('_selPubRenderRegua('+qtd+')',precosCtx)
+  assert.match(precosEls.get('selpub-regua-nudge').textContent,trecho)
+}
+conferirOferta(0,/3 fotos extras.*R\$ 70,00 pelo conjunto/)
+conferirOferta(1,/outras 2.*3 fotos extras.*R\$ 70,00 no total/)
+conferirOferta(2,/Falta só mais 1 foto.*R\$ 70,00/)
+conferirOferta(3,/Valor especial aplicado.*3 fotos extras.*R\$ 70,00 no total/)
+conferirOferta(4,/4 fotos extras selecionadas: R\$ 75,00 no total/)
+assert.equal(vm.runInContext('_selPubCalcularTotal(_selPub.dados.galeria.faixas_preco,30,3)',precosCtx),70)
+vm.runInContext('_selPub.dados.galeria={qtd_incluida:5,preco_extra:45,faixas_preco:[{ate:2,preco:45},{ate:null,preco:30}]}',precosCtx)
+conferirOferta(0,/3 fotos extras.*R\$ 120,00 pelo conjunto/)
+conferirOferta(2,/Falta só mais 1 foto.*R\$ 120,00/)
+conferirOferta(3,/3 fotos extras.*R\$ 120,00 no total/)
+vm.runInContext('_selPub.dados.galeria={qtd_incluida:0,preco_extra:25,faixas_preco:[{ate:2,preco:25},{ate:null,preco:20}]}',precosCtx)
+conferirOferta(0,/3 fotos e aproveite R\$ 70,00 pelo conjunto/)
+vm.runInContext('_selPub.dados.galeria={qtd_incluida:5,preco_extra:45,faixas_preco:[{ate:5,preco:45},{ate:null,preco:30}]}',precosCtx)
+conferirOferta(0,/6 fotos extras.*R\$ 255,00 pelo conjunto/)
+vm.runInContext('_selPub.dados.galeria={qtd_incluida:5,preco_extra:30,faixas_preco:null}',precosCtx)
+vm.runInContext('_selPubRenderRegua(0)',precosCtx)
+assert.equal(precosEls.get('selpub-regua').style.display,'none')
+console.log('✓ Mensagens de oferta: 0 a 4 fotos, trio R$70 ou R$120, faixas longas, sem fotos incluídas e preço fixo.')
 console.log('✓ 125 thumbnails em 2 lotes, URL sem bytes duplicados, cache ≤64 URLs, admin sem telas invisíveis, grade 16 e Realtime controlado.')

@@ -19284,14 +19284,30 @@ function _selPubRenderRegua(extras) {
       <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : fmtBRL(c.preco)}<br>${c.ate + 1}+ fotos</span>
     </div>`
   }).join('')
+  // Falar do total do conjunto, não do preço unitário de uma faixa:
+  // a configuração 30 + 30 + 10 mostra 3 extras por R$70;
+  // a configuração 45 + 45 + 30 mostra 3 extras por R$120.
+  // Nenhum preço é criado pela interface: o cálculo continua no servidor.
   const nudgeEl = document.getElementById('selpub-regua-nudge')
-  const proxima = checkpoints.find(c => extras <= c.ate)
-  if (proxima) {
-    const faltam = proxima.ate + 1 - extras
-    const pctOff = Math.round((1 - proxima.preco / precoBase) * 100)
-    nudgeEl.textContent = `✨ Faltam ${faltam} foto${faltam > 1 ? 's' : ''} extra${faltam > 1 ? 's' : ''} para a ${proxima.ate + 1}ª, que custa ${fmtBRL(proxima.preco)}. As anteriores mantêm o preço original.`
+  const primeiraOferta = checkpoints.find(c =>
+    Number.isFinite(Number(c.ate)) && Number(c.ate) >= 0 && Number(c.preco) < Number(precoBase))
+  const alvo = primeiraOferta ? Number(primeiraOferta.ate) + 1 : 0
+  const fotos = g.qtd_incluida > 0 ? 'fotos extras' : 'fotos'
+  const valorAlvo = alvo ? fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, alvo)) : ''
+  if (alvo && extras <= alvo) {
+    const faltam = alvo - extras
+    if (extras === 0) {
+      nudgeEl.textContent = `✨ Escolha ${alvo} ${fotos} e aproveite ${valorAlvo} pelo conjunto! ❤️`
+    } else if (faltam > 1) {
+      nudgeEl.textContent = `❤️ Gostou de mais fotos? Escolha outras ${faltam} e aproveite ${alvo} ${fotos} por ${valorAlvo} no total!`
+    } else if (faltam === 1) {
+      nudgeEl.textContent = `✨ Falta só mais 1 foto! Com ${alvo} ${fotos}, o total fica ${valorAlvo}. ❤️`
+    } else {
+      nudgeEl.textContent = `❤️ Valor especial aplicado! ${alvo} ${fotos} por ${valorAlvo} no total.`
+    }
   } else if (extras > 0) {
-    nudgeEl.textContent = '🎉 Você já está no melhor preço por foto extra!'
+    const totalAtual = fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, extras))
+    nudgeEl.textContent = `❤️ ${extras} ${fotos} selecionadas: ${totalAtual} no total.`
   } else {
     nudgeEl.textContent = ''
   }
