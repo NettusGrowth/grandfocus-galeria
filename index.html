@@ -4481,6 +4481,9 @@ async function _r2Api(action, payload = {}) {
   }
 
   async function solicitar(token) {
+    const abort = action === 'sign' ? new AbortController() : null
+    const prazo = abort ? setTimeout(() => abort.abort(), 18000) : null
+    try {
     const resp = await fetch(`${SUPABASE_URL}/functions/v1/r2-storage`, {
       method: 'POST',
       headers: {
@@ -4489,9 +4492,13 @@ async function _r2Api(action, payload = {}) {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ action, ...payload }),
+      ...(abort ? { signal: abort.signal } : {}),
     })
     const data = await resp.json().catch(() => ({}))
     return { resp, data }
+    } finally {
+      if (prazo) clearTimeout(prazo)
+    }
   }
 
   let resultado = await solicitar(session.access_token)
@@ -12579,6 +12586,51 @@ function _imgTagCache(path, attrs = '') {
 // dentro (exceto quando a foto veio do cache em DISCO, que pula
 // _urlAssinada de propósito pra não gastar rede à toa — por isso o
 // pedido aqui é sempre feito, não só quando falta o blob).
+// Recuperação das miniaturas: as funções opcionais de fallback antes
+// chamadas aqui não existiam. Só consultar o original quando houver falha.
+function _originalPathDaMiniatura(path) {
+  if (!path) return null
+  const selecao = typeof _selecaoDetalheAtual !== 'undefined' ? _selecaoDetalheAtual : null
+  const selecionada = selecao?.fotos?.find(f => f.storage_path === path)
+  if (selecionada?.storage_path_alta && selecionada.storage_path_alta !== path) return selecionada.storage_path_alta
+  const galeria = typeof store !== 'undefined' ? store : null
+  const foto = galeria?.fotos?.find(f => f.thumb_path === path)
+  return foto?.storage_path && foto.storage_path !== path ? foto.storage_path : null
+}
+function _ativarFallbackImagemVisivel(img, path) {
+  if (img._gfImagemPath !== path) {
+    img._gfImagemPath = path
+    img._gfAssinaturaRetentativas = 0
+    img._gfFalhasHttp = 0
+    img._gfFallbackIntentado = false
+  }
+  img.onload = () => {
+    if (img._gfImagemPath === path) img._gfAssinaturaRetentativas = 0
+  }
+  img.onerror = () => {
+    if (!img.isConnected || img._gfImagemPath !== path || img._gfFallbackIntentado) return
+    const falhas = (img._gfFalhasHttp || 0) + 1
+    img._gfFalhasHttp = falhas
+    if (falhas === 1) {
+      setTimeout(() => {
+        if (!img.isConnected || img._gfImagemPath !== path || img._gfFallbackIntentado) return
+        _invalidarUrlCache(path)
+        _hidratarPathImg(img, path)
+      }, 900 + (path.length % 9) * 130)
+      return
+    }
+    if (falhas !== 2) return
+    const original = _originalPathDaMiniatura(path)
+    if (!original) return
+    img._gfFallbackIntentado = true
+    _urlAssinada(original).then(url => {
+      if (url && img.isConnected && img._gfImagemPath === path) {
+        img.onerror = null
+        img.src = url
+      }
+    }).catch(() => {})
+  }
+}
 function _hidratarPathImg(img, path) {
   if (!img || !path) return
   // Uma foto pode ser requisitada de novo após trocar de aba. Uma
@@ -12609,11 +12661,14 @@ function _hidratarPathImg(img, path) {
       }
       // Falha em assinar a miniatura: tenta o arquivo original somente
       // quando o nome segue o padrão *_thumb.ext (sem disparar ambos).
-      const fallback = typeof _originalPathDaMiniatura === 'function'
-        ? _originalPathDaMiniatura(path) : null
-      if (fallback && fallback !== path) {
+      const fallback = _originalPathDaMiniatura(path)
+      if (fallback && fallback !== path && !img._gfFallbackIntentado) {
+        img._gfFallbackIntentado = true
         _urlAssinada(fallback).then(reserva => {
-          if (reserva && img.isConnected && img._gfCargaSeq === sequencia) img.src = reserva
+          if (reserva && img.isConnected && img._gfImagemPath === path && img._gfCargaSeq === sequencia) {
+            img.onerror = null
+            img.src = reserva
+          }
         }).catch(() => {})
       }
       return
