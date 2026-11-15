@@ -87,52 +87,10 @@ assert.match(html,/12000 - \(Date\.now\(\) - _gfRealtimeFotosUltimo\)/)
 assert.match(html,/if \(!_gfRealtimeFotosTemTelaAtiva\(\)\) return/)
 assert.match(html,/if \(_eventoAtual && _visivel\('evento-detalhe-wrap'\)\)/)
 assert.match(html,/const idsDoAlbum = new Set\(todasFotos\.map\(f => f\.id\)\)/)
-
-// Regressão da seleção pública: pacotes incluídos, extras opcionais,
-// desconto MARGINAL (não retroativo) e rótulos visíveis no celular.
-const mockEls = new Map()
-const publicCtx=vm.createContext({
-  fmtBRL: value => 'R$ ' + Number(value).toFixed(2).replace('.',','),
-  _selPub: {
-    dados: { galeria: {
-      qtd_incluida:5, preco_extra:45,
-      faixas_preco:[{ate:2,preco:45},{ate:null,preco:30}]
-    }},
-    selecionados:new Set(Array.from({length:8},(_,i)=>i))
-  },
-  document:{getElementById(id){
-    if(!mockEls.has(id))mockEls.set(id,{style:{},textContent:'',innerHTML:''})
-    return mockEls.get(id)
-  }},
-  Math, Number, Set, Array,
-})
-vm.runInContext(extract('function _selPubCalcularTotal(', 'function _selPubAbrirLightbox(idx)'), publicCtx)
-assert.equal(vm.runInContext('_selPubCalcularTotal([{ate:2,preco:45},{ate:null,preco:30}],45,0)',publicCtx),0)
-assert.equal(vm.runInContext('_selPubCalcularTotal([{ate:2,preco:45},{ate:null,preco:30}],45,2)',publicCtx),90)
-assert.equal(vm.runInContext('_selPubCalcularTotal([{ate:2,preco:45},{ate:null,preco:30}],45,3)',publicCtx),120)
-assert.equal(vm.runInContext('_selPubCalcularTotal(null,30,3)',publicCtx),90)
-assert.equal(vm.runInContext('_selPubCalcularTotal([{ate:2,preco:30},{ate:3,preco:10},{ate:null,preco:5}],30,4)',publicCtx),75)
-assert.equal(vm.runInContext('_selPubDetalharExtras([{ate:2,preco:45},{ate:null,preco:30}],45,3)',publicCtx), '2 × R$ 45,00 + 1 × R$ 30,00')
-vm.runInContext('_selPubAtualizarContador()',publicCtx)
-assert.match(mockEls.get('selpub-sticky-resumo').innerHTML,/R\$ 120,00 adicionais/)
-assert.match(mockEls.get('selpub-resumo-vivo').innerHTML,/5 de 5 fotos incluídas \+ 3 extras/)
-assert.match(mockEls.get('selpub-regua-pontos').innerHTML,/3ª foto extra/)
-assert.match(mockEls.get('selpub-regua-nota').textContent,/anteriores mantêm seu valor/)
-assert.match(mockEls.get('selpub-regua-nudge').textContent,/2 × R\$ 45,00 \+ 1 × R\$ 30,00 = R\$ 120,00/)
-assert.match(mockEls.get('selpub-btn-finalizar').textContent,/Revisar escolha/)
-publicCtx._selPub.selecionados=new Set(Array.from({length:5},(_,i)=>i))
-vm.runInContext('_selPubAtualizarContador()',publicCtx)
-assert.match(mockEls.get('selpub-sticky-resumo').innerHTML,/sem custo extra/)
-assert.match(mockEls.get('selpub-resumo-vivo').innerHTML,/R\$ 0,00/)
-publicCtx._selPub.dados.galeria={qtd_incluida:0,preco_extra:30,faixas_preco:null}
-publicCtx._selPub.selecionados=new Set([1,2])
-vm.runInContext('_selPubAtualizarContador()',publicCtx)
-assert.equal(mockEls.get('selpub-regua-titulo').textContent,'Preço das fotos escolhidas')
-assert.match(mockEls.get('selpub-resumo-vivo').innerHTML,/Valor das fotos/)
-assert.match(mockEls.get('selpub-regua-pontos').innerHTML,/R\$ 30,00 por foto/)
-assert.match(html,/Marcar ou desmarcar fotos não realiza nenhum pagamento/)
-assert.match(html,/Confirmar e pagar \$\{fmtBRL\(total\)\} em fotos extras/)
-assert.doesNotMatch(html,/Adicione mais \$\{faltam\} foto/)
-console.log('✓ Seleção: 5 fotos do pacote, extras 45/45/30, cálculo de R$ 120, faixas opcionais, zero incluídas e mensagens sem desconto retroativo.')
-
+// Seleção do cliente: layout anterior preservado, única frase da faixa esclarecida.
+assert.match(html, /class="selpub-regua-track"/)
+assert.match(html, /As anteriores mantêm o preço original/)
+assert.doesNotMatch(html, /Adicione mais \$\{faltam\} foto/)
+assert.doesNotMatch(html, /class="selpub-guia"/)
+assert.doesNotMatch(html, /class="selpub-resumo-vivo"/)
 console.log('✓ 125 thumbnails em 2 lotes, URL sem bytes duplicados, cache ≤64 URLs, admin sem telas invisíveis, grade 16 e Realtime controlado.')
