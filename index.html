@@ -283,6 +283,30 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-regua-ponto.on .lbl{color:#0d7a5f;font-weight:600;}
 .selpub-regua-nudge{font-size:13px;color:#0d7a5f;font-weight:600;text-align:center;margin-top:4px;}
 
+
+/* Seleção pública: explicar o pacote e deixar os preços das extras legíveis. */
+#view-selecao .selpub-guia{background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:14px;padding:15px 17px;margin:12px 0 12px;line-height:1.55;}
+#view-selecao .selpub-guia-titulo{font-size:15px;font-weight:750;color:#222;margin-bottom:8px;}
+#view-selecao .selpub-guia-passo{font-size:13px;color:#444;margin:5px 0;}
+#view-selecao .selpub-guia-passo strong{color:#171717;}
+#view-selecao .selpub-resumo-vivo{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;border:1px solid rgba(0,0,0,.09);background:#f3f8f5;border-radius:11px;padding:12px 15px;margin:0 0 13px;font-size:13px;color:#29362e;}
+#view-selecao .selpub-resumo-vivo strong{display:block;font-size:13px;color:#185941;}
+#view-selecao .selpub-resumo-vivo .selpub-valor{font-size:16px;font-weight:800;color:#145c43;font-variant-numeric:tabular-nums;}
+#view-selecao .selpub-regua{position:static;margin:0 0 20px;padding:12px 15px;border-radius:12px;background:#fff;box-shadow:none;border:1px solid rgba(0,0,0,.09);}
+#view-selecao .selpub-regua .selpub-label{margin:0 0 9px;letter-spacing:.05em;font-size:11.5px;color:#555;}
+#view-selecao .selpub-faixas-lista{display:flex;flex-wrap:wrap;gap:8px;}
+#view-selecao .selpub-faixa{font-size:12px;line-height:1.5;padding:7px 10px;border:1px solid #d9e6df;border-radius:9px;background:#f6faf7;color:#253b31;}
+#view-selecao .selpub-faixa b{color:#164e38;}
+#view-selecao .selpub-regua-nota{font-size:11.5px;line-height:1.5;margin-top:8px;color:#626262;}
+#view-selecao .selpub-regua-nudge{font-size:12px;font-weight:600;text-align:left;color:#32604e;margin-top:8px;}
+#view-selecao .selpub-sticky-resumo{white-space:normal;overflow:visible;font-size:12px;line-height:1.28;}
+#view-selecao .selpub-sticky-resumo strong{display:block;font-size:13px;margin-top:2px;}
+@media(max-width:420px){
+ #view-selecao .selpub-sticky{gap:8px;padding-left:12px;padding-right:12px;}
+ #selpub-btn-finalizar{font-size:11.5px;padding:.85em 1.1em;white-space:nowrap;}
+ #view-selecao .selpub-guia{padding:13px 14px;}
+}
+
 /* o modal de confirmar seleção/checkout é global (.modal-overlay fica
    fora de #view-selecao no DOM, junto com os modais do admin) — sem
    isso ele herdava o tema escuro interno do painel, quebrando o canvas
@@ -19138,12 +19162,23 @@ function _renderSelPub() {
     <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
     ${_selPubBadgeExpiracao(d.galeria.expira_em)}
     ${banner}
+    <div class="selpub-guia">
+      <div class="selpub-guia-titulo">Como escolher suas fotos</div>
+      ${d.galeria.qtd_incluida > 0 ? `
+        <p class="selpub-guia-passo"><strong>1. Seu ensaio já inclui ${d.galeria.qtd_incluida} fotos.</strong> Toque nas suas favoritas para marcar. Essas fotos já fazem parte do pacote.</p>
+        <p class="selpub-guia-passo"><strong>2. Quer escolher mais?</strong> Fotos além das ${d.galeria.qtd_incluida} incluídas são opcionais e cobradas à parte. Você vê o valor total antes de confirmar.</p>` : `
+        <p class="selpub-guia-passo"><strong>1. Toque nas fotos que você deseja.</strong> Este pacote não tem fotos previamente incluídas.</p>
+        <p class="selpub-guia-passo"><strong>2. Confira o valor antes de finalizar.</strong> Cada foto selecionada será cobrada conforme os preços abaixo.</p>`}
+      <p class="selpub-guia-passo" style="color:#666;font-size:12px;">Marcar ou desmarcar fotos não realiza nenhum pagamento.</p>
+    </div>
+    <div class="selpub-resumo-vivo" id="selpub-resumo-vivo" aria-live="polite"></div>
     <div class="selpub-regua" id="selpub-regua" style="display:none;">
-      <span class="selpub-label" style="margin-bottom:0;">Desconto Progressivo</span>
-      <div class="selpub-regua-track"><div class="selpub-regua-fill" id="selpub-regua-fill"></div><div id="selpub-regua-pontos"></div></div>
+      <span class="selpub-label" id="selpub-regua-titulo">Preços das fotos adicionais (opcionais)</span>
+      <div class="selpub-faixas-lista" id="selpub-regua-pontos"></div>
+      <div class="selpub-regua-nota" id="selpub-regua-nota"></div>
       <div class="selpub-regua-nudge" id="selpub-regua-nudge"></div>
     </div>
-    <span class="selpub-label">Suas Fotos</span>
+    <span class="selpub-label">Toque nas fotos para escolher</span>
     <div class="selpub-filtros">
       <span class="chip${_selPubFiltro === 'todas' ? ' on' : ''}" onclick="_selPubFiltrar('todas')">Todas</span>
       <span class="chip${_selPubFiltro === 'selecionadas' ? ' on' : ''}" onclick="_selPubFiltrar('selecionadas')">Selecionadas (${_selPub.selecionados.size})</span>
