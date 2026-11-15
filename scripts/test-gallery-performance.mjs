@@ -136,4 +136,46 @@ conferirOferta(0,/^$/,/Fotos extras: R\$ 30,00 por foto/,false)
 conferirOferta(1,/^$/,/Fotos extras: R\$ 30,00 por foto/,false)
 assert.doesNotMatch(html,/✨ Escolha \$\{alvo\}/)
 console.log('✓ Descoberta progressiva: preço único na entrada, promoção só após extras, valores reais 70/120 e poupança, sem preço fictício.')
+
+// Downloads das seleções: não registrar visita/preparação de link,
+// e nunca aguardar a métrica para baixar ou alterar o fluxo iOS.
+const selecaoSrc=fs.readFileSync('supabase/functions/selecao-publica/index.ts','utf8')
+const selecaoSql=fs.readFileSync('supabase/sql/106_selecao_downloads_auditoria.sql','utf8')
+assert.match(selecaoSrc,/if \(action === 'registrar_download'\) return await acaoRegistrarDownload/)
+assert.match(selecaoSrc,/new Set\(fotoIds\)\.size !== fotoIds\.length/)
+assert.match(selecaoSrc,/admin\.rpc\('selecao_download_liberado'/)
+assert.match(selecaoSrc,/permitidas\.has\(id\)/)
+assert.match(selecaoSrc,/\.from\('auditoria'\)\.insert/)
+assert.match(selecaoSrc,/acao: 'iniciou download de seleção'/)
+assert.match(selecaoSql,/security invoker/i)
+assert.match(selecaoSql,/from public, anon/i)
+assert.match(selecaoSql,/where a\.tabela='selecao_galerias'/)
+assert.doesNotMatch(selecaoSql,/\btruncate\b|\bdelete from\b|\bdrop table\b/i)
+assert.doesNotMatch(html,/function _renderSelPub\(\)[\s\S]{0,1000}_selPubRegistrarDownload\(/)
+assert.match(html,/if \(foto\.download_url\) \{[\s\S]{0,200}_selPubRegistrarDownload\(tipo, \[foto\], 'individual'\)/)
+assert.match(html,/_selPubRegistrarDownload\(tipo, iniciadas, 'lote'\)/)
+assert.match(html,/_selPubRegistrarDownload\(fila\.tipo, fila\.prontosFotos, 'ios'\)/)
+assert.match(html,/if \(resposta !== 'ok'\) \{[\s\S]*?_selPubRegistrarDownload\(fila\.tipo/)
+assert.match(html,/_selecaoCarregarDownloads\(id\)/)
+assert.match(html,/_acessosSelecaoAtualizar\(intervalo,key/)
+const downloadCalls=[]
+const logCtx=vm.createContext({
+  _selPub:{token:'teste-link',senha:null},
+  SUPABASE_URL:'https://supabase.example', SUPABASE_ANON_KEY:'anon-key',
+  fetch:(url,opts)=>{downloadCalls.push({url,opts});return Promise.resolve({ok:true})},
+  console, Set,
+})
+vm.runInContext(extract('function _selPubRegistrarDownload(', 'function _selPubIOSCancelar()'),logCtx)
+const primeira='11111111-1111-4111-8111-111111111111', segunda='22222222-2222-4222-8222-222222222222'
+vm.runInContext("_selPubRegistrarDownload('fotos',[{id:'"+primeira+"'},{id:'"+primeira+"'},{id:'"+segunda+"'}],'lote')",logCtx)
+assert.equal(downloadCalls.length,1,'Um evento por ação, não por fotografia')
+const bodyDownload=JSON.parse(downloadCalls[0].opts.body)
+assert.equal(bodyDownload.action,'registrar_download')
+assert.equal(bodyDownload.origem,'lote')
+assert.deepEqual(bodyDownload.foto_ids,[primeira,segunda])
+assert.equal(downloadCalls[0].opts.keepalive,true)
+assert.match(html,/gf-access-sel-acoes/)
+assert.match(html,/id="sel-downloads-resumo"/)
+console.log('✓ Seleção: 1 registro por clique/lote, IDs deduplicados e validados, iOS após compartilhar, admin sob demanda, sem contar acessos.')
+
 console.log('✓ 125 thumbnails em 2 lotes, URL sem bytes duplicados, cache ≤64 URLs, admin sem telas invisíveis, grade 16 e Realtime controlado.')

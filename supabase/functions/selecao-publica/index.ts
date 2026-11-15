@@ -45,6 +45,7 @@ Deno.serve(async (req) => {
   if (action === 'dados') return await acaoDados(admin, token, senha)
   if (action === 'enviar') return await acaoEnviar(admin, token, senha, body?.foto_ids || [], body?.observacoes || null)
   if (action === 'download') return await acaoDownload(admin, token, senha)
+  if (action === 'registrar_download') return await acaoRegistrarDownload(admin, token, senha, body?.foto_ids, body?.tipo, body?.origem)
   if (action === 'arquivo') return await acaoArquivo(admin, token, senha, body?.foto_id, body?.tipo)
   if (action === 'criar_pagamento') return await acaoCriarPagamento(admin, token, senha, body?.redirect_url || null)
   return json({ error: 'Ação desconhecida.' }, 400)
@@ -193,6 +194,55 @@ async function acaoDownload(admin: any, token: string, senha: string | null) {
     assinarEmLote(admin, data.bastidores || [], 'storage_path_alta', 'presente'),
   ])
   return json({ fotos: fotos.filter((f) => f.url), bastidores: bastidores.filter((f) => f.url) })
+}
+
+// Só conta uma ação de baixar quando o cliente realmente acionou um
+// comando de download. Não grava na abertura da página nem na obtenção
+// das URLs assinadas; o fluxo de fotos permanece independente deste log.
+// Token/senha e a associação das fotos a um pedido liberado são revalidados.
+async function acaoRegistrarDownload(
+  admin: any, token: string, senha: string | null,
+  fotoIds: unknown, tipo: unknown, origem: unknown,
+) {
+  if (tipo !== 'fotos' && tipo !== 'bastidores') return json({ error: 'Tipo inválido.' }, 400)
+  if (origem !== 'individual' && origem !== 'lote' && origem !== 'ios') return json({ error: 'Origem inválida.' }, 400)
+  const uuid = /^[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}$/i
+  if (!Array.isArray(fotoIds) || fotoIds.length < 1 || fotoIds.length > 500 ||
+      !fotoIds.every((id: unknown) => typeof id === 'string' && uuid.test(id)) ||
+      new Set(fotoIds).size !== fotoIds.length) {
+    return json({ error: 'Lista de fotos inválida.' }, 400)
+  }
+  const { data, error } = await admin.rpc('selecao_download_liberado', {
+    p_token: token, p_senha: senha,
+  })
+  if (error) return json({ error: mapErro(error.message) }, 401)
+  const permitidas = new Set(((tipo === 'bastidores' ? data?.bastidores : data?.fotos) || [])
+    .map((f: any) => f.id))
+  if (!fotoIds.every((id: string) => permitidas.has(id)))
+    return json({ error: 'Há fotos não autorizadas nesta seleção.' }, 403)
+
+  const { data: galeria, error: galeriaErro } = await admin
+    .from('selecao_galerias').select('id,cliente_nome')
+    .eq('token', token).single()
+  if (galeriaErro || !galeria) {
+    console.error('selecao-publica[registrar_download]: galeria indisponível', galeriaErro?.message)
+    return json({ error: 'Não foi possível registrar essa ação.' }, 503)
+  }
+  // O nome vem do titular configurado no LINK, não representa uma
+  // pessoa autenticada. Não armazenamos IP, navegador ou localização.
+  const { error: registroErro } = await admin.from('auditoria').insert({
+    user_id: null,
+    user_nome: galeria.cliente_nome,
+    acao: 'iniciou download de seleção',
+    tabela: 'selecao_galerias',
+    registro_id: galeria.id,
+    detalhe: `${fotoIds.length} fotos; tipo=${tipo}; origem=${origem}`,
+  })
+  if (registroErro) {
+    console.error('selecao-publica[registrar_download]: falha de auditoria', registroErro.message)
+    return json({ error: 'Registro temporariamente indisponível.' }, 503)
+  }
+  return json({ registrado: true })
 }
 
 // Streaming seguro para o Web Share do iPhone. O navegador não precisa ler
