@@ -19330,7 +19330,7 @@ function _selPubRenderRegua(extras) {
       const fim = f.ate === null || f.ate === undefined ? null : Number(f.ate)
       const faixa = fim === null
         ? `A partir da ${inicio}ª foto extra`
-        : (fim === inicio ? `${inicio}ª foto extra` : `Da ${inicio}ª à ${fim}ª fotos extras`)
+        : (fim === inicio ? `${inicio}ª foto extra` : `Fotos extras da ${inicio}ª à ${fim}ª`)
       inicio = fim === null ? inicio : fim + 1
       return `<span class="selpub-faixa">${faixa}: <b>${fmtBRL(f.preco)} cada</b></span>`
     }).join('')
@@ -19365,7 +19365,7 @@ function _selPubAtualizarContador() {
     const situacao = g.qtd_incluida > 0
       ? `${inclusas} de ${g.qtd_incluida} fotos incluídas${extras ? ` + ${extras} extra${extras > 1 ? 's' : ''}` : ''}`
       : `${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}`
-    vivo.innerHTML = `<div><strong>Sua escolha: ${n} foto${n === 1 ? '' : 's'}</strong><span>${situacao}</span></div><div><span>Valor adicional</span><div class="selpub-valor">${fmtBRL(total)}</div></div>`
+    vivo.innerHTML = `<div><strong>Sua escolha: ${n} foto${n === 1 ? '' : 's'}</strong><span>${situacao}</span></div><div><span>${g.qtd_incluida > 0 ? 'Valor adicional' : 'Valor das fotos'}</span><div class="selpub-valor">${fmtBRL(total)}</div></div>`
   }
 }
 
@@ -19496,9 +19496,9 @@ function _selPubAbrirConfirmar() {
   document.getElementById('selpub-confirmar-resumo').innerHTML = `
     <div style="font-size:15px;color:#1A1A1A;margin-bottom:8px;"><b>${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}</b></div>
     ${g.qtd_incluida > 0 ? `<div>✓ <b>${inclusas}</b> foto${inclusas === 1 ? '' : 's'} já incluída${inclusas === 1 ? '' : 's'} no seu pacote (sem pagar novamente).</div>` : ''}
-    <div>${extras ? `+ <b>${extras}</b> foto${extras === 1 ? '' : 's'} adicional${extras === 1 ? '' : 'is'} (opcionais).` : 'Nenhuma foto adicional escolhida.'}</div>
+    <div>${extras ? `+ <b>${extras}</b> foto${extras === 1 ? '' : 's'} ${extras === 1 ? 'adicional' : 'adicionais'} (opcionais).` : 'Nenhuma foto adicional escolhida.'}</div>
     ${extras ? `<div style="font-size:12px;margin-top:6px;">Cálculo das adicionais: ${detalhamento}.</div>` : ''}
-    <div style="border-top:1px solid #e6e6e6;padding-top:10px;margin-top:10px;font-size:15px;"><b>Valor adicional: <span style="color:#146b49;">${fmtBRL(total)}</span></b></div>
+    <div style="border-top:1px solid #e6e6e6;padding-top:10px;margin-top:10px;font-size:15px;"><b>${g.qtd_incluida > 0 ? 'Valor adicional' : 'Valor das fotos'}: <span style="color:#146b49;">${fmtBRL(total)}</span></b></div>
     <div style="font-size:12px;color:#656565;margin-top:7px;">Marcar uma foto não cobra nada automaticamente. Confira sua escolha antes de continuar.</div>
   `
   const pix = _selPub.dados.pix
