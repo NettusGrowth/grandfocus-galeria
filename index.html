@@ -19574,6 +19574,32 @@ let _selPubIOSProcessando = false
 // app Arquivos, e não no Fotos. Preparar File por uma rota CORS controlada
 // no Supabase e aguardar um NOVO toque no botão para navigator.share.
 // Esse segundo gesto é fundamental para a janela nativa "Salvar Imagem".
+// Métrica best-effort: UM evento por clique em baixar (ou por lote),
+// sem autenticar o cliente, sem rastrear visita e sem aguardar resposta.
+// A Edge Function valida token/senha e IDs de fotos já liberadas.
+// Ação iniciada não significa arquivo salvo no aparelho.
+function _selPubRegistrarDownload(tipo, fotos, origem) {
+  const ids = [...new Set((fotos || []).map(f => f?.id)
+    .filter(id => typeof id === 'string' && /^[a-f0-9-]{36}$/i.test(id)))]
+  if (!ids.length) return
+  const payload = JSON.stringify({
+    action: 'registrar_download', token: _selPub.token, senha: _selPub.senha || null,
+    tipo, origem, foto_ids: ids,
+  })
+  void fetch(`${SUPABASE_URL}/functions/v1/selecao-publica`, {
+    method: 'POST', keepalive: payload.length < 60000,
+    headers: {
+      'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: payload,
+  }).then(r => {
+    if (!r.ok) console.warn('Registro de download de seleção indisponível:', r.status)
+  }).catch(() => {
+    // Uma falha nesta métrica NUNCA impede o download.
+  })
+}
+
 function _selPubIOSCancelar() {
   if (_selPubIOSProcessando || _selPubIOSFila?.salvando) return
   _selPubIOSFila = null
@@ -19592,7 +19618,7 @@ function _selPubIOSIniciar(tipo, indices) {
   const fotos = tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   const validos = indices.filter(i => Number.isInteger(i) && i >= 0 && i < fotos.length)
   if (!validos.length) return
-  _selPubIOSFila = { tipo, indices: validos, posicao: 0, prontos: [], falhas: 0, totalProcessado: 0, salvando: false }
+  _selPubIOSFila = { tipo, indices: validos, posicao: 0, prontos: [], prontosFotos: [], falhas: 0, totalProcessado: 0, salvando: false }
   _selPubIOSPreparar()
 }
 async function _selPubIOSBuscarArquivo(tipo, foto, nome) {
@@ -19625,6 +19651,7 @@ async function _selPubIOSPreparar() {
   const inicio = fila.posicao
   const indices = fila.indices.slice(inicio, inicio + 4)
   fila.prontos = []
+  fila.prontosFotos = []
   const nomeTipo = fila.tipo === 'bastidores' ? 'presente' : 'foto'
   const fotos = fila.tipo === 'bastidores' ? _selPubBastidoresLiberados : _selPubFotosLiberadas
   try {
@@ -19647,7 +19674,7 @@ async function _selPubIOSPreparar() {
           if (tentativa === 0) await new Promise(r => setTimeout(r, 400))
         }
       }
-      if (arquivo) fila.prontos.push(arquivo)
+      if (arquivo) { fila.prontos.push(arquivo); fila.prontosFotos.push(foto) }
       else fila.falhas++
     }
     if (_selPubIOSFila !== fila) return
@@ -19700,8 +19727,10 @@ async function _selPubIOSSalvar() {
       })
     return
   }
+  _selPubRegistrarDownload(fila.tipo, fila.prontosFotos, 'ios')
   fila.totalProcessado += fila.prontos.length
   fila.prontos = [] // solta a memória desse lote (máximo 4 imagens).
+  fila.prontosFotos = []
   fila.posicao += Math.min(4, fila.indices.length - fila.posicao)
   if (fila.posicao < fila.indices.length) {
     _dlProgressMostrar('Etapa concluída',
@@ -19752,10 +19781,13 @@ function _selPubBaixarFotoIndividual(tipo, indice) {
   const foto = lista[indice]
   if (!foto) return
   if (foto.download_url) {
-    _selPubAbrirDownloadNativo(foto.download_url, foto.nome_download || 'foto-' + (indice + 1) + '.jpg')
+    if (_selPubAbrirDownloadNativo(foto.download_url, foto.nome_download || 'foto-' + (indice + 1) + '.jpg')) {
+      _selPubRegistrarDownload(tipo, [foto], 'individual')
+    }
     return
   }
   _baixarUrl(foto.url, 'foto-' + (indice + 1) + '.jpg')
+  _selPubRegistrarDownload(tipo, [foto], 'individual')
 }
 
 
@@ -19835,9 +19867,12 @@ async function _selPubBaixarTodas(tipo) {
   }
   if (!fotos.every(f => f.download_url)) {
     const nomeBase = (_selPub.dados?.galeria?.titulo || 'fotos').toLowerCase().replace(/[^a-z0-9]+/g, '-')
-    return _baixarFotosEmMassa(fotos.map((f, i) => ({ url: f.url, nome: 'foto-' + (i + 1) + '.jpg' })), nomeBase)
+    const tarefa = _baixarFotosEmMassa(fotos.map((f, i) => ({ url: f.url, nome: 'foto-' + (i + 1) + '.jpg' })), nomeBase)
+    _selPubRegistrarDownload(tipo, fotos, 'lote') // conta clique no botão, sem aguardar a transferência
+    return tarefa
   }
   _selPubDownloadNativoAtivo = true
+  const iniciadas = []
   try {
     // Alguns navegadores bloqueiam downloads múltiplos. Estes botões
     // permitem repetir individualmente sem depender de fetch() ou CORS.
@@ -19851,7 +19886,7 @@ async function _selPubBaixarTodas(tipo) {
         acaoHtml: '<div style="max-height:170px;overflow:auto;">' + botoes + '</div>',
       })
     for (let i = 0; i < fotos.length; i++) {
-      _selPubAbrirDownloadNativo(fotos[i].download_url, fotos[i].nome_download || 'foto-' + (i + 1) + '.jpg')
+      if (_selPubAbrirDownloadNativo(fotos[i].download_url, fotos[i].nome_download || 'foto-' + (i + 1) + '.jpg')) iniciadas.push(fotos[i])
       if (i !== fotos.length - 1) await new Promise(r => setTimeout(r, 420))
     }
     _dlProgressMostrar('Downloads iniciados (' + fotos.length + ')',
@@ -19861,6 +19896,7 @@ async function _selPubBaixarTodas(tipo) {
         acaoHtml: '<div style="max-height:170px;overflow:auto;">' + botoes + '</div>',
       })
   } finally {
+    if (iniciadas.length) _selPubRegistrarDownload(tipo, iniciadas, 'lote')
     _selPubDownloadNativoAtivo = false
   }
 }
