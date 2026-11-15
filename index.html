@@ -283,30 +283,6 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-regua-ponto.on .lbl{color:#0d7a5f;font-weight:600;}
 .selpub-regua-nudge{font-size:13px;color:#0d7a5f;font-weight:600;text-align:center;margin-top:4px;}
 
-
-/* Seleção pública: explicar o pacote e deixar os preços das extras legíveis. */
-#view-selecao .selpub-guia{background:#fff;border:1px solid rgba(0,0,0,.1);border-radius:14px;padding:15px 17px;margin:12px 0 12px;line-height:1.55;}
-#view-selecao .selpub-guia-titulo{font-size:15px;font-weight:750;color:#222;margin-bottom:8px;}
-#view-selecao .selpub-guia-passo{font-size:13px;color:#444;margin:5px 0;}
-#view-selecao .selpub-guia-passo strong{color:#171717;}
-#view-selecao .selpub-resumo-vivo{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px 16px;border:1px solid rgba(0,0,0,.09);background:#f3f8f5;border-radius:11px;padding:12px 15px;margin:0 0 13px;font-size:13px;color:#29362e;}
-#view-selecao .selpub-resumo-vivo strong{display:block;font-size:13px;color:#185941;}
-#view-selecao .selpub-resumo-vivo .selpub-valor{font-size:16px;font-weight:800;color:#145c43;font-variant-numeric:tabular-nums;}
-#view-selecao .selpub-regua{position:static;margin:0 0 20px;padding:12px 15px;border-radius:12px;background:#fff;box-shadow:none;border:1px solid rgba(0,0,0,.09);}
-#view-selecao .selpub-regua .selpub-label{margin:0 0 9px;letter-spacing:.05em;font-size:11.5px;color:#555;}
-#view-selecao .selpub-faixas-lista{display:flex;flex-wrap:wrap;gap:8px;}
-#view-selecao .selpub-faixa{font-size:12px;line-height:1.5;padding:7px 10px;border:1px solid #d9e6df;border-radius:9px;background:#f6faf7;color:#253b31;}
-#view-selecao .selpub-faixa b{color:#164e38;}
-#view-selecao .selpub-regua-nota{font-size:11.5px;line-height:1.5;margin-top:8px;color:#626262;}
-#view-selecao .selpub-regua-nudge{font-size:12px;font-weight:600;text-align:left;color:#32604e;margin-top:8px;}
-#view-selecao .selpub-sticky-resumo{white-space:normal;overflow:visible;font-size:12px;line-height:1.28;}
-#view-selecao .selpub-sticky-resumo strong{display:block;font-size:13px;margin-top:2px;}
-@media(max-width:420px){
- #view-selecao .selpub-sticky{gap:8px;padding-left:12px;padding-right:12px;}
- #selpub-btn-finalizar{font-size:11.5px;padding:.85em 1.1em;white-space:nowrap;}
- #view-selecao .selpub-guia{padding:13px 14px;}
-}
-
 /* o modal de confirmar seleção/checkout é global (.modal-overlay fica
    fora de #view-selecao no DOM, junto com os modais do admin) — sem
    isso ele herdava o tema escuro interno do painel, quebrando o canvas
@@ -19162,23 +19138,12 @@ function _renderSelPub() {
     <div class="meta" style="margin-bottom:16px;">${esc(d.galeria.cliente_nome)} · ${d.fotos.length} foto(s) disponíveis pra escolha</div>
     ${_selPubBadgeExpiracao(d.galeria.expira_em)}
     ${banner}
-    <div class="selpub-guia">
-      <div class="selpub-guia-titulo">Como escolher suas fotos</div>
-      ${d.galeria.qtd_incluida > 0 ? `
-        <p class="selpub-guia-passo"><strong>1. Seu ensaio já inclui ${d.galeria.qtd_incluida} fotos.</strong> Toque nas suas favoritas para marcar. Essas fotos já fazem parte do pacote.</p>
-        <p class="selpub-guia-passo"><strong>2. Quer escolher mais?</strong> Fotos além das ${d.galeria.qtd_incluida} incluídas são opcionais e cobradas à parte. Você vê o valor total antes de confirmar.</p>` : `
-        <p class="selpub-guia-passo"><strong>1. Toque nas fotos que você deseja.</strong> Este pacote não tem fotos previamente incluídas.</p>
-        <p class="selpub-guia-passo"><strong>2. Confira o valor antes de finalizar.</strong> Cada foto selecionada será cobrada conforme os preços abaixo.</p>`}
-      <p class="selpub-guia-passo" style="color:#666;font-size:12px;">Marcar ou desmarcar fotos não realiza nenhum pagamento.</p>
-    </div>
-    <div class="selpub-resumo-vivo" id="selpub-resumo-vivo" aria-live="polite"></div>
     <div class="selpub-regua" id="selpub-regua" style="display:none;">
-      <span class="selpub-label" id="selpub-regua-titulo">Preços das fotos adicionais (opcionais)</span>
-      <div class="selpub-faixas-lista" id="selpub-regua-pontos"></div>
-      <div class="selpub-regua-nota" id="selpub-regua-nota"></div>
+      <span class="selpub-label" style="margin-bottom:0;">Desconto Progressivo</span>
+      <div class="selpub-regua-track"><div class="selpub-regua-fill" id="selpub-regua-fill"></div><div id="selpub-regua-pontos"></div></div>
       <div class="selpub-regua-nudge" id="selpub-regua-nudge"></div>
     </div>
-    <span class="selpub-label">Toque nas fotos para escolher</span>
+    <span class="selpub-label">Suas Fotos</span>
     <div class="selpub-filtros">
       <span class="chip${_selPubFiltro === 'todas' ? ' on' : ''}" onclick="_selPubFiltrar('todas')">Todas</span>
       <span class="chip${_selPubFiltro === 'selecionadas' ? ' on' : ''}" onclick="_selPubFiltrar('selecionadas')">Selecionadas (${_selPub.selecionados.size})</span>
@@ -19296,76 +19261,54 @@ function _selPubCalcularTotal(faixas, precoFlat, qtdExtra) {
   return total
 }
 
-// O preço é marginal por faixa: a faixa de R$ 30 não transforma
-// retroativamente as duas fotos anteriores de R$ 45 em R$ 30.
-function _selPubDetalharExtras(faixas, precoFlat, qtdExtra) {
-  if (qtdExtra <= 0) return ''
-  if (!Array.isArray(faixas) || !faixas.length) return `${qtdExtra} × ${fmtBRL(precoFlat)}`
-  let restante = qtdExtra, anterior = 0
-  const partes = []
-  for (const f of faixas) {
-    if (restante <= 0) break
-    const temTeto = f.ate !== null && f.ate !== undefined
-    const nesta = temTeto ? Math.max(0, Math.min(restante, f.ate - anterior)) : restante
-    if (nesta > 0) partes.push(`${nesta} × ${fmtBRL(f.preco)}`)
-    restante -= nesta
-    anterior = temTeto ? f.ate : anterior + nesta
-  }
-  return partes.join(' + ')
-}
 function _selPubRenderRegua(extras) {
   const wrap = document.getElementById('selpub-regua')
-  const g = _selPub.dados?.galeria
-  if (!wrap || !g) return
-  wrap.style.display = 'block'
+  const g = _selPub.dados.galeria
   const faixas = g.faixas_preco
-  const pontos = document.getElementById('selpub-regua-pontos')
-  document.getElementById('selpub-regua-titulo').textContent =
-    g.qtd_incluida > 0 ? 'Preço das fotos adicionais (opcionais)' : 'Preço das fotos escolhidas'
-  if (!Array.isArray(faixas) || !faixas.length) {
-    pontos.innerHTML = `<span class="selpub-faixa">${g.qtd_incluida > 0 ? 'Cada foto além do pacote' : 'Cada foto escolhida'}: <b>${fmtBRL(g.preco_extra)} por foto</b></span>`
+  if (!wrap || !Array.isArray(faixas) || faixas.length < 2) { if (wrap) wrap.style.display = 'none'; return }
+  wrap.style.display = 'block'
+  const precoBase = faixas[0].preco
+  // cada checkpoint = fronteira de uma faixa (todas menos a última, que
+  // não tem "até") pareada com o preço da PRÓXIMA faixa — é esse preço
+  // que passa a valer assim que esse número de extras for ultrapassado
+  // (não alcançado — na própria fronteira ainda vale o preço de antes).
+  const checkpoints = faixas.slice(0, -1).map((f, i) => ({ ate: f.ate, preco: faixas[i + 1].preco }))
+  const maxAte = checkpoints[checkpoints.length - 1].ate
+  const escala = Math.max(maxAte * 1.15, extras + 1)
+  const pctPos = v => Math.min(100, (v / escala) * 100)
+  document.getElementById('selpub-regua-fill').style.width = pctPos(extras) + '%'
+  document.getElementById('selpub-regua-pontos').innerHTML = checkpoints.map(c => {
+    const pctOff = Math.round((1 - c.preco / precoBase) * 100)
+    const atingiu = extras > c.ate
+    return `<div class="selpub-regua-ponto${atingiu ? ' on' : ''}" style="left:${pctPos(c.ate)}%;">
+      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : fmtBRL(c.preco)}<br>${c.ate + 1}+ fotos</span>
+    </div>`
+  }).join('')
+  const nudgeEl = document.getElementById('selpub-regua-nudge')
+  const proxima = checkpoints.find(c => extras <= c.ate)
+  if (proxima) {
+    const faltam = proxima.ate + 1 - extras
+    const pctOff = Math.round((1 - proxima.preco / precoBase) * 100)
+    nudgeEl.textContent = `✨ Faltam ${faltam} foto${faltam > 1 ? 's' : ''} extra${faltam > 1 ? 's' : ''} para a ${proxima.ate + 1}ª, que custa ${fmtBRL(proxima.preco)}. As anteriores mantêm o preço original.`
+  } else if (extras > 0) {
+    nudgeEl.textContent = '🎉 Você já está no melhor preço por foto extra!'
   } else {
-    let inicio = 1
-    pontos.innerHTML = faixas.map(f => {
-      const fim = f.ate === null || f.ate === undefined ? null : Number(f.ate)
-      const faixa = fim === null
-        ? `A partir da ${inicio}ª foto extra`
-        : (fim === inicio ? `${inicio}ª foto extra` : `Fotos extras da ${inicio}ª à ${fim}ª`)
-      inicio = fim === null ? inicio : fim + 1
-      return `<span class="selpub-faixa">${faixa}: <b>${fmtBRL(f.preco)} cada</b></span>`
-    }).join('')
+    nudgeEl.textContent = ''
   }
-  const nota = document.getElementById('selpub-regua-nota')
-  nota.textContent = Array.isArray(faixas) && faixas.length > 1
-    ? 'Importante: o preço reduzido vale apenas para as fotos dessa nova faixa. As anteriores mantêm seu valor.'
-    : (g.qtd_incluida > 0 ? 'Este valor só se aplica às fotos além das incluídas no pacote.' : 'O valor depende de quantas fotos você escolher.')
-  const dica = document.getElementById('selpub-regua-nudge')
-  dica.textContent = extras > 0
-    ? `Conta das fotos adicionais: ${_selPubDetalharExtras(faixas, g.preco_extra, extras)} = ${fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, extras))}.`
-    : (g.qtd_incluida > 0 ? 'As fotos do seu pacote já estão incluídas. Escolher extras é opcional.' : 'O valor é calculado conforme a quantidade de fotos escolhidas.')
 }
 
 function _selPubAtualizarContador() {
   const g = _selPub.dados.galeria
   const n = _selPub.selecionados.size
-  const inclusas = Math.min(n, g.qtd_incluida)
   const extras = Math.max(0, n - g.qtd_incluida)
   const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
   _selPubRenderRegua(extras)
-  document.getElementById('selpub-btn-finalizar').textContent = 'Revisar escolha ➔'
+  document.getElementById('selpub-btn-finalizar').textContent = `Avançar (${n}) ➔`
   const resumoEl = document.getElementById('selpub-sticky-resumo')
   if (resumoEl) {
-    const saldo = extras > 0
-      ? `${extras} foto${extras > 1 ? 's' : ''} extra${extras > 1 ? 's' : ''} · ${fmtBRL(total)} adicionais`
-      : (g.qtd_incluida > 0 ? `${inclusas}/${g.qtd_incluida} no pacote · sem custo extra` : 'R$ 0,00 até agora')
-    resumoEl.innerHTML = `<span>${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}</span><strong>${saldo}</strong>`
-  }
-  const vivo = document.getElementById('selpub-resumo-vivo')
-  if (vivo) {
-    const situacao = g.qtd_incluida > 0
-      ? `${inclusas} de ${g.qtd_incluida} fotos incluídas${extras ? ` + ${extras} extra${extras > 1 ? 's' : ''}` : ''}`
-      : `${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}`
-    vivo.innerHTML = `<div><strong>Sua escolha: ${n} foto${n === 1 ? '' : 's'}</strong><span>${situacao}</span></div><div><span>${g.qtd_incluida > 0 ? 'Valor adicional' : 'Valor das fotos'}</span><div class="selpub-valor">${fmtBRL(total)}</div></div>`
+    resumoEl.textContent = extras > 0
+      ? `${fmtBRL(total)} · ${extras} foto${extras > 1 ? 's' : ''} extra${extras > 1 ? 's' : ''}`
+      : `${Math.min(n, g.qtd_incluida)}/${g.qtd_incluida} fotos inclusas`
   }
 }
 
@@ -19464,9 +19407,9 @@ function _renderSelPubLightboxAtual() {
   const totalDepois = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, Math.max(0, nDepois - g.qtd_incluida))
   const delta = totalDepois - totalAtual
   if (marcada) {
-    btn.textContent = delta < 0 ? `✓ Escolhida — desmarcar (menos ${fmtBRL(Math.abs(delta))} em extras)` : '✓ Escolhida — toque para desmarcar'
+    btn.textContent = delta < 0 ? `✓ Marcada — desmarcar (−${fmtBRL(Math.abs(delta))})` : '✓ Marcada — clique pra desmarcar'
   } else {
-    btn.textContent = delta > 0 ? `Escolher esta foto (+${fmtBRL(delta)} nas extras)` : 'Escolher esta foto (sem custo adicional)'
+    btn.textContent = delta > 0 ? `🛒 Adicionar aos Extras — ${fmtBRL(delta)}` : '💚 Selecionar esta foto (incluída no pacote)'
   }
   btn.className = 'btn btn-sm ' + (marcada ? '' : 'btn-primary')
   _selPubPrecarregarVizinhas(d, _selPubLightboxIdx)
@@ -19491,22 +19434,17 @@ function _selPubAbrirConfirmar() {
   const n = _selPub.selecionados.size
   const extras = Math.max(0, n - g.qtd_incluida)
   const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
-  const inclusas = Math.min(n, g.qtd_incluida)
-  const detalhamento = extras > 0 ? _selPubDetalharExtras(g.faixas_preco, g.preco_extra, extras) : ''
   document.getElementById('selpub-confirmar-resumo').innerHTML = `
-    <div style="font-size:15px;color:#1A1A1A;margin-bottom:8px;"><b>${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}</b></div>
-    ${g.qtd_incluida > 0 ? `<div>✓ <b>${inclusas}</b> foto${inclusas === 1 ? '' : 's'} já incluída${inclusas === 1 ? '' : 's'} no seu pacote (sem pagar novamente).</div>` : ''}
-    <div>${extras ? `+ <b>${extras}</b> foto${extras === 1 ? '' : 's'} ${extras === 1 ? 'adicional' : 'adicionais'} (opcionais).` : 'Nenhuma foto adicional escolhida.'}</div>
-    ${extras ? `<div style="font-size:12px;margin-top:6px;">Cálculo das adicionais: ${detalhamento}.</div>` : ''}
-    <div style="border-top:1px solid #e6e6e6;padding-top:10px;margin-top:10px;font-size:15px;"><b>${g.qtd_incluida > 0 ? 'Valor adicional' : 'Valor das fotos'}: <span style="color:#146b49;">${fmtBRL(total)}</span></b></div>
-    <div style="font-size:12px;color:#656565;margin-top:7px;">Marcar uma foto não cobra nada automaticamente. Confira sua escolha antes de continuar.</div>
+    <b>${n}</b> foto(s) selecionada(s)<br>
+    ${Math.min(n, g.qtd_incluida)} incluída(s) no pacote + <b>${extras}</b> extra(s)<br>
+    Total a pagar: <b style="color:var(--verde);">${fmtBRL(total)}</b>
   `
   const pix = _selPub.dados.pix
   const pixBox = document.getElementById('selpub-confirmar-pix')
   const podePagarAutomatico = total > 0 && _selPub.dados.pagamento_automatico
   if (total > 0 && podePagarAutomatico) {
     pixBox.innerHTML = `
-      <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Confirmar e pagar ${fmtBRL(total)} em fotos extras</button>
+      <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Pagar Agora</button>
       <div class="meta" style="text-align:center;margin-top:8px;">🔒 Compra segura e protegida</div>
       ${pix?.chave ? `
         <div class="meta" style="text-align:center;margin-top:14px;">Se o pagamento automático não funcionar, pague via PIX manual e combine com o estúdio:</div>
@@ -19538,7 +19476,7 @@ function _selPubAbrirConfirmar() {
     btnEnviar.style.display = podePagarAutomatico ? 'none' : ''
     // total zerado (dentro do pacote) é um fluxo diferente de "enviei e
     // vou pagar depois" — texto do botão precisa deixar isso claro.
-    btnEnviar.textContent = total > 0 ? 'Enviar escolha e combinar pagamento' : 'Confirmar fotos do meu pacote'
+    btnEnviar.textContent = total > 0 ? 'Enviar Seleção para o Estúdio' : 'Confirmar e Enviar Seleção'
   }
   document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
   abrirModal('modal-selecao-confirmar')
@@ -19550,7 +19488,6 @@ function _selPubAbrirConfirmar() {
 // não tem valor_total pra cobrar ainda.
 async function _selPubPagarAgora() {
   const btn = document.getElementById('selpub-btn-pagar')
-  const textoBotao = btn?.textContent || 'Confirmar e pagar as fotos extras'
   // abre a aba ANTES de qualquer "await" — depois de esperar uma
   // resposta de rede o navegador (principalmente no celular) não conta
   // mais como "gesto direto do usuário" e BLOQUEIA um window.open()
@@ -19567,12 +19504,12 @@ async function _selPubPagarAgora() {
     const ok = await _selPubEnviarPedido({ silencioso: true })
     if (!ok) {
       if (abaCheckout) abaCheckout.close()
-      if (btn) { btn.disabled = false; btn.textContent = textoBotao }
+      if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
       return
     }
   }
   const { data, error } = await _selecaoPublicaFetch('criar_pagamento', _selPub.token, _selPub.senha, { redirect_url: location.href })
-  if (btn) { btn.disabled = false; btn.textContent = textoBotao }
+  if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
   if (error) { if (abaCheckout) abaCheckout.close(); toast(error); return }
   if (abaCheckout) abaCheckout.location.href = data.checkout_url
   else window.open(data.checkout_url, '_blank') // navegador bloqueou até a aba em branco — última tentativa
