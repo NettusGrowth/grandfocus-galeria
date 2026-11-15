@@ -282,6 +282,10 @@ label{font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--o
 .selpub-regua-ponto .lbl{position:absolute;top:16px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10px;line-height:1.4;color:#8A8A8A;text-align:center;}
 .selpub-regua-ponto.on .lbl{color:#0d7a5f;font-weight:600;}
 .selpub-regua-nudge{font-size:13px;color:#0d7a5f;font-weight:600;text-align:center;margin-top:4px;}
+.selpub-regua.basica{padding:11px 15px;margin:6px 0 12px;box-shadow:none;}
+.selpub-regua.basica .selpub-label{letter-spacing:.05em;font-size:12px;color:#535353;}
+.selpub-regua.basica .selpub-regua-nudge{display:none;}
+
 
 /* o modal de confirmar seleção/checkout é global (.modal-overlay fica
    fora de #view-selecao no DOM, junto com os modais do admin) — sem
@@ -19139,9 +19143,9 @@ function _renderSelPub() {
     ${_selPubBadgeExpiracao(d.galeria.expira_em)}
     ${banner}
     <div class="selpub-regua" id="selpub-regua" style="display:none;">
-      <span class="selpub-label" style="margin-bottom:0;">Desconto Progressivo</span>
-      <div class="selpub-regua-track"><div class="selpub-regua-fill" id="selpub-regua-fill"></div><div id="selpub-regua-pontos"></div></div>
-      <div class="selpub-regua-nudge" id="selpub-regua-nudge"></div>
+      <span class="selpub-label" id="selpub-regua-titulo" style="margin-bottom:0;">Fotos extras</span>
+      <div class="selpub-regua-track" id="selpub-regua-track"><div class="selpub-regua-fill" id="selpub-regua-fill"></div><div id="selpub-regua-pontos"></div></div>
+      <div class="selpub-regua-nudge" id="selpub-regua-nudge" role="status" aria-live="polite"></div>
     </div>
     <span class="selpub-label">Suas Fotos</span>
     <div class="selpub-filtros">
@@ -19264,52 +19268,56 @@ function _selPubCalcularTotal(faixas, precoFlat, qtdExtra) {
 function _selPubRenderRegua(extras) {
   const wrap = document.getElementById('selpub-regua')
   const g = _selPub.dados.galeria
+  if (!wrap || !g) return
   const faixas = g.faixas_preco
-  if (!wrap || !Array.isArray(faixas) || faixas.length < 2) { if (wrap) wrap.style.display = 'none'; return }
+  // Mostrar o preço real desta galeria, sem trocar preços do banco.
+  const precoBase = Array.isArray(faixas) && faixas.length
+    ? Number(faixas[0].preco) : Number(g.preco_extra)
+  const titulo = document.getElementById('selpub-regua-titulo')
+  if (titulo) titulo.textContent = (g.qtd_incluida > 0 ? 'Fotos extras: ' : 'Fotos: ') +
+    fmtBRL(precoBase) + ' por foto'
+  const track = document.getElementById('selpub-regua-track')
+  const nudgeEl = document.getElementById('selpub-regua-nudge')
+  const checkpoints = Array.isArray(faixas) && faixas.length > 1
+    ? faixas.slice(0, -1).map((f, i) => ({
+        ate: Number(f.ate), preco: Number(faixas[i + 1].preco)
+      })).filter(c => Number.isFinite(c.ate) && c.ate >= 0)
+    : []
+  const primeiraOferta = checkpoints.find(c => c.preco < precoBase)
   wrap.style.display = 'block'
-  const precoBase = faixas[0].preco
-  // cada checkpoint = fronteira de uma faixa (todas menos a última, que
-  // não tem "até") pareada com o preço da PRÓXIMA faixa — é esse preço
-  // que passa a valer assim que esse número de extras for ultrapassado
-  // (não alcançado — na própria fronteira ainda vale o preço de antes).
-  const checkpoints = faixas.slice(0, -1).map((f, i) => ({ ate: f.ate, preco: faixas[i + 1].preco }))
+  // A tela começa só com o preço unitário; o benefício é descoberto
+  // ao escolher fotos. Nunca esconder o total já mostrado no rodapé.
+  const simples = extras === 0 || !primeiraOferta
+  wrap.classList.toggle('basica', simples)
+  if (track) track.style.display = simples ? 'none' : ''
+  if (simples) {
+    if (nudgeEl) nudgeEl.textContent = ''
+    return
+  }
   const maxAte = checkpoints[checkpoints.length - 1].ate
   const escala = Math.max(maxAte * 1.15, extras + 1)
   const pctPos = v => Math.min(100, (v / escala) * 100)
   document.getElementById('selpub-regua-fill').style.width = pctPos(extras) + '%'
   document.getElementById('selpub-regua-pontos').innerHTML = checkpoints.map(c => {
-    const pctOff = Math.round((1 - c.preco / precoBase) * 100)
     const atingiu = extras > c.ate
+    const label = atingiu ? '✓ Liberado' : (c.ate + 1) + '+ fotos'
     return `<div class="selpub-regua-ponto${atingiu ? ' on' : ''}" style="left:${pctPos(c.ate)}%;">
-      <span class="lbl">${pctOff > 0 ? pctOff + '% OFF' : fmtBRL(c.preco)}<br>${c.ate + 1}+ fotos</span>
+      <span class="lbl">${label}</span>
     </div>`
   }).join('')
-  // Falar do total do conjunto, não do preço unitário de uma faixa:
-  // a configuração 30 + 30 + 10 mostra 3 extras por R$70;
-  // a configuração 45 + 45 + 30 mostra 3 extras por R$120.
-  // Nenhum preço é criado pela interface: o cálculo continua no servidor.
-  const nudgeEl = document.getElementById('selpub-regua-nudge')
-  const primeiraOferta = checkpoints.find(c =>
-    Number.isFinite(Number(c.ate)) && Number(c.ate) >= 0 && Number(c.preco) < Number(precoBase))
-  const alvo = primeiraOferta ? Number(primeiraOferta.ate) + 1 : 0
-  const fotos = g.qtd_incluida > 0 ? 'fotos extras' : 'fotos'
-  const valorAlvo = alvo ? fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, alvo)) : ''
-  if (alvo && extras <= alvo) {
-    const faltam = alvo - extras
-    if (extras === 0) {
-      nudgeEl.textContent = `✨ Escolha ${alvo} ${fotos} e aproveite ${valorAlvo} pelo conjunto! ❤️`
-    } else if (faltam > 1) {
-      nudgeEl.textContent = `❤️ Gostou de mais fotos? Escolha outras ${faltam} e aproveite ${alvo} ${fotos} por ${valorAlvo} no total!`
-    } else if (faltam === 1) {
-      nudgeEl.textContent = `✨ Falta só mais 1 foto! Com ${alvo} ${fotos}, o total fica ${valorAlvo}. ❤️`
-    } else {
-      nudgeEl.textContent = `❤️ Valor especial aplicado! ${alvo} ${fotos} por ${valorAlvo} no total.`
-    }
-  } else if (extras > 0) {
-    const totalAtual = fmtBRL(_selPubCalcularTotal(faixas, g.preco_extra, extras))
-    nudgeEl.textContent = `❤️ ${extras} ${fotos} selecionadas: ${totalAtual} no total.`
+  const alvo = primeiraOferta.ate + 1
+  const faltam = Math.max(0, alvo - extras)
+  const substantivo = g.qtd_incluida > 0 ? 'fotos extras' : 'fotos'
+  if (faltam > 1) {
+    nudgeEl.textContent = `❤️ Você já escolheu ${extras} ${extras === 1 ? 'foto' : 'fotos'}${g.qtd_incluida > 0 ? ' extra' + (extras === 1 ? '' : 's') : ''}. Mais ${faltam} e você desbloqueia uma oferta especial!`
+  } else if (faltam === 1) {
+    nudgeEl.textContent = '✨ Falta só mais 1 foto para liberar um desconto especial!'
   } else {
-    nudgeEl.textContent = ''
+    const total = _selPubCalcularTotal(faixas, g.preco_extra, extras)
+    const economia = Math.max(0, precoBase * extras - total)
+    nudgeEl.textContent = economia > 0
+      ? `🎉 Desconto liberado! ${extras} ${substantivo} por ${fmtBRL(total)}. Você economizou ${fmtBRL(economia)}!`
+      : `❤️ ${extras} ${substantivo} por ${fmtBRL(total)} no total.`
   }
 }
 
