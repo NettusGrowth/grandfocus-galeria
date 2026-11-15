@@ -19464,9 +19464,9 @@ function _renderSelPubLightboxAtual() {
   const totalDepois = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, Math.max(0, nDepois - g.qtd_incluida))
   const delta = totalDepois - totalAtual
   if (marcada) {
-    btn.textContent = delta < 0 ? `✓ Marcada — desmarcar (−${fmtBRL(Math.abs(delta))})` : '✓ Marcada — clique pra desmarcar'
+    btn.textContent = delta < 0 ? `✓ Escolhida — desmarcar (menos ${fmtBRL(Math.abs(delta))} em extras)` : '✓ Escolhida — toque para desmarcar'
   } else {
-    btn.textContent = delta > 0 ? `🛒 Adicionar aos Extras — ${fmtBRL(delta)}` : '💚 Selecionar esta foto (incluída no pacote)'
+    btn.textContent = delta > 0 ? `Escolher esta foto (+${fmtBRL(delta)} nas extras)` : 'Escolher esta foto (sem custo adicional)'
   }
   btn.className = 'btn btn-sm ' + (marcada ? '' : 'btn-primary')
   _selPubPrecarregarVizinhas(d, _selPubLightboxIdx)
@@ -19491,17 +19491,22 @@ function _selPubAbrirConfirmar() {
   const n = _selPub.selecionados.size
   const extras = Math.max(0, n - g.qtd_incluida)
   const total = _selPubCalcularTotal(g.faixas_preco, g.preco_extra, extras)
+  const inclusas = Math.min(n, g.qtd_incluida)
+  const detalhamento = extras > 0 ? _selPubDetalharExtras(g.faixas_preco, g.preco_extra, extras) : ''
   document.getElementById('selpub-confirmar-resumo').innerHTML = `
-    <b>${n}</b> foto(s) selecionada(s)<br>
-    ${Math.min(n, g.qtd_incluida)} incluída(s) no pacote + <b>${extras}</b> extra(s)<br>
-    Total a pagar: <b style="color:var(--verde);">${fmtBRL(total)}</b>
+    <div style="font-size:15px;color:#1A1A1A;margin-bottom:8px;"><b>${n} foto${n === 1 ? '' : 's'} escolhida${n === 1 ? '' : 's'}</b></div>
+    ${g.qtd_incluida > 0 ? `<div>✓ <b>${inclusas}</b> foto${inclusas === 1 ? '' : 's'} já incluída${inclusas === 1 ? '' : 's'} no seu pacote (sem pagar novamente).</div>` : ''}
+    <div>${extras ? `+ <b>${extras}</b> foto${extras === 1 ? '' : 's'} adicional${extras === 1 ? '' : 'is'} (opcionais).` : 'Nenhuma foto adicional escolhida.'}</div>
+    ${extras ? `<div style="font-size:12px;margin-top:6px;">Cálculo das adicionais: ${detalhamento}.</div>` : ''}
+    <div style="border-top:1px solid #e6e6e6;padding-top:10px;margin-top:10px;font-size:15px;"><b>Valor adicional: <span style="color:#146b49;">${fmtBRL(total)}</span></b></div>
+    <div style="font-size:12px;color:#656565;margin-top:7px;">Marcar uma foto não cobra nada automaticamente. Confira sua escolha antes de continuar.</div>
   `
   const pix = _selPub.dados.pix
   const pixBox = document.getElementById('selpub-confirmar-pix')
   const podePagarAutomatico = total > 0 && _selPub.dados.pagamento_automatico
   if (total > 0 && podePagarAutomatico) {
     pixBox.innerHTML = `
-      <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Pagar Agora</button>
+      <button class="btn btn-primary" id="selpub-btn-pagar" style="width:100%;border-radius:999px;" onclick="_selPubPagarAgora()">Confirmar e pagar ${fmtBRL(total)} em fotos extras</button>
       <div class="meta" style="text-align:center;margin-top:8px;">🔒 Compra segura e protegida</div>
       ${pix?.chave ? `
         <div class="meta" style="text-align:center;margin-top:14px;">Se o pagamento automático não funcionar, pague via PIX manual e combine com o estúdio:</div>
@@ -19533,7 +19538,7 @@ function _selPubAbrirConfirmar() {
     btnEnviar.style.display = podePagarAutomatico ? 'none' : ''
     // total zerado (dentro do pacote) é um fluxo diferente de "enviei e
     // vou pagar depois" — texto do botão precisa deixar isso claro.
-    btnEnviar.textContent = total > 0 ? 'Enviar Seleção para o Estúdio' : 'Confirmar e Enviar Seleção'
+    btnEnviar.textContent = total > 0 ? 'Enviar escolha e combinar pagamento' : 'Confirmar fotos do meu pacote'
   }
   document.getElementById('selpub-observacoes').value = _selPub.dados.pedido?.observacoes || ''
   abrirModal('modal-selecao-confirmar')
@@ -19545,6 +19550,7 @@ function _selPubAbrirConfirmar() {
 // não tem valor_total pra cobrar ainda.
 async function _selPubPagarAgora() {
   const btn = document.getElementById('selpub-btn-pagar')
+  const textoBotao = btn?.textContent || 'Confirmar e pagar as fotos extras'
   // abre a aba ANTES de qualquer "await" — depois de esperar uma
   // resposta de rede o navegador (principalmente no celular) não conta
   // mais como "gesto direto do usuário" e BLOQUEIA um window.open()
@@ -19561,12 +19567,12 @@ async function _selPubPagarAgora() {
     const ok = await _selPubEnviarPedido({ silencioso: true })
     if (!ok) {
       if (abaCheckout) abaCheckout.close()
-      if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
+      if (btn) { btn.disabled = false; btn.textContent = textoBotao }
       return
     }
   }
   const { data, error } = await _selecaoPublicaFetch('criar_pagamento', _selPub.token, _selPub.senha, { redirect_url: location.href })
-  if (btn) { btn.disabled = false; btn.textContent = 'Pagar Agora' }
+  if (btn) { btn.disabled = false; btn.textContent = textoBotao }
   if (error) { if (abaCheckout) abaCheckout.close(); toast(error); return }
   if (abaCheckout) abaCheckout.location.href = data.checkout_url
   else window.open(data.checkout_url, '_blank') // navegador bloqueou até a aba em branco — última tentativa
