@@ -192,20 +192,29 @@ Deno.serve(async (req) => {
   // Validate the token directly with Supabase Auth REST, avoiding ambiguity
   // in Auth SDK session resolution for tokens already accepted by the gateway.
   let authUser: any = null
-  try {
-    const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
-      headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
-    })
-    if (!authResp.ok) {
-      const detail = (await authResp.text()).slice(0, 240)
-      console.error('r2-storage: bearer validation failed', { status: authResp.status, detail })
-      return json({ error: 'Sessão inválida ou expirada.' }, 401)
+  // Falhas temporárias de rede/5xx do Auth não significam JWT inválido.
+  // Validar o mesmo token até 3 vezes; não liberar acesso sem validação.
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    try {
+      const authResp = await fetch(`${supabaseUrl}/auth/v1/user`, {
+        headers: { apikey: anonKey, Authorization: `Bearer ${accessToken}` },
+        signal: AbortSignal.timeout(5000),
+      })
+      if (authResp.ok) {
+        authUser = await authResp.json()
+        break
+      }
+      if (authResp.status < 500 && authResp.status !== 429) {
+        console.error('r2-storage: bearer validation rejected', { status: authResp.status })
+        return json({ error: 'Sessão inválida ou expirada.' }, 401)
+      }
+      console.warn('r2-storage: Auth temporariamente indisponível', { status: authResp.status, tentativa })
+    } catch (error) {
+      console.warn('r2-storage: Auth indisponível, retentativa limitada', { tentativa, message: String(error) })
     }
-    authUser = await authResp.json()
-  } catch (error) {
-    console.error('r2-storage: bearer validation unavailable', String(error))
-    return json({ error: 'Não foi possível validar sua sessão agora.' }, 503)
+    if (tentativa < 2) await new Promise(resolve => setTimeout(resolve, 300 * (tentativa + 1)))
   }
+  if (!authUser) return json({ error: 'Não foi possível validar sua sessão agora.' }, 503)
   if (!authUser?.id) return json({ error: 'Sessão inválida ou expirada.' }, 401)
 
   const { data: perfis, error: perfilError } = await userDb.rpc('meu_perfil')
