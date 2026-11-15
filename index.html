@@ -18392,6 +18392,7 @@ async function abrirSelecaoDetalhe(id) {
   document.getElementById('selecao-lista-wrap').style.display = 'none'
   document.getElementById('selecao-detalhe-wrap').style.display = 'block'
   renderSelecaoDetalhe()
+  void _selecaoCarregarDownloads(id)
 }
 
 function _selecaoVoltarLista() {
@@ -18400,6 +18401,44 @@ function _selecaoVoltarLista() {
   _selecaoDetalheAtual = null
   document.getElementById('selecao-detalhe-wrap').style.display = 'none'
   document.getElementById('selecao-lista-wrap').style.display = 'block'
+}
+
+// Indicadores da seleção só são buscados quando o admin abre seu detalhe.
+// Nem a grade pública nem o carregamento da página disparam estas consultas.
+function _selecaoDownloadsResumoHTML(d) {
+  const acoes = _acessosNumero(d?.acoes)
+  const fotos = _acessosNumero(d?.fotos)
+  const recentes = Array.isArray(d?.recentes) ? d.recentes : []
+  const modos = { individual: 'individual', lote: 'em lote', ios: 'iPhone (compartilhamento)' }
+  return `
+    <div class="meta" style="font-size:13px;"><b>${acoes}</b> ação(ões) de baixar · <b>${fotos}</b> foto(s) solicitada(s)</div>
+    ${recentes.length ? `<div style="margin-top:8px;">${recentes.map(e => `
+      <div class="meta" style="padding:4px 0;border-top:1px solid rgba(200,175,127,.12);">
+        ${esc(fmtDataHora(e.criado_em))} · ${Number(e.quantidade)||0} foto(s) ·
+        ${e.tipo === 'bastidores' ? 'presente' : 'seleção'} · ${esc(modos[e.origem] || 'download')}
+      </div>`).join('')}</div>` : '<div class="meta" style="margin-top:6px;">Nenhum download registrado nesta seleção ainda.</div>'}
+  `
+}
+async function _selecaoCarregarDownloads(galeriaId) {
+  if (_selecaoDetalheAtual?.id !== galeriaId) return
+  const elemento = document.getElementById('sel-downloads-resumo')
+  if (elemento) elemento.innerHTML = '<div class="meta">Consultando downloads…</div>'
+  try {
+    const { data, error } = await db.rpc('gf_selecao_downloads_metricas', { p_galeria_id: galeriaId })
+    if (_selecaoDetalheAtual?.id !== galeriaId) return
+    const el = document.getElementById('sel-downloads-resumo')
+    if (!el) return
+    if (error || !data) {
+      el.innerHTML = '<div class="meta">Não foi possível consultar os downloads. Toque em Atualizar.</div>'
+      return
+    }
+    _selecaoDetalheAtual.downloads = data
+    el.innerHTML = _selecaoDownloadsResumoHTML(data)
+  } catch(e) {
+    const el = document.getElementById('sel-downloads-resumo')
+    if (el && _selecaoDetalheAtual?.id === galeriaId)
+      el.innerHTML = '<div class="meta">Falha temporária nas métricas. As fotos continuam disponíveis normalmente.</div>'
+  }
 }
 
 function _selecaoPedidoHubHTML(pedido) {
@@ -18458,6 +18497,14 @@ function renderSelecaoDetalhe() {
       <div class="meta" id="sel-link-resultado" style="margin-top:8px;white-space:pre-line;"></div>
     </div>
     ${g.pedido ? _selecaoPedidoHubHTML(g.pedido) : ''}
+    <div class="card" style="margin-bottom:16px;">
+      <div class="foto-toolbar" style="margin-bottom:5px;">
+        <h3 style="font-size:15px;">Downloads desta seleção</h3>
+        <button class="btn btn-sm" onclick="_selecaoCarregarDownloads('${g.id}')">Atualizar</button>
+      </div>
+      <div id="sel-downloads-resumo">${g.downloads ? _selecaoDownloadsResumoHTML(g.downloads) : '<div class="meta">Consultando o histórico de cliques de download…</div>'}</div>
+      <div class="meta" style="margin-top:8px;font-size:11px;">Contabiliza ações de baixar após a liberação, não visitas. O navegador não confirma se o arquivo foi salvo; cliques anteriores à ativação não são recuperáveis.</div>
+    </div>
     <div class="card">
       <div class="foto-toolbar">
         <h3 style="font-size:15px;">Fotos da galeria (${g.fotos.length})</h3>
