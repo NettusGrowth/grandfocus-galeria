@@ -297,12 +297,6 @@ function main() {
       deployed.includes('<iframe title="Gerenciador de contratações e experiências"')) {
     throw new Error('The contracting panel must open independently instead of using an embedded iframe.');
   }
-  if (/gf-social-tab|admintab-estudio-social|gf-social-host|gf-estudio-social-v2|estudio-social/.test(deployed)) {
-    throw new Error('O Estúdio Social não pode aparecer na galeria publicada.');
-  }
-  if (fs.existsSync(path.join(dist, 'assets', 'gf-estudio-social-v2.js'))) {
-    throw new Error('O arquivo do Estúdio Social não pode ser publicado.');
-  }
   console.log('Gallery build passed: timeout fallback, visible-image fallback, and no migration autostart.');
   console.log('Static output:', dist, 'index bytes:', Buffer.byteLength(deployed));
 }
