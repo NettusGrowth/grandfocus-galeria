@@ -251,80 +251,10 @@ function patchIndex(html) {
 }
 
 
-function patchSocialStudio(html) {
-  // Exclusivamente UI de super_admin: sem novas consultas, alterações de tabelas
-  // ou JS de renderização nas telas de clientes. O arquivo do estúdio só carrega no clique.
-  const requireOnce = (source, replacement, name) => {
-    if (html.split(source).length !== 2) throw new Error('Estúdio Social: âncora alterada ou duplicada: ' + name);
-    html = html.replace(source, replacement);
-  };
-  const navAnchor = '<div class="navgroup-label">Social</div>';
-  const nav = [
-    navAnchor,
-    '<div class="tab" id="gf-social-tab" data-tab="estudio-social" data-tip="Estúdio Social" style="display:none" onclick="setAdminTab(&#39;estudio-social&#39;)">',
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="M4 18l5-5 3.5 3.5 3-3L20 18"/><path d="M15 7h4m-2-2v4"/></svg>',
-    '<span>Estúdio Social</span></div>'
-  ].join('\n');
-  requireOnce(navAnchor, nav, 'sidebar Social');
-  const panelAnchor = '<div class="admin-tab" id="admintab-contratacoes" style="display:none;">';
-  const panel = [
-    '<div class="admin-tab" id="admintab-estudio-social" style="display:none">',
-    '  <div class="section-h"><h2>Estúdio Social</h2></div>',
-    '  <p class="meta" style="margin-bottom:16px">Crie Stories e capas de Reel. Este módulo independente não modifica fotos, métricas ou configurações.</p>',
-    '  <div id="gf-social-host" style="min-height:250px"><div class="empty">O estúdio só carrega quando esta aba é aberta.</div></div>',
-    '</div>',
-    panelAnchor
-  ].join('\n');
-  requireOnce(panelAnchor, panel, 'painel administrativo');
-  requireOnce(
-    '  meuPerfil = data\n  _ligarRealtimeGlobal()',
-    "  meuPerfil = data\n  const socialTab = document.getElementById('gf-social-tab')\n  if (socialTab) socialTab.style.display = data.role === 'super_admin' ? '' : 'none'\n  _ligarRealtimeGlobal()",
-    'exibição por papel no login'
-  );
-  requireOnce(
-    "function setAdminTab(tab) {\n  if (tab === 'albuns' && !DIGIPIX_ATIVO) return;",
-    [
-      'function setAdminTab(tab) {',
-      "  if (tab === 'estudio-social' && meuPerfil?.role !== 'super_admin') return;",
-      "  if (tab === 'albuns' && !DIGIPIX_ATIVO) return;"
-    ].join('\n'),
-    'guarda no navegador'
-  );
-  requireOnce(
-    "  _adminRenderAba(tab)\n  // \"Fotos mais populares\"",
-    [
-      '  _adminRenderAba(tab)',
-      "  if (tab === 'estudio-social' && meuPerfil?.role === 'super_admin') {",
-      "    import('/assets/gf-estudio-social-v2.js').then(module => {",
-      "      if (meuPerfil?.role === 'super_admin') module.mountStudio(document.getElementById('gf-social-host'), () => ({ db, perfil: meuPerfil, escolas: store.escolas, eventos: store.eventos, assinar: _urlAssinada }))",
-      "    }).catch(() => {",
-      "      const host = document.getElementById('gf-social-host')",
-      "      if (host) host.textContent = 'Falha ao abrir o Estúdio Social. Atualize a página e tente novamente.'",
-      '    })',
-      '  }',
-      '  // \"Fotos mais populares\"'
-    ].join('\n'),
-    'importação adiada'
-  );
-  requireOnce(
-    'function mostrarLogin() {\n  currentUser = null; meuPerfil = null',
-    [
-      'function mostrarLogin() {',
-      "  const socialHost = document.getElementById('gf-social-host')",
-      "  if (socialHost) { socialHost._gfSocialUnmount?.(); socialHost.replaceChildren(); delete socialHost.dataset.gfStudioMounted }",
-      "  const socialTab = document.getElementById('gf-social-tab')",
-      "  if (socialTab) socialTab.style.display = 'none'",
-      '  currentUser = null; meuPerfil = null'
-    ].join('\n'),
-    'limpeza no logout'
-  );
-  return html;
-}
-
 function main() {
   if (fs.existsSync(dist)) fs.rmSync(dist, { recursive: true, force: true });
   fs.mkdirSync(dist, { recursive: true });
-  const html = patchSocialStudio(patchIndex(fs.readFileSync(sourceIndex, 'utf8')));
+  const html = patchIndex(fs.readFileSync(sourceIndex, 'utf8'));
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   const assets = path.join(root, 'assets');
   if (fs.existsSync(assets)) copyTree(assets, path.join(dist, 'assets'));
@@ -367,12 +297,11 @@ function main() {
       deployed.includes('<iframe title="Gerenciador de contratações e experiências"')) {
     throw new Error('The contracting panel must open independently instead of using an embedded iframe.');
   }
-  if (!deployed.includes('id="gf-social-tab"') || !deployed.includes('id="admintab-estudio-social"') ||
-      !deployed.includes("import('/assets/gf-estudio-social-v2.js')")) {
-    throw new Error('Estúdio Social must stay restricted and lazy-loaded.');
+  if (/gf-social-tab|admintab-estudio-social|gf-social-host|gf-estudio-social-v2|estudio-social/.test(deployed)) {
+    throw new Error('O Estúdio Social não pode aparecer na galeria publicada.');
   }
-  if (!fs.existsSync(path.join(dist, 'assets', 'gf-estudio-social-v2.js'))) {
-    throw new Error('Estúdio Social asset missing from deployment.');
+  if (fs.existsSync(path.join(dist, 'assets', 'gf-estudio-social-v2.js'))) {
+    throw new Error('O arquivo do Estúdio Social não pode ser publicado.');
   }
   console.log('Gallery build passed: timeout fallback, visible-image fallback, and no migration autostart.');
   console.log('Static output:', dist, 'index bytes:', Buffer.byteLength(deployed));
