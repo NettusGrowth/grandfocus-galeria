@@ -251,10 +251,166 @@ function patchIndex(html) {
 }
 
 
+function patchStableGalleryScroll(html) {
+  const replaceOnce = (old, next, label) => {
+    if (html.split(old).length !== 2) throw new Error('Stable gallery: unexpected anchor ' + label);
+    html = html.replace(old, () => next);
+  };
+  const cssStart = html.indexOf('.foto-grid.gal-boutique{display:block;column-count:2;column-gap:8px;}');
+  const oldCssEnd = '.foto-item.gal-boutique img:not(.gf-carregada){min-height:200px;}';
+  const cssEnd = html.indexOf(oldCssEnd, cssStart);
+  if (cssStart < 0 || cssEnd < 0) throw new Error('Stable gallery: boutique CSS not found');
+  html = html.slice(0,cssStart) + [
+    '.foto-grid.gal-boutique{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;align-items:start;}',
+    '@media(min-width:600px){.foto-grid.gal-boutique{gap:14px;}}',
+    '@media(min-width:900px){.foto-grid.gal-boutique{grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;}}',
+    '.foto-item.gal-boutique{aspect-ratio:1;margin:0;min-width:0;border-radius:8px;contain:layout paint;content-visibility:visible;}',
+    '.foto-item.gal-boutique img{height:100%;width:100%;object-fit:contain;display:block;}'
+  ].join('\n') + html.slice(cssEnd + oldCssEnd.length);
+  replaceOnce(
+    '  const aspecto = boutique && f.largura && f.altura ? ` style="aspect-ratio:${f.largura}/${f.altura};"` : \'\'',
+    '  const largura = Number(f.largura), altura = Number(f.altura)\n  const aspecto = boutique && Number.isFinite(largura) && Number.isFinite(altura) && largura > 0 && altura > 0 ? ` style="aspect-ratio:${largura}/${altura};"` : \'\'',
+    'reserve valid card dimensions'
+  );
+  replaceOnce(
+    'id="gal-fg-${f.id}" onclick="abrirLightbox(\'${f.id}\')">',
+    'id="gal-fg-${f.id}"${aspecto} onclick="abrirLightbox(\'${f.id}\')">',
+    'apply aspect to fixed card'
+  );
+  replaceOnce(
+    'loading="lazy" alt=""${aspecto} onload="this.classList.add(\'gf-carregada\')"',
+    'loading="lazy" alt="" onload="this.classList.add(\'gf-carregada\')"',
+    'image cannot resize card'
+  );
+  const start = html.indexOf('function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) {');
+  const end = html.indexOf("\n// prévia (com marca d'água)",start);
+  if (start < 0 || end < 0) throw new Error('Stable gallery: pagination function not found');
+  html = html.slice(0,start) + [
+    'function _gfFotosUnicas(fotos) {',
+    '  const ids = new Set()',
+    '  return fotos.filter(f => { if (ids.has(f.id)) return false; ids.add(f.id); return true })',
+    '}',
+    'function _renderGridFotosPaginado(gridEl, fotos, itemHtmlFn = _galFotoItemHTML) {',
+    '  if (!gridEl) return',
+    '  _galFotoGridsAtivos.get(gridEl)?.cancel()',
+    "  const galeria = gridEl.id === 'gal-fotos-grid'",
+    '  if (galeria) { fotos = _gfFotosUnicas(fotos); _lightboxFotos = fotos }',
+    '  let ativo = true, renderizados = 0, sentinel = null, observer = null, esperandoFrame = false',
+    "  const temObserver = 'IntersectionObserver' in window",
+    "  gridEl.setAttribute('data-gf-grid-paginada', '')",
+    '  function observarFinal() {',
+    '    if (!ativo || renderizados >= fotos.length || !temObserver) return',
+    '    if (!sentinel) {',
+    "      sentinel = document.createElement('div')",
+    "      sentinel.setAttribute('aria-hidden', 'true')",
+    "      sentinel.style.cssText = 'grid-column:1/-1;height:1px;min-height:1px;'",
+    '      gridEl.appendChild(sentinel)',
+    '    }',
+    '    if (!observer) observer = new IntersectionObserver(entries => {',
+    '      if (entries.some(entry => entry.isIntersecting)) carregarLote()',
+    "    }, { rootMargin: '550px 0px' })",
+    '    observer.unobserve(sentinel); observer.observe(sentinel)',
+    '  }',
+    '  function carregarLote() {',
+    '    if (!ativo || esperandoFrame || renderizados >= fotos.length) return',
+    '    esperandoFrame = true',
+    '    requestAnimationFrame(() => {',
+    '      esperandoFrame = false',
+    '      if (!ativo || !gridEl.isConnected) { observer?.disconnect(); return }',
+    '      const lote = fotos.slice(renderizados, renderizados + GAL_LOTE_FOTOS)',
+    '      renderizados += lote.length',
+    "      const html = lote.map(itemHtmlFn).join('')",
+    "      if (sentinel?.isConnected) sentinel.insertAdjacentHTML('beforebegin', html)",
+    "      else gridEl.insertAdjacentHTML('beforeend', html)",
+    '      _hidratarImgCache(gridEl)',
+    '      if (renderizados >= fotos.length) {',
+    '        observer?.disconnect(); observer = null; sentinel?.remove(); sentinel = null',
+    '      } else if (temObserver) observarFinal()',
+    '      else requestAnimationFrame(carregarLote)',
+    '    })',
+    '  }',
+    '  _galFotoGridsAtivos.set(gridEl, {',
+    '    cancel() { ativo = false; observer?.disconnect() },',
+    '    sync(novas) {',
+    '      if (!galeria || !ativo || !gridEl.isConnected || _lightboxFotos !== fotos) return false',
+    '      const lista = _gfFotosUnicas(novas), porId = new Map(lista.map(f => [f.id, f]))',
+    '      const antigos = new Set(fotos.map(f => f.id))',
+    "      const campos = ['storage_path','thumb_path','largura','altura','ordem','subpasta','evento_id']",
+    '      if (fotos.some(f => !porId.has(f.id) || campos.some(k => f[k] !== porId.get(f.id)[k]))) return false',
+    '      const adicionais = lista.filter(f => !antigos.has(f.id))',
+    '      if (!adicionais.length) return true',
+    '      const estavaCompleta = renderizados >= fotos.length',
+    '      for (const f of adicionais) fotos.push(f)',
+    "      const meta = gridEl.previousElementSibling?.querySelector('.meta')",
+    "      if (meta) meta.textContent = fotos.length + ' foto(s)'",
+    '      if (estavaCompleta) { if (temObserver) observarFinal(); else carregarLote() }',
+    '      return true',
+    '    }',
+    '  })',
+    '  carregarLote()',
+    '}',
+    ''
+  ].join('\n') + html.slice(end);
+  const helper = [
+    'function _gfAtualizarGaleriaSemPulo() {',
+    '  const wrap = document.getElementById(_galWrapId())',
+    "  const grid = wrap?.querySelector('#gal-fotos-grid')",
+    '  if (!grid || !grid.offsetParent) { renderGaleriaAdmin(); return }',
+    '  let fotos',
+    "  if (_galRole === 'responsavel' && _galVendoFotosPessoais) fotos = _fotosPessoaisResp()",
+    '  else {',
+    '    const evento = _galAvulsoId || _galAlbumId',
+    '    if (!evento) { renderGaleriaAdmin(); return }',
+    '    const base = _galAlunoId ? _fotosDoAluno(_galAlunoId) : store.fotos',
+    "    fotos = base.filter(f => f.evento_id === evento && (_galSubpasta === '__soltas__' ? !f.subpasta : _galSubpasta ? f.subpasta === _galSubpasta : true))",
+    '    if (_galFiltroPessoaAlbum && !_galAvulsoId) {',
+    "      const filtro = _galFiltroPessoaAlbum, porAluno = !_galAlunoId && filtro.tipo === 'aluno'",
+    '      const ids = new Set((porAluno ? store.fotoAluno : store.fotoPessoa).filter(v => porAluno ? v.aluno_id === filtro.id : v.user_id === filtro.id).map(v => v.foto_id))',
+    '      fotos = fotos.filter(f => ids.has(f.id))',
+    '    }',
+    '  }',
+    '  if (!_galFotoGridsAtivos.get(grid)?.sync(fotos)) renderGaleriaAdmin()',
+    '}',
+    ''
+  ].join('\n');
+  replaceOnce('async function _galAtualizarDados() {', helper+'\nasync function _galAtualizarDados() {','refresh helper');
+  replaceOnce('  if (mudou) renderGaleriaAdmin()\n}', '  if (mudou) _gfAtualizarGaleriaSemPulo()\n}', 'realtime album');
+  replaceOnce('  store.fotoPessoa = fp || []\n  renderGaleriaAdmin()\n}', '  store.fotoPessoa = fp || []\n  _gfAtualizarGaleriaSemPulo()\n}', 'initial admin loading');
+  replaceOnce("if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel()", "if (meuPerfil?.role === 'responsavel' && _visivel('resptab-fotos')) await iniciarViewResponsavel(true)", 'parent realtime only');
+  replaceOnce('async function iniciarViewResponsavel() {\n  const minhaSeq = ++_galCargaSeq\n  _fotoSelecao.clear(); _fotoFiltroAluno = null; _respFiltroFilho = null', 'async function iniciarViewResponsavel(preservarNavegacao = false) {\n  const minhaSeq = ++_galCargaSeq\n  if (!preservarNavegacao) { _fotoSelecao.clear(); _fotoFiltroAluno = null; _respFiltroFilho = null }', 'parent refresh navigation');
+  replaceOnce("  _galRole = 'responsavel'\n  // conta com só 1 aluno", [
+    "  if (preservarNavegacao && _galRole === 'responsavel') {",
+    "    if (!_visivel('galeria-resp-wrap')) return",
+    '    if (!_galAlunoId || meusFilhos.some(a => a.id === _galAlunoId)) { _gfAtualizarGaleriaSemPulo(); return }',
+    '  }',
+    "  _galRole = 'responsavel'",
+    '  // conta com só 1 aluno'
+  ].join('\n'), 'parent open album');
+  const oldNames = [
+    '    const albumIdNoMomento = _galAlbumId',
+    '    _garantirNomesPessoas(idsPendentes).then(achouAlgo => {',
+    '      if (achouAlgo && _galAlbumId === albumIdNoMomento) renderGaleriaAdmin()',
+    '    })'
+  ].join('\n');
+  const newNames = [
+    "    const gradeAtual = wrap.querySelector('#gal-fotos-grid')",
+    '    _garantirNomesPessoas(idsPendentes).then(achouAlgo => {',
+    '      if (!achouAlgo || !gradeAtual?.isConnected) return',
+    "      const chips = wrap.querySelectorAll('.gal-chip-row .chip')",
+    '      pessoasNoAlbum.forEach((p, i) => {',
+    "        if (p.tipo === 'pessoa' && p.nome === '?' && chips[i+1]) chips[i+1].textContent = _nomePessoaMarcada(p.id)",
+    '      })',
+    '    })'
+  ].join('\n');
+  if (html.split(oldNames).length !== 3) throw new Error('Stable gallery: expected two async name callbacks');
+  html = html.split(oldNames).join(newNames);
+  return html;
+}
+
 function main() {
   if (fs.existsSync(dist)) fs.rmSync(dist, { recursive: true, force: true });
   fs.mkdirSync(dist, { recursive: true });
-  const html = patchIndex(fs.readFileSync(sourceIndex, 'utf8'));
+  const html = patchStableGalleryScroll(patchIndex(fs.readFileSync(sourceIndex, 'utf8')));
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   const assets = path.join(root, 'assets');
   if (fs.existsSync(assets)) copyTree(assets, path.join(dist, 'assets'));
