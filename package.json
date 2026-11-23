@@ -1,6 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "build": "node scripts/build-gallery.cjs && node scripts/check-jardim.mjs && node scripts/test-selection-admin-download.cjs"
+    "build": "node scripts/build-gallery.cjs && node scripts/check-jardim.mjs && node scripts/test-selection-admin-download.cjs && node scripts/test-selection-bulk-download.cjs"
   }
 }
