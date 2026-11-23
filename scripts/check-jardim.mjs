@@ -13,6 +13,24 @@ const names=[
  '/contratar/jardim-encantado-fada-acucarada-2026',
  '/contratar/jardim-encantado-fada-acucarada-2026/'
 ];
+// WhatsApp / Facebook and social-share metadata must describe the current edition.
+const canonical='https://galeria.grandfocus.com.br/contratar/jardim-encantado-fada-acucarada-2026/';
+for(const [property, expected] of [
+ ['og:type', 'website'],
+ ['og:site_name', 'Grand Focus Fotografia'],
+ ['og:title', 'Jardim Encantado 2026 | Grand Focus × Fada Açucarada'],
+ ['og:url', canonical],
+ ['og:image', 'https://galeria.grandfocus.com.br/assets/logo-icone.png?v=20261123-jardim']
+]){
+ const tag='<meta property="'+property+'" content="'+expected+'">';
+ assert.ok(html.includes(tag), 'Social sharing meta missing or altered: '+property);
+ assert.equal(html.split('property="'+property+'"').length-1,1,'Duplicate social tag: '+property);
+}
+assert.ok(html.includes('<link rel="canonical" href="'+canonical+'">'),'Canonical URL missing');
+assert.ok(html.includes('property="og:description" content="Uma experiência especial de fotografia de dança em Ibaté'),'WhatsApp description missing');
+assert.ok(html.includes('name="twitter:card" content="summary"'),'Twitter card missing');
+assert.ok(fs.existsSync('dist/assets/logo-icone.png'),'Social share brand image is not available in deployment');
+assert.ok(!html.slice(0,html.indexOf('</head>')).includes('Ensaio de Natal'),'Stale Christmas preview in metadata');
 const fallback=routes.findIndex(x=>x.source==='/contratar/:slug');
 for(const name of names){
  const i=routes.findIndex(x=>x.source===name);
