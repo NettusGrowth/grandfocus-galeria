@@ -1,6 +1,6 @@
 {
   "private": true,
   "scripts": {
-    "build": "node scripts/build-gallery.cjs"
+    "build": "node scripts/build-gallery.cjs && node scripts/check-jardim.mjs"
   }
 }
