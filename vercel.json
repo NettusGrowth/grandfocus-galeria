@@ -31,6 +31,14 @@
       "destination": "/contratar/fada-natal/index.html"
     },
     {
+      "source": "/contratar/jardim-encantado-fada-acucarada-2026",
+      "destination": "/contratar/fada-natal/index.html"
+    },
+    {
+      "source": "/contratar/jardim-encantado-fada-acucarada-2026/",
+      "destination": "/contratar/fada-natal/index.html"
+    },
+    {
       "source": "/contratar/:slug",
       "destination": "/contratar/entre-estacoes/index.html"
     },
