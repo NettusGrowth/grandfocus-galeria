@@ -42,7 +42,7 @@ function fresh(role='super_admin',opts={}) {
     _selecaoDetalheAtual:gallery,
     _selLoteModoAtivo:false,
     _selOrdemModoAtivo:false,
-    document,console,
+    document,console:{error(){}},
     _precisaWebShare:()=>!!opts.ios,
     _baixarFotosPrivadoNativo:async(...a)=>{calls.native.push(a)},
     _ehChaveR2Migrada:()=>!opts.legacy,
