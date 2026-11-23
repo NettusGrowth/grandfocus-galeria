@@ -460,7 +460,8 @@ function main() {
   fs.mkdirSync(dist, { recursive: true });
   const { patchSelectionAdminDownload } = require('./patch-selection-admin-download.cjs');
   const { patchSelectionBulkDownload } = require('./patch-selection-bulk-download.cjs');
-  const html = patchSelectionBulkDownload(patchSelectionAdminDownload(patchStableGalleryScroll(patchIndex(fs.readFileSync(sourceIndex, 'utf8')))));
+  const { patchAlbumDownload } = require('./patch-album-download.cjs');
+  const html = patchAlbumDownload(patchSelectionBulkDownload(patchSelectionAdminDownload(patchStableGalleryScroll(patchIndex(fs.readFileSync(sourceIndex, 'utf8'))))));
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   const assets = path.join(root, 'assets');
   if (fs.existsSync(assets)) copyTree(assets, path.join(dist, 'assets'));
