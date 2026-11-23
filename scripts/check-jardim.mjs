@@ -24,7 +24,7 @@ for(const phrase of [
  'Onde a magia da dança floresce.',
  'MEMÓRIAS QUE FLORESCEM',
  'Edição especial de dança',
- 'Cada bailarino(a) deverá levar seu próprio figurino.',
+ 'Nesta experiência, serão utilizados os figurinos do espetáculo, que os bailarinos receberão da Escola Fada Açucarada.',
  'Acesso vitalício à galeria.',
  '10 fotografias digitais tratadas por aluno',
  'As fotografias em família fazem parte das 10 imagens por aluno, não são 10 fotografias adicionais.',
@@ -74,15 +74,15 @@ assert.ok(css.includes('.gf-jardim-edition .gf-hero'),'Garden style missing');
 assert.ok(html.includes('gf-garden-illustration'),'Garden illustration missing');
 assert.ok(!html.includes('<img src="data:image/'),'Do not present generated scenery photos as real');
 
-const terms=read(base+'termos-jardim-encantado.html');
+const terms=read(base+'termos-jardim-encantado-v2.html');
 const privacy=read(base+'privacidade-jardim-encantado.html');
 for(const f of ['termos','privacidade']){
- const p=base+f+'-jardim-encantado.html';
+ const p=base+f+'-jardim-encantado'+(f==='termos'?'-v2':'')+'.html';
  assert.ok(html.includes('href="/'+p+'"'),'New legal document must be linked: '+f);
  assert.ok(fs.existsSync('dist/'+p),'New legal document missing from deployment: '+f);
  assert.ok(fs.existsSync(base+f+'.html'),'Legacy legal agreement must remain untouched: '+f);
 }
-assert.ok(terms.includes('2026-11-23-jardim-v1'),'New terms version missing');
+assert.ok(terms.includes('2026-11-23-jardim-v2'),'New terms version missing');
 assert.ok(terms.includes('sem exigência de novo cadastro ou novo pagamento'),'Prior family rights not stated');
 assert.ok(terms.includes('R$ 285,00')&&terms.includes('10 dias corridos'),'New terms altered prices or deadline');
 assert.ok(privacy.includes('Crianças e adolescentes')&&privacy.includes('Seus direitos'),'Privacy protections missing');
