@@ -155,7 +155,7 @@ async function run() {
    const c={...t.ctx,
      document:{getElementById:id=>id==='lista-eventos'?list:{value:'',innerHTML:''}},
      _popularFiltroEscolas:()=>{},_popularFiltroAnos:()=>{},_carregarImgCache:async()=>null,
-     fmtData:()=>'',esc:t=>String(t),escJs:t=>String(t),nomeEscola:()=>'',}
+     fmtData:()=>'',esc:t=>String(t),escJs:t=>String(t),nomeEscola:()=>'',ICON_LAPIS:'L',ICON_LIXEIRA:'X',}
    vm.runInNewContext(cardSource+'\nrenderEventos()',c,{timeout:1000})
    return list.innerHTML
  }
