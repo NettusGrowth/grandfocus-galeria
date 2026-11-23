@@ -465,6 +465,12 @@ function main() {
   fs.writeFileSync(path.join(dist, 'index.html'), html);
   const assets = path.join(root, 'assets');
   if (fs.existsSync(assets)) copyTree(assets, path.join(dist, 'assets'));
+  // ZIP em fluxo contínuo para Álbuns & Eventos, distribuído do próprio
+  // domínio (sem CDN nem coleta de dados de terceiros).
+  const zipLibrary = path.join(root, 'node_modules', '@zip.js', 'zip.js', 'dist', 'zip.min.js');
+  if (!fs.existsSync(zipLibrary)) throw new Error('zip.js 2.8.21 indisponível durante o build.');
+  fs.mkdirSync(path.join(dist, 'assets'), { recursive: true });
+  fs.copyFileSync(zipLibrary, path.join(dist, 'assets', 'gf-zip-2.8.21.min.js'));
   const migrationPage = path.join(root, 'r2-migration.html');
   if (fs.existsSync(migrationPage)) fs.copyFileSync(migrationPage, path.join(dist, 'r2-migration.html'));
 
