@@ -68,8 +68,9 @@ Deno.serve(async (req: Request) => {
       case 'natal_desativar_horario': return await actionNatalDesativar(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'natal_atualizar_agendamento': return await actionNatalStatus(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'gente_atualizar_agendamento': return await actionGenteStatusAdmin(req,admin,user.id,body,requestedCampaignSlug(body))
-      case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body))
+      case 'central_listar': return await actionCentralListar(req, admin, requestedCampaignSlug(body),perfil.role)
       case 'planilha_editar_resposta': return await actionPlanilhaEditarResposta(req,admin,user.id,body,requestedCampaignSlug(body))
+      case 'planilha_ajustar_valor_previsto': return await actionPlanilhaAjustarValorPrevisto(req,admin,user.id,body,requestedCampaignSlug(body),perfil.role)
       case 'planilha_horarios_remarcacao': return await actionPlanilhaHorariosRemarcacao(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'planilha_configurar_colunas': return await actionPlanilhaConfigurarColunas(req,admin,user.id,body,requestedCampaignSlug(body))
       case 'central_salvar_taxa': return await actionCentralSalvarTaxa(req, admin, user.id, body, requestedCampaignSlug(body))
@@ -553,7 +554,7 @@ async function actionMarcarReembolsado(req: Request, admin: any, userId: string,
 // Central de Respostas. Todas as ações passam pela autenticação admin/super_admin acima.
 // A situação "pago" dos pedidos online continua exclusiva do webhook/payment_check
 // verificado. Este painel NÃO permite alterar esse status manualmente.
-async function actionCentralListar(req: Request, admin: any, slug: string) {
+async function actionCentralListar(req: Request, admin: any, slug: string, perfilRole: string) {
   const evento = await getCampaign(admin, slug)
   const [nativeResult, formsResult, followResult] = await Promise.all([
     admin.from('gf_contratacao_pedidos')
@@ -607,6 +608,7 @@ async function actionCentralListar(req: Request, admin: any, slug: string) {
   }
   const rows=pedidos.map((p:any)=>({...p,participantes:grouped[p.id]||[]}))
   return jsonResponse(req, {
+    perfil_role:perfilRole,
     campanha:{id:evento.id,nome:evento.nome_publico,status:evento.status,
       taxa_credito_a_vista_bps:evento.taxa_credito_a_vista_bps,
       planilha_colunas:evento.planilha_colunas||[]},
@@ -676,6 +678,29 @@ async function actionPlanilhaEditarResposta(req:Request,admin:any,userId:string,
   ...(remarcar?{p_horario_anterior:anterior,p_novo_horario:novo}:{})
  })
  if(error)return jsonResponse(req,{error:error.message||'Não foi possível editar a resposta.'},409)
+ return jsonResponse(req,data||{ok:true})
+}
+
+async function actionPlanilhaAjustarValorPrevisto(
+ req:Request,admin:any,userId:string,body:any,slug:string,role:string
+){
+ if(role!=='super_admin')
+  return jsonResponse(req,{error:'Apenas o Super Admin pode ajustar o valor previsto.'},403)
+ const id=String(body?.resposta_id||'')
+ const novo=body?.valor_novo_centavos
+ const anterior=body?.valor_anterior_centavos
+ const motivo=String(body?.motivo||'').trim()
+ if(!/^[a-f0-9-]{36}$/i.test(id)||!Number.isSafeInteger(novo)||
+    novo<0||novo>100000000||
+    !(anterior===null||(Number.isSafeInteger(anterior)&&anterior>=0&&anterior<=100000000))||
+    motivo.length<5||motivo.length>400)
+  return jsonResponse(req,{error:'Revise o valor previsto e informe o motivo do ajuste.'},400)
+ const evento=await getCampaign(admin,slug)
+ const {data,error}=await admin.rpc('gf_contratacao_admin_ajustar_valor_previsto',{
+  p_campanha_id:evento.id,p_resposta_id:id,p_usuario_id:userId,
+  p_valor_anterior_centavos:anterior,p_valor_novo_centavos:novo,p_motivo:motivo
+ })
+ if(error)return jsonResponse(req,{error:error.message||'Não foi possível atualizar o valor previsto.'},409)
  return jsonResponse(req,data||{ok:true})
 }
 

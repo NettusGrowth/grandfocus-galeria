@@ -2,8 +2,8 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Planilha de respostas | Grand Focus</title>
 <link rel="icon" type="image/png" href="/assets/logo-icone.png">
-<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=20261112-remarcacao1">
-<script type="module" src="/contratar/planilha/planilha.js?v=20261112-remarcacao1"></script></head>
+<link rel="stylesheet" href="/contratar/planilha/planilha.css?v=20261127-valorprevisto1">
+<script type="module" src="/contratar/planilha/planilha.js?v=20261127-valorprevisto1"></script></head>
 <body>
 <header><a id="back" href="/contratar/admin/">← Voltar à campanha</a>
  <div><h1>Planilha de respostas</h1><p id="campaign-name">Grand Focus · carregando...</p></div>
@@ -33,8 +33,27 @@
  <p id="error" class="error" role="alert" hidden></p>
  <div class="sheet-scroll"><table aria-label="Respostas editáveis da campanha"><thead><tr id="sheet-head"></tr></thead>
  <tbody id="rows"><tr><td colspan="15">Carregando...</td></tr></tbody></table></div>
- <p class="help">Clique em <strong>Editar</strong> para corrigir nomes, contatos, anotações e cores, ou mudar o dia e horário de uma reserva ativa. <strong>Remover</strong> arquiva respostas sem pagamento, sem excluí-las definitivamente. Para corrigir um pagamento, use <strong>Conferir / corrigir</strong>; essa mudança fica registrada no histórico. Os dados são atualizados enquanto a página estiver aberta.</p>
+ <p class="help">Clique em <strong>Editar</strong> para corrigir nomes, contatos, anotações e cores, ou mudar o dia e horário de uma reserva ativa. <strong>Remover</strong> arquiva respostas sem pagamento, sem excluí-las definitivamente. Para ajustar <strong>Valor previsto</strong>, o Super Admin deve informar uma justificativa; para corrigir um pagamento, use <strong>Conferir / corrigir</strong>; essa mudança fica registrada no histórico. Os dados são atualizados enquanto a página estiver aberta.</p>
 </main>
+<dialog id="value-dialog" class="sheet-dialog"><form id="value-form">
+ <h2>Ajustar valor previsto</h2>
+ <p id="value-person" class="muted"></p>
+ <p class="muted">Este ajuste altera o valor financeiro previsto para esta inscrição, sem mudar o pagamento recebido.</p>
+ <p><strong>Valor anterior:</strong> <span id="value-before"></span> · <strong>Já recebido:</strong> <span id="value-received"></span></p>
+ <label>Novo valor previsto (R$)
+  <input id="value-amount" inputmode="decimal" type="text" required maxlength="16" placeholder="Ex.: 80,00" autocomplete="off">
+ </label>
+ <label>Motivo do ajuste
+  <textarea id="value-reason" rows="2" required minlength="5" maxlength="400" placeholder="Ex.: condição especial combinada com a família"></textarea>
+ </label>
+ <p id="value-warning" class="muted" hidden></p>
+ <div class="actions">
+  <button type="button" id="value-cancel">Cancelar</button>
+  <button type="submit" id="value-save">Salvar valor previsto</button>
+ </div>
+ <p id="value-error" class="error" role="alert" hidden></p>
+</form></dialog>
+
 <dialog id="pay-dialog" class="sheet-dialog"><form id="pay-form">
  <h2>Conferência de pagamento</h2><p id="pay-person" class="muted"></p>
  <label>Situação
