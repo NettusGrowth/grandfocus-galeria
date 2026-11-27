@@ -16,7 +16,7 @@ const money=n=>new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'}).
 const date=n=>n?new Date(n).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—'
 const clean=str=>String(str||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()
 const wa=tel=>{let n=String(tel||'').replace(/\D/g,'');if(n.length===10||n.length===11)n='55'+n;return /^55\d{10,11}$/.test(n)?'https://wa.me/'+n:null}
-const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,editSchedule:null,columns:[],draft:[],editIntentHandled:false}
+const data={all:[],visible:[],loading:false,ids:new Set(),initial:false,selected:null,editing:null,editSchedule:null,editValue:null,role:'admin',columns:[],draft:[],editIntentHandled:false}
 const palette=['vinho','dourado','azul','verde','rosa','cinza']
 const rowColors=['sem','verde','amarelo','rosa','azul','cinza']
 const scheduleStatuses={solicitado:'Solicitado',confirmado:'Confirmado',cancelado:'Cancelado'}
@@ -80,6 +80,7 @@ function normalize(payload){
    whatsapp:r.responsavel_whatsapp||'',dancer:r.bailarina_nome||'',
    students:Array.isArray(r.alunos_inscritos)?r.alunos_inscritos:null,
    package:r.experiencia_original||'',value:Number(r.valor_informado_centavos)||0,
+   originalValue:r.valor_informado_centavos==null?null:Number(r.valor_informado_centavos),
    paidAmount:Number(r.valor_recebido_centavos)||0,paymentStatus:r.pagamento_situacao,
    method:r.pagamento_metodo||'',reference:r.pagamento_referencia||'',
    paymentNote:r.pagamento_observacao||'',
@@ -178,6 +179,11 @@ function renderRows(){
    }else if(i===6){
     const state=r.scheduleStatus||'sem_horario'
     td.append(el('span',base[i],'badge schedule-'+state))
+   }else if(i===8&&r.source==='formulario'&&!r.archived&&data.role==='super_admin'){
+    const b=button(money(r.value),()=>openValueEdit(r),'cell-edit')
+    b.title='Ajustar valor previsto desta inscrição (Super Admin)'
+    b.setAttribute('aria-label','Ajustar valor previsto de '+r.name)
+    td.append(b)
    }else if(i===10){
     td.append(el('span',base[i],'badge '+(r.paid?'paid':r.archived?'archive':'')))
    }else if(i===13){
@@ -253,6 +259,7 @@ async function refresh(){
   $('campaign-name').textContent=payload.campanha?.nome||slug
   data.columns=Array.isArray(payload.campanha?.planilha_colunas)?
    payload.campanha.planilha_colunas.filter(c=>c&&/^col_[a-f0-9]{8,32}$/.test(c.id)&&palette.includes(c.cor)): []
+  data.role=payload.perfil_role==='super_admin'?'super_admin':'admin'
   const rows=normalize(payload)
   const scheduleDays=[...new Set((payload.horarios||[]).map(slot=>String(slot.dia||'').slice(0,10))
    .filter(value=>/^\d{4}-\d{2}-\d{2}$/.test(value)))].sort()
@@ -541,6 +548,55 @@ $('columns-form').addEventListener('submit',async event=>{
   $('columns-dialog').close();toast('Colunas salvas para toda a equipe.')
   await refresh()
  }catch(e){setDialogError('columns',e.message)}
+ finally{b.disabled=false}
+})
+// Alterações monetárias são estritamente em centavos e exigem justificativa.
+function parseMoneyCentsBRL(raw){
+ const input=String(raw??'').trim()
+ if(!/^(?:\d{1,7}|\d{1,3}(?:\.\d{3}){1,2})(?:,\d{1,2})?$/.test(input))return null
+ const normal=input.replace(/\./g,'').replace(',','.')
+ const numero=Number(normal)
+ const cents=Math.round(numero*100)
+ return Number.isSafeInteger(cents)&&cents>=0&&cents<=100000000?cents:null
+}
+function openValueEdit(r){
+ if(data.role!=='super_admin'||r.source!=='formulario'||r.archived)return
+ data.editValue=r
+ $('value-person').textContent=r.name+' · '+r.dancer
+ $('value-before').textContent=money(r.value)
+ $('value-received').textContent=money(r.paidAmount)
+ $('value-amount').value=(r.value/100).toFixed(2).replace('.',',')
+ $('value-reason').value=''
+ $('value-warning').hidden=true
+ $('value-error').hidden=true
+ $('value-dialog').showModal()
+ $('value-amount').focus()
+}
+$('value-cancel').onclick=()=>$('value-dialog').close()
+$('value-form').addEventListener('submit',async e=>{
+ e.preventDefault()
+ const r=data.editValue
+ if(!r||data.role!=='super_admin'||r.source!=='formulario'||r.archived)return
+ const novo=parseMoneyCentsBRL($('value-amount').value)
+ const motivo=$('value-reason').value.trim()
+ if(novo===null){setDialogError('value','Informe o valor em reais, por exemplo 80,00.');return}
+ if(motivo.length<5||motivo.length>400){setDialogError('value','Informe o motivo do ajuste (5 a 400 caracteres).');return}
+ if(novo===r.originalValue){$('value-dialog').close();return}
+ if(novo<r.paidAmount&&!window.confirm(
+  'O novo valor previsto ('+money(novo)+') é menor que o valor já recebido ('+
+  money(r.paidAmount)+'). O pagamento registrado não será modificado. Confirmar?'))return
+ const b=$('value-save');b.disabled=true;$('value-error').hidden=true
+ try{
+  const result=await request('planilha_ajustar_valor_previsto',{
+   resposta_id:r.id,valor_anterior_centavos:r.originalValue,
+   valor_novo_centavos:novo,motivo
+  })
+  if(!result.ok)throw Error('O servidor não confirmou o ajuste do valor.')
+  $('value-dialog').close()
+  toast('Valor previsto atualizado e auditado. O financeiro será recalculado.')
+  notifyFinance('valor_previsto')
+  await refresh()
+ }catch(error){setDialogError('value',error.message)}
  finally{b.disabled=false}
 })
 function openPay(r){
